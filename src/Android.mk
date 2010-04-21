@@ -49,6 +49,9 @@ LOCAL_MODULE := psb_drv_video
 
 LOCAL_SHARED_LIBRARIES := libdrm libwsbm libva libmemrar libpvr2d libcutils
 
+psb_drv_video: libpvr2d
+
+
 ifeq ($(strip $(PSBVIDEO_LOG_ENABLE)),true)
 LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE
 LOCAL_SHARED_LIBRARIES += liblog
