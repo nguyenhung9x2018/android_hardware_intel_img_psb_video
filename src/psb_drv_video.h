@@ -44,7 +44,6 @@
 #include <X11/extensions/Xvlib.h>
 #include <X11/Xlib.h>
 #else
-#include <fourcc.h>
 #define XID unsigned int
 #endif
 #include <wsbm/wsbm_pool.h>
@@ -54,10 +53,10 @@
  * a MMU fault if the next byte after the buffer end is on a different page that isn't mapped.
  */
 #define WORKAROUND_DMA_OFF_BY_ONE
-#define FOURCC_NV12     (('2' << 24) + ('1' << 16) + ('V' << 8) + 'N')
+#define VA_FOURCC_NV12     (('2' << 24) + ('1' << 16) + ('V' << 8) + 'N')
 #define XVIMAGE_NV12 \
    { \
-        FOURCC_NV12, \
+        VA_FOURCC_NV12, \
         XvYUV, \
         LSBFirst, \
         {'N','V','1','2', \
@@ -73,10 +72,10 @@
           0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, \
         XvTopToBottom \
    }
-#define FOURCC_RGBA 0x41424752
+#define VA_FOURCC_RGBA 0x41424752
 #define XVIMAGE_RGBA \
    { \
-        FOURCC_RGBA, \
+        VA_FOURCC_RGBA, \
        XvRGB, \
         LSBFirst, \
         {'R','G','B','A', \

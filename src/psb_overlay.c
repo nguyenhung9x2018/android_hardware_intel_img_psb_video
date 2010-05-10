@@ -972,23 +972,23 @@ i830_display_video(VADriverContextP ctx, PsbPortPrivPtr pPriv, VASurfaceID surfa
         overlay->SWIDTHSW = (swidthy) | (swidthuv << 16);
         overlay->SHEIGHT = height | ((height / 2) << 16);
         break;
-    case FOURCC_NV12:
+    case VA_FOURCC_NV12:
         overlay->SWIDTH = width | ((width/2 & 0x7ff) << 16);
         swidthy = i830_swidth (offsety, width, mask, shift);
         swidthuv = i830_swidth (offsetu, width/2, mask, shift);
         overlay->SWIDTHSW = (swidthy) | (swidthuv << 16);
         overlay->SHEIGHT = height | ((height / 2) << 16);
         break;
-    case FOURCC_YV12:
-    case FOURCC_I420:
+    case VA_FOURCC_YV12:
+    case VA_FOURCC_I420:
         overlay->SWIDTH = width | ((width/2 & 0x7ff) << 16);
         swidthy  = i830_swidth (offsety, width, mask, shift);
         swidthuv = i830_swidth (offsetu, width/2, mask, shift);
         overlay->SWIDTHSW = (swidthy) | (swidthuv << 16);
         overlay->SHEIGHT = height | ((height / 2) << 16);
         break;
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
+    case VA_FOURCC_UYVY:
+    case VA_FOURCC_YUY2:
     default:
         overlay->SWIDTH = width;
         swidth = ((offsety + (width << 1) + mask) >> shift) -
@@ -1154,14 +1154,14 @@ i830_display_video(VADriverContextP ctx, PsbPortPrivPtr pPriv, VASurfaceID surfa
         OCMD &= ~OV_BYTE_ORDER;
         OCMD |= NV12;//in the spec, there are two NV12, which to use?
         break;
-    case FOURCC_NV12:
+    case VA_FOURCC_NV12:
         overlay->OSTRIDE = dstPitch | (dstPitch << 16);
         OCMD &= ~SOURCE_FORMAT;
         OCMD &= ~OV_BYTE_ORDER;
         OCMD |= NV12;//in the spec, there are two NV12, which to use?
         break;
-    case FOURCC_YV12:
-    case FOURCC_I420:
+    case VA_FOURCC_YV12:
+    case VA_FOURCC_I420:
 #if 0
         /* set UV vertical phase to -0.25 */
         overlay->UV_VPH = 0x30003000;
@@ -1171,13 +1171,13 @@ i830_display_video(VADriverContextP ctx, PsbPortPrivPtr pPriv, VASurfaceID surfa
         OCMD &= ~OV_BYTE_ORDER;
         OCMD |= YUV_420;
         break;
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
+    case VA_FOURCC_UYVY:
+    case VA_FOURCC_YUY2:
         overlay->OSTRIDE = dstPitch;
         OCMD &= ~SOURCE_FORMAT;
         OCMD |= YUV_422;
         OCMD &= ~OV_BYTE_ORDER;
-        if (id == FOURCC_UYVY)
+        if (id == VA_FOURCC_UYVY)
             OCMD |= Y_SWAP;
         break;
     }
@@ -1272,7 +1272,7 @@ I830PutImage(VADriverContextP ctx,
     vaPtr = (PsbXvVAPutSurfacePtr)&output->imgdata_vasrf;
 
     switch (id) {
-        case FOURCC_NV12:
+        case VA_FOURCC_NV12:
             width = vaPtr->src_srf.width;
             height = vaPtr->src_srf.height;
             break;
@@ -1360,22 +1360,22 @@ I830PutImage(VADriverContextP ctx,
         srcPitch = (vaPtr->src_srf.stride + 0x3) & ~0x3;
         srcPitch2 = (vaPtr->src_srf.stride + 0x3) & ~0x3;
         break;
-    case FOURCC_NV12:
+    case VA_FOURCC_NV12:
         srcPitch = (width + 0x3) & ~0x3;
         srcPitch2 = (width + 0x3) & ~0x3;
         break;
-    case FOURCC_YV12:
-    case FOURCC_I420:
+    case VA_FOURCC_YV12:
+    case VA_FOURCC_I420:
         srcPitch = (width + 0x3) & ~0x3;
         srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
         break;
 #if USE_DISPLAY_C_SPRITE
-    case FOURCC_RGBA:
+    case VA_FOURCC_RGBA:
         srcPitch = width << 2;
         break;
 #endif
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
+    case VA_FOURCC_UYVY:
+    case VA_FOURCC_YUY2:
     default:
         srcPitch = width << 1;
         break;
@@ -1398,7 +1398,7 @@ I830PutImage(VADriverContextP ctx,
             size = dstPitch * height + 2 * (dstPitch / 2) * (height / 2);
         }
         break;
-    case FOURCC_NV12:
+    case VA_FOURCC_NV12:
         if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
             dstPitch = (height + pitchAlignMask) & ~pitchAlignMask;
             size = dstPitch * width * 3 / 2;
@@ -1408,13 +1408,13 @@ I830PutImage(VADriverContextP ctx,
         }
         break;
 #if USE_DISPLAY_C_SPRITE
-    case FOURCC_RGBA:
+    case VA_FOURCC_RGBA:
         dstPitch = width << 2;
         size = dstPitch * height;
         break;
 #endif
-    case FOURCC_YV12:
-    case FOURCC_I420:
+    case VA_FOURCC_YV12:
+    case VA_FOURCC_I420:
         if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
             dstPitch = ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
             size = dstPitch * width * 3;
@@ -1423,8 +1423,8 @@ I830PutImage(VADriverContextP ctx,
             size = dstPitch * height * 3;
         }
         break;
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
+    case VA_FOURCC_UYVY:
+    case VA_FOURCC_YUY2:
         if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
             dstPitch = ((height << 1) + pitchAlignMask) & ~pitchAlignMask;
             size = dstPitch * width;
@@ -1457,7 +1457,7 @@ I830PutImage(VADriverContextP ctx,
     left = (x1 >> 16) & ~1;
     npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
 
-    if ((id == FOURCC_NV12) || (id == FOURCC_XVVA))
+    if ((id == VA_FOURCC_NV12) || (id == FOURCC_XVVA))
         Y_dstpitch = dstPitch;
     else
         Y_dstpitch = 2 * dstPitch;
@@ -1561,28 +1561,28 @@ I830PutImage(VADriverContextP ctx,
             }
         }
         break;
-    case FOURCC_NV12:
+    case VA_FOURCC_NV12:
         nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
         I830CopyPlanarNV12Data(pScrn, pPriv, buf, srcPitch, dstPitch,
                                 top, left, nlines, npixels);
         break;
-    case FOURCC_YV12:
-    case FOURCC_I420:
+    case VA_FOURCC_YV12:
+    case VA_FOURCC_I420:
         top &= ~1;
         nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
         I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, dstPitch,
                             height, top, left, nlines, npixels, id);
         break;
 #if USE_DISPLAY_C_SPRITE
-    case FOURCC_RGBA:
+    case VA_FOURCC_RGBA:
         nlines = ((y2 + 0xffff) >> 16) - top;
         I830CopyRGBAData(pScrn, pPriv, buf, srcPitch, dstPitch, top, left,
             nlines, npixels);
         sprite_offset = pPriv->videoBuf0_gtt_offset << PAGE_SHIFT;
         break;
 #endif
-    case FOURCC_UYVY:
-    case FOURCC_YUY2:
+    case VA_FOURCC_UYVY:
+    case VA_FOURCC_YUY2:
         nlines = ((y2 + 0xffff) >> 16) - top;
         I830CopyPackedData(pScrn, pPriv, buf, srcPitch, dstPitch, top, left,
                             nlines, npixels);
@@ -1600,7 +1600,7 @@ I830PutImage(VADriverContextP ctx,
 #endif
 
 #if USE_DISPLAY_C_SPRITE
-    if (id == FOURCC_RGBA   \
+    if (id == VA_FOURCC_RGBA   \
             || (id == FOURCC_XVVA   \
                     && (pPriv->rotation != RR_Rotate_0) \
                     && (vaPtr->dst_srf.fourcc == VA_FOURCC_RGBA)))
