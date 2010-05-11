@@ -41,7 +41,7 @@
     ((unsigned long)(unsigned char) (ch2) << 16) | ((unsigned long)(unsigned char) (ch3) << 24 ))
 
 /* a few common FourCCs */
-#define VA_FOURCC_AI44         0x34344149
+#define VA_FOURCC_AI44          0x34344149
 #define VA_FOURCC_UYVY          0x59565955
 #define VA_FOURCC_YUY2          0x32595559
 #define VA_FOURCC_AYUV          0x56555941
@@ -49,7 +49,7 @@
 #define VA_FOURCC_YV12          0x32315659
 #define VA_FOURCC_P208          0x38303250
 #define VA_FOURCC_IYUV          0x56555949
-#define VA_FOURCC_I420 			0x30323449
+#define VA_FOURCC_I420 	        0x30323449
 
 #endif
 
