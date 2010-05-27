@@ -320,8 +320,8 @@ psbSetupImageVideoOverlay(VADriverContextP ctx)
     if (!pPriv)
         goto out_err;
 
-    /* use green as color key by default for android media player */
-    pPriv->colorKey = 0x0440;
+    /* use black as color key by default for android media player */
+    pPriv->colorKey = 0x0;
 
     pPriv->brightness.Value = -19; /* (255/219) * -16 */
     pPriv->contrast.Value = 75;  /* 255/219 * 64 */
