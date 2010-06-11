@@ -21,12 +21,13 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #ifndef ANDROID
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
 #endif
 #include <va/va_backend.h>
+#include <dlfcn.h>
+#include <stdlib.h>
 #include "psb_output.h"
 #include "psb_surface.h"
 #include "psb_buffer.h"
@@ -34,11 +35,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "psb_xvva.h"
-#include "psb_overlay.h"
 #include <wsbm/wsbm_manager.h>
-
-#define LOG_TAG "psb_output"
-#include <cutils/log.h>
 
 #define INIT_DRIVER_DATA	psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 
@@ -47,55 +44,6 @@
 #define IMAGE(id)  ((object_image_p) object_heap_lookup( &driver_data->image_heap, id ))
 #define SUBPIC(id)  ((object_subpic_p) object_heap_lookup( &driver_data->subpic_heap, id ))
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
-
-
-#define psb__ImageNV12                          \
-{                                               \
-    VA_FOURCC_NV12,                             \
-    VA_LSB_FIRST,                               \
-    16,                                         \
-    0,                                          \
-    0,                                          \
-    0,                                          \
-    0,                                          \
-    0                                           \
-}
-
-#define psb__ImageAYUV                          \
-{                                               \
-    VA_FOURCC_AYUV,                             \
-    VA_LSB_FIRST,                               \
-    32,                                         \
-    0,                                          \
-    0,                                          \
-    0,                                          \
-    0,                                          \
-    0                                           \
-}
-
-#define psb__ImageAI44                          \
-{                                               \
-    VA_FOURCC_AI44,                             \
-    VA_LSB_FIRST,                               \
-    16,                                         \
-    0,                                          \
-    0,                                          \
-    0,                                          \
-    0,                                          \
-    0,                                          \
-}
-
-#define psb__ImageRGBA                          \
-{                                               \
-    VA_FOURCC_RGBA,                             \
-    VA_LSB_FIRST,                               \
-    32,                                         \
-    32,                                         \
-    0xff,                                       \
-    0xff00,                                     \
-    0xff0000,                                   \
-    0xff000000                                  \
-}
 
 static VAImageFormat psb__SubpicFormat[] = {
     psb__ImageRGBA,
@@ -109,15 +57,16 @@ static VAImageFormat psb__CreateImageFormat[] = {
     psb__ImageAYUV,
     psb__ImageAI44
 };
-    
+
 VAStatus psb_initOutput(
     VADriverContextP ctx
     )
 {
     INIT_DRIVER_DATA;
     psb_output_p video_output;
+    char *fps = NULL;
     int ret = -1;
-
+    
     video_output = (psb_output_p) malloc(sizeof(psb_output_s));
     if ( NULL == video_output) 
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -134,25 +83,28 @@ VAStatus psb_initOutput(
         return VA_STATUS_SUCCESS;
     }
 
-#if USE_OVERLAY
-    video_output->output_method = PSB_PUTSURFACE_OVERLAY_XV;
-    if (psbInitVideo(ctx)) {
-        psb__information_message("Setup Overlay failed\n");
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    } else {
-        psb__information_message("Setup Overlay complete\n");
-    }
-#else
+    fps = getenv("PSB_VIDEO_FPS");
+    if (fps != NULL) {
+        video_output->fixed_fps = atoi(fps);
+        psb__information_message("Throttling at FPS=%d\n", video_output->fixed_fps);
+    } else
+        video_output->fixed_fps = 0;
+
+#ifndef ANDROID
     video_output->output_method = PSB_PUTSURFACE_X11;
     if (getenv("PSB_VIDEO_PUTSURFACE_X11") == NULL) {
         psb__information_message("Detecting Xvideo port...\n");
-        ret = psb_init_xvideo(ctx);	
     }
+#else
+    //Set overlay by default
+    video_output->output_method = PSB_PUTSURFACE_OVERLAY_XV;
+#endif
+
+    ret = psb_init_xvideo(ctx);
 
     if (video_output->output_method == PSB_PUTSURFACE_X11) 
         psb__information_message("vaPutSurface: fall back to SW putsurface\n");
-#endif
-    
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -166,14 +118,10 @@ VAStatus psb_deinitOutput(
     if (NULL == video_output)
         return VA_STATUS_SUCCESS;
 
-#if USE_OVERLAY
-    if (psbDeInitVideo(ctx)) {
-        psb__information_message("Deinitialize Overlay failed\n");
-    }
-#else
+#ifndef ANDROID
     if (video_output->output_method != PSB_PUTSURFACE_X11)
-	psb_deinit_xvideo(ctx);
 #endif
+    psb_deinit_xvideo(ctx);
 
     pthread_mutex_destroy(&video_output->output_mutex);
     free(video_output);
@@ -181,416 +129,6 @@ VAStatus psb_deinitOutput(
 
     return VA_STATUS_SUCCESS;
 }
-
-static uint32_t mask2shift(uint32_t mask)
-{
-    uint32_t shift = 0;
-    while((mask & 0x1) == 0)
-    {
-        mask = mask >> 1;
-        shift++;
-    }
-    return shift;
-}
-
-
-static VAStatus psb_putsurface_x11(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    Drawable draw, /* X Drawable */
-    short srcx,
-    short srcy,
-    unsigned short srcw,
-    unsigned short srch,
-    short destx,
-    short desty,
-    unsigned short destw,
-    unsigned short desth,
-    unsigned int flags /* de-interlacing flags */
-)
-{
-    INIT_DRIVER_DATA;
-#ifndef ANDROID
-    GC gc;
-    XImage *ximg = NULL;
-    Visual *visual;
-    unsigned short width, height;
-    int depth;
-    int x = 0,y = 0;
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    void *surface_data = NULL;
-    int ret;
-    
-    uint32_t rmask = 0;
-    uint32_t gmask = 0;
-    uint32_t bmask = 0;
-    
-    uint32_t rshift = 0;
-    uint32_t gshift = 0;
-    uint32_t bshift = 0;
-
-    void yuv2pixel(uint32_t *pixel, int y, int u, int v)
-    {
-        int r, g, b;
-        /* Warning, magic values ahead */
-        r = y + ((351 * (v-128)) >> 8);
-        g = y - (((179 * (v-128)) + (86 * (u-128))) >> 8);
-        b = y + ((444 * (u-128)) >> 8);
-	
-        if (r > 255) r = 255;
-        if (g > 255) g = 255;
-        if (b > 255) b = 255;
-        if (r < 0) r = 0;
-        if (g < 0) g = 0;
-        if (b < 0) b = 0;
-			
-        *pixel = ((r << rshift) & rmask) | ((g << gshift) & gmask) | ((b << bshift) & bmask);
-    }
-
-    if (srcw <= destw)
-        width = srcw;
-    else
-        width = destw;
-
-    if (srch <= desth)
-        height = srch;
-    else
-        height = desth;
-
-    object_surface_p obj_surface = SURFACE(surface);
-    if (NULL == obj_surface)
-    {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    psb_surface_p psb_surface = obj_surface->psb_surface;
-
-    psb__information_message("PutSurface: src	  w x h = %d x %d\n", srcw, srch);
-    psb__information_message("PutSurface: dest 	  w x h = %d x %d\n", destw, desth);
-    psb__information_message("PutSurface: clipped w x h = %d x %d\n", width, height);
-        
-    visual = DefaultVisual(ctx->x11_dpy, ctx->x11_screen);
-    gc = XCreateGC(ctx->x11_dpy, draw, 0, NULL);
-    depth = DefaultDepth(ctx->x11_dpy, ctx->x11_screen);
-
-    if (TrueColor != visual->class)
-    {
-        psb__error_message("PutSurface: Default visual of X display must be TrueColor.\n");
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        goto out;
-    }
-    
-    ret = psb_buffer_map(&psb_surface->buf, &surface_data);
-    if (ret)
-    {
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        goto out;
-    }
-    
-    rmask = visual->red_mask;
-    gmask = visual->green_mask;
-    bmask = visual->blue_mask;
-
-    rshift = mask2shift(rmask);
-    gshift = mask2shift(gmask);
-    bshift = mask2shift(bmask);
-    
-    psb__information_message("PutSurface: Pixel masks: R = %08x G = %08x B = %08x\n", rmask, gmask, bmask); 
-    psb__information_message("PutSurface: Pixel shifts: R = %d G = %d B = %d\n", rshift, gshift, bshift); 
-    
-    ximg = XCreateImage(ctx->x11_dpy, visual, depth, ZPixmap, 0, NULL, width, height, 32, 0 );
-
-    if (ximg->byte_order == MSBFirst)
-        psb__information_message("PutSurface: XImage pixels has MSBFirst, %d bits / pixel\n", ximg->bits_per_pixel);
-    else
-        psb__information_message("PutSurface: XImage pixels has LSBFirst, %d bits / pixel\n", ximg->bits_per_pixel);
-
-    if (ximg->bits_per_pixel != 32)
-    {
-        psb__error_message("PutSurface: Display uses %d bits/pixel which is not supported\n");
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        goto out;
-    }
-    
-    ximg->data = (char *) malloc(ximg->bytes_per_line * height);
-    if (NULL == ximg->data)
-    {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        goto out;
-    }
-
-    uint8_t *src_y = surface_data + psb_surface->stride * srcy;
-    uint8_t *src_uv = surface_data + psb_surface->stride * (obj_surface->height + srcy / 2);
-
-    for(y = srcy; y < (srcy+height); y += 2)
-    {
-        uint32_t *dest_even = (uint32_t *) (ximg->data + y * ximg->bytes_per_line);
-        uint32_t *dest_odd = (uint32_t *) (ximg->data + (y + 1) * ximg->bytes_per_line);
-        for(x = srcx; x < (srcx+width); x += 2)
-        {
-            /* Y1 Y2 */
-            /* Y3 Y4 */
-            int y1 = *(src_y + x);
-            int y2 = *(src_y + x + 1);
-            int y3 = *(src_y + x + psb_surface->stride);
-            int y4 = *(src_y + x + psb_surface->stride + 1);
-
-            /* U V */
-            int u = *(src_uv + x);
-            int v = *(src_uv + x +1 );
-			
-            yuv2pixel(dest_even++, y1, u, v);
-            yuv2pixel(dest_even++, y2, u, v);
-
-            yuv2pixel(dest_odd++, y3, u, v);
-            yuv2pixel(dest_odd++, y4, u, v);
-        }
-        src_y += psb_surface->stride * 2;
-        src_uv += psb_surface->stride;
-    }
-    
-    XPutImage(ctx->x11_dpy, draw, gc, ximg, 0, 0, destx, desty, width, height);
-    XFlush(ctx->x11_dpy);
-                  
-  out:
-    if (NULL != ximg)
-    {
-        XDestroyImage(ximg);
-    }
-    if (NULL != surface_data)
-    {
-        psb_buffer_unmap(&psb_surface->buf);
-    }
-    XFreeGC(ctx->x11_dpy, gc);
-    
-    return vaStatus;
-#else
-    return VA_STATUS_SUCCESS;
-#endif
-}
-
-#ifdef ANDROID
-static VAStatus psb_putsurface_buf(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    Drawable draw, /* X Drawable */
-    unsigned char* data,
-    int* data_len,
-    short srcx,
-    short srcy,
-    unsigned short srcw,
-    unsigned short srch,
-    short destx,
-    short desty,
-    unsigned short destw,
-    unsigned short desth,
-    unsigned int flags /* de-interlacing flags */
-)
-{
-    INIT_DRIVER_DATA;
-    unsigned short width, height;
-    int depth;
-    int x,y;
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    void *surface_data = NULL;
-    int ret;
-    
-    if (srcw <= destw)
-        width = srcw;
-    else
-        width = destw;
-
-    if (srch <= desth)
-        height = srch;
-    else
-        height = desth;
-
-    object_surface_p obj_surface = SURFACE(surface);
-    if (NULL == obj_surface)
-    {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    psb_surface_p psb_surface = obj_surface->psb_surface;
-
-    psb__information_message("PutSurface: src    w x h = %d x %d\n", srcw, srch);
-    psb__information_message("PutSurface: dest           w x h = %d x %d\n", destw, desth);
-    psb__information_message("PutSurface: clipped w x h = %d x %d\n", width, height);
-        
-    ret = psb_buffer_map(&psb_surface->buf, &surface_data);
-    if (ret)
-    {
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        goto out;
-    }
-    
-    if (NULL == data)
-    {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        goto out;
-    }
-
-#define YUV_420_PLANAR
-//#define YUV_420_SEMI_PLANAR
-
-    uint8_t *src_y = surface_data + psb_surface->stride * srcy;
-    uint8_t *src_uv = surface_data + psb_surface->stride * (obj_surface->height + srcy / 2);
-    uint32_t bytes_per_line = width;
-
-#ifdef YUV_420_SEMI_PLANAR
-    for(y = srcy; y < (srcy+height); y += 2)
-    {
-        uint8_t *dest_y_even = (uint8_t *) (data + y * bytes_per_line);
-        uint8_t *dest_y_odd = (uint8_t *) (data + (y + 1) * bytes_per_line);
-        uint8_t *dest_uv = (uint8_t *) (data + (height + y/2) * bytes_per_line);
-        memcpy(dest_y_even, src_y + srcx, width);
-        memcpy(dest_y_odd, (src_y + psb_surface->stride + srcx), width);
-        memcpy(dest_uv, src_uv + srcx, width);
-        src_y += psb_surface->stride * 2;
-        src_uv += psb_surface->stride;
-    }
-    *data_len = (width * height * 3) >> 1;
-#endif
-#ifdef YUV_420_PLANAR
-    for(y = srcy; y < (srcy+height); y += 4)
-    {
-        uint8_t *dest_y_0 = (uint8_t *) (data + y * bytes_per_line);
-        uint8_t *dest_y_1 = (uint8_t *) (data + (y + 1) * bytes_per_line);
-        uint8_t *dest_y_2 = (uint8_t *) (data + (y + 2) * bytes_per_line);
-        uint8_t *dest_y_3 = (uint8_t *) (data + (y + 3) * bytes_per_line);
-        uint8_t *dest_u = (uint8_t *) (data + (height + y/4) * bytes_per_line);
-        uint8_t *dest_v = (uint8_t *) (data + (height + y/4 + (height/4)) * bytes_per_line);
-        memcpy(dest_y_0, src_y + srcx, width);
-        memcpy(dest_y_1, (src_y + psb_surface->stride + srcx), width);
-        memcpy(dest_y_2, (src_y + 2*psb_surface->stride + srcx), width);
-        memcpy(dest_y_3, (src_y + 3*psb_surface->stride + srcx), width);
-        for (x = srcx; x < (srcx+width); x+= 2) {
-            *dest_u = *(src_uv + x);
-            *dest_v = *(src_uv + x + 1);
-            dest_u++;
-            dest_v++;
-        }
-        src_uv += psb_surface->stride;
-        for (x = srcx; x < (srcx+width); x+= 2) {
-            *dest_u = *(src_uv + x);
-            *dest_v = *(src_uv + x + 1);
-            dest_u++;
-            dest_v++;
-        }
-        src_uv += psb_surface->stride;
-        src_y += psb_surface->stride * 4;
-    }
-    *data_len = (width * height * 3) >> 1;
-#endif
-    
-  out:
-    if (NULL != surface_data)
-    {
-        psb_buffer_unmap(&psb_surface->buf);
-    }
-    
-    return vaStatus;
-}
-#endif
-
-VAStatus psb_PutSurface(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    Drawable draw, /* X Drawable */
-    short srcx,
-    short srcy,
-    unsigned short srcw,
-    unsigned short srch,
-    short destx,
-    short desty,
-    unsigned short destw,
-    unsigned short desth,
-    VARectangle *cliprects, /* client supplied clip list */
-    unsigned int number_cliprects, /* number of clip rects in the clip list */
-    unsigned int flags /* de-interlacing flags */
-    )
-{
-    INIT_DRIVER_DATA;
-    psb_output_p output = GET_OUTPUT_DATA(ctx);
-    object_surface_p obj_surface;
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-
-    obj_surface = SURFACE(surface);
-    if (NULL == obj_surface)
-    {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (output->dummy_putsurface) {
-        psb__information_message("vaPutSurface: dummy mode, return directly\n");
-        return VA_STATUS_SUCCESS;
-    }
-
-#ifndef ANDROID
-    if (output->output_method == PSB_PUTSURFACE_X11) {
-        psb_putsurface_x11(ctx,surface,draw,srcx,srcy,srcw,srch,
-                           destx,desty,destw,desth,flags);
-        return VA_STATUS_SUCCESS;
-    }
-
-    return psb_putsurface_xvideo(ctx, surface, draw,
-                                 srcx, srcy, srcw, srch,
-                                 destx, desty, destw, desth,
-                                 cliprects, number_cliprects, flags
-                                 );
-#else
-    return psb_putsurface_overlay(ctx, surface, draw,
-                                 srcx, srcy, srcw, srch,
-                                 destx, desty, destw, desth,
-                                 cliprects, number_cliprects, flags
-                                 );
-#endif
-}
-
-#ifdef ANDROID
-VAStatus psb_PutSurfaceBuf(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    Drawable draw, /* X Drawable */
-    unsigned char* data,
-    int* data_len,
-    short srcx,
-    short srcy,
-    unsigned short srcw,
-    unsigned short srch,
-    short destx,
-    short desty,
-    unsigned short destw,
-    unsigned short desth,
-    VARectangle *cliprects, /* client supplied clip list */
-    unsigned int number_cliprects, /* number of clip rects in the clip list */
-    unsigned int flags /* de-interlacing flags */
-    )
-{
-    INIT_DRIVER_DATA;
-    psb_output_p output = GET_OUTPUT_DATA(ctx);
-    object_surface_p obj_surface;
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    
-    obj_surface = SURFACE(surface);
-    if (NULL == obj_surface)
-    {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    psb_putsurface_buf(ctx,surface,draw,data,data_len,srcx,srcy,srcw,srch,
-                       destx,desty,destw,desth,flags);
-    return VA_STATUS_SUCCESS;
-}
-#endif
 
 #ifndef VA_STATUS_ERROR_INVALID_IMAGE_FORMAT
 #define VA_STATUS_ERROR_INVALID_IMAGE_FORMAT VA_STATUS_ERROR_UNKNOWN
@@ -1009,8 +547,14 @@ VAStatus psb_SetImagePalette (
         return vaStatus;
     }
 
-    memcpy(obj_image->palette, palette, obj_image->image.num_palette_entries * sizeof(unsigned int));
-    
+    if (obj_image->image.num_palette_entries > 16)
+    {
+	psb__error_message("image.num_palette_entries(%d) is too big\n", obj_image->image.num_palette_entries);
+	memcpy(obj_image->palette, palette, 16);
+    }
+    else		
+        memcpy(obj_image->palette, palette, obj_image->image.num_palette_entries * sizeof(unsigned int));
+
     return vaStatus;
 }
 
@@ -2320,6 +1864,8 @@ VAStatus psb_SetDisplayAttributes (
             case VADisplayAttribBackgroundColor:
                 output->clear_color = p->value;
                 break;
+            case VADisplayAttribOutofLoopDeblock:
+                output->is_oold = p->value;
             default:
                 break;
         }

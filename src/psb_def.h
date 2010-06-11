@@ -30,7 +30,7 @@
 
 /* #define VA_EMULATOR 1 */
 
-/* #define DEBUG_TRACE  */
+/* #define DEBUG_TRACE */
 /* #define DEBUG_TRACE_VERBOSE */
 
 
@@ -62,67 +62,13 @@
 #define TRUE 	1
 #endif
 
-#ifdef ANDROID
-#define min(a,b) (((a) < (b)) ? (a) : (b))
-#define max(a,b) (((a) > (b)) ? (a) : (b))
-
-#ifdef PSBVIDEO_LOG_ENABLE
-
-#include <utils/Log.h>
-
-#define psb__error_message(msg, ...) \
-    __android_log_print(ANDROID_LOG_ERROR, "psb_video", "%s():%d: "msg, \
-                        __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define psb__information_message(msg, ...) \
-    __android_log_print(ANDROID_LOG_INFO, "psb_video", "%s():%d: "msg, \
-                        __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define psb__trace_message(msg, ...) \
-    __android_log_print(ANDROID_LOG_VERBOSE, "psb_video", "%s():%d: "msg, \
-                        __FUNCTION__, __LINE__, ##__VA_ARGS__)
-
-#define DEBUG_FAILURE                                                   \
-    ({                                                                  \
-    if (vaStatus) {                                                     \
-        __android_log_print(ANDROID_LOG_ERROR,                          \
-                            "psb_video",                                \
-                            "%s fails with '%s' at %s:%d\n",            \
-                            __FUNCTION__, vaErrorStr(vaStatus),         \
-                            __FILE__, __LINE__);                        \
-    }                                                                   \
-    })
-
-#define DEBUG_FAILURE_RET                                               \
-    ({                                                                  \
-    if (ret) {                                                          \
-        __android_log_print(ANDROID_LOG_ERROR,                          \
-                           "psb_video",                                 \
-                           "%s fails with '%s' at %s:%d\n",             \
-                           __FUNCTION__, strerror(ret < 0 ? -ret : ret),\
-                           __FILE__, __LINE__);                         \
-    }                                                                   \
-    })
-
-#else
-
-#define psb__error_message(msg, ...)
-#define psb__information_message(msg, ...)
-#define psb__trace_message(msg, ...)
-
-#define DEBUG_FAILURE
-#define DEBUG_FAILURE_RET
-
-#endif /* PSBVIDEO_LOG_ENABLE */
-
-#else
 
 void psb__error_message(const char *msg, ...);
 void psb__information_message(const char *msg, ...);
 void psb__trace_message(const char *msg, ...);
 
 
-#define DEBUG_FAILURE		while(vaStatus) {psb__information_message("%s fails with '%s' at %s:%d\n", __FUNCTION__, vaErrorStr(vaStatus), __FILE__, __LINE__);break;}
+#define DEBUG_FAILURE		while(vaStatus) {psb__information_message("%s fails with '%d' at %s:%d\n", __FUNCTION__, vaStatus, __FILE__, __LINE__);break;}
 #define DEBUG_FAILURE_RET	while(ret)		{psb__information_message("%s fails with '%s' at %s:%d\n", __FUNCTION__, strerror(ret < 0 ? -ret : ret), __FILE__, __LINE__);break;}
-
-#endif /* ANDROID */
 
 #endif /* _PSB_DEF_H_ */

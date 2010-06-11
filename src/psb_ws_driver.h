@@ -30,6 +30,7 @@
 #ifndef _PSB_WS_DRIVER_H_
 #define _PSB_WS_DRIVER_H_
 
+#include <linux/types.h>
 #include <wsbm/wsbm_util.h>
 #include <wsbm/wsbm_driver.h>
 #include "psb_drm.h"

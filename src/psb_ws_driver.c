@@ -33,6 +33,7 @@
 #include "config.h"
 #endif
 
+#include <linux/types.h>
 #include <stdlib.h>
 #include <string.h>
 #include "psb_ws_driver.h"

@@ -52,6 +52,17 @@ typedef struct {
 	uint32_t pad[3];
 } DEBLOCKPARAMS;
 
+/* OOLD message */
+typedef struct {
+	uint32_t pad[5];
+        uint32_t SOURCE_LUMA_BUFFER_ADDRESS;
+        uint32_t SOURCE_CHROMA_BUFFER_ADDRESS;
+        uint32_t SOURCE_MB_PARAM_ADDRESS;
+        uint32_t TARGET_LUMA_BUFFER_ADDRESS;
+        uint32_t TARGET_CHROMA_BUFFER_ADDRESS;
+} FW_DXVA_OOLD_MSG;
+
+
 
 #define FW_DXVA_RENDER_SIZE		(32)
 

@@ -24,7 +24,9 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include "thread0_bin.h"
+#include "thread1_bin.h"
 
 struct msvdx_fw
 {
@@ -39,15 +41,16 @@ int main()
 	unsigned long i = 0;
 	FILE *ptr = NULL;
 
+	/* Create msvdx firmware for mrst */
 	struct msvdx_fw fw;
 	fw.ver = 0x2;
-	fw.text_size = ui32MTXDXVAFWTextSize;
-	fw.data_size = ui32MTXDXVAFWDataSize;
-	fw.data_location = ui32MTXDXVAFWDataLocation;
-	
+        fw.text_size = ui32MTXDXVAFWTextSize;
+        fw.data_size = ui32MTXDXVAFWDataSize;
+        fw.data_location = ui32MTXDXVAFWDataLocation;
+
 	ptr = fopen("msvdx_fw.bin", "w");
 	if (ptr == NULL) {
-            fprintf(stderr,"Create msvdx_fw.bin failed\n");
+            fprintf(stderr,"Create msvdx_fw_mrst.bin failed\n");
             exit(-1);
         }
 	fwrite( &fw, sizeof(fw), 1, ptr);
@@ -61,7 +64,32 @@ int main()
 		fwrite( &aui32MTXDXVAFWData[i],4, 1, ptr);
 	}
 	fclose (ptr);
+
+
+	/* Create msvdx firmware for mfld */
+	fw.ver = 0x2;
+	fw.text_size = sFrameSwitchingFirmware.uiTextSize / 4;
+	fw.data_size = sFrameSwitchingFirmware.uiDataSize / 4;;
+	fw.data_location = sFrameSwitchingFirmware.DataOffset + 0x82880000;
+
+	ptr = fopen("msvdx_fw_mfld.bin", "w");
+	if (ptr == NULL) {
+            fprintf(stderr,"Create msvdx_fw_mfld.bin failed\n");
+            exit(-1);
+        }
+	fwrite( &fw, sizeof(fw), 1, ptr);
 	
+	for (i = 0; i < fw.text_size; i++)
+	{
+		fwrite( &sFrameSwitchingFirmware.pui8Text[i*4],4, 1, ptr);
+	}
+	for (i = 0; i < fw.data_size; i++)
+	{
+		fwrite( &sFrameSwitchingFirmware.pui8Data[i*4],4, 1, ptr);
+	}
+	fclose (ptr);
+	
+
 	return 0;
 }
 

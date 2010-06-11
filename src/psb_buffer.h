@@ -106,6 +106,14 @@ void psb_buffer_destroy( psb_buffer_p buf );
  */
 int psb_buffer_map( psb_buffer_p buf, void **address /* out */ );
 
+
+int psb_codedbuf_map_mangle(
+        VADriverContextP ctx,
+        object_buffer_p obj_buffer,
+        void **pbuf /* out */
+);
+
+
 /*
  * Unmap buffer
  *
@@ -145,9 +153,6 @@ VAStatus psb_buffer_reference_rar( psb_driver_data_p driver_data,
                                    psb_buffer_p buf
                                    );
 
-
-#define MRST_CAMEAR_DM_SIZE     (4<<20) /* MRST camera has 4M memory */
-#define MRST_RAR_DM_SIZE        (8<<20) /* RAR  video  has 8M memory */
 
 #define DRM_PSB_FLAG_MEM_CI     (1<<9)
 #define DRM_PSB_FLAG_MEM_RAR    (1<<10)

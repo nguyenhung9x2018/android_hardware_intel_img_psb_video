@@ -21,11 +21,7 @@ extern "C" {
 #define OSPM_DBUS_EVENT_ALERT         "alert"
 #define OSPM_DBUS_EVENT_CRITICAL      "critical"
 
-#ifdef ANDROID
- #include "psb_def.h"
-#else
- void psb__information_message(const char *msg, ...);
-#endif
+void psb__information_message(const char *msg, ...);
 int lnc_ospm_event_send(const char * obj_path, const char * method_name);
 
 #ifdef __cplusplus

@@ -1181,7 +1181,7 @@ static void lnc__H264_getelements_endofstream_header(MTX_HEADER_PARAMS *mtx_hdr)
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 
-IMG_UINT8 Bits2Code(IMG_UINT32 CodeVal)
+static IMG_UINT8 Bits2Code(IMG_UINT32 CodeVal)
 {
     IMG_UINT8 Bits=32;
     if(CodeVal==0)

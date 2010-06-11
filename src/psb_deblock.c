@@ -171,8 +171,12 @@ h264_above1InterBlockSequence( psb_cmdbuf_p cmdbuf, uint8_t* MbData )
 
 	/* Read the size of blocks 2 and 3 and resize them so they are all ?x8 */
 	Value = MEMIO_READ_FIELD( MbData, MSVDX_VEC_ENTDEC_VLRIF_H264_MB_UNIT_ASO_BLOCK2_PREDICTION_SIZE );
+        if (Value > (sizeof(BlockDownsizeMap) / sizeof(uint32_t) - 1))
+		Value = sizeof(BlockDownsizeMap) / sizeof(uint32_t) - 1;
 	BlockType[2] = BlockDownsizeMap[Value];
 	Value = MEMIO_READ_FIELD( MbData, MSVDX_VEC_ENTDEC_VLRIF_H264_MB_UNIT_ASO_BLOCK3_PREDICTION_SIZE );
+        if (Value > (sizeof(BlockDownsizeMap) / sizeof(uint32_t) - 1))
+		Value = sizeof(BlockDownsizeMap) / sizeof(uint32_t) - 1;
 	BlockType[3] = BlockDownsizeMap[Value];
 
 	/* read motion vectors for the bottom row, but store them in the correct locn. for ?x8 blocks */

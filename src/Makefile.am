@@ -23,8 +23,13 @@
 pvr_drv_video_la_LTLIBRARIES = pvr_drv_video.la
 pvr_drv_video_ladir = /usr/lib/dri
 pvr_drv_video_la_LDFLAGS = -lwsbm -pthread -module -avoid-version -Wl,--no-undefined
-pvr_drv_video_la_LIBADD = -ldrm -lva -lva-x11 -lX11 -lXv -lm -lXext /usr/lib/libmemrar.a
-AM_CFLAGS = -DDEBUG -DLINUX -I$(top_srcdir)/src/hwdefs $(DRM_CFLAGS)
+pvr_drv_video_la_LIBADD = -ldrm -lX11 -lXv -lm -lXext /usr/lib/libmemrar.a
+AM_CFLAGS = -DDEBUG -DLINUX -I$(top_srcdir)/src/hwdefs $(DRM_CFLAGS) \
+		-I$(top_srcdir)/src/powervr_iep_lite/include \
+		-I$(top_srcdir)/src/powervr_iep_lite/include/win32 \
+		-I$(top_srcdir)/src/powervr_iep_lite/iep_lite \
+		-I$(top_srcdir)/src/powervr_iep_lite/fixedpointmaths \
+		-I$(top_srcdir)/src/powervr_iep_lite/csc
 
 
 pvr_drv_video_la_SOURCES = psb_drv_video.c object_heap.c psb_buffer.c psb_buffer_dm.c psb_cmdbuf.c psb_surface.c \
@@ -32,7 +37,16 @@ pvr_drv_video_la_SOURCES = psb_drv_video.c object_heap.c psb_buffer.c psb_buffer
 		vc1_vlc.c vc1_idx.c \
 		lnc_H263ES.c lnc_H264ES.c lnc_MPEG4ES.c lnc_cmdbuf.c \
 		lnc_hostcode.c lnc_hostheader.c lnc_ospm_event.c psb_ws_driver.c \
-		psb_output.c psb_xvva.c psb_deblock.c
+		psb_output.c  psb_deblock.c psb_overlay.c x11/psb_x11.c x11/psb_xvva.c \
+		pnw_hostheader.c pnw_hostcode.c \
+		pnw_cmdbuf.c pnw_H264ES.c pnw_H263ES.c pnw_MPEG4ES.c \
+ 		pnw_H264.c pnw_MPEG2.c pnw_MPEG4.c pnw_hostjpeg.c pnw_jpeg.c \
+		powervr_iep_lite/csc/csc2.c \
+		powervr_iep_lite/csc/csc2_data.c \
+		powervr_iep_lite/fixedpointmaths/fixedpointmaths.c \
+		powervr_iep_lite/iep_lite/iep_lite_api.c \
+		powervr_iep_lite/iep_lite/iep_lite_hardware.c \
+		powervr_iep_lite/iep_lite/iep_lite_utils.c
 #		vc1_ap_i.c vc1_ap_p.c vc1_ap_utils.c vc1_bitplane.c \
 #		vc1_shiftreg.c vc1_spmp.c vc1_utils.c 
 

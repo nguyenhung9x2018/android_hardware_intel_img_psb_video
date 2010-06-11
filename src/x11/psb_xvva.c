@@ -26,25 +26,29 @@
 #include <va/va_backend.h>
 #include "psb_surface.h"
 #include "psb_output.h"
-#include "psb_overlay.h"
 #include "psb_xvva.h"
 
-#ifndef ANDROID
 #include <X11/extensions/dpms.h>
-#endif
 
 #include <wsbm/wsbm_manager.h>
-
-#define LOG_TAG "psb_xvva"
-#include <cutils/log.h>
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define SURFACE(id)	((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 
 static int psb_CheckDrawable(VADriverContextP ctx, Drawable draw);
 
+int (*oldHandler)(Display *, XErrorEvent *) = 0;
+static int XErrorFlag = 1;
+static int psb_XErrorHandler(Display *dpy, XErrorEvent *event)
+{
+    psb__information_message("XErrorEvent caught in psb_XErrorHandler in psb_xvva.c\n");
+    if(event->type == 0 && event->request_code == 132 && event->error_code == 11 /* BadAlloc */) {
+       XErrorFlag = 1;
+       return 0;
+    }
+    return oldHandler(dpy, event);
+}
 
-#ifndef ANDROID
 static int GetPortId(Display *dpy, VADriverContextP ctx)
 {
     int i, j, k;
@@ -53,7 +57,7 @@ static int GetPortId(Display *dpy, VADriverContextP ctx)
     XvImageFormatValues *formats;
     XvAdaptorInfo *info;
     psb_output_p output = GET_OUTPUT_DATA(ctx);
- 
+
     if(Success != XvQueryAdaptors(dpy,DefaultRootWindow(dpy),&numAdapt,&info)) {
         psb__error_message("Can't find Xvideo adaptor\n");
 	return -1;
@@ -89,20 +93,17 @@ static int GetPortId(Display *dpy, VADriverContextP ctx)
 
     return 0;
 }
-#endif
 
 VAStatus psb_init_xvideo(VADriverContextP ctx)
 {
-#ifndef ANDROID
     INIT_DRIVER_DATA;
     psb_output_p output = GET_OUTPUT_DATA(ctx);
     int dummy;
-
     driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
     driver_data->last_displaying_surface = VA_INVALID_SURFACE;
-    
+
     output->textured_portID = output->overlay_portID = 0;
-    if (GetPortId(ctx->x11_dpy, ctx)) {
+    if (GetPortId((Display *)ctx->native_dpy, ctx)) {
 	psb__error_message("Grab Xvideo port failed, fallback to software vaPutSurface.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -120,13 +121,14 @@ VAStatus psb_init_xvideo(VADriverContextP ctx)
         output->output_method = PSB_PUTSURFACE_OVERLAY_XV;
 
     output->ignore_dpm = 1;
+    output->sprite_enabled = 0;
     if (getenv("PSB_VIDEO_DPMS_HACK")) {
-        if (DPMSQueryExtension(ctx->x11_dpy, &dummy, &dummy)
-            && DPMSCapable(ctx->x11_dpy)) {
+        if (DPMSQueryExtension((Display *)ctx->native_dpy, &dummy, &dummy)
+            && DPMSCapable((Display *)ctx->native_dpy)) {
             BOOL onoff;
             CARD16 state;
             
-            DPMSInfo(ctx->x11_dpy, &state, &onoff);
+            DPMSInfo((Display *)ctx->native_dpy, &state, &onoff);
             psb__information_message("DPMS is %s, monitor state=%s\n", onoff?"enabled":"disabled",
                                      (state==DPMSModeOn)?"on":(
                                          (state==DPMSModeOff)?"off":(
@@ -146,21 +148,26 @@ VAStatus psb_init_xvideo(VADriverContextP ctx)
         psb__information_message("Putsurface force to use Overlay Xvideo\n");
         output->output_method = PSB_PUTSURFACE_FORCE_OVERLAY_XV;
     }
+
+    if (getenv("PSB_SPRITE_ENABLE")) {
+        psb__information_message("use sprite plane to playback rotated protected video\n");
+        output->sprite_enabled = 1;
+    }
+
+    if (IS_MFLD(driver_data))
+        psbInitVideo(ctx);
     
     return VA_STATUS_SUCCESS;
-#else
-    return VA_STATUS_ERROR_UNKNOWN;
-#endif
 }
 
 
 VAStatus psb_deinit_xvideo(VADriverContextP ctx)
 {
-#ifndef ANDROID
+    INIT_DRIVER_DATA;
     psb_output_p output = GET_OUTPUT_DATA(ctx);
 
     if (output->gc) {
-	XFreeGC(ctx->x11_dpy, output->gc);
+	XFreeGC((Display *)ctx->native_dpy, output->gc);
         output->gc = NULL;
     }
 
@@ -180,11 +187,11 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
         if ((output->using_port == USING_TEXTURE_PORT) && output->output_drawable
             && (psb_CheckDrawable(ctx, output->output_drawable) == 0)) {
             psb__information_message("Deinit: stop textured Xvideo\n");
-            XvStopVideo(ctx->x11_dpy, output->textured_portID, output->output_drawable);
+            XvStopVideo((Display *)ctx->native_dpy, output->textured_portID, output->output_drawable);
         }
 
         psb__information_message("Deinit: ungrab textured Xvideo port\n");
-	XvUngrabPort(ctx->x11_dpy, output->textured_portID, CurrentTime);
+	XvUngrabPort((Display *)ctx->native_dpy, output->textured_portID, CurrentTime);
 	output->textured_portID = 0;
     }
     
@@ -192,22 +199,22 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
         if ((output->using_port == USING_OVERLAY_PORT) && output->output_drawable
             && (psb_CheckDrawable(ctx, output->output_drawable) == 0)) {
             psb__information_message("Deinit: stop overlay Xvideo\n");
-            XvStopVideo(ctx->x11_dpy, output->overlay_portID, output->output_drawable);
+            XvStopVideo((Display *)ctx->native_dpy, output->overlay_portID, output->output_drawable);
+            
+            if (IS_MFLD(driver_data))
+                psbDeInitVideo(ctx);
         }
 
         psb__information_message("Deinit: ungrab overlay Xvideo port\n");
-	XvUngrabPort(ctx->x11_dpy, output->overlay_portID, CurrentTime);
+	XvUngrabPort((Display *)ctx->native_dpy, output->overlay_portID, CurrentTime);
 	output->overlay_portID = 0;
     }
     output->using_port = 0;
     output->output_drawable = 0;
     
-    XSync(ctx->x11_dpy, False);
+    XSync((Display *)ctx->native_dpy, False);
 
     return VA_STATUS_SUCCESS;
-#else
-    return VA_STATUS_ERROR_UNKNOWN;
-#endif
 }
 
 
@@ -265,7 +272,6 @@ static void psb_surface_init(
     }
 }
 
-#ifndef ANDROID
 #if 0
 
 #define WINDOW 1
@@ -277,7 +283,7 @@ static int  psb__CheckCurrentRotation(VADriverContextP ctx)
 {
     Rotation current_rotation;
     XRRScreenConfiguration *scrn_cfg;
-    scrn_cfg = XRRGetScreenInfo(ctx->x11_dpy, DefaultRootWindow(ctx->x11_dpy));
+    scrn_cfg = XRRGetScreenInfo((Display *)ctx->native_dpy, DefaultRootWindow((Display *)ctx->native_dpy));
     XRRConfigCurrentConfiguration (scrn_cfg, &current_rotation);
     XRRFreeScreenConfigInfo(scrn_cfg);
     return (current_rotation & 0x0f);
@@ -314,16 +320,16 @@ static void psb__CheckDrawableType(Display *dpy, Window win, Drawable draw, int 
 static int psb_CheckDrawable(VADriverContextP ctx, Drawable draw)
 {
     psb_output_p output = GET_OUTPUT_DATA(ctx);
-    Atom xvDrawable = XInternAtom(ctx->x11_dpy, "XV_DRAWABLE", 0);
+    Atom xvDrawable = XInternAtom((Display *)ctx->native_dpy, "XV_DRAWABLE", 0);
     int val = 0;
 
     output->drawable_info = 0;
     if (output->overlay_portID) {
-        XvSetPortAttribute(ctx->x11_dpy, output->overlay_portID, xvDrawable, draw);
-        XvGetPortAttribute(ctx->x11_dpy, output->overlay_portID, xvDrawable, &val);
+        XvSetPortAttribute((Display *)ctx->native_dpy, output->overlay_portID, xvDrawable, draw);
+        XvGetPortAttribute((Display *)ctx->native_dpy, output->overlay_portID, xvDrawable, &val);
     } else if (output->textured_portID) {
-        XvSetPortAttribute(ctx->x11_dpy, output->textured_portID, xvDrawable, draw);
-        XvGetPortAttribute(ctx->x11_dpy, output->textured_portID, xvDrawable, &val);
+        XvSetPortAttribute((Display *)ctx->native_dpy, output->textured_portID, xvDrawable, draw);
+        XvGetPortAttribute((Display *)ctx->native_dpy, output->textured_portID, xvDrawable, &val);
     }
     output->drawable_info = val;
 
@@ -334,7 +340,6 @@ static int psb_CheckDrawable(VADriverContextP ctx, Drawable draw)
             
     return 0;
 }
-#endif
 
 static int psb__CheckPutSurfaceXvPort(
     VADriverContextP ctx,
@@ -367,7 +372,6 @@ static int psb__CheckPutSurfaceXvPort(
     if (flags & VA_CLEAR_DRAWABLE)
         return 0;
     
-#ifndef ANDROID
     if (output->overlay_portID == 0) { /* no overlay usable */
         output->output_method = PSB_PUTSURFACE_TEXTURE_XV;
         return 0;
@@ -391,25 +395,12 @@ static int psb__CheckPutSurfaceXvPort(
         output->output_method = PSB_PUTSURFACE_TEXTURE_XV;
         return 0;
     }
-#else
-    output->overlay_portID = 1; // force overlay use.
-
-    if (((buf_pl & (WSBM_PL_FLAG_TT | DRM_PSB_FLAG_MEM_RAR | DRM_PSB_FLAG_MEM_CI)) == 0) /* buf not in TT/RAR or CI */
-        || (obj_surface->width > 1920)  /* overlay can't support subpicture */
-        || (obj_surface->subpic_count > 0)  /* overlay can't support subpicture */
-        ) {
-        output->output_method = PSB_PUTSURFACE_TEXTURE_XV;
-        LOGE("ERROR: %s() Overlay can not support subpicture or width>1920",__func__);
-        return -1;
-    }
-#endif
         
 
     /* Here should be overlay XV by defaut after overlay is stable */
     output->output_method = PSB_PUTSURFACE_OVERLAY_XV;
     /* output->output_method = PSB_PUTSURFACE_TEXTURE_XV; */
 
-#ifndef ANDROID
     /*
      *Query Overlay Adaptor by XvDrawable Attribute to know current
      * Xrandr information:rotation/downscaling
@@ -423,7 +414,7 @@ static int psb__CheckPutSurfaceXvPort(
      *When video protection and rotation are required (use RAR buffer),
      *only overlay adaptor will be used.
      *other attribute like down scaling and pixmap, use texture adaptor
-     */     
+     */  
     if (output->drawable_info
         & (XVDRAWABLE_ROTATE_180 | XVDRAWABLE_ROTATE_90 | XVDRAWABLE_ROTATE_270)) {
         if (buf_pl & DRM_PSB_FLAG_MEM_RAR)
@@ -437,12 +428,11 @@ static int psb__CheckPutSurfaceXvPort(
 
     if (srcw >= destw * 8 || srch >= desth * 8)
 	output->output_method = PSB_PUTSURFACE_TEXTURE_XV;
-#endif
 
     return 0;
 }
 
-#ifndef ANDROID
+
 static int psb__CheckGCXvImage(
     VADriverContextP ctx,
     VASurfaceID surface,
@@ -458,25 +448,25 @@ static int psb__CheckGCXvImage(
 
     if (output->output_drawable != draw) {
         if (output->gc)
-            XFreeGC(ctx->x11_dpy, output->gc);
-	output->gc = XCreateGC (ctx->x11_dpy, draw, 0, NULL);
+            XFreeGC((Display *)ctx->native_dpy, output->gc);
+	output->gc = XCreateGC ((Display *)ctx->native_dpy, draw, 0, NULL);
         output->output_drawable = draw;
     }
 
     if (flags & VA_CLEAR_DRAWABLE) {
         if (output->textured_portID && (output->using_port == USING_TEXTURE_PORT)) {
             psb__information_message("Clear drawable, and stop textured Xvideo\n");
-            XvStopVideo(ctx->x11_dpy, output->textured_portID, draw);
+            XvStopVideo((Display *)ctx->native_dpy, output->textured_portID, draw);
         }
         
         if (output->overlay_portID && (output->using_port == USING_OVERLAY_PORT)) {
             psb__information_message("Clear drawable, and stop overlay Xvideo\n");
-            XvStopVideo(ctx->x11_dpy, output->overlay_portID, draw);
+            XvStopVideo((Display *)ctx->native_dpy, output->overlay_portID, draw);
         }
         
         output->using_port = 0;
 
-        XSetForeground(ctx->x11_dpy, output->gc, output->clear_color);
+        XSetForeground((Display *)ctx->native_dpy, output->gc, output->clear_color);
         
         return 0;
     }
@@ -493,7 +483,7 @@ static int psb__CheckGCXvImage(
                 XFree(output->overlay_xvimage);
 
             psb__information_message("Create new XvImage for overlay\n");
-            output->overlay_xvimage = XvCreateImage(ctx->x11_dpy, output->overlay_portID,
+            output->overlay_xvimage = XvCreateImage((Display *)ctx->native_dpy, output->overlay_portID,
                                                     FOURCC_XVVA, 0,
                                                     obj_surface->width, obj_surface->height);
 
@@ -506,8 +496,8 @@ static int psb__CheckGCXvImage(
 
         if ((output->textured_portID) && (output->using_port == USING_TEXTURE_PORT)) { /* stop texture port */
             psb__information_message("Using overlay xvideo, stop textured xvideo\n");
-            XvStopVideo(ctx->x11_dpy, output->textured_portID, draw);
-            XSync(ctx->x11_dpy, False);
+            XvStopVideo((Display *)ctx->native_dpy, output->textured_portID, draw);
+            XSync((Display *)ctx->native_dpy, False);
         }
         output->using_port = USING_OVERLAY_PORT;
         
@@ -527,7 +517,7 @@ static int psb__CheckGCXvImage(
                 XFree(output->textured_xvimage);
 
             psb__information_message("Create new XvImage for overlay\n");
-            output->textured_xvimage = XvCreateImage(ctx->x11_dpy, output->textured_portID, FOURCC_XVVA, 0,
+            output->textured_xvimage = XvCreateImage((Display *)ctx->native_dpy, output->textured_portID, FOURCC_XVVA, 0,
                                                      obj_surface->width, obj_surface->height);
             output->textured_xvimage->data = (char *)&output->imgdata_vasrf;
             output->output_width = obj_surface->width;
@@ -540,8 +530,8 @@ static int psb__CheckGCXvImage(
 
         if ((output->overlay_portID) && (output->using_port == USING_OVERLAY_PORT)) { /* stop overlay port */
             psb__information_message("Using textured xvideo, stop Overlay xvideo\n");
-            XvStopVideo(ctx->x11_dpy, output->overlay_portID, draw);
-            XSync(ctx->x11_dpy, False);
+            XvStopVideo((Display *)ctx->native_dpy, output->overlay_portID, draw);
+            XSync((Display *)ctx->native_dpy, False);
 
             output->using_port = USING_TEXTURE_PORT;
         }
@@ -559,7 +549,7 @@ static int psb_force_dpms_on(VADriverContextP ctx)
     BOOL onoff;
     CARD16 state;
 
-    DPMSInfo(ctx->x11_dpy, &state, &onoff);
+    DPMSInfo((Display *)ctx->native_dpy, &state, &onoff);
     psb__information_message("DPMS is %s, monitor state=%s\n", onoff?"enabled":"disabled",
                              (state==DPMSModeOn)?"on":(
                                  (state==DPMSModeOff)?"off":(
@@ -567,7 +557,7 @@ static int psb_force_dpms_on(VADriverContextP ctx)
                                          (state==DPMSModeSuspend)?"suspend":"unknow"))));
     if (onoff && (state != DPMSModeOn)) {
         psb__information_message("DPMS is enabled, and monitor isn't DPMSModeOn, force it on\n");
-        DPMSForceLevel(ctx->x11_dpy, DPMSModeOn);
+        DPMSForceLevel((Display *)ctx->native_dpy, DPMSModeOn);
     }
     
     return 0;
@@ -580,7 +570,75 @@ static int unsigned long GetTickCount()
         return 0;
     return tv.tv_usec/1000+tv.tv_sec*1000;
 }
-#endif
+
+VAStatus psb_check_rotatesurface(
+    VADriverContextP ctx,
+    unsigned short rotate_width,
+    unsigned short rotate_height,
+    unsigned int protected,
+    int fourcc){
+    INIT_DRIVER_DATA;
+    psb_output_p output = GET_OUTPUT_DATA(ctx);
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    object_surface_p obj_rotate_surface;
+
+    if (output->rotate_surface) {
+        obj_rotate_surface = SURFACE(output->rotate_surfaceID);
+        if (obj_rotate_surface && 
+            ((obj_rotate_surface->width != rotate_width)
+             || (obj_rotate_surface->height != rotate_height))) {
+            psb_surface_destroy(output->rotate_surface);
+            free(output->rotate_surface);
+            object_heap_free(&driver_data->surface_heap, (object_base_p)obj_rotate_surface);
+            output->rotate_surface = NULL;
+        }
+    }
+    if (output->rotate_surface == NULL) {
+        output->rotate_surfaceID = object_heap_allocate(&driver_data->surface_heap);
+        obj_rotate_surface = SURFACE(output->rotate_surfaceID);
+        if (NULL == obj_rotate_surface) {
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            DEBUG_FAILURE;
+            
+            pthread_mutex_unlock(&output->output_mutex);
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        }
+        
+        obj_rotate_surface->surface_id = output->rotate_surfaceID;
+        obj_rotate_surface->context_id = -1;
+        obj_rotate_surface->width = rotate_width;
+        obj_rotate_surface->height = rotate_height;
+        obj_rotate_surface->subpictures = NULL;
+        obj_rotate_surface->subpic_count = 0; 
+        obj_rotate_surface->derived_imgcnt = 0;
+        output->rotate_surface = (psb_surface_p) malloc(sizeof(struct psb_surface_s));
+        if (NULL == output->rotate_surface) {
+            object_heap_free( &driver_data->surface_heap, (object_base_p) obj_rotate_surface);
+            obj_rotate_surface->surface_id = VA_INVALID_SURFACE;
+
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+            DEBUG_FAILURE;
+
+            pthread_mutex_unlock(&output->output_mutex);
+
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        }
+        memset(output->rotate_surface, 0, sizeof(struct psb_surface_s));
+        vaStatus = psb_surface_create(driver_data, rotate_width, rotate_height,
+                                   fourcc, protected, output->rotate_surface);
+        if (VA_STATUS_SUCCESS != vaStatus) {
+            free(obj_rotate_surface->psb_surface);
+            object_heap_free( &driver_data->surface_heap, (object_base_p) obj_rotate_surface);
+            obj_rotate_surface->surface_id = VA_INVALID_SURFACE;
+
+            DEBUG_FAILURE;
+            return vaStatus;
+        }
+        obj_rotate_surface->psb_surface = output->rotate_surface;
+    }
+    return vaStatus;
+}
 
 VAStatus psb_putsurface_xvideo(
     VADriverContextP ctx,
@@ -597,8 +655,7 @@ VAStatus psb_putsurface_xvideo(
     VARectangle *cliprects, /* client supplied clip list */
     unsigned int number_cliprects, /* number of clip rects in the clip list */
     unsigned int flags /* de-interlacing flags */
-                               ){
-#ifndef ANDROID
+){
     INIT_DRIVER_DATA;
     psb_output_p output = GET_OUTPUT_DATA(ctx);
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -610,17 +667,28 @@ VAStatus psb_putsurface_xvideo(
     psb_surface_p psb_surface;
     int i=0, j;
 
+    int (*oldHandler)(Display *, XErrorEvent *);
+
     if (obj_surface) /* silent klockwork, we already check it */
         psb_surface = obj_surface->psb_surface;
     else
         return VA_STATUS_ERROR_UNKNOWN;
-    
-    if (psb_CheckDrawable(ctx, draw) != 0) {
-        psb__error_message("vaPutSurface: invalidate drawable\n");
-        return VA_STATUS_ERROR_UNKNOWN;
+
+    /* check display configuration for every 100 frames */
+    if ((output->frame_count % 100) == 0) {
+        if (psb_CheckDrawable(ctx, draw) != 0) {
+            psb__error_message("vaPutSurface: invalidate drawable\n");
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+        psb__information_message("ran psb_CheckDrawable the first time!\n");
     }
 
     pthread_mutex_lock(&output->output_mutex);    
+
+    /* Catch X protocol errors with our own error handler */
+    oldHandler = XSetErrorHandler(psb_XErrorHandler);
+
+psb_retry:
     psb__CheckPutSurfaceXvPort(ctx, surface, draw,
                                srcx, srcy, srcw, srch,
                                destx, desty, destw, desth,
@@ -630,14 +698,14 @@ VAStatus psb_putsurface_xvideo(
     if (flags & VA_CLEAR_DRAWABLE) {
         psb__information_message("Clean draw with color 0x%08x\n",output->clear_color);
         
-        XFillRectangle(ctx->x11_dpy, draw, output->gc, destx, desty, destw, desth);
-        XSync(ctx->x11_dpy, False);
+        XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, destx, desty, destw, desth);
+        XSync((Display *)ctx->native_dpy, False);
 
-        XFreeGC(ctx->x11_dpy, output->gc);
+        XFreeGC((Display *)ctx->native_dpy, output->gc);
         output->gc = NULL;
         output->output_drawable = 0;
         
-        XSync(ctx->x11_dpy, False);
+        XSync((Display *)ctx->native_dpy, False);
 
         driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
         driver_data->last_displaying_surface = VA_INVALID_SURFACE;
@@ -671,80 +739,34 @@ VAStatus psb_putsurface_xvideo(
 
     if ((output->output_method == PSB_PUTSURFACE_OVERLAY_XV) 
         && (output->drawable_info & (XVDRAWABLE_ROTATE_180 | XVDRAWABLE_ROTATE_90 | XVDRAWABLE_ROTATE_270))) {
-        object_surface_p obj_rotate_surface;
         unsigned int rotate_width, rotate_height;
+        int fourcc;
+        if (output->sprite_enabled)
+            fourcc = VA_FOURCC_RGBA;
+        else
+            fourcc = VA_FOURCC_NV12;
         if (output->drawable_info & (XVDRAWABLE_ROTATE_90 | XVDRAWABLE_ROTATE_270)) {
             rotate_width = obj_surface->height;
             rotate_height = obj_surface->width;
         } else {
             rotate_width = obj_surface->width;
             rotate_height = obj_surface->height;
-        }		
-        if (output->rotate_surface) {
-            obj_rotate_surface = SURFACE(output->rotate_surfaceID);
-            if (obj_rotate_surface && 
-                ((obj_rotate_surface->width != obj_surface->width)
-                 || (obj_rotate_surface->height != obj_surface->height))) {
-                psb_surface_destroy(output->rotate_surface);
-                free(output->rotate_surface);
-                object_heap_free(&driver_data->surface_heap, (object_base_p)obj_rotate_surface);
-                output->rotate_surface = NULL;
-            }
         }
-        if (output->rotate_surface == NULL) {
-            unsigned int protected;
+        unsigned int protected = vaPtr->src_srf.pl_flags & DRM_PSB_FLAG_MEM_RAR;
+        
+        vaStatus = psb_check_rotatesurface(ctx, rotate_width, rotate_height, protected, fourcc);
+        if (VA_STATUS_SUCCESS != vaStatus)
+            return vaStatus;
 
-            output->rotate_surfaceID = object_heap_allocate(&driver_data->surface_heap);
-            obj_rotate_surface = SURFACE(output->rotate_surfaceID);
-            if (NULL == obj_rotate_surface)
-            {
-                vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-                DEBUG_FAILURE;
-                
-                pthread_mutex_unlock(&output->output_mutex);
-                return VA_STATUS_ERROR_ALLOCATION_FAILED;
-            }
-	        
-            obj_rotate_surface->surface_id = output->rotate_surfaceID;
-            obj_rotate_surface->context_id = -1;
-            obj_rotate_surface->width = obj_surface->width;
-            obj_rotate_surface->height = obj_surface->height;
-            obj_rotate_surface->subpictures = NULL;
-            obj_rotate_surface->subpic_count = 0; 
-            obj_rotate_surface->derived_imgcnt = 0;
-            output->rotate_surface = (psb_surface_p) malloc(sizeof(struct psb_surface_s));
-            if (NULL == output->rotate_surface)
-            {
-                object_heap_free( &driver_data->surface_heap, (object_base_p) obj_rotate_surface);
-                obj_rotate_surface->surface_id = VA_INVALID_SURFACE;
-
-                vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-
-                DEBUG_FAILURE;
-
-                pthread_mutex_unlock(&output->output_mutex);
-
-                return VA_STATUS_ERROR_ALLOCATION_FAILED;
-            }
-            memset(output->rotate_surface, 0, sizeof(struct psb_surface_s));
-            protected = vaPtr->src_srf.pl_flags & DRM_PSB_FLAG_MEM_RAR;
-            vaStatus = psb_surface_create( driver_data, rotate_width, rotate_height,
-                                           VA_FOURCC_RGBA, protected, output->rotate_surface
-                                           );
-            obj_rotate_surface->psb_surface = output->rotate_surface;
-        }
-
-        psb_surface_init(driver_data, &vaPtr->dst_srf, VA_FOURCC_RGBA, 4,
-                         rotate_width, rotate_height,
-                         output->rotate_surface->stride, output->rotate_surface->size,
-                         output->rotate_surface->buf.buffer_ofs, /* for surface created from RAR/camera device memory
-                                                                  * all surfaces share one BO but with different offset
-                                                                  * pass the offset as the "pre_add"
-                                                                  */
-                         output->rotate_surface->buf.drm_buf, 0);	
-
+        psb_surface_init(driver_data, &vaPtr->dst_srf, fourcc, 4,
+                 rotate_width, rotate_height,
+                 output->rotate_surface->stride, output->rotate_surface->size,
+                 output->rotate_surface->buf.buffer_ofs, /* for surface created from RAR/camera device memory
+                                                          * all surfaces share one BO but with different offset
+                                                          * pass the offset as the "pre_add"
+                                                          */
+                 output->rotate_surface->buf.drm_buf, 0);	
     }
-   
     subpic_surface = obj_surface->subpictures;
     while (subpic_surface) {
         PsbVASurfaceRec *tmp = &vaPtr->subpic_srf[i++];
@@ -757,16 +779,16 @@ VAStatus psb_putsurface_xvideo(
         if (subpic_surface->palette_ptr)
             memcpy(&tmp->palette[0], subpic_surface->palette_ptr, 16 * sizeof(PsbAYUVSample8));
         
-	subpic_surface = subpic_surface->next;
+        subpic_surface = subpic_surface->next;
     }
 
     if (output->ignore_dpm == 0)
         psb_force_dpms_on(ctx);
     
-    XvPutImage(ctx->x11_dpy, portID, draw, output->gc, xvImage,
-               srcx, srcy, srcw, srch, destx, desty, destw, desth);
-
-    XSync(ctx->x11_dpy, False);
+    XvPutImage((Display *)ctx->native_dpy, portID, draw, output->gc, xvImage,
+              srcx, srcy, srcw, srch, destx, desty, destw, desth);
+    //XFlush((Display *)ctx->native_dpy);
+    XSync((Display *)ctx->native_dpy, False);
 
     if (portID == output->overlay_portID) {
         if (driver_data->cur_displaying_surface != VA_INVALID_SURFACE) 
@@ -779,163 +801,34 @@ VAStatus psb_putsurface_xvideo(
         obj_surface->display_timestamp = 0;
     }
     
-    pthread_mutex_unlock(&output->output_mutex);    
-            
-    return vaStatus;
-#else
-    return VA_STATUS_ERROR_UNKNOWN;
-#endif
-}
+    /* let's see if we caught BadAlloc error */
+    if (XErrorFlag) {
+       /* caught error */
+       /* we now treat it as info only, we are now handling it gracefully */
+       psb__information_message("caught an X error in psb_putsurface_xvideo, most likely the BadAlloc one!\n");
+       if (oldHandler == 0)
+           oldHandler = XSetErrorHandler(psb_XErrorHandler);
+       
+       if (XErrorFlag == 1) {
+	   if (psb_CheckDrawable(ctx, draw) != 0) {
+	       psb__error_message("vaPutSurface: invalidate drawable\n");
+	       pthread_mutex_unlock(&output->output_mutex);    
+	       return VA_STATUS_ERROR_UNKNOWN;
+	   }
+       }
+       XErrorFlag = 0;
+       
+       /* this is not a must, as a single frame could be skipped, and no one will be able to tell at 30 fps */       
+       goto psb_retry; 
+    } 
 
-#ifdef ANDROID
-VAStatus psb_putsurface_overlay(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    Drawable draw,
-    short srcx,
-    short srcy,
-    unsigned short srcw,
-    unsigned short srch,
-    short destx,
-    short desty,
-    unsigned short destw,
-    unsigned short desth,
-    VARectangle *cliprects, /* client supplied clip list */
-    unsigned int number_cliprects, /* number of clip rects in the clip list */
-    unsigned int flags /* de-interlacing flags */
-){
-    INIT_DRIVER_DATA;
-    psb_output_p output = GET_OUTPUT_DATA(ctx);
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    PsbVASurfaceRec *subpic_surface;
-    PsbXvVAPutSurfacePtr vaPtr;
-    XvPortID    portID = 0;
-    object_surface_p obj_surface = SURFACE(surface);
-    psb_surface_p psb_surface = obj_surface->psb_surface;
-    int i=0, j;
-    int id;
-
-    LOGV("%s(): Enter", __func__);
-    pthread_mutex_lock(&output->output_mutex);
-    psb__CheckPutSurfaceXvPort(ctx, surface, draw,
-                               srcx, srcy, srcw, srch,
-                               destx, desty, destw, desth,
-                               cliprects, number_cliprects, flags);
-
-    if (output->output_drawable != draw)
-        output->output_drawable = draw;
-
-    if (flags & VA_CLEAR_DRAWABLE) {
-        if (output->overlay_portID)
-            I830StopVideo(ctx);
-        return 0;
-    }
-
-    if ((output->output_method == PSB_PUTSURFACE_FORCE_OVERLAY_XV)||
-        (output->output_method == PSB_PUTSURFACE_OVERLAY_XV)) {
-        /* use OVERLAY XVideo */
-        if ((output->output_width != obj_surface->width) ||
-            (output->output_height != obj_surface->height)) {
-
-            output->output_width = obj_surface->width;
-            output->output_height = obj_surface->height;
-        }
-        portID = output->overlay_portID;
-        output->using_port = USING_OVERLAY_PORT;
-
-        LOGV("%s(): Using Overlay Xvideo for PutSurface",__func__);
-    }
-
-    if (flags & VA_CLEAR_DRAWABLE) {
-        psb__information_message("Clean draw with color 0x%08x\n",output->clear_color);
-
-        driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
-        driver_data->last_displaying_surface = VA_INVALID_SURFACE;
-        obj_surface->display_timestamp = 0;
-
-        return vaStatus;
-    }
-
-    vaPtr = (PsbXvVAPutSurfacePtr)&output->imgdata_vasrf;
-    vaPtr->flags = flags;
-    vaPtr->num_subpicture = obj_surface->subpic_count;
-    vaPtr->num_clipbox = number_cliprects;
-    for (j = 0; j < number_cliprects; j++)
-    {
-        vaPtr->clipbox[j].x = cliprects[j].x;
-        vaPtr->clipbox[j].y = cliprects[j].y;
-        vaPtr->clipbox[j].width = cliprects[j].width;
-        vaPtr->clipbox[j].height = cliprects[j].height;
-    }
-
-    psb_surface_init(driver_data,&vaPtr->src_srf,VA_FOURCC_NV12,2,
-                     obj_surface->width,obj_surface->height,
-                     psb_surface->stride, psb_surface->size,
-                     psb_surface->buf.buffer_ofs, /* for surface created from RAR/camera device memory
-                                                   * all surfaces share one BO but with different offset
-                                                   * pass the offset as the "pre_add"
-                                                   */
-                     psb_surface->buf.drm_buf, flags);
-
-    subpic_surface = obj_surface->subpictures;
-    while (subpic_surface) {
-        PsbVASurfaceRec *tmp = &vaPtr->subpic_srf[i++];
-
-        memcpy(tmp, subpic_surface, sizeof(*tmp));
-
-        /* reload palette for paletted subpicture
-         * palete_ptr point to image palette
-         */
-        if (subpic_surface->palette_ptr)
-            memcpy(&tmp->palette[0], subpic_surface->palette_ptr, 16 * sizeof(PsbAYUVSample8));
-
-	subpic_surface = subpic_surface->next;
-    }
-
-    /* FIXME: Set XVVA as default */
-    id = FOURCC_XVVA;
-
-#if USE_FIT_SCR_SIZE
-    {
-        /* calculate fit screen size of frame */
-        unsigned short _scr_x = 1024;
-        unsigned short _scr_y = 600;
-        float _slope_xy = (float)srch/srcw;
-        unsigned short _destw = (short)(_scr_y/_slope_xy);
-        unsigned short _desth = (short)(_scr_x*_slope_xy);
-        short _pos_x, _pos_y;
-        if (_destw <= _scr_x) {
-            _desth = _scr_y;
-            _pos_x = (_scr_x-_destw)>>1;
-            _pos_y = 0;
-        } else {
-            _destw = _scr_x;
-            _pos_x = 0;
-            _pos_y = (_scr_y-_desth)>>1;
-        }
-        destx += _pos_x;
-        desty += _pos_y;
-        destw = _destw;
-        desth = _desth;
-    }
-#endif
-
-    /* psb_force_dpms_on(ctx); */
-    I830PutImage(ctx, surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, id);
-
-    if (portID == output->overlay_portID) {
-        if (driver_data->cur_displaying_surface != VA_INVALID_SURFACE)
-            driver_data->last_displaying_surface = driver_data->cur_displaying_surface;
-        obj_surface->display_timestamp = 0;
-        driver_data->cur_displaying_surface = surface;
-    } else {
-        driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
-        driver_data->last_displaying_surface = VA_INVALID_SURFACE;
-        obj_surface->display_timestamp = 0;
-    }
+    /* restore to original X error handler */
+    (void) XSetErrorHandler(oldHandler);
 
     pthread_mutex_unlock(&output->output_mutex);
-
+    
+    output->frame_count++;
+    
     return vaStatus;
 }
-#endif
+

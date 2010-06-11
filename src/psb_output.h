@@ -31,7 +31,17 @@
 #include "psb_surface.h"
 #include "hwdefs/img_types.h"
 #include <va/va.h>
+
+#ifndef ANDROID
 #include <va/va_x11.h>
+#else
+#define Drawable unsigned int
+#define Bool int
+#define LOG_TAG "pvr_drv_video"
+#include <cutils/log.h>
+#endif
+
+#define ANDROID_VIDEO_TEXTURE_STREAM 1
 
 #define PSB_MAX_IMAGE_FORMATS      4 /* sizeof(psb__CreateImageFormat)/sizeof(VAImageFormat) */
 #define PSB_MAX_SUBPIC_FORMATS     3 /* sizeof(psb__SubpicFormat)/sizeof(VAImageFormat) */
@@ -66,7 +76,53 @@
 #define PSB_DRIDDX_VERSION_MINOR 1
 #define PSB_DRIDDX_VERSION_PATCH 0
 
+#define psb__ImageNV12                          \
+{                                               \
+    VA_FOURCC_NV12,                             \
+    VA_LSB_FIRST,                               \
+    16,                                         \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+    0                                           \
+}
 
+#define psb__ImageAYUV                          \
+{                                               \
+    VA_FOURCC_AYUV,                             \
+    VA_LSB_FIRST,                               \
+    32,                                         \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+    0                                           \
+}
+
+#define psb__ImageAI44                          \
+{                                               \
+    VA_FOURCC_AI44,                             \
+    VA_LSB_FIRST,                               \
+    16,                                         \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+}
+
+#define psb__ImageRGBA                          \
+{                                               \
+    VA_FOURCC_RGBA,                             \
+    VA_LSB_FIRST,                               \
+    32,                                         \
+    32,                                         \
+    0xff,                                       \
+    0xff00,                                     \
+    0xff0000,                                   \
+    0xff000000                                  \
+}
 typedef struct _psb_fixed32 {
     union {
         struct {
@@ -108,6 +164,7 @@ typedef struct _psb_output_s {
     unsigned short              output_height;
 
     int                         using_port;
+    int                         is_oold;
     
     /* information of display attribute */
     psb_fixed32 brightness;
@@ -126,10 +183,20 @@ typedef struct _psb_output_s {
     int drawable_info;
     int ignore_dpm;
     int dummy_putsurface;
+    int fixed_fps;
+   
+    /* for android surface register */
+    int register_flag;
+
+    /* for memory heap base used by putsurface*/
+    unsigned char* heap_addr;
 
     /*for video rotation with overlay adaptor*/
     psb_surface_p rotate_surface;
     int rotate_surfaceID;
+    unsigned int sprite_enabled;
+
+    unsigned int frame_count;
 } psb_output_s, *psb_output_p;
 
 VAStatus psb__destroy_subpicture(psb_driver_data_p driver_data, object_subpic_p obj_subpic);
@@ -162,10 +229,28 @@ VAStatus psb_deinitOutput(
     VADriverContextP ctx
 );
 
+VAStatus psb_PutSurfaceBuf(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    unsigned char* data,
+    int* data_len,
+    short srcx,
+    short srcy,
+    unsigned short srcw,
+    unsigned short srch,
+    short destx,
+    short desty,
+    unsigned short destw,
+    unsigned short desth,
+    VARectangle *cliprects, /* client supplied clip list */
+    unsigned int number_cliprects, /* number of clip rects in the clip list */
+    unsigned int flags /* de-interlacing flags */
+);
+
 VAStatus psb_PutSurface(
         VADriverContextP ctx,
         VASurfaceID surface,
-        Drawable draw, /* X Drawable */
+        void* draw, /* X Drawable */
         short srcx,
         short srcy,
         unsigned short srcw,
@@ -178,27 +263,6 @@ VAStatus psb_PutSurface(
         unsigned int number_cliprects, /* number of clip rects in the clip list */
         unsigned int flags /* de-interlacing flags */
 );
-
-#ifdef ANDROID
-VAStatus psb_PutSurfaceBuf(
-        VADriverContextP ctx,
-        VASurfaceID surface,
-        Drawable draw, /* X Drawable */
-        unsigned char* data,
-        int* data_len,
-        short srcx,
-        short srcy,
-        unsigned short srcw,
-        unsigned short srch,
-        short destx,
-        short desty,
-        unsigned short destw,
-        unsigned short desth,
-        VARectangle *cliprects, /* client supplied clip list */
-        unsigned int number_cliprects, /* number of clip rects in the clip list */
-        unsigned int flags /* de-interlacing flags */
-);
-#endif
 
 VAStatus psb_QueryImageFormats(
 	VADriverContextP ctx,
@@ -367,7 +431,6 @@ VAStatus psb_SetDisplayAttributes (
 		int num_attributes
 );
 
-    
 VAStatus psb_putsurface_xvideo(
     VADriverContextP ctx,
     VASurfaceID surface,
@@ -387,5 +450,60 @@ VAStatus psb_putsurface_xvideo(
 
 VAStatus psb_init_xvideo(VADriverContextP ctx);
 VAStatus psb_deinit_xvideo(VADriverContextP ctx); 
+
+/*add for texture streaming*/
+#define DRM_BUFFER_CLASS_VIDEO          0x2C
+
+#define BC_FOURCC(a,b,c,d) \
+    ((unsigned long) ((a) | (b)<<8 | (c)<<16 | (d)<<24))
+
+#define BC_PIX_FMT_NV12     BC_FOURCC('N', 'V', '1', '2') /*YUV 4:2:0*/
+#define BC_PIX_FMT_UYVY     BC_FOURCC('U', 'Y', 'V', 'Y') /*YUV 4:2:2*/
+#define BC_PIX_FMT_YUYV     BC_FOURCC('Y', 'U', 'Y', 'V') /*YUV 4:2:2*/
+#define BC_PIX_FMT_RGB565   BC_FOURCC('R', 'G', 'B', 'P') /*RGB 5:6:5*/
+
+typedef struct BC_Video_ioctl_package_TAG
+{
+	int ioctl_cmd;
+	int inputparam;
+	int outputparam;
+}BC_Video_ioctl_package;
+
+typedef struct bc_buf_ptr {
+    unsigned int index;
+    int size;
+    unsigned long pa;
+    unsigned long handle;
+} bc_buf_ptr_t;
+
+#define BC_Video_ioctl_fill_buffer		    0
+#define BC_Video_ioctl_get_buffer_count	    1
+#define BC_Video_ioctl_get_buffer_phyaddr   2  /*get physical address by index*/
+#define BC_Video_ioctl_get_buffer_index 	3  /*get index by physical address*/
+#define BC_Video_ioctl_request_buffers      4
+#define BC_Video_ioctl_set_buffer_phyaddr   5
+
+enum BC_memory {
+    BC_MEMORY_MMAP          = 1,
+    BC_MEMORY_USERPTR       = 2,
+};
+
+/* 
+ * the following types are tested for fourcc in struct bc_buf_params_t
+ *   NV12
+ *   UYVY
+ *   RGB565 - not tested yet
+ *   YUYV
+ */
+typedef struct bc_buf_params {
+    int count;              /*number of buffers, [in/out]*/
+    int width;              /*buffer width in pixel, multiple of 8 or 32*/
+    int height;             /*buffer height in pixel*/
+    int stride;
+    unsigned int fourcc;    /*buffer pixel format*/
+    enum BC_memory type;
+} bc_buf_params_t;
+
+/*add for texture streaming end*/
 
 #endif /* _PSB_OUTPUT_H_ */

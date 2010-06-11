@@ -496,6 +496,41 @@ static VAStatus psb_H264_CreateContext(
             DEBUG_FAILURE;
         }
     }
+    /* allocate in-loop targets for oold */
+    if(obj_context->is_oold)
+    {
+        int i;
+        for(i = 0; i < obj_context->num_render_targets; i++)
+        {
+            object_surface_p obj_surface = SURFACE(obj_context->render_targets[i]);
+            psb_surface_p psb_surface;
+
+            if (NULL == obj_surface)
+            {
+                vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
+                DEBUG_FAILURE;
+                return vaStatus;
+            }
+
+            psb_surface = obj_surface->psb_surface;
+
+            psb_surface->in_loop_buf = malloc(sizeof(struct psb_buffer_s));
+            if (NULL == psb_surface->in_loop_buf)
+            {
+                vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+                DEBUG_FAILURE;
+                return vaStatus;
+            }
+            memset(psb_surface->in_loop_buf, 0, sizeof(struct psb_buffer_s));
+
+            /* FIXME: For RAR surface, need allocate RAR buffer  */
+            vaStatus = psb_buffer_create( obj_context->driver_data,
+                                          psb_surface->size,
+                                          psb_bt_surface,
+                                          psb_surface->in_loop_buf );
+        }
+
+    }
 
     if (vaStatus != VA_STATUS_SUCCESS)
     {
@@ -513,6 +548,7 @@ static void psb_H264_DestroyContext(
 
     psb_buffer_destroy( &ctx->reference_cache );
     psb_buffer_destroy( &ctx->preload_buffer );
+    psb_buffer_destroy( &ctx->vlc_packed_table );
 
     if (ctx->pic_params)
     {
@@ -884,6 +920,12 @@ static void psb__H264_build_picture_order_chunk(context_H264_p ctx)
             SIGNTRUNC(pic_params->CurrPic.BottomFieldOrderCnt) );
     psb_cmdbuf_rendec_write(cmdbuf, reg_value );
 
+    if (pic_params->num_ref_frames > 16)
+    {
+	psb__error_message("Invalid reference number %d, set to 16\n", pic_params->num_ref_frames);
+	pic_params->num_ref_frames = 16;	
+    }
+
     for ( i = 0; i < pic_params->num_ref_frames; i++ )
     {
         reg_value = 0;
@@ -968,6 +1010,15 @@ static void psb__H264_build_B_slice_chunk(context_H264_p ctx, VASliceParameterBu
         IMG_UINT8 list0_inverse[32];
         memset(list0_inverse, 0xff, 32); /* Unused entries get 0xff */
         
+	if (slice_param->num_ref_idx_l0_active_minus1 + 1 > 32)
+        {
+            psb__error_message("num_ref_idx_l0_active_minus1(%d) is too big. Set it with 31\n",
+			slice_param->num_ref_idx_l0_active_minus1);
+	    slice_param->num_ref_idx_l0_active_minus1 = 31;
+	}	
+
+	if (slice_param->num_ref_idx_l0_active_minus1 > 30)
+	    slice_param->num_ref_idx_l0_active_minus1 = 30;
         for(i = slice_param->num_ref_idx_l0_active_minus1 + 1; i--;)
         {
             object_surface_p surface = SURFACE(slice_param->RefPicList0[i].picture_id);
@@ -995,6 +1046,9 @@ static void psb__H264_build_B_slice_chunk(context_H264_p ctx, VASliceParameterBu
         }
     }
     
+    if (slice_param->num_ref_idx_l1_active_minus1 > 28)
+	slice_param->num_ref_idx_l1_active_minus1 = 28;
+
     /* Write Ref List 1 - but only need the valid ones */
     for(i = 0; i <= slice_param->num_ref_idx_l1_active_minus1; i += 4)
     {
@@ -1127,6 +1181,13 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     {
         psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, H264_CR_VEC_H264_BE_LIST0) );
 
+	if (slice_param->num_ref_idx_l0_active_minus1 > (32-4))
+	{
+	    psb__error_message("num_ref_idx_l0_active_minus1(%d) is too big. Set it with 28\n",
+		slice_param->num_ref_idx_l0_active_minus1);
+	    slice_param->num_ref_idx_l0_active_minus1 = 28;
+	}
+	
         for(i = 0; i <= slice_param->num_ref_idx_l0_active_minus1; i += 4)
         {
             reg_value = 0;
@@ -1152,6 +1213,8 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
 	/* Mark all surfaces as unused */
 	memset(is_used, 0, sizeof(is_used));
 
+	if (slice_param->num_ref_idx_l0_active_minus1 > 31)
+	    slice_param->num_ref_idx_l0_active_minus1 = 31;
         /* Mark onlys frame that are actualy used */
         for(i = 0; i <= slice_param->num_ref_idx_l0_active_minus1; i++)
         {
@@ -1165,6 +1228,9 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
                 }
             }
         }
+
+	if (slice_param->num_ref_idx_l1_active_minus1 > 31)
+	    slice_param->num_ref_idx_l1_active_minus1 = 31;
 
         /* Mark onlys frame that are actualy used */
         for(i = 0; i <= slice_param->num_ref_idx_l1_active_minus1; i++)
@@ -1180,16 +1246,31 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
             }
         }
 
+	if (pic_params->num_ref_frames > 16)
+	    pic_params->num_ref_frames = 16;
         /* Only load used surfaces */
         for(i = 0; i < pic_params->num_ref_frames; i++)
         {
             object_surface_p ref_surface = SURFACE(pic_params->ReferenceFrames[i].picture_id);
-psb__information_message("pic_params->ReferenceFrames[%d] = %08x --> %08x %02x %s\n", i, pic_params->ReferenceFrames[i].picture_id, ref_surface, pic_params->ReferenceFrames[i].flags, is_used[i] ? "used" : "");
+            psb_buffer_p buffer = ref_surface->psb_surface->ref_buf;
+            psb__information_message("pic_params->ReferenceFrames[%d] = %08x --> %08x frame_idx:0x%08x flags:%02x TopFieldOrderCnt: 0x%08x BottomFieldOrderCnt: 0x%08x %s\n",
+                                     i,
+                                     pic_params->ReferenceFrames[i].picture_id,
+                                     ref_surface,
+                                     pic_params->ReferenceFrames[i].frame_idx,                                     
+                                     pic_params->ReferenceFrames[i].flags,
+                                     pic_params->ReferenceFrames[i].TopFieldOrderCnt,
+                                     pic_params->ReferenceFrames[i].BottomFieldOrderCnt,
+                                     is_used[i] ? "used" : "");
+            
             if (ref_surface && is_used[i])
             // GET_SURFACE_INFO_is_used(ref_surface->psb_surface))
             {
-                psb_cmdbuf_rendec_write_address(cmdbuf, &ref_surface->psb_surface->buf, ref_surface->psb_surface->buf.buffer_ofs);
-                psb_cmdbuf_rendec_write_address(cmdbuf, &ref_surface->psb_surface->buf, ref_surface->psb_surface->buf.buffer_ofs + ref_surface->psb_surface->chroma_offset);
+                psb_cmdbuf_rendec_write_address(cmdbuf, buffer,
+                                                buffer->buffer_ofs);
+                psb_cmdbuf_rendec_write_address(cmdbuf, buffer,
+                                                buffer->buffer_ofs +
+                                                 ref_surface->psb_surface->chroma_offset);
             }
             else
             {
@@ -1209,6 +1290,9 @@ psb__information_message("pic_params->ReferenceFrames[%d] = %08x --> %08x %02x %
         
         psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, H264_WEIGHTED_FACTORS_A) );
             
+        if (num_ref_0 > 31 )
+	    num_ref_0 = 31;
+	
         /* weighted factors */
         for ( i = 0; i <= num_ref_0; i++ )
         {
@@ -1248,6 +1332,12 @@ psb__information_message("pic_params->ReferenceFrames[%d] = %08x --> %08x %02x %
 
             psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, H264_WEIGHTED_FACTORS_B) );
             
+	    if (num_ref_1 > 31)
+	    {
+		psb__error_message("num_ref_1 shouldn't be larger than 31\n");
+		num_ref_1 = 31;
+	    }
+	
             /* weighted factors */
             for ( i = 0; i <= num_ref_1; i++ )
             {
@@ -1310,12 +1400,21 @@ psb__information_message("pic_params->ReferenceFrames[%d] = %08x --> %08x %02x %
 
     ctx->obj_context->operating_mode = reg_value;
 
-    /* LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES */
-    psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
+    if(ctx->obj_context->is_oold && !ctx->two_pass_mode) /* Need to mark which buf is to be used as ref*/
+    {
+        /* LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES */
+        psb_cmdbuf_rendec_write_address( cmdbuf, target_surface->in_loop_buf, target_surface->in_loop_buf->buffer_ofs);
 
-    /* CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES */
-    psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
-
+        /* CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES */
+        psb_cmdbuf_rendec_write_address( cmdbuf, target_surface->in_loop_buf, target_surface->in_loop_buf->buffer_ofs + target_surface->chroma_offset);
+        target_surface->ref_buf = target_surface->in_loop_buf;
+    }
+    else 
+    {
+        psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
+        psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+        target_surface->ref_buf = &target_surface->buf;
+    }
     /* Aux Msb Buffer base address: H.264 does not use this command */
     reg_value = 0;
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
@@ -1354,7 +1453,7 @@ psb__information_message("pic_params->ReferenceFrames[%d] = %08x --> %08x %02x %
 	REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, SLICE_PARAMS, SLICE_ALPHA_CO_OFFSET_DIV2, slice_param->slice_alpha_c0_offset_div2 );
 	REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, SLICE_PARAMS, SLICE_BETA_OFFSET_DIV2, slice_param->slice_beta_offset_div2 );
 	REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, SLICE_PARAMS, SLICE_FIELD_TYPE, ctx->field_type );
-	REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, SLICE_PARAMS, SLICE_CODE_TYPE, aSliceTypeVAtoMsvdx[slice_param->slice_type] );
+	REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, SLICE_PARAMS, SLICE_CODE_TYPE, aSliceTypeVAtoMsvdx[slice_param->slice_type % 5] );
 	psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 
 	/* Store slice parameters in header */
@@ -1452,7 +1551,7 @@ static void psb__H264_preprocess_slice(context_H264_p ctx,
     REGIO_WRITE_FIELD_MASKEDLITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_ALPHA_CO_OFFSET_DIV2,	slice_param->slice_alpha_c0_offset_div2);
     REGIO_WRITE_FIELD_MASKEDLITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_BETA_OFFSET_DIV2,		slice_param->slice_beta_offset_div2);
     REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_FIELD_TYPE,			ctx->field_type);
-    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, SLICETYPE,					aSliceTypeVAtoMsvdx[ slice_param->slice_type ]);
+    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, SLICETYPE,					aSliceTypeVAtoMsvdx[ slice_param->slice_type % 5]);
     REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, CABAC_INIT_IDC,					slice_param->cabac_init_idc);
     REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, SLICECOUNT,					ctx->slice_count);
 
@@ -1526,13 +1625,13 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 
-    psb__information_message("H264 process slice\n");
+    psb__information_message("H264 process slice %d\n", ctx->slice_count);
     psb__information_message("    profile = %s\n", profile2str[ctx->profile]);
     psb__information_message("    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
     psb__information_message("    first mb = %d macroblock offset = %d\n", slice_param->first_mb_in_slice, slice_param->slice_data_bit_offset);
     psb__information_message("    slice_data_flag = %d\n", slice_param->slice_data_flag);
     psb__information_message("    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
-    psb__information_message("    slice type = %s\n", slice2str[slice_param->slice_type]);
+    psb__information_message("    slice type = %s\n", slice2str[(slice_param->slice_type % 5)]);
     psb__information_message("    weighted_pred_flag = %d weighted_bipred_idc = %d\n", ctx->pic_params->pic_fields.bits.weighted_pred_flag, ctx->pic_params->pic_fields.bits.weighted_bipred_idc);
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
@@ -1756,6 +1855,21 @@ static VAStatus psb_H264_EndPicture(
 {
     INIT_CONTEXT_H264
 
+    if(obj_context->is_oold && !ctx->two_pass_mode)
+    {
+        psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
+        psb_buffer_p colocated_target_buffer = psb__H264_lookup_colocated_buffer(ctx, target_surface);
+
+        psb_context_submit_oold(ctx->obj_context,
+                                   target_surface->in_loop_buf,
+                                   &target_surface->buf,
+                                   colocated_target_buffer,
+                                   ctx->picture_width_mb,
+                                   ctx->picture_height_mb,
+                                   ctx->field_type,
+                                   target_surface->chroma_offset);
+    }
+
     if (psb_context_flush_cmdbuf(ctx->obj_context))
     { 
         return VA_STATUS_ERROR_UNKNOWN;
@@ -1774,7 +1888,8 @@ static VAStatus psb_H264_EndPicture(
 
         psb_context_get_next_cmdbuf(ctx->obj_context);
 
-        if( colocated_target_buffer && psb_buffer_map(colocated_target_buffer, &pMbData) ) {
+        if((NULL == colocated_target_buffer) 
+		|| psb_buffer_map(colocated_target_buffer, &pMbData)) {
             psb__information_message("psb_H264: map colocated buffer error!\n");
         }
 	else {
@@ -1794,12 +1909,7 @@ static VAStatus psb_H264_EndPicture(
             //printf("Ret of psb_cmdbuf_second_pass is %d\n", ret);
             if(!ret) {
 		//printf("Submit deblock msg and flush cmdbuf\n");
-                psb_context_submit_deblock(ctx->obj_context,
-                                           &target_surface->buf,
-                                           colocated_target_buffer,
-                                           ctx->picture_width_mb,
-                                           ctx->picture_height_mb,
-                                           target_surface->chroma_offset);
+                psb_context_submit_deblock(ctx->obj_context);
 
                 if (psb_context_flush_cmdbuf(ctx->obj_context))
                      psb__information_message("psb_H264: flush deblock cmdbuf error\n");

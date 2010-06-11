@@ -37,7 +37,7 @@
 #include <string.h>
 
 
-#define TOPAZ_H264_MAX_BITRATE 14000000
+#define TOPAZ_H264_MAX_BITRATE 14000000 /* FIXME ?? */
 
 #define INIT_CONTEXT_H264ES	context_ENC_p ctx = (context_ENC_p) obj_context->format_data
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))

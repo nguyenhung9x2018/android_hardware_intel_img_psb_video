@@ -98,7 +98,6 @@ VAStatus psb_buffer_create( psb_driver_data_p driver_data,
 		DEBUG_FAILURE;
 		return vaStatus;
     }
-
     ret = LOCK_HARDWARE(driver_data);
     if (ret)
     {
@@ -107,12 +106,6 @@ VAStatus psb_buffer_create( psb_driver_data_p driver_data,
         DEBUG_FAILURE_RET;
         return vaStatus;
     }
-
-#ifdef WORKAROUND_DMA_OFF_BY_ONE
-    if ((type != psb_bt_camera) &&
-	(type != psb_bt_rar))
-        size += 4;
-#endif
 
 #ifdef VA_EMULATOR
     placement |= WSBM_PL_FLAG_SHARED;
@@ -293,3 +286,95 @@ int psb_buffer_unmap( psb_buffer_p buf )
 }
 
 
+/*
+ * Return special data structure for codedbuffer 
+ *
+ * Returns 0 on success
+ */
+#define CONFIG(id)  ((object_config_p) object_heap_lookup( &driver_data->config_heap, id ))
+#define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
+int psb_codedbuf_map_mangle(
+        VADriverContextP ctx,
+        object_buffer_p obj_buffer,
+        void **pbuf /* out */
+)
+{
+    object_context_p obj_context = obj_buffer->context;
+    INIT_DRIVER_DATA;
+    VACodedBufferSegment *p = &obj_buffer->codedbuf_mapinfo[0];
+    void *raw_codedbuf = *pbuf;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    
+    if (NULL == obj_context)
+    {
+        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+        DEBUG_FAILURE;
+
+        psb_buffer_unmap(obj_buffer->psb_buffer);
+        obj_buffer->buffer_data = NULL;
+
+        return vaStatus;
+    }
+
+    /* reset the mapinfo */
+    memset(obj_buffer->codedbuf_mapinfo, 0, sizeof(obj_buffer->codedbuf_mapinfo));
+
+    *pbuf = p = &obj_buffer->codedbuf_mapinfo[0];
+    if (IS_MRST(driver_data)) {
+        /* one segment */
+        p->size = *((unsigned long *) raw_codedbuf); /* 1st DW is the size */
+        p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+    } else { /* MFLD */
+        object_config_p obj_config = CONFIG(obj_context->config_id);
+
+        if (NULL == obj_config) {
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            DEBUG_FAILURE;
+
+            psb_buffer_unmap(obj_buffer->psb_buffer);
+            obj_buffer->buffer_data = NULL;
+            
+            return vaStatus;
+        }
+        
+        switch (obj_config->profile) {
+        case VAProfileMPEG4Simple:
+        case VAProfileMPEG4AdvancedSimple:
+        case VAProfileMPEG4Main:
+            /* one segment */
+            p->size = *((unsigned long *) raw_codedbuf);
+            p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+            break;
+            
+        case VAProfileH264Baseline:
+        case VAProfileH264Main:
+        case VAProfileH264High:
+            /* 1st segment */
+            p->size = *((unsigned long *) raw_codedbuf);
+            p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+            p->next = &p[1];
+
+            /* 2nd segment */
+            p++;
+            p->size = *((unsigned long *) raw_codedbuf); /* ToDo */
+            p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+            break;
+        case VAProfileH263Baseline:
+            break;
+        case VAProfileJPEGBaseline:
+            /* 4 segment
+             * driver will write the JPEG suffix in the last segment 
+             */
+            break;
+            
+        default:
+            psb__error_message("unexpected case\n");
+            
+            psb_buffer_unmap(obj_buffer->psb_buffer);
+            obj_buffer->buffer_data = NULL;
+            break;
+        }
+    }
+    
+    return 0;
+}

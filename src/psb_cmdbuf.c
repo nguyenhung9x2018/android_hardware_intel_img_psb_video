@@ -210,6 +210,7 @@ int psb_cmdbuf_reset( psb_cmdbuf_p cmdbuf )
     cmdbuf->buffer_refs_count = 0;
     cmdbuf->cmd_count = 0;
     cmdbuf->deblock_count = 0;
+    cmdbuf->oold_count = 0;
 
     ret = psb_buffer_map( &cmdbuf->buf, &cmdbuf->cmd_base );
     if (ret)
@@ -368,7 +369,7 @@ void psb_cmdbuf_add_relocation( psb_cmdbuf_p cmdbuf,
     reloc->reloc_op = PSB_RELOC_OP_OFFSET;
     
 #ifdef DEBUG_TRACE
-psb__trace_message("[RE] Reloc at offset %08x (%08x), offset = %08x background = %08x buffer = %d (%08x)\n", reloc->where, reloc->where << 2, buf_offset, background, reloc->buffer, presumed_offset);
+    //psb__trace_message("[RE] Reloc at offset %08x (%08x), offset = %08x background = %08x buffer = %d (%08x)\n", reloc->where, reloc->where << 2, buf_offset, background, reloc->buffer, presumed_offset);
 #endif
 
     if (presumed_offset)
@@ -635,6 +636,22 @@ static void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
     uint32_t cmd_size = cmd_size_in_bytes / sizeof(uint32_t);
     uint32_t *cmd_end = cmd_idx + cmd_size;
     void *cmd_start = cmd_idx;
+    struct {
+        unsigned int start;
+        unsigned int end;
+        char *name;
+    } msvdx_regs[10] = {{0x04800000,0x048003FF,"MTX_MTX"},
+                      {0x04800400,0x0480047F,"VDMC_MTX"},
+                      {0x04800480,0x048004FF,"VDEB_MTX"},
+                      {0x04800500,0x048005FF,"DMAC_MTX"},
+                      {0x04800600,0x048006FF,"SYS_MTX"},
+                      {0x04800700,0x048007FF,"VEC_IQRAM_MTX"},
+                      {0x04800800,0x04800FFF,"VEC_MTX"},
+                      {0x04801000,0x04801FFF,"CMD_MTX"},
+                      {0x04802000,0x04802FFF,"VEC_RAM_MTX"},
+                      {0x04803000,0x04804FFF,"VEC_VLC_M"}
+    };
+    
     DBH("CMD BUFFER [%08x] - [%08x], %08x bytes, %08x dwords\n", (uint32_t) cmd_idx, cmd_end, cmd_size_in_bytes, cmd_size);
 while(cmd_idx < cmd_end)
 {
@@ -642,6 +659,13 @@ while(cmd_idx < cmd_end)
 /* What about CMD_MAGIC_BEGIN ?*/
     switch(cmd & CMD_MASK)
     {
+      case CMD_NOP:
+      {
+          DB("CMD_NOPE\n", cmd_idx);
+          cmd_idx++;
+          break;
+      }
+      
       case CMD_HEADER:
       {
           uint32_t context = cmd & CMD_HEADER_CONTEXT_MASK;
@@ -663,7 +687,13 @@ while(cmd_idx < cmd_end)
           
           while(count--)
           {
-              DB("reg address\n", cmd_idx);
+              int i;
+              for (i=0; i<10; i++) {
+                  if ((*cmd_idx >= msvdx_regs[i].start) &&
+                      (*cmd_idx <= msvdx_regs[i].end))
+                      break;
+              }
+              DB("%s_%04x\n", cmd_idx, msvdx_regs[i].name, *cmd_idx & 0xffff);
               cmd_idx++;
               DB("value\n", cmd_idx);
               cmd_idx++;
@@ -913,12 +943,7 @@ static void psb_cmdbuf_close_segment( psb_cmdbuf_p cmdbuf )
     *(cmdbuf->last_next_segment_cmd+1) = bytes_used;
 }
 
-int psb_context_submit_deblock( object_context_p obj_context,
-				psb_buffer_p source_buf,
-				psb_buffer_p colocate_buffer,
-				uint32_t picture_width_in_mb,
-				uint32_t frame_height_in_mb,
-				uint32_t chroma_offset )
+int psb_context_submit_deblock( object_context_p obj_context )
 {
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     uint32_t msg_size = FW_DXVA_DEBLOCK_SIZE;
@@ -943,13 +968,53 @@ int psb_context_submit_deblock( object_context_p obj_context,
     pdbParams = (DEBLOCKPARAMS*) (msg + 16 / sizeof(uint32_t));
 
     pdbParams->handle = wsbmKBufHandle(wsbmKBuf(cmdbuf->regio_buf.drm_buf));
-    //printf("regio buffer size is 0x%x\n", cmdbuf->regio_size);
+    /* printf("regio buffer size is 0x%x\n", cmdbuf->regio_size); */
     pdbParams->buffer_size = cmdbuf->regio_size;
     pdbParams->ctxid = obj_context->msvdx_context;
 
     return 0;
 }
 
+
+int psb_context_submit_oold( object_context_p obj_context,
+                               psb_buffer_p src_buf,
+                               psb_buffer_p dst_buf,
+                               psb_buffer_p colocate_buffer,
+                               uint32_t picture_width_in_mb,
+                               uint32_t frame_height_in_mb,
+                               uint32_t field_type,
+                               uint32_t chroma_offset )
+{
+    psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
+    uint32_t msg_size = FW_DXVA_OOLD_SIZE;
+    uint32_t *msg = cmdbuf->MTX_msg + cmdbuf->cmd_count * FW_DXVA_RENDER_SIZE;
+    FW_DXVA_OOLD_MSG *oold_msg;
+
+    psb__information_message("Send out of loop deblock cmd\n");
+
+    cmdbuf->oold_count++;
+    memset(msg, 0, msg_size);
+    oold_msg = (FW_DXVA_OOLD_MSG *) msg;
+ 
+    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE, FW_DXVA_OOLD_SIZE);
+    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID, DXVA_MSGID_OOLD);
+    MEMIO_WRITE_FIELD(msg, FW_DXVA_DEBLOCK_CONTEXT, obj_context->msvdx_context);
+
+    MEMIO_WRITE_FIELD(msg, FW_DXVA_OOLD_OPERATING_MODE, obj_context->operating_mode);
+    MEMIO_WRITE_FIELD(msg, FW_DXVA_OOLD_FRAME_HEIGHT_MBS, frame_height_in_mb);
+    MEMIO_WRITE_FIELD(msg, FW_DXVA_OOLD_PIC_WIDTH_MBS, picture_width_in_mb);
+
+    RELOC_MSG(oold_msg->SOURCE_LUMA_BUFFER_ADDRESS, src_buf->buffer_ofs, src_buf);
+    RELOC_MSG(oold_msg->SOURCE_CHROMA_BUFFER_ADDRESS, src_buf->buffer_ofs + chroma_offset, src_buf);
+    RELOC_MSG(oold_msg->TARGET_LUMA_BUFFER_ADDRESS, dst_buf->buffer_ofs, dst_buf);
+    RELOC_MSG(oold_msg->TARGET_CHROMA_BUFFER_ADDRESS, dst_buf->buffer_ofs + chroma_offset, dst_buf);
+
+    RELOC_MSG(oold_msg->SOURCE_MB_PARAM_ADDRESS, colocate_buffer->buffer_ofs, colocate_buffer);
+
+    MEMIO_WRITE_FIELD(msg, FW_DXVA_OOLD_SLICE_FIELD_TYPE, field_type);
+ 
+    return 0;
+}
 
 /*
  * Submits the current cmdbuf
@@ -1036,7 +1101,7 @@ int psb_context_flush_cmdbuf( object_context_p obj_context )
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     psb_driver_data_p driver_data = obj_context->driver_data;
     unsigned int fence_flags;
-    //unsigned int fence_handle = 0;
+    /* unsigned int fence_handle = 0; */
     struct psb_ttm_fence_rep fence_rep;
     unsigned int reloc_offset;
     unsigned int num_relocs;
@@ -1065,7 +1130,7 @@ int psb_context_flush_cmdbuf( object_context_p obj_context )
         uint32_t flags = MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FLAGS);
         
         /* Update flags */
-        int bBatchEnd = (i == cmdbuf->cmd_count + cmdbuf->deblock_count);
+        int bBatchEnd = (i == cmdbuf->cmd_count + cmdbuf->deblock_count + cmdbuf->oold_count);
 
         flags |= 
             (bBatchEnd ? (FW_DXVA_RENDER_HOST_INT | FW_DXVA_LAST_SLICE_OF_EXT_DMA)    : FW_DXVA_RENDER_NO_RESPONCE_MSG) |
@@ -1073,6 +1138,10 @@ int psb_context_flush_cmdbuf( object_context_p obj_context )
 
 	if( i == cmdbuf->cmd_count )
             flags |= FW_DXVA_LAST_SLICE_OF_EXT_DMA;
+
+        /* VXD385 DDK406 not use FW_DXVA_LAST_SLICE_OF_EXT_DMA, this flags should be cleaned later */
+        if(IS_MFLD(driver_data))
+            flags &= ~FW_DXVA_LAST_SLICE_OF_EXT_DMA;
 
         MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_FLAGS, flags);
 
@@ -1105,6 +1174,10 @@ psb__information_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg,
         msg_size += FW_DXVA_DEBLOCK_SIZE;
     }
  
+    for(i = 1; i <= cmdbuf->oold_count; i++)
+    {
+        msg_size += FW_DXVA_OOLD_SIZE;
+    }
     /* Now calculate the total number of relocations */
     reloc_offset = cmdbuf->reloc_base - cmdbuf->MTX_msg;
     num_relocs = (((void *) cmdbuf->reloc_idx) - cmdbuf->reloc_base) / sizeof(struct drm_psb_reloc);
@@ -1165,56 +1238,75 @@ static int error_count = 0;
     fence = psb_fence_wait(driver_data, &fence_rep, &status);
     psb__information_message("psb_fence_wait returns: %d (fence=0x%08x)\n",status, fence);
 #endif    
+
     psb_buffer_map( &cmdbuf->buf, &cmdbuf->cmd_base );
+    psb_buffer_map( &cmdbuf->reloc_buf, &cmdbuf->MTX_msg );
 
-    psb__information_message("lldma_count = %d\n", debug_lldma_count);
-    for(i = 0; i < debug_lldma_count; i++)
-    {
-        DMA_sLinkedList* pasDmaList = (DMA_sLinkedList*) (cmdbuf->cmd_base + debug_lldma_start);
-        pasDmaList += i;
-#ifdef DEBUG_TRACE
-psb__trace_message("\nLLDMA record at offset %08x\n", ((void*)pasDmaList) - cmdbuf->cmd_base);
-DW(0, BSWAP,    31, 31)
-DW(0, DIR,    30, 30)
-DW(0, PW,    29, 28)
-DW(1, List_FIN, 31, 31)
-DW(1, List_INT, 30, 30)
-DW(1, PI,    18, 17)
-DW(1, INCR,    16, 16)
-DW(1, LEN,    15, 0)
-DWH(2, ADDR,    22, 0)
-DW(3, ACC_DEL,    31, 29)
-DW(3, BURST,    28, 26)
-DWH(3, EXT_SA,    3, 0)
-DW(4, 2D_MODE,    16, 16)
-DW(4, REP_COUNT, 10, 0)
-DWH(5, LINE_ADD_OFF, 25, 16)
-DW(5, ROW_LENGTH, 9, 0)
-DWH(6, SA, 31, 0)
-DWH(7, LISTPTR, 27, 0)
-#endif
+    if (getenv("PSB_VIDEO_TRACE_LLDMA")) {
+        psb__trace_message("lldma_count = %d, vitual=0x%08x\n", 
+                           debug_lldma_count,  wsbmBOOffsetHint(cmdbuf->buf.drm_buf) + CMD_SIZE);
+        for(i = 0; i < debug_lldma_count; i++)
+        {
+            DMA_sLinkedList* pasDmaList = (DMA_sLinkedList*) (cmdbuf->cmd_base + debug_lldma_start);
+            pasDmaList += i;
+
+            psb__trace_message("\nLLDMA record at offset %08x\n", ((void*)pasDmaList) - cmdbuf->cmd_base);
+            DW(0, BSWAP,    31, 31)
+            DW(0, DIR,    30, 30)
+            DW(0, PW,    29, 28)
+            DW(1, List_FIN, 31, 31)
+            DW(1, List_INT, 30, 30)
+            DW(1, PI,    18, 17)
+            DW(1, INCR,    16, 16)
+            DW(1, LEN,    15, 0)
+            DWH(2, ADDR,    22, 0)
+            DW(3, ACC_DEL,    31, 29)
+            DW(3, BURST,    28, 26)
+            DWH(3, EXT_SA,    3, 0)
+            DW(4, 2D_MODE,    16, 16)
+            DW(4, REP_COUNT, 10, 0)
+            DWH(5, LINE_ADD_OFF, 25, 16)
+            DW(5, ROW_LENGTH, 9, 0)
+            DWH(6, SA, 31, 0)
+            DWH(7, LISTPTR, 27, 0)
+        }
     }
 
-    psb__information_message("cmd_count = %d\n", debug_cmd_count);
-    for(i = 0; i < debug_cmd_count; i++)
-    {
-        psb__information_message("start = %08x size = %08x\n", debug_cmd_start[i], debug_cmd_size[i]);
-        debug_dump_cmdbuf( (uint32_t *) (cmdbuf->cmd_base + debug_cmd_start[i]), debug_cmd_size[i] );
-    }
-    psb_buffer_unmap( &cmdbuf->buf );
-    cmdbuf->cmd_base = NULL;
+    
 
     psb__trace_message("debug_dump_count = %d\n", debug_dump_count);
     for(i = 0; i < debug_dump_count; i++)
     {
         void *buf_addr;
         psb__trace_message("Buffer %d = '%s' offset = %08x size = %08x\n", i, debug_dump_name[i], debug_dump_offset[i], debug_dump_size[i]);
-        psb_buffer_map( debug_dump_buf[i], &buf_addr );
+        if (debug_dump_buf[i]->rar_handle 
+            || (psb_buffer_map( debug_dump_buf[i], &buf_addr) != 0)) {
+            psb__trace_message("Unmappable buffer,e.g. RAR buffer\n");
+            continue;
+        }
+        
         g_hexdump_offset = 0;
         psb__hexdump( buf_addr + debug_dump_offset[i], debug_dump_size[i]);
         psb_buffer_unmap( debug_dump_buf[i] );
     }
     debug_dump_count = 0;
+
+    psb__trace_message("cmd_count = %d, virtual=0x%08x\n", 
+    		       debug_cmd_count, wsbmBOOffsetHint(cmdbuf->buf.drm_buf));
+    for(i = 0; i < debug_cmd_count; i++)
+    {
+	uint32_t *msg = cmdbuf->MTX_msg + i * FW_DXVA_RENDER_SIZE;
+	int j;
+        psb__information_message("start = %08x size = %08x\n", debug_cmd_start[i], debug_cmd_size[i]);
+        debug_dump_cmdbuf( (uint32_t *) (cmdbuf->cmd_base + debug_cmd_start[i]), debug_cmd_size[i] );
+
+	for (j=0; j<FW_DXVA_RENDER_SIZE/4; j++)
+            psb__trace_message("MTX msg[%d] = 0x%08x\n", j, *(msg+j));
+    }
+    psb_buffer_unmap( &cmdbuf->buf );
+    psb_buffer_unmap( &cmdbuf->reloc_buf);
+
+    cmdbuf->cmd_base = NULL;
 
     if (status)
     {
@@ -1368,6 +1460,27 @@ static const DMA_DETAIL_LOOKUP DmaDetailLookUp[] =
 									HOST_TO_MSVDX,
 									DMA_BURST_1		/* Into MTX */
 								},
+	/*LLDMA_TYPE_IDCT_INSERTION*/{
+									(REG_MSVDX_VEC_OFFSET + MSVDX_VEC_CR_VEC_DIRECT_MODE_DATA0_OFFSET ),
+									DMA_PWIDTH_32_BIT,
+									DMA_PERIPH_INCR_1,	
+									DMA_PERIPH_INCR_OFF,
+									IMG_FALSE,
+									MMU_GROUP1,
+									HOST_TO_MSVDX,
+									DMA_BURST_4
+								},
+	/*LLDMA_TYPE_RENDER_BUFF_ALTERNATE */
+	 {
+									( REG_MSVDX_VEC_OFFSET + MSVDX_VEC_CR_VEC_SHIFTREG_STREAMIN_OFFSET  ),
+									DMA_PWIDTH_8_BIT,
+									DMA_PERIPH_INCR_1,
+									DMA_PERIPH_INCR_OFF,
+									IMG_FALSE,
+									MMU_GROUP0,
+									HOST_TO_MSVDX,
+									DMA_BURST_4
+								},
 };
 
 #define MAX_DMA_LEN     ( 0xffff )
@@ -1435,7 +1548,7 @@ void psb_cmdbuf_lldma_write_bitstream( psb_cmdbuf_p cmdbuf,
                             size_in_bytes, 0, LLDMA_TYPE_BITSTREAM );
 
 #ifdef DEBUG_TRACE
-    psb__debug_schedule_hexdump("Bitstream", bitstream_buf, buffer_offset, size_in_bytes);
+    //psb__debug_schedule_hexdump("Bitstream", bitstream_buf, buffer_offset, size_in_bytes);
 #endif
 }
 
@@ -1455,7 +1568,7 @@ void psb_cmdbuf_lldma_write_bitstream_chained( psb_cmdbuf_p cmdbuf,
     MEMIO_WRITE_FIELD(pasDmaList, DMAC_LL_LIST_FIN, 0);
 
 #ifdef DEBUG_TRACE
-    psb__debug_schedule_hexdump("Bitstream (chained)", bitstream_buf, 0, size_in_bytes);
+    //psb__debug_schedule_hexdump("Bitstream (chained)", bitstream_buf, 0, size_in_bytes);
 #endif
 
     *(cmdbuf->cmd_bitstream_size) += size_in_bytes;

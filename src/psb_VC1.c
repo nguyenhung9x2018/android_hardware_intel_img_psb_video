@@ -653,6 +653,8 @@ static uint32_t psb__vc1_get_izz_scan_index(context_VC1_p ctx)
 
 
 #ifdef DEBUG_TRACE
+#define psb__trace_message(...)
+
 #define P(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->x)
 static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
 {
@@ -1000,10 +1002,27 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     ctx->i8BckwrdRefFrmDist = 0;
     if(pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B)   
     {
-        IMG_UINT32 ui32BFractionDen = gBFRACTION_DenRemapTable[pic_params->b_picture_fraction];
-        IMG_UINT32 ui32BFractionNum = gBFRACTION_NumRemapTable[pic_params->b_picture_fraction];
+        IMG_UINT32 ui32BFractionDen; 
+        IMG_UINT32 ui32BFractionNum;
         
-        IMG_UINT32 ui32FrameReciprocal = gaui16Inverse[ui32BFractionDen - 1];
+        IMG_UINT32 ui32FrameReciprocal;
+	
+	if (pic_params->b_picture_fraction > (sizeof(gBFRACTION_DenRemapTable) / sizeof(IMG_BYTE) - 1))
+	    pic_params->b_picture_fraction = sizeof(gBFRACTION_DenRemapTable) / sizeof(IMG_BYTE) - 1;	
+
+        ui32BFractionDen = gBFRACTION_DenRemapTable[pic_params->b_picture_fraction];
+        ui32BFractionNum = gBFRACTION_NumRemapTable[pic_params->b_picture_fraction];
+
+	if (ui32BFractionDen > (sizeof(gaui16Inverse) / sizeof(IMG_UINT16)))
+	    ui32BFractionDen = sizeof(gaui16Inverse) / sizeof(IMG_UINT16);
+ 
+	if (ui32BFractionDen == 0)
+	{
+	    psb__error_message("Invalid ui32BFractionDen value %d\n", ui32BFractionDen);
+	    ui32BFractionDen = 1;
+	}
+	    
+        ui32FrameReciprocal = gaui16Inverse[ui32BFractionDen - 1];
         ctx->ui32ScaleFactor    = ui32BFractionNum * ui32FrameReciprocal;
         
         if(pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI)
@@ -1439,8 +1458,12 @@ static VAStatus psb__VC1_add_slice_param(context_VC1_p ctx, object_buffer_p obj_
  */
 static void psb__VC1_extract_table_info(context_VC1_p ctx, sTableData *psInfo, int idx)
 {
-    IMG_UINT32 tmp = ctx->vlc_packed_index_table[idx];
+    IMG_UINT32 tmp;
 
+    if (idx >= VLC_INDEX_TABLE_SIZE)
+	idx = VLC_INDEX_TABLE_SIZE - 1;
+
+    tmp = ctx->vlc_packed_index_table[idx];
     psInfo->aui16StartLocation      = (IMG_UINT16)(tmp & 0xffff);
     psInfo->aui16VLCTableLength     = (IMG_UINT16)((tmp >> 16) & 0x1ff);
     psInfo->aui16InitialWidth       = (IMG_UINT16)((tmp >> 25) & 0x7);
@@ -2456,7 +2479,15 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
         {
             /* CR_VEC_VC1_BE_COLPARAM_BASE_ADDR */
             ASSERT(ctx->backward_ref_surface);
-            psb_buffer_p colocated_backward_ref_buffer = ctx->backward_ref_surface->psb_surface ? psb__VC1_lookup_colocated_buffer(ctx, ctx->backward_ref_surface->psb_surface) : NULL;
+            psb_buffer_p colocated_backward_ref_buffer;
+
+	    if (NULL == ctx->backward_ref_surface)
+	    {
+		psb__error_message("%s L%d Invalid backward_ref_surface handle\n", __FUNCTION__, __LINE__);
+		return;
+	    }
+	
+	    colocated_backward_ref_buffer = ctx->backward_ref_surface->psb_surface ? psb__VC1_lookup_colocated_buffer(ctx, ctx->backward_ref_surface->psb_surface) : NULL;
             ASSERT(colocated_backward_ref_buffer);
             if (colocated_backward_ref_buffer)
             {
@@ -2628,7 +2659,7 @@ static void psb__VC1_setup_bitplane(context_VC1_p ctx)
         psb_cmdbuf_reg_set_address( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR0),
                           ctx->bitplane_buffer, 0);
 #ifdef DEBUG_TRACE
-        psb__debug_schedule_hexdump("Bitplane buffer", ctx->bitplane_buffer, 0, (ctx->size_mb + 1) / 2);
+        //psb__debug_schedule_hexdump("Bitplane buffer", ctx->bitplane_buffer, 0, (ctx->size_mb + 1) / 2);
 #endif
                           
     }

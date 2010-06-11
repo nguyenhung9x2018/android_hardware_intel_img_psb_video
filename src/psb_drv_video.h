@@ -22,6 +22,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+
 #ifndef _PSB_DRV_VIDEO_H_
 #define _PSB_DRV_VIDEO_H_
 
@@ -36,7 +37,6 @@
 #include "drm_sarea.h"
 #include "psb_drm.h"
 #include <stdint.h>
-#include "hwdefs/dxva_fw_flags.h"
 #ifndef ANDROID
 #include <X11/Xlibint.h>
 #include <X11/X.h>
@@ -45,7 +45,9 @@
 #include <X11/Xlib.h>
 #else
 #define XID unsigned int
+#define INT16 unsigned int
 #endif
+#include "hwdefs/dxva_fw_flags.h"
 #include <wsbm/wsbm_pool.h>
 
 /*
@@ -53,72 +55,17 @@
  * a MMU fault if the next byte after the buffer end is on a different page that isn't mapped.
  */
 #define WORKAROUND_DMA_OFF_BY_ONE
-#define VA_FOURCC_NV12     (('2' << 24) + ('1' << 16) + ('V' << 8) + 'N')
-#define XVIMAGE_NV12 \
-   { \
-        VA_FOURCC_NV12, \
-        XvYUV, \
-        LSBFirst, \
-        {'N','V','1','2', \
-          0x00,0x00,0x00,0x10,0x80,0x00,0x00,0xAA,0x00,0x38,0x9B,0x71}, \
-        12, \
-        XvPlanar, \
-        2, \
-        0, 0, 0, 0, \
-        8, 8, 8, \
-        1, 2, 2, \
-        1, 2, 2, \
-        {'Y','U','V', \
-          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, \
-        XvTopToBottom \
-   }
-#define VA_FOURCC_RGBA 0x41424752
-#define XVIMAGE_RGBA \
-   { \
-        VA_FOURCC_RGBA, \
-       XvRGB, \
-        LSBFirst, \
-        {'R','G','B','A', \
-          0x00,0x00,0x00,0x10,0x80,0x00,0x00,0xAA,0x00,0x38,0x9B,0x71}, \
-        32, \
-        XvPacked, \
-        1, \
-        24, 0xFF0000, 0xFF00, 0xFF, \
-        0, 0, 0, \
-        0, 0, 0, \
-        0, 0, 0, \
-        {'R','G','B', \
-          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, \
-        XvTopToBottom \
-   }
 #define FOURCC_XVVA     (('A' << 24) + ('V' << 16) + ('V' << 8) + 'X')
-#define XVIMAGE_XVVA \
-   { \
-	FOURCC_XVVA, \
-        XvYUV, \
-	LSBFirst, \
-	{'X','V','V','A', \
-	  0x00,0x00,0x00,0x10,0x80,0x00,0x00,0xAA,0x00,0x38,0x9B,0x71}, \
-	12, \
-	XvPlanar, \
-	2, \
-	0, 0, 0, 0, \
-	8, 8, 8, \
-	1, 2, 2, \
-	1, 2, 2, \
-	{'Y','U','V', \
-	  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, \
-	XvTopToBottom \
-   }
 
-#define PSB_MAX_PROFILES				12
-#define PSB_MAX_ENTRYPOINTS				7
+#define PSB_MAX_PROFILES				13
+#define PSB_MAX_ENTRYPOINTS				8
 #define PSB_MAX_CONFIG_ATTRIBUTES		10
 #define PSB_MAX_BUFFERTYPES			32
 
 /* Max # of command submission buffers */
 #define PSB_MAX_CMDBUFS				10	
 #define LNC_MAX_CMDBUFS_ENCODE			4
+#define PNW_MAX_CMDBUFS_ENCODE			4
 
 #define PSB_SURFACE_DISPLAYING_F (0x1U<<0)
 #define PSB_SURFACE_IS_FLAG_SET(flags, mask) (((flags)& PSB_SURFACE_DISPLAYING_F) != 0)
@@ -153,6 +100,7 @@ struct psb_driver_data_s {
     uint32_t                    dev_id;
     int				drm_fd;
     int				dri2;
+    int 			dri_dummy;
     XID				context_id;
     drm_context_t		drm_context;
     drmLock			*drm_lock;
@@ -187,6 +135,7 @@ struct psb_driver_data_s {
 };
 
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)
+#define IS_MFLD(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x0130)
 
 struct object_config_s {
     struct object_base_s base;
@@ -201,6 +150,7 @@ struct object_context_s {
     struct object_base_s base;
     VAContextID context_id;
     VAConfigID config_id;
+    VAEntrypoint entry_point;
     int picture_width;
     int picture_height;
     int num_render_targets;
@@ -213,9 +163,11 @@ struct object_context_s {
     void *format_data;
     struct psb_cmdbuf_s *cmdbuf_list[PSB_MAX_CMDBUFS];
     struct lnc_cmdbuf_s *lnc_cmdbuf_list[LNC_MAX_CMDBUFS_ENCODE];
+    struct pnw_cmdbuf_s *pnw_cmdbuf_list[PNW_MAX_CMDBUFS_ENCODE];
     
     struct psb_cmdbuf_s *cmdbuf; /* Current cmd buffer */
     struct lnc_cmdbuf_s *lnc_cmdbuf;
+    struct pnw_cmdbuf_s *pnw_cmdbuf;
     
     int cmdbuf_current;
     
@@ -224,6 +176,9 @@ struct object_context_s {
     int buffers_unused_count[PSB_MAX_BUFFERTYPES]; /* Linked lists (HEAD) of unused buffers for each buffer type */
     object_buffer_p buffers_unused_tail[PSB_MAX_BUFFERTYPES]; /* Linked lists (TAIL) of unused buffers for each buffer type */
     object_buffer_p buffers_active[PSB_MAX_BUFFERTYPES]; /* Linked lists of active buffers for each buffer type */
+
+    object_buffer_p *buffer_list; /* for vaRenderPicture */
+    int num_buffers;
 
     enum {
         psb_video_none = 0,
@@ -236,6 +191,8 @@ struct object_context_s {
     uint32_t flags; /* See render flags below */
     uint32_t first_mb;
     uint32_t last_mb;
+
+    int is_oold;
 
     uint32_t msvdx_context;
     
@@ -263,6 +220,7 @@ struct object_buffer_s {
     object_buffer_p *pptr_prev_next; /* Generic ptr for linked list */
     struct psb_buffer_s *psb_buffer;
     void *buffer_data;
+    VACodedBufferSegment codedbuf_mapinfo[4]; /* for VAEncCodedBufferType */
     unsigned int size;
     unsigned int alloc_size;
     int max_num_elements;

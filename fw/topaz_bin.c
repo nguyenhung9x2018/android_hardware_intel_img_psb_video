@@ -186,6 +186,8 @@ int main ()
     /* open file  */
     fp = fopen (FW_FILE_NAME, "w");
 
+    if (NULL == fp)
+	return -1;
     /* write fw table into the file */
     while (iter < FW_NUM) {
             /* record the size use bytes */

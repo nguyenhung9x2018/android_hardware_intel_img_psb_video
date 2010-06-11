@@ -165,6 +165,7 @@ struct context_ENC_s {
     object_surface_p 	previous_ref_surface;
     object_surface_p 	previous_dest_surface; /* reconstructed surface */
     object_buffer_p 	previous_coded_buf;
+    object_buffer_p 	pprevisous_coded_buf;
 
     /* point to the place in cmdbuf following START_PIC, the initial_qp will fill into it later */
     uint32_t *initial_qp_in_cmdbuf;

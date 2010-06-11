@@ -39,8 +39,6 @@
 #define ALIGN_TO(value, align) ((value + align - 1) & ~(align - 1))
 #define PAGE_ALIGN(value) ALIGN_TO(value, 4096)
 
-#define INT16 short
-
 static VAStatus lnc__alloc_context_buffer(context_ENC_p ctx)
 {
     int width, height;
@@ -456,14 +454,15 @@ static VAStatus lnc__PatchBitsConsumedInRCParam(context_ENC_p ctx)
     VAStatus vaStatus;
     
     /* it will wait until last encode session is done */
-    vaStatus = psb_buffer_map(ctx->previous_coded_buf->psb_buffer, &pBuffer);
+    vaStatus = psb_buffer_map(ctx->pprevisous_coded_buf->psb_buffer, &pBuffer);
     if (vaStatus) 
         return vaStatus;
 
     CodedData = (IMG_UINT32 *) pBuffer;
+    /*With firmware v108 or obove, BitsConsumed isn't required*/
     ctx->sRCParams.BitsConsumed = (*CodedData) << 3;
     
-    psb_buffer_unmap(ctx->coded_buf->psb_buffer);
+    psb_buffer_unmap(ctx->pprevisous_coded_buf->psb_buffer);
     
     ctx->InBuffer += *CodedData;
     BitsPerFrame = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
@@ -604,7 +603,7 @@ VAStatus lnc_EndPicture(context_ENC_p ctx)
     if (ctx->sRCParams.RCEnable == IMG_TRUE) {
         if (ctx->obj_context->frame_count == 0)
             lnc_SetupRCParam(ctx);
-        if (ctx->obj_context->frame_count)
+        if (ctx->obj_context->frame_count > 1)
             lnc_PatchRCMode(ctx);
     }
 
@@ -612,6 +611,7 @@ VAStatus lnc_EndPicture(context_ENC_p ctx)
     ctx->previous_src_surface = ctx->src_surface;
     ctx->previous_ref_surface = ctx->ref_surface;
     ctx->previous_dest_surface = ctx->dest_surface; /* reconstructed surface */
+    ctx->pprevisous_coded_buf = ctx->previous_coded_buf;
     ctx->previous_coded_buf = ctx->coded_buf;
     
     lnc_cmdbuf_insert_command(cmdbuf,MTX_CMDID_END_PIC,3,0);

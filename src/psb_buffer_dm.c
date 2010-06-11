@@ -97,7 +97,7 @@ static VAStatus psb_buffer_init_camera( psb_driver_data_p driver_data )
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
     psb__information_message("Grab whole camera device memory\n");
-    ret = psb_buffer_create(driver_data, MRST_CAMEAR_DM_SIZE, psb_bt_camera, (psb_buffer_p) driver_data->camera_bo);
+    ret = psb_buffer_create(driver_data, driver_data->camera_size, psb_bt_camera, (psb_buffer_p) driver_data->camera_bo);
 
     if (ret != VA_STATUS_SUCCESS) {
         free(driver_data->camera_bo);

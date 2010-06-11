@@ -28,7 +28,7 @@
 
 #define USE_OVERLAY 1
 #define USE_DISPLAY_C_SPRITE 0
-#define USE_PVR2D 1
+
 /*
  * NOTE: Destination keying when enabled forces the overlay surface
  * Z order to be below the primary display. Pixels that match the key
@@ -39,23 +39,14 @@
 /*
  * NOTE: This is only for media player output
  */
-#define USE_FIT_SCR_SIZE 1
 #define USE_CLIP_FUNC 0
 #define USE_SCALE_FUNC 1
 #define USE_ROTATION_FUNC 1
 
-
-#if 0
-#define Bool unsigned int
-#define TRUE 1
-#define FALSE 0
-#endif
-#define BadAlloc -1
 #define Success 0
 
 /* FIXME this will be removed later after using pvr2d */
 #if 1
-#define Rotation unsigned int
 #define RR_Rotate_0         1
 #define RR_Rotate_90        2
 #define RR_Rotate_180       4
@@ -118,14 +109,34 @@
 
 #define OFC_UPDATE              0x1
 
+/*
+* OVADD - Overlay Register Update Address Register
+*/
+#define OVADD_PIPE_A           (0x0<<6)
+#define OVADD_PIPE_B           (0x2<<6)
+#define OVADD_PIPE_C           (0x1<<6)
+#define LOAD_IEP_BW_EXPANSION  (0x1<<4)
+#define LOAD_IEP_BS_SCC                (0x1<<3)
+#define LOAD_IEP_CSC           (0x1<<2)
+#define LOAD_IEP_DEBUG         (0x1<<1)
+#define LOAD_COEFFICEINT       (0x1<<0)
+
 /* OCONFIG register */
 #define CC_OUT_8BIT             (0x1<<3)
 #define OVERLAY_PIPE_MASK       (0x1<<18)
 #define OVERLAY_PIPE_A          (0x0<<18)
 #define OVERLAY_PIPE_B          (0x1<<18)
+#define IEP_LITE_BYPASS                (0x1<<27)
+#define OVERLAY_C_PIPE_MASK      (0x3<<17)
+#define OVERLAY_C_PIPE_A         (0x0<<17)
+#define OVERLAY_C_PIPE_B         (0x2<<17)
+#define OVERLAY_C_PIPE_C         (0x1<<17)
 #define GAMMA2_ENBL             (0x1<<16)
+#define ZORDER_TOP             (0x0<<15)
+#define ZORDER_BOTTOM          (0x1<<15)
 #define CSC_MODE_BT709          (0x1<<5)
 #define CSC_MODE_BT601          (0x0<<5)
+#define CSC_BYPASS             (0x1<<4)
 #define THREE_LINE_BUFFERS      (0x1<<0)
 #define TWO_LINE_BUFFERS        (0x0<<0)
 
@@ -213,27 +224,6 @@ typedef struct {
     uint16_t RESERVEDG[0x100 / 2 - N_HORIZ_UV_TAPS * N_PHASES];
 } I830OverlayRegRec, *I830OverlayRegPtr;
 
-typedef enum _psb_nominalrange
-{
-    PSB_NominalRangeMask = 0x07,
-    PSB_NominalRange_Unknown = 0,
-    PSB_NominalRange_Normal = 1,
-    PSB_NominalRange_Wide = 2,
-    /* explicit range forms */
-    PSB_NominalRange_0_255 = 1,
-    PSB_NominalRange_16_235 = 2,
-    PSB_NominalRange_48_208 = 3
-} psb_nominalrange;
-
-typedef enum _psb_videotransfermatrix
-{
-    PSB_VideoTransferMatrixMask = 0x07,
-    PSB_VideoTransferMatrix_Unknown = 0,
-    PSB_VideoTransferMatrix_BT709 = 1,
-    PSB_VideoTransferMatrix_BT601 = 2,
-    PSB_VideoTransferMatrix_SMPTE240M = 3
-} psb_videotransfermatrix;
-
 typedef struct _ov_psb_fixed32
 {
     union
@@ -250,47 +240,11 @@ typedef struct _ov_psb_fixed32
 #define Degree (2*PI / 360.0)
 #define PI 3.1415927
 
-typedef struct _psb_transform_coeffs_
-{
-    double rY, rCb, rCr;
-    double gY, gCb, gCr;
-    double bY, bCb, bCr;
-} psb_transform_coeffs;
-
 typedef struct {
     uint8_t sign;
     uint16_t mantissa;
     uint8_t exponent;
 } coeffRec, *coeffPtr;
-
-typedef struct _psb_coeffs_
-{
-    signed char rY;
-    signed char rU;
-    signed char rV;
-    signed char gY;
-    signed char gU;
-    signed char gV;
-    signed char bY;
-    signed char bU;
-    signed char bV;
-    unsigned char rShift;
-    unsigned char gShift;
-    unsigned char bShift;
-    signed short rConst;
-    signed short gConst;
-    signed short bConst;
-} psb_coeffs_s, *psb_coeffs_p;
-
-int psbInitVideo(VADriverContextP ctx);
-int psbDeInitVideo(VADriverContextP ctx);
-int I830PutImage(VADriverContextP ctx,
-             VASurfaceID surface,
-             short src_x, short src_y,
-             short src_w, short src_h,
-             short drw_x, short drw_y,
-             short drw_w, short drw_h, int id);
-void I830StopVideo(VADriverContextP ctx);
 
 VAStatus psb_putsurface_overlay(
     VADriverContextP ctx,

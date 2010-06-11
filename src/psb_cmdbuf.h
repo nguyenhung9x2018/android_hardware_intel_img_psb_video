@@ -34,6 +34,11 @@
 
 #include <stdint.h>
 
+
+#ifdef ANDROID
+#define Bool int
+#endif
+
 typedef struct psb_cmdbuf_s *psb_cmdbuf_p;
 
 struct psb_cmdbuf_s {
@@ -56,6 +61,7 @@ struct psb_cmdbuf_s {
     /* CMD stream data */
     int cmd_count;
     int deblock_count;
+    int oold_count;
     void *cmd_base;
     void *cmd_start;
     uint32_t *cmd_idx;
@@ -146,13 +152,16 @@ void psb_cmdbuf_add_relocation( psb_cmdbuf_p cmdbuf,
  */
 int psb_context_get_next_cmdbuf( object_context_p obj_context );
 
-int psb_context_submit_deblock( object_context_p obj_context,
-				psb_buffer_p source_buf,
-				psb_buffer_p colocate_buffer,
-				uint32_t picture_width_in_mb,
-				uint32_t frame_height_in_mb,
-				uint32_t chroma_offset );
+int psb_context_submit_deblock( object_context_p obj_context );
 
+int psb_context_submit_oold( object_context_p obj_context,
+                               psb_buffer_p src_buf,
+                               psb_buffer_p dst_buf,
+                               psb_buffer_p colocate_buffer,
+                               uint32_t picture_width_in_mb,
+                               uint32_t frame_height_in_mb,
+                               uint32_t field_type,
+                               uint32_t chroma_offset );
 /*
  * Submits the current cmdbuf
  *

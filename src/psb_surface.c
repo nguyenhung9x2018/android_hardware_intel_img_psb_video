@@ -84,6 +84,7 @@ VAStatus psb_surface_create( psb_driver_data_p driver_data,
         psb_surface->luma_offset = 0;
         psb_surface->chroma_offset = psb_surface->stride * height;
         psb_surface->size = (psb_surface->stride * height * 3) / 2;
+        psb_surface->extra_info[4] = VA_FOURCC_NV12;
     }
     else if (fourcc == VA_FOURCC_RGBA)  
     {
@@ -93,6 +94,7 @@ VAStatus psb_surface_create( psb_driver_data_p driver_data,
         psb_surface->luma_offset = 0;
         psb_surface->chroma_offset = 0;
         psb_surface->size = psb_surface->stride * height;
+        psb_surface->extra_info[4] = VA_FOURCC_RGBA;
     }
 	
     if (protected == 0)
@@ -162,6 +164,10 @@ VAStatus psb_surface_set_chroma( psb_surface_p psb_surface, int chroma )
 void psb_surface_destroy( psb_surface_p psb_surface )
 {
     psb_buffer_destroy( &psb_surface->buf );
+
+    if( NULL != psb_surface->in_loop_buf )
+        psb_buffer_destroy( psb_surface->in_loop_buf );
+        
 }
 
 VAStatus psb_surface_sync( psb_surface_p psb_surface )
