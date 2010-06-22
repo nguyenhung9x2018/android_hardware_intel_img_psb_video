@@ -311,10 +311,10 @@ VAStatus psb_PutSurface(
         return VA_STATUS_SUCCESS;
     }
 
-#ifdef ANDROID_VIDEO_TEXTURE_STREAM
+#if ANDROID_VIDEO_TEXTURE_STREAM
     if (!output->register_flag)
     {
-        psb_android_register_isurface(android_isurface);
+        psb_android_register_isurface(android_isurface, srcw, srch);
         output->register_flag = 1;
     }
 

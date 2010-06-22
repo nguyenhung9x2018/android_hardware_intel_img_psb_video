@@ -781,7 +781,7 @@ VAStatus psb_CreateSurfaces(
         }
     }
 
-#ifdef ANDROID_VIDEO_TEXTURE_STREAM
+#if ANDROID_VIDEO_TEXTURE_STREAM
     vaStatus = psb_register_video_bcd(ctx, width, height, stride, num_surfaces, surface_list);
 #endif    
 

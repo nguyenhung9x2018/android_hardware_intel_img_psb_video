@@ -958,8 +958,7 @@ psbSetupImageVideoOverlay(VADriverContextP ctx)
 
     ret = wsbmGenBuffers(driver_data->main_pool, 1,
                          &pPriv->wsbo, 0,
-                         WSBM_PL_FLAG_TT |
-                         WSBM_PL_FLAG_NO_EVICT);
+                         WSBM_PL_FLAG_TT);
     if (ret)
         goto out_err_ppriv;
 
