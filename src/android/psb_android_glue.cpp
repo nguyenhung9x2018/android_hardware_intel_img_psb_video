@@ -52,12 +52,9 @@ void psb_android_clearHeap()
 void psb_android_register_isurface(void** android_isurface, int srcw, int srch)
 {
     isurface = static_cast<ISurface*>(*android_isurface);
+    isurface->createTextureStreamSource();
     isurface->setTextureStreamID(0);
     isurface->setTextureStreamDim(srcw, srch);
-    /*TODO: call crateTextureStreamSource here is too late, then we need call it in AndroidOutputSurface:set*/
-/*
-    isurface->createTextureStreamSource();
-*/
 }
 
 void psb_android_texture_streaming_display(int buffer_index)
