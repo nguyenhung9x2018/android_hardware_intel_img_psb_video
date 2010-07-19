@@ -49,10 +49,10 @@ LOCAL_SRC_FILES :=		\
 LOCAL_CFLAGS := -DLINUX -DANDROID -g -Wall -Wno-unused
 
 LOCAL_C_INCLUDES :=			\
-	$(TOPDIR)kernel/include		\
-	$(TOPDIR)platform/hardware/intel/pvr/eurasia/pvr2d		\
+	$(TOPDIR)hardware/intel/include		\
+        $(TOPDIR)hardware/intel/include/eurasia/pvr2d              \
 	$(TARGET_OUT_HEADERS)/libva	\
-	$(TOPDIR)kernel/include/drm	\
+	$(TOPDIR)hardware/intel/include/drm	\
 	$(TARGET_OUT_HEADERS)/libttm	\
 	$(TARGET_OUT_HEADERS)/libmemrar	\
 	$(TARGET_OUT_HEADERS)/libwsbm	\
