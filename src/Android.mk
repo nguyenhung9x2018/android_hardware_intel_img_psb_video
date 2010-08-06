@@ -65,7 +65,7 @@ LOCAL_MODULE := pvr_drv_video
 LOCAL_CXX := g++
 
 LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libmemrar libpvr2d libcutils \
-			  libui libutils libbinder
+			  libui libutils libbinder libsurfaceflinger_client
 
 ifeq ($(strip $(PSBVIDEO_LOG_ENABLE)),true)
 LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE

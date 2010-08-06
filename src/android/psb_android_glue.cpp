@@ -11,7 +11,7 @@
 using namespace android;
 
 sp<ISurface> isurface;
-//ISurface::BufferHeap mBufferHeap;
+ISurface::BufferHeap mBufferHeap;
 
 unsigned char* psb_android_registerBuffers(void** android_isurface, int pid, int width, int height)
 {
@@ -25,13 +25,13 @@ unsigned char* psb_android_registerBuffers(void** android_isurface, int pid, int
 	return 0;
     }
 
-    //mBufferHeap = ISurface::BufferHeap(width, height, width, height, PIXEL_FORMAT_RGB_565, heap);
+    mBufferHeap = ISurface::BufferHeap(width, height, width, height, PIXEL_FORMAT_RGB_565, heap);
 
     isurface = static_cast<ISurface*>(*android_isurface);
 
-//    isurface->registerBuffers(mBufferHeap);
+    isurface->registerBuffers(mBufferHeap);
 
-//    return static_cast<uint8_t*>(mBufferHeap.heap->base());
+    return static_cast<uint8_t*>(mBufferHeap.heap->base());
     return (unsigned char *) 0xff;
 }
 
@@ -46,20 +46,20 @@ void psb_android_clearHeap()
     if (isurface.get())
     {
 	isurface->unregisterBuffers();
-//	mBufferHeap.heap.clear();	
+	mBufferHeap.heap.clear();	
     }
 }
 
 void psb_android_register_isurface(void** android_isurface, int srcw, int srch)
 {
     isurface = static_cast<ISurface*>(*android_isurface);
-//bugbug mgross was here:     isurface->createTextureStreamSource();
-//bugbug mgross was here:     isurface->setTextureStreamID(0);
-//bugbug mgross was here:     isurface->setTextureStreamDim(srcw, srch);
+    isurface->createTextureStreamSource();
+    isurface->setTextureStreamID(0);
+    isurface->setTextureStreamDim(srcw, srch);
 }
 
 void psb_android_texture_streaming_display(int buffer_index)
 {
-//bugbug mgross was here: refactored base classs we need to redo this    isurface->displayTextureStreamBuffer(buffer_index);
+    isurface->displayTextureStreamBuffer(buffer_index);
 }
 
