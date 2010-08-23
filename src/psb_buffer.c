@@ -1,25 +1,23 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 #include "psb_buffer.h"
@@ -32,6 +30,9 @@
 #include "psb_drm.h"
 #include "psb_def.h"
 
+#include <pnw_cmdbuf.h>
+
+#include "pnw_jpeg.h"
 /*
  * Create buffer
  */
@@ -51,7 +52,7 @@ VAStatus psb_buffer_create( psb_driver_data_p driver_data,
     buf->buffer_ofs = 0;
     
     buf->type = type;
-    buf->driver_data = driver_data;
+    buf->driver_data = driver_data; /* only for RAR buffers */
 
     /* TODO: Mask values are a guess */
     switch (type)
@@ -133,6 +134,10 @@ VAStatus psb_buffer_create( psb_driver_data_p driver_data,
         psb__error_message("failed to alloc wsbm buffers\n");
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
+
+    if (placement & WSBM_PL_FLAG_TT)
+      psb__information_message("Create BO with TT placement (%d byte),BO GPU offset hint=0x%08x\n",
+			       size, wsbmBOOffsetHint(buf->drm_buf));
 
     buf->pl_flags = placement;
     buf->status = psb_bs_ready;
@@ -254,7 +259,11 @@ int psb_buffer_map( psb_buffer_p buf, void **address /* out */ )
         return ret;
     }
 #endif
-    *address = wsbmBOMap(buf->drm_buf, buf->wsbm_synccpu_flag);
+
+    if (buf->type == psb_bt_user_buffer)
+        *address = buf->user_ptr;
+    else
+        *address = wsbmBOMap(buf->drm_buf, buf->wsbm_synccpu_flag);
     
     if (*address == NULL) {
         psb__error_message("failed to map buffer\n");
@@ -279,8 +288,9 @@ int psb_buffer_unmap( psb_buffer_p buf )
         (void) wsbmBOReleaseFromCpu(buf->drm_buf, buf->wsbm_synccpu_flag);
     
     buf->wsbm_synccpu_flag = 0;
-    
-    wsbmBOUnmap(buf->drm_buf);
+
+    if (buf->type != psb_bt_user_buffer)
+        wsbmBOUnmap(buf->drm_buf);
     
     return 0;
 }
@@ -302,9 +312,17 @@ int psb_codedbuf_map_mangle(
     object_context_p obj_context = obj_buffer->context;
     INIT_DRIVER_DATA;
     VACodedBufferSegment *p = &obj_buffer->codedbuf_mapinfo[0];
-    void *raw_codedbuf = *pbuf;
+    void *raw_codedbuf;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    unsigned int next_buf_off; 
+    int i;
     
+    if (NULL == pbuf)
+    {
+	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        return vaStatus;
+    }
+
     if (NULL == obj_context)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -316,6 +334,7 @@ int psb_codedbuf_map_mangle(
         return vaStatus;
     }
 
+    raw_codedbuf = *pbuf;
     /* reset the mapinfo */
     memset(obj_buffer->codedbuf_mapinfo, 0, sizeof(obj_buffer->codedbuf_mapinfo));
 
@@ -341,31 +360,71 @@ int psb_codedbuf_map_mangle(
         case VAProfileMPEG4Simple:
         case VAProfileMPEG4AdvancedSimple:
         case VAProfileMPEG4Main:
-            /* one segment */
-            p->size = *((unsigned long *) raw_codedbuf);
-            p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
-            break;
-            
+	    /* one segment */
+	    p->size = *((unsigned long *) raw_codedbuf);
+	    p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+	    psb__information_message("coded buffer size %d\n", p->size);
+	    break;
+
         case VAProfileH264Baseline:
         case VAProfileH264Main:
         case VAProfileH264High:
             /* 1st segment */
             p->size = *((unsigned long *) raw_codedbuf);
             p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
-            p->next = &p[1];
 
-            /* 2nd segment */
-            p++;
-            p->size = *((unsigned long *) raw_codedbuf); /* ToDo */
-            p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+	    psb__information_message("1st segment coded buffer size %d\n", p->size);
+	    if (pnw_get_parallel_core_number(obj_context) == 2)
+	    {
+		/*The second part of coded buffer which generated by core 2 is the 
+		 * first part of encoded clip, while the first part of coded buffer
+		 * is the second part of encoded clip.*/
+		next_buf_off = ~0xf & (obj_buffer->size / pnw_get_parallel_core_number(obj_context)); 
+		p->next = &p[1];
+		p[1].size = p->size;
+		p[1].buf = p->buf;
+		p[1].next = NULL;
+		p->size = *(unsigned long *)((unsigned long)raw_codedbuf + next_buf_off); 
+		p->buf = (void *)(((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off)) + 4); /* skip 4DWs */
+		psb__information_message("2nd segment coded buffer offset: 0x%08x,  size: %d\n", 
+			next_buf_off, p->size);
+	    }
+	    else
+		p->next = NULL;
             break;
+
         case VAProfileH263Baseline:
-            break;
+	    /* one segment */
+	    p->size = *((unsigned long *) raw_codedbuf);
+	    p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+	    psb__information_message("coded buffer size %d\n", p->size);
+	    break;
+
         case VAProfileJPEGBaseline:
-            /* 4 segment
-             * driver will write the JPEG suffix in the last segment 
+	    /* 3~6 segment
              */
-            break;
+	    pnw_jpeg_AppendMarkers(obj_context, raw_codedbuf);
+	    next_buf_off = 0; 
+	    /*Max resolution 4096x4096 use 6 segments*/
+	    for (i = 0; i < PNW_JPEG_MAX_SCAN_NUM + 1; i++)
+	    {
+		p->size = *(unsigned long *)((unsigned long)raw_codedbuf + next_buf_off);
+		p->buf = (void *)((unsigned long *) ((unsigned long)raw_codedbuf + next_buf_off) + 4); /* skip 4DWs */
+		next_buf_off = *((unsigned long *) ((unsigned long)raw_codedbuf + next_buf_off) + 3); 
+
+		psb__information_message("JPEG coded buffer segment %d size: %d\n", i, p->size);
+		psb__information_message("JPEG coded buffer next segment %d offset: %d\n", i+1, next_buf_off);
+
+		if (next_buf_off == 0)
+		{
+		    p->next = NULL;
+		    break;
+		}
+		else
+		    p->next = &p[1];
+		p++;
+	    }
+	    break;
             
         default:
             psb__error_message("unexpected case\n");

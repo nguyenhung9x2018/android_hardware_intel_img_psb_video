@@ -42,20 +42,11 @@
 
 #define WRITE_REGISTER(reg,val)																					\
 {																												\
-	char temp[200];																								\
-	fprintf ( stderr, "Writing reg at addr %08x : %08x\n", reg, val );											\
-	DEBUG_PRINT( temp );																						\
-	*(img_uint32 *)(sIEP_LITE_Context.ui32RegBaseAddr + (img_uint32)reg) = val;	\
+	/*fprintf ( stderr, "Writing reg at addr %08x : %08x\n", reg, val );*/											\
+	*(img_uint32 *)(sIEP_LITE_Context->ui32RegBaseAddr + (img_uint32)reg) = val;	\
 }
 
-#define READ_REGISTER(reg,val)																					\
-{																												\
-	char temp[200];																								\
-	val = 0;																									\
-	val = *(img_uint32 *)(sIEP_LITE_Context.ui32RegBaseAddr + (img_uint32)reg);	\
-	fprintf ( stderr, "Reading reg at addr %08x val %08x \n", reg, val );														\
-	DEBUG_PRINT( temp );																						\
-}
+inline void READ_REGISTER(void * p_iep_lite_context, unsigned int reg,unsigned int * pval);
 /************************************************************************************************************/
 
 #define READ_BITFIELD(field,regval)																				\
@@ -130,13 +121,14 @@ typedef struct
 	IEP_LITE_eBLEMode	eBLEBlackMode;	
 	IEP_LITE_eBLEMode	eBLEWhiteMode;	
         img_uint32                      ui32RegBaseAddr;
+    img_uint32							aui32BLELUT								[ IEP_LITE_BLE_LUT_TABLE_SIZE_IN_ENTRIES ];	
 } IEP_LITE_sContext;
 /*-------------------------------------------------------------------------------*/
 
 /*
 	Externs
 */
-
+#define EXTERNAL
 #if defined EXTERNAL
 #define	EXTERN			extern
 #define INITIALISE		0
@@ -151,9 +143,9 @@ typedef struct
 	EXTERN			IEP_LITE_sContext				sIEP_LITE_Context;	
 #endif
 
-/* Non pre-initialised declarations */											
+/* Non pre-initialised declarations											
 EXTERN			img_uint32							aui32BLELUT								[ IEP_LITE_BLE_LUT_TABLE_SIZE_IN_ENTRIES ];						
-																				
+*/																				
 extern	const 	IEP_LITE_sBLEModeSpecificSettings	asBLEBlackModes 						[ IEP_LITE_BLE_NO_OF_MODES ];
 extern	const 	IEP_LITE_sBLEModeSpecificSettings	asBLEWhiteModes 						[ IEP_LITE_BLE_NO_OF_MODES ];																																								
 
@@ -166,9 +158,11 @@ extern	const 	IEP_LITE_sBLEModeSpecificSettings	asBLEWhiteModes 						[ IEP_LITE
 	Function prototypes
 */
 
-img_void iep_lite_CalculateBLELookUpTable		(	img_int32	i32YMinIn,
+img_void iep_lite_CalculateBLELookUpTable		(	IEP_LITE_sContext * sIEP_LITE_Context,
+                                                    img_int32	i32YMinIn,
 													img_int32	i32YMaxIn		);
-img_void iep_lite_BLERecursiveLUTCalculation	(	img_int32	i32x1, 
+img_void iep_lite_BLERecursiveLUTCalculation	(	IEP_LITE_sContext * sIEP_LITE_Context,
+                                                    img_int32	i32x1, 
 													img_int32	i32y1, 
 													img_int32	i32x2, 
 													img_int32	i32y2, 
@@ -176,7 +170,7 @@ img_void iep_lite_BLERecursiveLUTCalculation	(	img_int32	i32x1,
 													img_int32	i32y3, 
 													img_int32	i32x4, 
 													img_int32	i32y4			);
-img_void iep_lite_WriteBLELUTToHardware			(	img_void					);
+img_void iep_lite_WriteBLELUTToHardware			(	IEP_LITE_sContext * sIEP_LITE_Context   );
 img_void iep_lite_StaticDataSafetyCheck			(	img_void					);
 
 #endif	/* __IEP_LITE_UTILS_H__ */														

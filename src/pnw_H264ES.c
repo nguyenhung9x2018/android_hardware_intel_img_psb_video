@@ -1,29 +1,31 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
-
+#include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <string.h>
 
 #include "psb_def.h"
 #include "psb_surface.h"
@@ -31,11 +33,6 @@
 #include "pnw_hostcode.h"
 #include "pnw_H264ES.h"
 #include "pnw_hostheader.h"
-
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-
 
 #define TOPAZ_H264_MAX_BITRATE 50000000
 
@@ -130,7 +127,7 @@ static VAStatus pnw_H264ES_CreateContext(
 
     ctx->Slices = 1;
 
-    if (getenv("PSB_VIDEO_DUAL_CORE"))
+    if (getenv("PSB_VIDEO_DUAL_CORE") != NULL)
     {
 	ctx->Slices = 2;
 	ctx->NumCores = 2;
@@ -220,11 +217,12 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     ctx->sRCParams.QCPOffset = 0;/* FIXME */
     ctx->sRCParams.IntraFreq = pSequenceParams->intra_period;
 
-    if (ctx->sRCParams.BitsPerSecond < 256000)
+    /*if (ctx->sRCParams.BitsPerSecond < 256000)
         ctx->sRCParams.BufferSize = (9 * ctx->sRCParams.BitsPerSecond) >> 1;
     else
-        ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;
+        ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
 
+    ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond;
     ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
     ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
    
@@ -254,15 +252,15 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     sCrop.TopCropOffset = 0;
     sCrop.BottomCropOffset = 0;
 
-    if (ctx->Height & 0xf)
+    if (ctx->RawHeight & 0xf)
     {
         sCrop.bClip = IMG_TRUE;
-        sCrop.BottomCropOffset = (((ctx->Height + 0xf) & (~0xf)) - ctx->Height)/2;
+        sCrop.BottomCropOffset = (((ctx->RawHeight + 0xf) & (~0xf)) - ctx->RawHeight)/2;
     }
-    if (ctx->Width & 0xf)
+    if (ctx->RawWidth & 0xf)
     {
         sCrop.bClip = IMG_TRUE;
-        sCrop.RightCropOffset = (((ctx->Width + 0xf) & (~0xf)) - ctx->Width)/2;
+        sCrop.RightCropOffset = (((ctx->RawWidth + 0xf) & (~0xf)) - ctx->RawWidth)/2;
     }
     /* sequence header is always inserted */
 
@@ -346,10 +344,12 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     }
     else
     {
-	ctx->coded_buf_per_slice = ctx->coded_buf->size / ctx->ParallelCores;	
+	/*Make sure DMA start is 128bits alignment*/
+	ctx->coded_buf_per_slice = (ctx->coded_buf->size / ctx->ParallelCores) & (~0xf) ;	
 	psb__information_message("TOPAZ: the size of coded_buf per slice %d( Total %d) \n", ctx->coded_buf_per_slice,
 		ctx->coded_buf->size);
     }
+
     /* Prepare START_PICTURE params */
     /* FIXME is really need multiple picParams? Need multiple calculate for each? */
     for(i = (ctx->ParallelCores - 1); i >= 0; i--)
@@ -367,6 +367,7 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
     unsigned int MBSkipRun, FirstMBAddress;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
     int i;
+    unsigned char is_intra = 0;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
 
@@ -377,10 +378,10 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
     pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
     obj_buffer->size = 0;
 
-    /* save current cmdbuf write pointer for H264 frameskip redo
-     * for H264, only slice header need to repatch
-     */
-    MBSkipRun = (ctx->Width * ctx->Height) / 256;
+    if (ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip) /* we know it is true */
+	MBSkipRun = (ctx->Width * ctx->Height) / 256;
+    else
+	MBSkipRun = 0;
     /* 
     if (0 == pBuffer->start_row_number)
     {
@@ -396,7 +397,7 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
     */
 
 
-    if (getenv("PSB_VIDEO_DUAL_CORE")) 
+    if (getenv("PSB_VIDEO_DUAL_CORE") != NULL) 
     {
 	    /*Need to replace unneccesary MTX_CMDID_STARTPICs with MTX_CMDID_PAD*/
 	    for (i = 0; i < (ctx->ParallelCores - obj_buffer->num_elements); i++)
@@ -421,6 +422,8 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
 	 * */
 	unsigned char deblock_idc;
 
+	/*If the frame is skipped, it shouldn't be a I frame*/
+	is_intra = (ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip) ? 0 : pBuffer->slice_flags.bits.is_intra; 
 	deblock_idc = pBuffer->slice_flags.bits.disable_deblocking_filter_idc;
 
 	if((ctx->NumCores > 1) && (deblock_idc == 0))
@@ -429,7 +432,7 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
 	FirstMBAddress = (pBuffer->start_row_number * ctx->Width) / 16; 
 	/* Insert Do Header command, relocation is needed */
 	pnw__H264_prepare_slice_header(cmdbuf->header_mem_p + ctx->slice_header_ofs + ctx->obj_context->slice_count * HEADER_SIZE,
-		pBuffer->slice_flags.bits.is_intra,
+		is_intra,
 		pBuffer->slice_flags.bits.disable_deblocking_filter_idc,
 		ctx->obj_context->frame_count,
 		FirstMBAddress,
@@ -455,6 +458,7 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
 	}
 	ctx->SliceToCore--;
 
+	if (!(ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip))
 	{
 	    /*Only reset on the first frame. It's more effective than DDK. Have confirmed with IMG*/
 	    if (ctx->obj_context->frame_count==0)

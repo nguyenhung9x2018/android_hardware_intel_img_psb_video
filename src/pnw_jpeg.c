@@ -1,26 +1,23 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 #include <stdlib.h>
 #include <stdint.h>
@@ -34,13 +31,11 @@
 #include "pnw_hostheader.h"
 #include "pnw_hostjpeg.h"
 
-#define TOPAZ_MPEG4_MAX_BITRATE 16000000
-
 #define INIT_CONTEXT_JPEG	context_ENC_p ctx = (context_ENC_p) obj_context->format_data
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
-
+static const uint32_t aui32_jpg_mtx_num[PNW_JPEG_MAX_SCAN_NUM]= {0x1, 0x1, 0x1, 0x5, 0x15, 0};
 
 static void pnw_jpeg_QueryConfigAttributes(
     VAProfile profile,
@@ -101,7 +96,7 @@ static VAStatus pnw_jpeg_CreateContext(
     ctx->Slices = 2;
     ctx->ParallelCores = 2;
     ctx->NumCores = 2;
-    ctx->jpeg_ctx = (TOPAZSC_JPEG_ENCODER_CONTEXT * )malloc(sizeof(TOPAZSC_JPEG_ENCODER_CONTEXT));
+    ctx->jpeg_ctx = (TOPAZSC_JPEG_ENCODER_CONTEXT * )calloc(1, sizeof(TOPAZSC_JPEG_ENCODER_CONTEXT));
 
     if (NULL == ctx->jpeg_ctx)
 	return VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -109,10 +104,21 @@ static VAStatus pnw_jpeg_CreateContext(
     jpeg_ctx_p = ctx->jpeg_ctx;
     jpeg_ctx_p->eFormat = ctx->eFormat;
 
-    jpeg_ctx_p->sScan_Encode_Info.ui8NumberOfCodedBuffers = ctx->NumCores;
+    jpeg_ctx_p->ui8ScanNum = JPEG_SCANNING_COUNT(ctx->Width, ctx->Height, ctx->NumCores);
+
+    if (jpeg_ctx_p->ui8ScanNum < 2 || jpeg_ctx_p->ui8ScanNum > PNW_JPEG_MAX_SCAN_NUM)
+    {
+	psb__error_message("JPEG MCU scanning number(%d) is wrong!\n", jpeg_ctx_p->ui8ScanNum);
+	free(ctx->jpeg_ctx);
+	ctx->jpeg_ctx = NULL;
+	return VA_STATUS_ERROR_UNKNOWN; 
+    }
+
+    jpeg_ctx_p->sScan_Encode_Info.ui8NumberOfCodedBuffers = jpeg_ctx_p->ui8ScanNum;
     
+    psb__information_message(" JPEG Scanning Number %d\n", jpeg_ctx_p->ui8ScanNum);
     jpeg_ctx_p->sScan_Encode_Info.aBufferTable = 
-	(TOPAZSC_JPEG_BUFFER_INFO *)malloc(sizeof(TOPAZSC_JPEG_BUFFER_INFO) 
+	(TOPAZSC_JPEG_BUFFER_INFO *)calloc(1, sizeof(TOPAZSC_JPEG_BUFFER_INFO) 
 		    * jpeg_ctx_p->sScan_Encode_Info.ui8NumberOfCodedBuffers); 
    
     if (NULL == jpeg_ctx_p->sScan_Encode_Info.aBufferTable)
@@ -123,9 +129,9 @@ static VAStatus pnw_jpeg_CreateContext(
     jpeg_ctx_p->ui32OutputWidth = ctx->Width;
     jpeg_ctx_p->ui32OutputHeight = ctx->Height;
  
-    jpeg_ctx_p->ui32SizePerCodedBuffer = PNW_JPEG_CODED_BUF_SIZE(ctx->Width, ctx->Height, ctx->NumCores);
+    /*It will be figured out when known the size of whole coded buffer.*/
+    jpeg_ctx_p->ui32SizePerCodedBuffer = 0;
 
-    psb__information_message("SizePerCodedBuffer :%d\n", jpeg_ctx_p->ui32SizePerCodedBuffer);
     jpeg_ctx_p->ctx = ctx;
     /*Reuse header_mem(76*4 bytes) and pic_params_size(256 bytes)
      *  as pMemInfoMTXSetup(JPEG_MTX_DMA_SETUP 24x4 bytes) and 
@@ -269,10 +275,22 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
 		&cmdbuf->pic_params,
 		0);
 
-    for (i = 0; i < 10 ; i++)
-	psb__information_message("Quant Table %d: %d\n", i, *((unsigned char *)cmdbuf->pic_params_p + i));
-    psb__information_message("Coded buffer total size is %d, per coded buffer size is %d\n",
-		ctx->coded_buf->size, jpeg_ctx->ui32SizePerCodedBuffer );
+    psb__information_message("Quant Table \n" );
+
+    for (i = 0; i < 128 ; i++)
+    {
+	psb__information_message("%d \t", *((unsigned char *)cmdbuf->pic_params_p + i));
+	if (((i + 1) % 8) == 0)
+	    psb__information_message("\n");
+    }
+
+    jpeg_ctx->ui32SizePerCodedBuffer = 
+	JPEG_CODED_BUF_SEGMENT_SIZE(ctx->coded_buf->size, 
+		ctx->Width, ctx->Height, ctx->NumCores); 
+
+    psb__information_message("Coded buffer total size is %d," 
+	    "coded segment size per scan is %d\n",
+	    ctx->coded_buf->size, jpeg_ctx->ui32SizePerCodedBuffer );
 
     vaStatus = psb_buffer_map(ctx->coded_buf->psb_buffer, &jpeg_ctx->jpeg_coded_buf.pMemInfo); 
     if (vaStatus) 
@@ -326,7 +344,7 @@ static VAStatus pnw__jpeg_process_qmatrix_param(context_ENC_p ctx, object_buffer
 
     if (0 != pBuffer->load_chroma_quantiser_matrix)
     {
-	memcpy(pQMatrix->aui8LumaQuantParams,
+	memcpy(pQMatrix->aui8ChromaQuantParams,
 		pBuffer->chroma_quantiser_matrix,
 		QUANT_TABLE_SIZE_BYTES);
     }
@@ -395,29 +413,46 @@ static VAStatus pnw_jpeg_EndPicture(
     IMG_UINT16 ui16BCnt;
     TOPAZSC_JPEG_ENCODER_CONTEXT *pContext = ctx->jpeg_ctx;
     IMG_UINT32 rc = 0;
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    BUFFER_HEADER* pBufHeader;
     pnw_cmdbuf_p cmdbuf = (pnw_cmdbuf_p)ctx->obj_context->pnw_cmdbuf;
-    STREAMTYPEW s_streamW;
-    void *pCodedBufStart = NULL;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    IMG_UINT32 ui32NoMCUsToEncode;
+    IMG_UINT32 ui32RemainMCUs;
 
     psb__information_message("pnw_jpeg_EndPicture\n");
 
+    ui32RemainMCUs = pContext->sScan_Encode_Info.ui32NumberMCUsToEncode;
+
     for (ui16BCnt = 0; ui16BCnt < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers
-	    && pContext->sScan_Encode_Info.ui16SScan >= 0; ui16BCnt++)
+	    && pContext->sScan_Encode_Info.ui16SScan > 0; ui16BCnt++)
     {
-	pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber = pContext->sScan_Encode_Info.ui16SScan--;
-	/*FIXME: if ui16CScan(initial value of ui16SScan) is larger than Numcores, we shuold wait for MTX idle 
-	 * before sending more MTX_CMDID_ISSUEBUFF commands. This case may happen if (Width / 16)*(Height / 16)
-	 * is odd, e.x QGIF. Then we should use only one core to encode it*/
-	pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].i8MTXNumber = pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber; 
-	rc=SubmitScanToMTX(pContext, ui16BCnt, pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].i8MTXNumber);
+	pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber = 
+	    pContext->sScan_Encode_Info.ui16SScan--;
+	/*i8MTXNumber is the core number.*/
+	pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].i8MTXNumber = 
+	    (aui32_jpg_mtx_num[pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers - 2] 
+	    >> ui16BCnt) & 0x1;
+
+	if (pContext->sScan_Encode_Info.ui16SScan==0)
+	{
+	    ui32NoMCUsToEncode = ui32RemainMCUs;
+	    // Final scan, may need fewer MCUs than buffer size, calculate the remainder
+	}
+	else
+	    ui32NoMCUsToEncode = pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan;
+
+	pContext->sScan_Encode_Info.ui32CurMCUsOffset = 
+	    pContext->sScan_Encode_Info.ui32NumberMCUsToEncode - ui32RemainMCUs;
+
+	rc = SubmitScanToMTX(pContext, ui16BCnt, 
+		pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].i8MTXNumber, ui32NoMCUsToEncode);
 	if (rc != IMG_ERR_OK)
 	{
 	    vaStatus = VA_STATUS_ERROR_UNKNOWN; 
 	    DEBUG_FAILURE;
 	    return vaStatus;
 	}
+
+	ui32RemainMCUs -= ui32NoMCUsToEncode;
     }
 
     psb_buffer_unmap(&cmdbuf->pic_params);
@@ -433,39 +468,24 @@ static VAStatus pnw_jpeg_EndPicture(
 	return vaStatus;
     }
 
- /*   vaStatus = psb_buffer_map(&cmdbuf->slice_params, &cmdbuf->slice_params_p);
-    if ( 0 != vaStatus)
-    {
-	psb__error_message("ERROR: map slice params failed\n");
-	return vaStatus;
-    }
+  return VA_STATUS_SUCCESS;
+}
 
+VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, void *raw_coded_buf)
+{
+    INIT_CONTEXT_JPEG;
+    IMG_UINT16 ui16BCnt;
+    TOPAZSC_JPEG_ENCODER_CONTEXT *pContext = ctx->jpeg_ctx;
+    BUFFER_HEADER* pBufHeader;
+    STREAMTYPEW s_streamW;
+    void *pSegStart = raw_coded_buf;
 
-    for (ui16BCnt = 0; ui16BCnt < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers; ui16BCnt++ ){
-	pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].pMemInfo = cmdbuf->slice_params_p +
-	   ui16BCnt * pContext->ui32SizePerCodedBuffer;
-	pBuffHdr =  (BUFFER_HEADER*)pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].pMemInfo;
-	psb__information_message("Coded Buffer %d, used bytes %d\n",pBuffHdr->ui32BytesUsed);
-	if (pContext->jpeg_coded_buf.ui32BytesWritten + pBuffHdr->ui32BytesUsed < pContext->jpeg_coded_buf.ui32Size )
-	{
-	    psb__error_message("ERROR: There is no enough space in codedbuf!\n");
-	    psb_buffer_unmap(ctx->coded_buf->psb_buffer);
-	    return VA_STATUS_ERROR_UNKNOWN;
-	}
-	memcpy((void *)(pContext->jpeg_coded_buf.pMemInfo + pContext->jpeg_coded_buf.ui32BytesWritten), 
-		(void *)(pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].pMemInfo + sizeof(BUFFER_HEADER)),
-		pBuffHdr->ui32BytesUsed);
-	pContext->jpeg_coded_buf.ui32BytesWritten += pBuffHdr->ui32BytesUsed;
-    }	
-    */ 
-    vaStatus = psb_buffer_map(ctx->coded_buf->psb_buffer, &pContext->jpeg_coded_buf.pMemInfo); 
-    if (vaStatus) 
+    if (pSegStart == NULL)
     {
-	psb__error_message("ERROR: Map coded_buf failed!");
-        return vaStatus;
+	return VA_STATUS_ERROR_UNKNOWN;
     }
-    pCodedBufStart = pContext->jpeg_coded_buf.pMemInfo;
-    pBufHeader = (BUFFER_HEADER *)pContext->jpeg_coded_buf.pMemInfo;
+  
+    pBufHeader = (BUFFER_HEADER *)pSegStart;
      
     psb__information_message("Number of Coded buffers %d, Per Coded Buffer size : %d\n",
 	pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers, pContext->ui32SizePerCodedBuffer);
@@ -475,42 +495,51 @@ static VAStatus pnw_jpeg_EndPicture(
 
     pContext->jpeg_coded_buf.ui32BytesWritten = 0; 
 
-    for (ui16BCnt = 0; ui16BCnt < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers; ui16BCnt++ ) {
-	pBufHeader = (BUFFER_HEADER *)pCodedBufStart;
-	pBufHeader->ui32Reserved3 = PNW_JPEG_HEADER_MAX_SIZE + pContext->ui32SizePerCodedBuffer * ui16BCnt ;
+    for (ui16BCnt = 0; 
+	    ui16BCnt < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers; 
+	    ui16BCnt++ ) {
+	pBufHeader = (BUFFER_HEADER *)pSegStart;
+	pBufHeader->ui32Reserved3 = 
+	    PNW_JPEG_HEADER_MAX_SIZE + pContext->ui32SizePerCodedBuffer * ui16BCnt ;
+
 	psb__information_message("Coded Buffer Part %d, size %d, next part offset: %d\n", 
 		ui16BCnt, pBufHeader->ui32BytesUsed, pBufHeader->ui32Reserved3); 
+
         if (ui16BCnt > 0 && pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers > 1)
 	{
+	    psb__information_message("Append 2 bytes Reset Interval %d "
+		    "to Coded Buffer Part %d\n", ui16BCnt - 1, ui16BCnt);	
+
 	    pnw_OutputResetIntervalToCB(
-		(IMG_UINT8 *)(pCodedBufStart + sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed),
+		(IMG_UINT8 *)(pSegStart + 
+		    sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed),
 		ui16BCnt - 1);
+
 	    pBufHeader->ui32BytesUsed += 2;
-	    psb__information_message("Append 2 bytes Reset Interval %d to Coded Buffer Part %d\n",
-		ui16BCnt - 1, ui16BCnt);	
 	}		
         
 	pContext->jpeg_coded_buf.ui32BytesWritten += pBufHeader->ui32BytesUsed;
-	pCodedBufStart = pContext->jpeg_coded_buf.pMemInfo + pBufHeader->ui32Reserved3;
+	pSegStart = raw_coded_buf + pBufHeader->ui32Reserved3;
     } 
-    pBufHeader = (BUFFER_HEADER *)pCodedBufStart;
+    pBufHeader = (BUFFER_HEADER *)pSegStart;
     pBufHeader->ui32Reserved3 = 0; /*Last Part of Coded Buffer*/
     pContext->jpeg_coded_buf.ui32BytesWritten += pBufHeader->ui32BytesUsed;
 
     psb__information_message("Coded Buffer Part %d, size %d, next part offset: %d\n", 
 		    ui16BCnt, pBufHeader->ui32BytesUsed, pBufHeader->ui32Reserved3); 
 
-    s_streamW.Buffer = pCodedBufStart ;
-    s_streamW.Buffer += (sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed); 
+    s_streamW.Buffer = pSegStart;
+    s_streamW.Offset = (sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed); 
+
     fPutBitsToBuffer(&s_streamW, 2, END_OF_IMAGE);
+
     pBufHeader->ui32BytesUsed += 2;
     pContext->jpeg_coded_buf.ui32BytesWritten += 2;
    
-    psb__information_message("Add two bytes to last part of coded buffer, total: %d\n", pContext->jpeg_coded_buf.ui32BytesWritten);
-    psb_buffer_unmap(ctx->coded_buf->psb_buffer);
-    return VA_STATUS_SUCCESS;
+    psb__information_message("Add two bytes to last part of coded buffer,"
+	   " total: %d\n", pContext->jpeg_coded_buf.ui32BytesWritten);
+    return VA_STATUS_SUCCESS; 
 }
-
 
 struct format_vtable_s pnw_JPEG_vtable = {
   queryConfigAttributes: pnw_jpeg_QueryConfigAttributes,

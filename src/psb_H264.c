@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -399,14 +397,14 @@ static VAStatus psb_H264_CreateContext(
         return vaStatus;
     }
        
-    ctx = (context_H264_p) malloc(sizeof(struct context_H264_s));
+    ctx = (context_H264_p) calloc(1, sizeof(struct context_H264_s));
     if (NULL == ctx)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
         return vaStatus;
     }
-    memset(ctx, 0, sizeof(struct context_H264_s));
+
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
     ctx->pic_params = NULL;
@@ -414,7 +412,7 @@ static VAStatus psb_H264_CreateContext(
     ctx->split_buffer_pending = FALSE;
 
     ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p*) malloc(sizeof(object_buffer_p)*ctx->slice_param_list_size);
+    ctx->slice_param_list = (object_buffer_p*) calloc(1, sizeof(object_buffer_p)*ctx->slice_param_list_size);
     ctx->slice_param_list_idx = 0;
 
     if (NULL == ctx->slice_param_list)
@@ -425,7 +423,7 @@ static VAStatus psb_H264_CreateContext(
 
     ctx->colocated_buffers_size = obj_context->num_render_targets;
     ctx->colocated_buffers_idx = 0;
-    ctx->colocated_buffers = (psb_buffer_p) malloc(sizeof(struct psb_buffer_s)*ctx->colocated_buffers_size);
+    ctx->colocated_buffers = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s)*ctx->colocated_buffers_size);
     if (NULL == ctx->colocated_buffers)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -514,14 +512,13 @@ static VAStatus psb_H264_CreateContext(
 
             psb_surface = obj_surface->psb_surface;
 
-            psb_surface->in_loop_buf = malloc(sizeof(struct psb_buffer_s));
+            psb_surface->in_loop_buf = calloc(1, sizeof(struct psb_buffer_s));
             if (NULL == psb_surface->in_loop_buf)
             {
                 vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
                 DEBUG_FAILURE;
                 return vaStatus;
             }
-            memset(psb_surface->in_loop_buf, 0, sizeof(struct psb_buffer_s));
 
             /* FIXME: For RAR surface, need allocate RAR buffer  */
             vaStatus = psb_buffer_create( obj_context->driver_data,
@@ -1098,6 +1095,40 @@ static void psb__H264_build_register(context_H264_p ctx, VASliceParameterBufferH
     psb_cmdbuf_reg_end_block( cmdbuf );
 }
 
+/* Programme the Alt output if there is a rotation*/
+static void psb__H264_setup_alternative_frame( context_H264_p ctx )
+{
+    uint32_t cmd;
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    object_context_p obj_context = ctx->obj_context;
+
+    if(rotate_surface->extra_info[5] != obj_context->rotate)
+        psb__error_message("Display rotate mode does not match surface rotate mode!\n");
+        
+
+    /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
+    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS)  );
+
+    psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
+    psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
+
+    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+
+    /* Set the rotation registers */
+    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION)  );
+    cmd = 0;
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ALT_PICTURE_ENABLE,1 );
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_MODE, rotate_surface->extra_info[5]);
+
+    psb_cmdbuf_rendec_write( cmdbuf, cmd );
+
+    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+}
+
+
 static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBufferH264 *slice_param)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
@@ -1252,7 +1283,15 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
         for(i = 0; i < pic_params->num_ref_frames; i++)
         {
             object_surface_p ref_surface = SURFACE(pic_params->ReferenceFrames[i].picture_id);
-            psb_buffer_p buffer = ref_surface->psb_surface->ref_buf;
+            psb_buffer_p buffer;
+
+	    if (NULL == ref_surface)
+	    {
+		psb__information_message("%s L%d Invalide reference surface handle, but still continue\n",
+			__FUNCTION__, __LINE__);
+		/* return; */
+	    }
+
             psb__information_message("pic_params->ReferenceFrames[%d] = %08x --> %08x frame_idx:0x%08x flags:%02x TopFieldOrderCnt: 0x%08x BottomFieldOrderCnt: 0x%08x %s\n",
                                      i,
                                      pic_params->ReferenceFrames[i].picture_id,
@@ -1266,6 +1305,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
             if (ref_surface && is_used[i])
             // GET_SURFACE_INFO_is_used(ref_surface->psb_surface))
             {
+                buffer = ref_surface->psb_surface->ref_buf;
                 psb_cmdbuf_rendec_write_address(cmdbuf, buffer,
                                                 buffer->buffer_ofs);
                 psb_cmdbuf_rendec_write_address(cmdbuf, buffer,
@@ -1372,6 +1412,12 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
             psb_cmdbuf_rendec_end_chunk( cmdbuf );
         }
     }
+
+    /* 		If this a two pass mode deblock, then we will perform the rotation as part of the 
+     * 		2nd pass deblock procedure
+     */
+    if(!ctx->two_pass_mode && ctx->obj_context->rotate != VA_ROTATION_NONE) /* FIXME field coded should not */
+        psb__H264_setup_alternative_frame(ctx);
 
     /* CHUNK: SEQ Commands 1 */
     /* send Slice Data for every slice */

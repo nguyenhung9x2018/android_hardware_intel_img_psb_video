@@ -1,25 +1,23 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 #ifndef ANDROID
 #include <X11/Xutil.h>
@@ -31,11 +29,14 @@
 #include "psb_output.h"
 #include "psb_surface.h"
 #include "psb_buffer.h"
+#include "psb_surface_ext.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#include "psb_xvva.h"
 #include <wsbm/wsbm_manager.h>
+
+#include <unistd.h>
+#include <sys/ioctl.h>
 
 #define INIT_DRIVER_DATA	psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 
@@ -44,6 +45,14 @@
 #define IMAGE(id)  ((object_image_p) object_heap_lookup( &driver_data->image_heap, id ))
 #define SUBPIC(id)  ((object_subpic_p) object_heap_lookup( &driver_data->subpic_heap, id ))
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
+
+
+/* surfaces link list associated with a subpicture */
+typedef struct _subpic_surface {
+    VASurfaceID surface_id;
+    struct _subpic_surface *next;
+} subpic_surface_s, *subpic_surface_p;
+
 
 static VAImageFormat psb__SubpicFormat[] = {
     psb__ImageRGBA,
@@ -58,74 +67,93 @@ static VAImageFormat psb__CreateImageFormat[] = {
     psb__ImageAI44
 };
 
-VAStatus psb_initOutput(
-    VADriverContextP ctx
-    )
-{
-    INIT_DRIVER_DATA;
-    psb_output_p video_output;
-    char *fps = NULL;
-    int ret = -1;
-    
-    video_output = (psb_output_p) malloc(sizeof(psb_output_s));
-    if ( NULL == video_output) 
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+void *psb_x11_output_init(VADriverContextP ctx);
+VAStatus psb_x11_output_deinit(VADriverContextP ctx);
+void *psb_android_output_init(VADriverContextP ctx);
+VAStatus psb_android_output_deinit(VADriverContextP ctx);
 
-    memset(video_output,0,sizeof(psb_output_s));
-    driver_data->video_output = video_output;
-    ret = pthread_mutex_init(&video_output->output_mutex, NULL);
-    ASSERT(ret==0);
+int psb_coverlay_init(VADriverContextP ctx);
+int psb_coverlay_deinit(VADriverContextP ctx);
+
+VAStatus psb_initOutput(VADriverContextP ctx)
+{
+printf("%s : %d\n", __func__, __LINE__);
+    INIT_DRIVER_DATA;
+    void *ws_priv = NULL;
+    char *fps = NULL;
+    
+    pthread_mutex_init(&driver_data->output_mutex, NULL);
 
     if (getenv("PSB_VIDEO_PUTSURFACE_DUMMY")) {
         psb__information_message("vaPutSurface: dummy mode, return directly\n");
-        video_output->dummy_putsurface = 0;
+        driver_data->dummy_putsurface = 0;
         
         return VA_STATUS_SUCCESS;
     }
 
     fps = getenv("PSB_VIDEO_FPS");
     if (fps != NULL) {
-        video_output->fixed_fps = atoi(fps);
-        psb__information_message("Throttling at FPS=%d\n", video_output->fixed_fps);
+        driver_data->fixed_fps = atoi(fps);
+        psb__information_message("Throttling at FPS=%d\n", driver_data->fixed_fps);
     } else
-        video_output->fixed_fps = 0;
+        driver_data->fixed_fps = 0;
 
-#ifndef ANDROID
-    video_output->output_method = PSB_PUTSURFACE_X11;
-    if (getenv("PSB_VIDEO_PUTSURFACE_X11") == NULL) {
-        psb__information_message("Detecting Xvideo port...\n");
-    }
+    driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
+    driver_data->last_displaying_surface = VA_INVALID_SURFACE;
+    
+#ifdef ANDROID
+    ws_priv = psb_android_output_init(ctx);
 #else
-    //Set overlay by default
-    video_output->output_method = PSB_PUTSURFACE_OVERLAY_XV;
+    ws_priv = psb_x11_output_init(ctx);
 #endif
+    driver_data->ws_priv = ws_priv;
 
-    ret = psb_init_xvideo(ctx);
+    /* use client overlay  */
+    if (driver_data->coverlay == 1)
+        psb_coverlay_init(ctx);
 
-    if (video_output->output_method == PSB_PUTSURFACE_X11) 
-        psb__information_message("vaPutSurface: fall back to SW putsurface\n");
+    //use client textureblit
+    if (driver_data->ctexture == 1) {
+	psb_ctexture_init(ctx);
+    }
 
+    /*
+    //use texture streaming
+    if (driver_data->ctexstreaming == 1)
+    psb_ctexstreaing_init(ctx);
+    */
+            
     return VA_STATUS_SUCCESS;
 }
 
 VAStatus psb_deinitOutput(
     VADriverContextP ctx
-    )
+)
 {
     INIT_DRIVER_DATA;
-    psb_output_p video_output = GET_OUTPUT_DATA(ctx);
 
-    if (NULL == video_output)
-        return VA_STATUS_SUCCESS;
-
-#ifndef ANDROID
-    if (video_output->output_method != PSB_PUTSURFACE_X11)
+#ifdef ANDROID
+    psb_android_output_deinit(ctx);
+#else
+    psb_x11_output_deinit(ctx);
 #endif
-    psb_deinit_xvideo(ctx);
 
-    pthread_mutex_destroy(&video_output->output_mutex);
-    free(video_output);
-    driver_data->video_output = NULL;
+    /* free here, but allocate in window system specific */
+    free(driver_data->ws_priv);
+    if (driver_data->coverlay == 1)
+        psb_coverlay_deinit(ctx);
+
+    /* use client textureblit */
+    if (driver_data->ctexture == 1)
+	psb_ctexture_deinit(ctx);
+
+    /*
+    //use texture streaming
+    if (driver_data->ctexstreaming == 1)
+    psb_ctexstreaing_deinit(ctx);
+    */
+    
+    pthread_mutex_destroy(&driver_data->output_mutex);
 
     return VA_STATUS_SUCCESS;
 }
@@ -188,25 +216,25 @@ static void psb__VAImageCheckRegion(
 
 
 VAStatus psb_QueryImageFormats(
-	VADriverContextP ctx,
-	VAImageFormat *format_list,        /* out */
-	int *num_formats           /* out */
+    VADriverContextP ctx,
+    VAImageFormat *format_list,        /* out */
+    int *num_formats           /* out */
 )
 {
-   VAStatus vaStatus = VA_STATUS_SUCCESS;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
    
-   if(NULL == format_list)
-   {
+    if(NULL == format_list)
+    {
 	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 	DEBUG_FAILURE;
 	return vaStatus;
-   }
-   if(NULL == num_formats)
-   {
+    }
+    if(NULL == num_formats)
+    {
 	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 	DEBUG_FAILURE;
 	return vaStatus;
-   }
+    }
     memcpy(format_list,psb__CreateImageFormat,sizeof(psb__CreateImageFormat));
     *num_formats = PSB_MAX_IMAGE_FORMATS;
     
@@ -223,11 +251,11 @@ inline int min_POT(int n)
 }
 
 VAStatus psb_CreateImage(
-	VADriverContextP ctx,
-	VAImageFormat *format,
-	int width,
-	int height,
-	VAImage *image     /* out */
+    VADriverContextP ctx,
+    VAImageFormat *format,
+    int width,
+    int height,
+    VAImage *image     /* out */
 )
 {
     INIT_DRIVER_DATA;
@@ -252,6 +280,8 @@ VAStatus psb_CreateImage(
         return vaStatus;
     }
 
+    MEMSET_OBJECT(obj_image, struct object_image_s);
+
     obj_image->image.image_id = imageID;
     obj_image->image.format = *img_fmt;
     obj_image->subpic_ref = 0;
@@ -259,94 +289,94 @@ VAStatus psb_CreateImage(
     pitch_pot = min_POT(width);
     
     switch (format->fourcc) {
-        case VA_FOURCC_NV12:
-        {
-            obj_image->image.width = width;
-            obj_image->image.height = height;
-            obj_image->image.data_size = pitch_pot*height /*Y*/ + 2* (pitch_pot/2)*(height/2);/*UV*/
-            obj_image->image.num_planes = 2;
-            obj_image->image.pitches[0] = pitch_pot;
-            obj_image->image.pitches[1] = pitch_pot;
-            obj_image->image.offsets[0] = 0;
-            obj_image->image.offsets[1] = pitch_pot*height;
-            obj_image->image.num_palette_entries = 0;
-            obj_image->image.entry_bytes = 0;
-            obj_image->image.component_order[0] = 'Y';
-            obj_image->image.component_order[1] = 'U';/* fixed me: packed UV packed here! */
-            obj_image->image.component_order[2] = 'V';
-            obj_image->image.component_order[3] = '\0';
-            break;
-        }
-        case VA_FOURCC_AYUV:
-        {
-            obj_image->image.width = width;
-            obj_image->image.height = height;
-            obj_image->image.data_size = 4*pitch_pot*height;
-            obj_image->image.num_planes = 1;
-            obj_image->image.pitches[0] = 4*pitch_pot;
-            obj_image->image.num_palette_entries = 0;
-            obj_image->image.entry_bytes = 0;
-            obj_image->image.component_order[0] = 'V';
-            obj_image->image.component_order[1] = 'U';
-            obj_image->image.component_order[2] = 'Y';
-            obj_image->image.component_order[3] = 'A';
-            break;
-        }
-        case VA_FOURCC_RGBA:
-        {
-            obj_image->image.width = width;
-            obj_image->image.height = height;
-            obj_image->image.data_size = 4*pitch_pot*height;
-            obj_image->image.num_planes = 1;
-            obj_image->image.pitches[0] = 4*pitch_pot;
-            obj_image->image.num_palette_entries = 0;
-            obj_image->image.entry_bytes = 0;
-            obj_image->image.component_order[0] = 'R';
-            obj_image->image.component_order[1] = 'G';
-            obj_image->image.component_order[2] = 'B';
-            obj_image->image.component_order[3] = 'A';
-            break;
-        }
-        case VA_FOURCC_AI44:
-        {
-            obj_image->image.width = width;
-            obj_image->image.height = height;
-            obj_image->image.data_size = pitch_pot*height;/* one byte one element */
-            obj_image->image.num_planes = 1;
-            obj_image->image.pitches[0] = pitch_pot;
-            obj_image->image.num_palette_entries = 16;
-            obj_image->image.entry_bytes = 4; /* AYUV */
-            obj_image->image.component_order[0] = 'I';
-            obj_image->image.component_order[1] = 'A';
-            obj_image->image.component_order[2] = '\0';
-            obj_image->image.component_order[3] = '\0';
-            break;
-        }
-        case VA_FOURCC_IYUV:
-        {
-            obj_image->image.width = width;
-            obj_image->image.height = height;
-            obj_image->image.data_size = pitch_pot*height /*Y*/ + 2* (pitch_pot/2)*(height/2);/*UV*/
-            obj_image->image.num_planes = 3;
-            obj_image->image.pitches[0] = pitch_pot;
-            obj_image->image.pitches[1] = pitch_pot/2;
-            obj_image->image.pitches[2] = pitch_pot/2;
-            obj_image->image.offsets[0] = 0;
-            obj_image->image.offsets[1] = pitch_pot*height;
-            obj_image->image.offsets[2] = pitch_pot*height + (pitch_pot/2) * (height/2);
-            obj_image->image.num_palette_entries = 0;
-            obj_image->image.entry_bytes = 0;
-            obj_image->image.component_order[0] = 'Y';
-            obj_image->image.component_order[1] = 'U';
-            obj_image->image.component_order[2] = 'V';
-            obj_image->image.component_order[3] = '\0';
-            break;
-        }
-        default:
-        {
-            vaStatus = VA_STATUS_ERROR_INVALID_IMAGE_FORMAT;
-            break;
-        }
+    case VA_FOURCC_NV12:
+    {
+        obj_image->image.width = width;
+        obj_image->image.height = height;
+        obj_image->image.data_size = pitch_pot*height /*Y*/ + 2* (pitch_pot/2)*(height/2);/*UV*/
+        obj_image->image.num_planes = 2;
+        obj_image->image.pitches[0] = pitch_pot;
+        obj_image->image.pitches[1] = pitch_pot;
+        obj_image->image.offsets[0] = 0;
+        obj_image->image.offsets[1] = pitch_pot*height;
+        obj_image->image.num_palette_entries = 0;
+        obj_image->image.entry_bytes = 0;
+        obj_image->image.component_order[0] = 'Y';
+        obj_image->image.component_order[1] = 'U';/* fixed me: packed UV packed here! */
+        obj_image->image.component_order[2] = 'V';
+        obj_image->image.component_order[3] = '\0';
+        break;
+    }
+    case VA_FOURCC_AYUV:
+    {
+        obj_image->image.width = width;
+        obj_image->image.height = height;
+        obj_image->image.data_size = 4*pitch_pot*height;
+        obj_image->image.num_planes = 1;
+        obj_image->image.pitches[0] = 4*pitch_pot;
+        obj_image->image.num_palette_entries = 0;
+        obj_image->image.entry_bytes = 0;
+        obj_image->image.component_order[0] = 'V';
+        obj_image->image.component_order[1] = 'U';
+        obj_image->image.component_order[2] = 'Y';
+        obj_image->image.component_order[3] = 'A';
+        break;
+    }
+    case VA_FOURCC_RGBA:
+    {
+        obj_image->image.width = width;
+        obj_image->image.height = height;
+        obj_image->image.data_size = 4*pitch_pot*height;
+        obj_image->image.num_planes = 1;
+        obj_image->image.pitches[0] = 4*pitch_pot;
+        obj_image->image.num_palette_entries = 0;
+        obj_image->image.entry_bytes = 0;
+        obj_image->image.component_order[0] = 'R';
+        obj_image->image.component_order[1] = 'G';
+        obj_image->image.component_order[2] = 'B';
+        obj_image->image.component_order[3] = 'A';
+        break;
+    }
+    case VA_FOURCC_AI44:
+    {
+        obj_image->image.width = width;
+        obj_image->image.height = height;
+        obj_image->image.data_size = pitch_pot*height;/* one byte one element */
+        obj_image->image.num_planes = 1;
+        obj_image->image.pitches[0] = pitch_pot;
+        obj_image->image.num_palette_entries = 16;
+        obj_image->image.entry_bytes = 4; /* AYUV */
+        obj_image->image.component_order[0] = 'I';
+        obj_image->image.component_order[1] = 'A';
+        obj_image->image.component_order[2] = '\0';
+        obj_image->image.component_order[3] = '\0';
+        break;
+    }
+    case VA_FOURCC_IYUV:
+    {
+        obj_image->image.width = width;
+        obj_image->image.height = height;
+        obj_image->image.data_size = pitch_pot*height /*Y*/ + 2* (pitch_pot/2)*(height/2);/*UV*/
+        obj_image->image.num_planes = 3;
+        obj_image->image.pitches[0] = pitch_pot;
+        obj_image->image.pitches[1] = pitch_pot/2;
+        obj_image->image.pitches[2] = pitch_pot/2;
+        obj_image->image.offsets[0] = 0;
+        obj_image->image.offsets[1] = pitch_pot*height;
+        obj_image->image.offsets[2] = pitch_pot*height + (pitch_pot/2) * (height/2);
+        obj_image->image.num_palette_entries = 0;
+        obj_image->image.entry_bytes = 0;
+        obj_image->image.component_order[0] = 'Y';
+        obj_image->image.component_order[1] = 'U';
+        obj_image->image.component_order[2] = 'V';
+        obj_image->image.component_order[3] = '\0';
+        break;
+    }
+    default:
+    {
+        vaStatus = VA_STATUS_ERROR_INVALID_IMAGE_FORMAT;
+        break;
+    }
     }
     
     if (VA_STATUS_SUCCESS == vaStatus) {
@@ -370,9 +400,9 @@ VAStatus psb_CreateImage(
 }
 
 VAStatus psb_DeriveImage(
-	VADriverContextP ctx,
-	VASurfaceID surface,
-	VAImage *image     /* out */
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    VAImage *image     /* out */
 )
 {
     INIT_DRIVER_DATA;
@@ -413,6 +443,8 @@ VAStatus psb_DeriveImage(
         return vaStatus;
     }
 
+    MEMSET_OBJECT(obj_image, struct object_image_s);
+
     /* create a buffer to represent surface buffer */
     bufferID = object_heap_allocate( &driver_data->buffer_heap );
     obj_buffer = BUFFER(bufferID);
@@ -422,6 +454,8 @@ VAStatus psb_DeriveImage(
         DEBUG_FAILURE;
         return vaStatus;
     }
+    MEMSET_OBJECT(obj_buffer, struct object_buffer_s);
+
     obj_buffer->type = VAImageBufferType;
     obj_buffer->buffer_data = NULL;
     obj_buffer->psb_buffer = &obj_surface->psb_surface->buf;
@@ -442,24 +476,24 @@ VAStatus psb_DeriveImage(
     srf_buf_ofs = obj_surface->psb_surface->buf.buffer_ofs;
     
     switch (fourcc) {
-        case VA_FOURCC_NV12:
-        {
-            obj_image->image.num_planes = 2;
-            obj_image->image.pitches[0] = obj_surface->psb_surface->stride;
-            obj_image->image.pitches[1] = obj_surface->psb_surface->stride;
+    case VA_FOURCC_NV12:
+    {
+        obj_image->image.num_planes = 2;
+        obj_image->image.pitches[0] = obj_surface->psb_surface->stride;
+        obj_image->image.pitches[1] = obj_surface->psb_surface->stride;
             
-            obj_image->image.offsets[0] = srf_buf_ofs;
-            obj_image->image.offsets[1] = srf_buf_ofs + obj_surface->height * obj_surface->psb_surface->stride;
-            obj_image->image.num_palette_entries = 0;
-            obj_image->image.entry_bytes = 0;
-            obj_image->image.component_order[0] = 'Y';
-            obj_image->image.component_order[1] = 'U';/* fixed me: packed UV packed here! */
-            obj_image->image.component_order[2] = 'V';
-            obj_image->image.component_order[3] = '\0';
-            break;
-        }
-        default:
-            break;
+        obj_image->image.offsets[0] = srf_buf_ofs;
+        obj_image->image.offsets[1] = srf_buf_ofs + obj_surface->height * obj_surface->psb_surface->stride;
+        obj_image->image.num_palette_entries = 0;
+        obj_image->image.entry_bytes = 0;
+        obj_image->image.component_order[0] = 'Y';
+        obj_image->image.component_order[1] = 'U';/* fixed me: packed UV packed here! */
+        obj_image->image.component_order[2] = 'V';
+        obj_image->image.component_order[3] = '\0';
+        break;
+    }
+    default:
+        break;
     }
     
     obj_image->derived_surface = surface; /* this image is derived from a surface */
@@ -501,12 +535,12 @@ VAStatus psb__destroy_image(psb_driver_data_p driver_data, object_image_p obj_im
 }
 
 VAStatus psb_DestroyImage(
-	VADriverContextP ctx,
-	VAImageID image
+    VADriverContextP ctx,
+    VAImageID image
 )
 {
     INIT_DRIVER_DATA
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
+        VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_image_p obj_image;
     
     obj_image = IMAGE(image);
@@ -520,14 +554,14 @@ VAStatus psb_DestroyImage(
 }
 
 VAStatus psb_SetImagePalette (
-	VADriverContextP ctx,
-	VAImageID image,
-	/* 
-	 * pointer to an array holding the palette data.  The size of the array is
-	 * num_palette_entries * entry_bytes in size.  The order of the components 
-	 * in the palette is described by the component_order in VAImage struct
-	 */
-	unsigned char *palette 
+    VADriverContextP ctx,
+    VAImageID image,
+    /* 
+     * pointer to an array holding the palette data.  The size of the array is
+     * num_palette_entries * entry_bytes in size.  The order of the components 
+     * in the palette is described by the component_order in VAImage struct
+     */
+    unsigned char *palette 
 )
 {
     INIT_DRIVER_DATA;
@@ -559,10 +593,10 @@ VAStatus psb_SetImagePalette (
 }
 
 static VAStatus lnc_unpack_topaz_rec(int src_width,int src_height,
-                                 unsigned char *p_srcY,unsigned char *p_srcUV,
-                                 unsigned char *p_dstY,unsigned char *p_dstU,unsigned char *p_dstV,
-                                 int dstY_stride,int dstU_stride,int dstV_stride,
-                                 int surface_height)
+                                     unsigned char *p_srcY,unsigned char *p_srcUV,
+                                     unsigned char *p_dstY,unsigned char *p_dstU,unsigned char *p_dstV,
+                                     int dstY_stride,int dstU_stride,int dstV_stride,
+                                     int surface_height)
 {
     unsigned char *tmp_dstY=NULL;
     unsigned char *tmp_dstUV=NULL;
@@ -572,11 +606,11 @@ static VAStatus lnc_unpack_topaz_rec(int src_width,int src_height,
     psb__information_message("Unpack reconstructed frame to image\n");
     
     /* do this one column at a time. */
-    tmp_dstY = (unsigned char *)malloc(16*src_height);
+    tmp_dstY = (unsigned char *)calloc(1, 16*src_height);
     if (tmp_dstY==NULL) 
         return  VA_STATUS_ERROR_ALLOCATION_FAILED;
     
-    tmp_dstUV = (unsigned char*)malloc(16*src_height/2);
+    tmp_dstUV = (unsigned char*)calloc(1, 16*src_height/2);
     if (tmp_dstUV == NULL) {
         free(tmp_dstY);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -686,59 +720,59 @@ VAStatus psb_GetImage(
     image_data += obj_surface->psb_surface->buf.buffer_ofs;
     
     switch (obj_image->image.format.fourcc) {
-        case VA_FOURCC_NV12:
-        {
-            unsigned char *source_y,*src_uv,*dst_y,*dst_uv;
-            int i;
-            /* copy Y plane */
-            dst_y = image_data;
-            source_y = surface_data + y*psb_surface->stride + x;
-            for (i=0; i<height;i++)  {
-                memcpy(dst_y, source_y,width);
-                dst_y += obj_image->image.pitches[0];
-                source_y += psb_surface->stride;
-            }
+    case VA_FOURCC_NV12:
+    {
+        unsigned char *source_y,*src_uv,*dst_y,*dst_uv;
+        int i;
+        /* copy Y plane */
+        dst_y = image_data;
+        source_y = surface_data + y*psb_surface->stride + x;
+        for (i=0; i<height;i++)  {
+            memcpy(dst_y, source_y,width);
+            dst_y += obj_image->image.pitches[0];
+            source_y += psb_surface->stride;
+        }
         
-            /* copy UV plane */
-            dst_uv = image_data + obj_image->image.offsets[1];
-            src_uv = surface_data + psb_surface->stride * obj_surface->height + (y/2)*psb_surface->stride + x;;
-            for (i=0; i<obj_image->image.height/2; i++) {
-                memcpy(dst_uv, src_uv, width);
-                dst_uv += obj_image->image.pitches[1];
-                src_uv += psb_surface->stride;
-            }
-	    break;
+        /* copy UV plane */
+        dst_uv = image_data + obj_image->image.offsets[1];
+        src_uv = surface_data + psb_surface->stride * obj_surface->height + (y/2)*psb_surface->stride + x;;
+        for (i=0; i<obj_image->image.height/2; i++) {
+            memcpy(dst_uv, src_uv, width);
+            dst_uv += obj_image->image.pitches[1];
+            src_uv += psb_surface->stride;
         }
+        break;
+    }
 #if 0        
-        case VA_FOURCC_IYUV:
-        {
-            unsigned char *source_y,*dst_y;
-            unsigned char *source_uv, *source_u, *source_v, *dst_u, *dst_v;
-            unsigned int i;
+    case VA_FOURCC_IYUV:
+    {
+        unsigned char *source_y,*dst_y;
+        unsigned char *source_uv, *source_u, *source_v, *dst_u, *dst_v;
+        unsigned int i;
 
-            if (psb_surface->extra_info[4] == VA_FOURCC_IREC) {
-                /* copy Y plane */
-                dst_y = image_data + obj_image->image.offsets[0] + src_y * obj_image->image.pitches[0] + src_x;
-                dst_u = image_data + obj_image->image.offsets[1] + src_y * obj_image->image.pitches[1] + src_x;
-                dst_v = image_data + obj_image->image.offsets[2] + src_y * obj_image->image.pitches[2] + src_x;
+        if (psb_surface->extra_info[4] == VA_FOURCC_IREC) {
+            /* copy Y plane */
+            dst_y = image_data + obj_image->image.offsets[0] + src_y * obj_image->image.pitches[0] + src_x;
+            dst_u = image_data + obj_image->image.offsets[1] + src_y * obj_image->image.pitches[1] + src_x;
+            dst_v = image_data + obj_image->image.offsets[2] + src_y * obj_image->image.pitches[2] + src_x;
 
-                source_y = surface_data + dest_y*psb_surface->stride + dest_x;
-                source_uv = surface_data + obj_surface->height * psb_surface->stride
-                    + dest_y*(psb_surface->stride/2) + dest_x;
+            source_y = surface_data + dest_y*psb_surface->stride + dest_x;
+            source_uv = surface_data + obj_surface->height * psb_surface->stride
+                + dest_y*(psb_surface->stride/2) + dest_x;
 
-                vaStatus = lnc_unpack_topaz_rec(width, height, source_y, source_uv,
-		                   dst_y, dst_u, dst_v,
-		                   obj_image->image.pitches[0],
-		                   obj_image->image.pitches[1],
-		                   obj_image->image.pitches[2],                                     
-		                   obj_surface->height);
-            }
-            
-            break;
+            vaStatus = lnc_unpack_topaz_rec(width, height, source_y, source_uv,
+                                            dst_y, dst_u, dst_v,
+                                            obj_image->image.pitches[0],
+                                            obj_image->image.pitches[1],
+                                            obj_image->image.pitches[2],                                     
+                                            obj_surface->height);
         }
+            
+        break;
+    }
 #endif        
-        default:
-            break;
+    default:
+        break;
     }
     psb_buffer_unmap(obj_buffer->psb_buffer);
     psb_buffer_unmap(&psb_surface->buf);
@@ -811,71 +845,71 @@ static VAStatus psb_PutImage2(
     image_data += obj_surface->psb_surface->buf.buffer_ofs;
     
     switch (obj_image->image.format.fourcc) {
-        case VA_FOURCC_NV12:
-        {
-            char *source_y,*src_uv,*dst_y,*dst_uv;
-            unsigned int i;
+    case VA_FOURCC_NV12:
+    {
+        char *source_y,*src_uv,*dst_y,*dst_uv;
+        unsigned int i;
         
-            /* copy Y plane */
-            source_y = image_data + obj_image->image.offsets[0] + src_y * obj_image->image.pitches[0] + src_x;
-            dst_y = surface_data + dest_y*psb_surface->stride + dest_x;
-            for (i=0; i<height;i++)  {
-                memcpy(dst_y, source_y,width);
-                source_y += obj_image->image.pitches[0];
-                dst_y += psb_surface->stride;
-            }
-        
-            /* copy UV plane */
-            src_uv = image_data + obj_image->image.offsets[1] + (src_y/2) * obj_image->image.pitches[1] + src_x;
-            dst_uv = surface_data + psb_surface->stride * obj_surface->height + (dest_y/2)*psb_surface->stride + dest_x;
-            for (i=0; i<obj_image->image.height/2; i++) {
-                memcpy(dst_uv, src_uv, width);
-                src_uv += obj_image->image.pitches[1];
-                dst_uv += psb_surface->stride;
-            }
-            break;
+        /* copy Y plane */
+        source_y = image_data + obj_image->image.offsets[0] + src_y * obj_image->image.pitches[0] + src_x;
+        dst_y = surface_data + dest_y*psb_surface->stride + dest_x;
+        for (i=0; i<height;i++)  {
+            memcpy(dst_y, source_y,width);
+            source_y += obj_image->image.pitches[0];
+            dst_y += psb_surface->stride;
         }
+        
+        /* copy UV plane */
+        src_uv = image_data + obj_image->image.offsets[1] + (src_y/2) * obj_image->image.pitches[1] + src_x;
+        dst_uv = surface_data + psb_surface->stride * obj_surface->height + (dest_y/2)*psb_surface->stride + dest_x;
+        for (i=0; i<obj_image->image.height/2; i++) {
+            memcpy(dst_uv, src_uv, width);
+            src_uv += obj_image->image.pitches[1];
+            dst_uv += psb_surface->stride;
+        }
+        break;
+    }
 #if 0        
-        case VA_FOURCC_IYUV:
-        {
-            char *source_y,*dst_y;
-            char *source_u, *source_v, *dst_u, *dst_v;
-            unsigned int i;
+    case VA_FOURCC_IYUV:
+    {
+        char *source_y,*dst_y;
+        char *source_u, *source_v, *dst_u, *dst_v;
+        unsigned int i;
         
-            /* copy Y plane */
-            source_y = image_data + obj_image->image.offsets[0] + src_y * obj_image->image.pitches[0] + src_x;
-            source_u = image_data + obj_image->image.offsets[1] + src_y * obj_image->image.pitches[1] + src_x;
-            source_v = image_data + obj_image->image.offsets[2] + src_y * obj_image->image.pitches[2] + src_x;
+        /* copy Y plane */
+        source_y = image_data + obj_image->image.offsets[0] + src_y * obj_image->image.pitches[0] + src_x;
+        source_u = image_data + obj_image->image.offsets[1] + src_y * obj_image->image.pitches[1] + src_x;
+        source_v = image_data + obj_image->image.offsets[2] + src_y * obj_image->image.pitches[2] + src_x;
 
-            dst_y = surface_data + dest_y*psb_surface->stride + dest_x;
-            dst_u = surface_data + obj_surface->height * psb_surface->stride
-                + dest_y*(psb_surface->stride/2) + dest_x;
-            dst_v = surface_data + obj_surface->height * psb_surface->stride
-                + (obj_surface->height/2) * (psb_surface->stride/2)
-                + dest_y*(psb_surface->stride/2) + dest_x;
+        dst_y = surface_data + dest_y*psb_surface->stride + dest_x;
+        dst_u = surface_data + obj_surface->height * psb_surface->stride
+            + dest_y*(psb_surface->stride/2) + dest_x;
+        dst_v = surface_data + obj_surface->height * psb_surface->stride
+            + (obj_surface->height/2) * (psb_surface->stride/2)
+            + dest_y*(psb_surface->stride/2) + dest_x;
             
-            for (i=0; i<height;i++)  {
-                memcpy(dst_y, source_y,width);
-                source_y += obj_image->image.pitches[0];
-                dst_y += psb_surface->stride;
-            }
-        
-            /* copy UV plane */
-            for (i=0; i<obj_image->image.height/2; i++) {
-                memcpy(dst_u, source_u, width);
-                memcpy(dst_v, source_v, width);
-                
-                source_u += obj_image->image.pitches[1];
-                source_v += obj_image->image.pitches[2];
-                
-                dst_u += psb_surface->stride/2;
-                dst_v += psb_surface->stride/2;
-            }
-            break;
+        for (i=0; i<height;i++)  {
+            memcpy(dst_y, source_y,width);
+            source_y += obj_image->image.pitches[0];
+            dst_y += psb_surface->stride;
         }
+        
+        /* copy UV plane */
+        for (i=0; i<obj_image->image.height/2; i++) {
+            memcpy(dst_u, source_u, width);
+            memcpy(dst_v, source_v, width);
+                
+            source_u += obj_image->image.pitches[1];
+            source_v += obj_image->image.pitches[2];
+                
+            dst_u += psb_surface->stride/2;
+            dst_v += psb_surface->stride/2;
+        }
+        break;
+    }
 #endif        
-        default:
-            break;
+    default:
+        break;
     }
     
     psb_buffer_unmap(obj_buffer->psb_buffer);
@@ -991,50 +1025,50 @@ VAStatus psb_PutImage(
 
     /* just a prototype, the algorithm is ugly and not optimized */
     switch (obj_image->image.format.fourcc) {
-        case VA_FOURCC_NV12:
-        {
-            unsigned char *source_y,*dst_y;
-            unsigned short *source_uv,*dst_uv;
-            unsigned int i,j;
-            float xratio = (float) src_width / dest_width;
-            float yratio = (float) src_height / dest_height;
+    case VA_FOURCC_NV12:
+    {
+        unsigned char *source_y,*dst_y;
+        unsigned short *source_uv,*dst_uv;
+        unsigned int i,j;
+        float xratio = (float) src_width / dest_width;
+        float yratio = (float) src_height / dest_height;
             
-            /* dst_y/dst_uv: Y/UV plane of destination */
-            dst_y = surface_data + dest_y*psb_surface->stride + dest_x;
-            dst_uv = surface_data + psb_surface->stride * obj_surface->height
-                    + (dest_y/2)*psb_surface->stride + dest_x;
+        /* dst_y/dst_uv: Y/UV plane of destination */
+        dst_y = surface_data + dest_y*psb_surface->stride + dest_x;
+        dst_uv = surface_data + psb_surface->stride * obj_surface->height
+            + (dest_y/2)*psb_surface->stride + dest_x;
             
-            for (j=0; j<dest_height;j++)  {
-                unsigned char *dst_y_tmp = dst_y;
-                unsigned short *dst_uv_tmp = dst_uv;
+        for (j=0; j<dest_height;j++)  {
+            unsigned char *dst_y_tmp = dst_y;
+            unsigned short *dst_uv_tmp = dst_uv;
                 
-                for (i=0; i<dest_width;i++)  {
-                    int x = (int)(i * xratio);
-                    int y = (int)(j * yratio);
+            for (i=0; i<dest_width;i++)  {
+                int x = (int)(i * xratio);
+                int y = (int)(j * yratio);
 
-                    source_y = image_data + obj_image->image.offsets[0]
-                        + (src_y + y) * obj_image->image.pitches[0]
-                        + (src_x + x);
-                    *dst_y_tmp = *source_y;
-                    dst_y_tmp++;
+                source_y = image_data + obj_image->image.offsets[0]
+                    + (src_y + y) * obj_image->image.pitches[0]
+                    + (src_x + x);
+                *dst_y_tmp = *source_y;
+                dst_y_tmp++;
                     
-                    if (((i&1) == 0)) {
-                        source_uv = (unsigned short *)(image_data + obj_image->image.offsets[1]
-                                                      + ((src_y + y)/2) * obj_image->image.pitches[1])
-                            + ((src_x + x)/2);
-                        *dst_uv_tmp = *source_uv;
-                        dst_uv_tmp++;                        
-                    }
+                if (((i&1) == 0)) {
+                    source_uv = (unsigned short *)(image_data + obj_image->image.offsets[1]
+                                                   + ((src_y + y)/2) * obj_image->image.pitches[1])
+                        + ((src_x + x)/2);
+                    *dst_uv_tmp = *source_uv;
+                    dst_uv_tmp++;                        
                 }
-                dst_y += psb_surface->stride;
-                
-                if (j&1)
-                    dst_uv = (unsigned short *)((void *)dst_uv + psb_surface->stride);
             }
-            break;            
+            dst_y += psb_surface->stride;
+                
+            if (j&1)
+                dst_uv = (unsigned short *)((void *)dst_uv + psb_surface->stride);
         }
-        default:/* will not reach here */
-            break;
+        break;            
+    }
+    default:/* will not reach here */
+        break;
     }
         
     psb_buffer_unmap(obj_buffer->psb_buffer);
@@ -1081,7 +1115,7 @@ static VAStatus psb__LinkSubpictIntoSurface(
     int found = 0;
     
     if (obj_surface->subpictures != NULL) {
-        surface_subpic = ( PsbVASurfaceRec *)obj_surface->subpictures;
+        surface_subpic = (PsbVASurfaceRec *)obj_surface->subpictures;
         do {
             if (surface_subpic->subpic_id == obj_subpic->subpic_id) {
                 found = 1;
@@ -1097,11 +1131,9 @@ static VAStatus psb__LinkSubpictIntoSurface(
             return VA_STATUS_ERROR_UNKNOWN;
         }
         
-        surface_subpic = ( PsbVASurfaceRec *)malloc(sizeof(*surface_subpic));
+        surface_subpic = (PsbVASurfaceRec *)calloc(1, sizeof(*surface_subpic));
         if (NULL == surface_subpic)
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
-
-        memset(surface_subpic,0,sizeof(*surface_subpic));
     }
     
     surface_subpic->subpic_id = obj_subpic->subpic_id;
@@ -1113,17 +1145,17 @@ static VAStatus psb__LinkSubpictIntoSurface(
     surface_subpic->width = image->width;
     surface_subpic->height = image->height;
     switch (surface_subpic->fourcc) {
-        case VA_FOURCC_AYUV:
-            surface_subpic->stride = image->pitches[0]/4;
-            break;
-        case VA_FOURCC_RGBA:
-            surface_subpic->stride = image->pitches[0]/4;
-            break;
-        case VA_FOURCC_AI44:
-            surface_subpic->stride = image->pitches[0];
-            /* point to Image palette */
-            surface_subpic->palette_ptr = (PsbAYUVSample8 *)&obj_image->palette[0];
-            break;
+    case VA_FOURCC_AYUV:
+        surface_subpic->stride = image->pitches[0]/4;
+        break;
+    case VA_FOURCC_RGBA:
+        surface_subpic->stride = image->pitches[0]/4;
+        break;
+    case VA_FOURCC_AI44:
+        surface_subpic->stride = image->pitches[0];
+        /* point to Image palette */
+        surface_subpic->palette_ptr = (PsbAYUVSample8 *)&obj_image->palette[0];
+        break;
     }
     
     if (update) {
@@ -1171,10 +1203,9 @@ static VAStatus psb__LinkSurfaceIntoSubpict(
     }
 
     /* not found */
-    subpic_surface = (subpic_surface_s *)malloc(sizeof(*subpic_surface));
+    subpic_surface = (subpic_surface_s *)calloc(1, sizeof(*subpic_surface));
     if (NULL == subpic_surface)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    memset(subpic_surface,0,sizeof(*subpic_surface));
 
     subpic_surface->surface_id = surface_id;
     subpic_surface->next = NULL;
@@ -1259,10 +1290,10 @@ static VAStatus psb__DelinkSurfaceFromSubpict(
 
 
 VAStatus psb_QuerySubpictureFormats(
-	VADriverContextP ctx,
-	VAImageFormat *format_list,        /* out */
-	unsigned int *flags,       /* out */
-	unsigned int *num_formats  /* out */
+    VADriverContextP ctx,
+    VAImageFormat *format_list,        /* out */
+    unsigned int *flags,       /* out */
+    unsigned int *num_formats  /* out */
 )
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -1294,9 +1325,9 @@ VAStatus psb_QuerySubpictureFormats(
 
 
 VAStatus psb_CreateSubpicture(
-	VADriverContextP ctx,
-	VAImageID image,
-	VASubpictureID *subpicture   /* out */
+    VADriverContextP ctx,
+    VAImageID image,
+    VASubpictureID *subpicture   /* out */
 )
 {
     INIT_DRIVER_DATA;
@@ -1333,6 +1364,8 @@ VAStatus psb_CreateSubpicture(
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         return vaStatus;
     }
+    MEMSET_OBJECT(obj_subpic, struct object_subpic_s);
+
     obj_subpic->subpic_id = subpicID;
     obj_subpic->image_id = obj_image->image.image_id;
     obj_subpic->surfaces = NULL;
@@ -1370,8 +1403,8 @@ VAStatus psb__destroy_subpicture(psb_driver_data_p driver_data, object_subpic_p 
 
 
 VAStatus psb_DestroySubpicture(
-	VADriverContextP ctx,
-	VASubpictureID subpicture
+    VADriverContextP ctx,
+    VASubpictureID subpicture
 )
 {
     INIT_DRIVER_DATA;
@@ -1390,12 +1423,12 @@ VAStatus psb_DestroySubpicture(
 }
 
 VAStatus psb_SetSubpictureImage (
-	VADriverContextP ctx,
-        VASubpictureID subpicture,
-        VAImageID image
+    VADriverContextP ctx,
+    VASubpictureID subpicture,
+    VAImageID image
 )
 {
-   INIT_DRIVER_DATA;
+    INIT_DRIVER_DATA;
     object_subpic_p obj_subpic;
     object_image_p obj_image;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -1459,11 +1492,11 @@ VAStatus psb_SetSubpictureImage (
 
 
 VAStatus psb_SetSubpictureChromakey(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	unsigned int chromakey_min,
-	unsigned int chromakey_max,
-	unsigned int chromakey_mask
+    VADriverContextP ctx,
+    VASubpictureID subpicture,
+    unsigned int chromakey_min,
+    unsigned int chromakey_max,
+    unsigned int chromakey_mask
 )
 {
     INIT_DRIVER_DATA;
@@ -1473,9 +1506,9 @@ VAStatus psb_SetSubpictureChromakey(
 }
 
 VAStatus psb_SetSubpictureGlobalAlpha(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	float global_alpha 
+    VADriverContextP ctx,
+    VASubpictureID subpicture,
+    float global_alpha 
 )
 {
     INIT_DRIVER_DATA;
@@ -1486,23 +1519,23 @@ VAStatus psb_SetSubpictureGlobalAlpha(
 
 
 VAStatus psb__AssociateSubpicture(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	VASurfaceID *target_surfaces,
-	int num_surfaces,
-	short src_x, /* upper left offset in subpicture */
-	short src_y,
-	unsigned short src_w,
-	unsigned short src_h,
-        short dest_x, /* upper left offset in surface */
-	short dest_y,
-	unsigned short dest_w,
-	unsigned short dest_h,
-	/*
-	 * whether to enable chroma-keying or global-alpha
-	 * see VA_SUBPICTURE_XXX values
-	 */
-	unsigned int flags
+    VADriverContextP ctx,
+    VASubpictureID subpicture,
+    VASurfaceID *target_surfaces,
+    int num_surfaces,
+    short src_x, /* upper left offset in subpicture */
+    short src_y,
+    unsigned short src_w,
+    unsigned short src_h,
+    short dest_x, /* upper left offset in surface */
+    short dest_y,
+    unsigned short dest_w,
+    unsigned short dest_h,
+    /*
+     * whether to enable chroma-keying or global-alpha
+     * see VA_SUBPICTURE_XXX values
+     */
+    unsigned int flags
 )
 {
     INIT_DRIVER_DATA;
@@ -1581,23 +1614,23 @@ VAStatus psb__AssociateSubpicture(
 
 
 VAStatus psb_AssociateSubpicture(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	VASurfaceID *target_surfaces,
-	int num_surfaces,
-	short src_x, /* upper left offset in subpicture */
-	short src_y,
-	unsigned short src_width,
-	unsigned short src_height,
-	short dest_x, /* upper left offset in surface */
-	short dest_y,
-	unsigned short dest_width,
-	unsigned short dest_height,
-	/*
-	 * whether to enable chroma-keying or global-alpha
-	 * see VA_SUBPICTURE_XXX values
-	 */
-	unsigned int flags
+    VADriverContextP ctx,
+    VASubpictureID subpicture,
+    VASurfaceID *target_surfaces,
+    int num_surfaces,
+    short src_x, /* upper left offset in subpicture */
+    short src_y,
+    unsigned short src_width,
+    unsigned short src_height,
+    short dest_x, /* upper left offset in surface */
+    short dest_y,
+    unsigned short dest_width,
+    unsigned short dest_height,
+    /*
+     * whether to enable chroma-keying or global-alpha
+     * see VA_SUBPICTURE_XXX values
+     */
+    unsigned int flags
 )
 {
     return psb__AssociateSubpicture(ctx,subpicture,target_surfaces,num_surfaces,
@@ -1609,10 +1642,10 @@ VAStatus psb_AssociateSubpicture(
 
 
 VAStatus psb_DeassociateSubpicture(
-	VADriverContextP ctx,
-	VASubpictureID subpicture,
-	VASurfaceID *target_surfaces,
-	int num_surfaces
+    VADriverContextP ctx,
+    VASubpictureID subpicture,
+    VASurfaceID *target_surfaces,
+    int num_surfaces
 )
 {
     INIT_DRIVER_DATA;
@@ -1668,9 +1701,10 @@ VAStatus psb_DeassociateSubpicture(
 
 void psb_SurfaceDeassociateSubpict(
     psb_driver_data_p driver_data,
-    object_surface_p obj_surface)
+    object_surface_p obj_surface
+)
 {
-     PsbVASurfaceRec *surface_subpic = ( PsbVASurfaceRec *)obj_surface->subpictures;
+    PsbVASurfaceRec *surface_subpic = ( PsbVASurfaceRec *)obj_surface->subpictures;
 
     if (surface_subpic != NULL) {
         do  {
@@ -1733,10 +1767,10 @@ static  VADisplayAttribute psb__DisplayAttribute[] = {
  * returned in "attr_list" is returned in "num_attributes".
  */
 VAStatus psb_QueryDisplayAttributes (
-		VADriverContextP ctx,
-		VADisplayAttribute *attr_list,	/* out */
-		int *num_attributes		/* out */
-	)
+    VADriverContextP ctx,
+    VADisplayAttribute *attr_list,	/* out */
+    int *num_attributes		/* out */
+)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
@@ -1765,12 +1799,12 @@ VAStatus psb_QueryDisplayAttributes (
  * from vaQueryDisplayAttributes() can have their values retrieved.  
  */
 VAStatus psb_GetDisplayAttributes (
-		VADriverContextP ctx,
-		VADisplayAttribute *attr_list,	/* in/out */
-		int num_attributes
+    VADriverContextP ctx,
+    VADisplayAttribute *attr_list,	/* in/out */
+    int num_attributes
 )
 {
-    psb_output_p output = GET_OUTPUT_DATA(ctx);
+    INIT_DRIVER_DATA;
     VADisplayAttribute *p=attr_list;
     int i;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -1789,23 +1823,35 @@ VAStatus psb_GetDisplayAttributes (
 
     for (i=0;i<num_attributes;i++) {
         switch (p->type) {
-            case VADisplayAttribBrightness:
-                p->value = output->brightness.Value;
-                break;
-            case VADisplayAttribContrast:
-                p->value = output->contrast.Value;
-                break;
-            case VADisplayAttribHue:
-                p->value = output->hue.Value;
-                break;
-            case VADisplayAttribSaturation:
-                p->value = output->saturation.Value;
-                break;
-            case VADisplayAttribBackgroundColor:
-                p->value = output->clear_color;
-                break;
-            default:
-                break;
+        case VADisplayAttribBrightness:
+            p->value = driver_data->brightness.value;
+            break;
+        case VADisplayAttribContrast:
+            p->value = driver_data->contrast.value;
+            break;
+        case VADisplayAttribHue:
+            p->value = driver_data->hue.value;
+            break;
+        case VADisplayAttribSaturation:
+            p->value = driver_data->saturation.value;
+            break;
+        case VADisplayAttribBLEBlackMode:
+            p->value = driver_data->ble_black_mode.value = p->value;
+            break;
+        case VADisplayAttribBLEWhiteMode:
+            p->value = driver_data->ble_white_mode.value = p->value;
+            break;
+        case VADisplayAttribBlueStretch:
+            p->value = driver_data->blueStretch_gain.value = p->value;
+            break;
+        case VADisplayAttribSkinColorCorrection:
+            p->value = driver_data->skinColorCorrection_gain.value = p->value;
+            break;
+        case VADisplayAttribBackgroundColor:
+            p->value = driver_data->clear_color;
+            break;
+        default:
+            break;
         }
         p++;
     }
@@ -1821,20 +1867,21 @@ VAStatus psb_GetDisplayAttributes (
  */
 #define CLAMP_ATTR(a,max,min) (a>max?max:(a<min?min:a))
 VAStatus psb_SetDisplayAttributes (
-		VADriverContextP ctx,
-		VADisplayAttribute *attr_list,
-		int num_attributes
-	)
+    VADriverContextP ctx,
+    VADisplayAttribute *attr_list,
+    int num_attributes
+)
 {
+    INIT_DRIVER_DATA;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    
+
     if(NULL == attr_list)
     {
 	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 	DEBUG_FAILURE;
 	return vaStatus;
     }
-    psb_output_p output = GET_OUTPUT_DATA(ctx);
+    
     VADisplayAttribute *p=attr_list;
     int i,update_coeffs=0;
 
@@ -1845,29 +1892,51 @@ VAStatus psb_SetDisplayAttributes (
 
     for (i=0;i<num_attributes;i++) {
         switch (p->type) {
-            case VADisplayAttribBrightness:
-                output->brightness.Value = CLAMP_ATTR(p->value,BRIGHTNESS_MAX,BRIGHTNESS_MIN);
-                update_coeffs = 1;
-                break;
-            case VADisplayAttribContrast:
-                output->contrast.Value = CLAMP_ATTR(p->value,CONTRAST_MAX,CONTRAST_MIN);
-                update_coeffs = 1;
-                break;
-            case VADisplayAttribHue:
-                output->hue.Value = CLAMP_ATTR(p->value,HUE_MAX,HUE_MIN);
-                update_coeffs = 1;
-                break;
-            case VADisplayAttribSaturation:
-                output->saturation.Value = CLAMP_ATTR(p->value,SATURATION_MAX,SATURATION_MIN);
-                update_coeffs = 1;
-                break;
-            case VADisplayAttribBackgroundColor:
-                output->clear_color = p->value;
-                break;
-            case VADisplayAttribOutofLoopDeblock:
-                output->is_oold = p->value;
-            default:
-                break;
+        case VADisplayAttribBrightness:
+            driver_data->brightness.value = p->value;
+            update_coeffs = 1;
+            break;
+        case VADisplayAttribContrast:
+            driver_data->contrast.value = p->value;
+            update_coeffs = 1;
+            break;
+        case VADisplayAttribHue:
+            driver_data->hue.value = p->value;
+            update_coeffs = 1;
+            break;
+        case VADisplayAttribSaturation:
+            driver_data->saturation.value = p->value;
+            update_coeffs = 1;
+            break;
+        case VADisplayAttribBLEBlackMode:
+            driver_data->ble_black_mode.value = p->value;
+            update_coeffs = 1;
+            break;
+        case VADisplayAttribBLEWhiteMode:
+            driver_data->ble_white_mode.value = p->value;
+            update_coeffs = 1;
+            break;
+        case VADisplayAttribBlueStretch:
+            driver_data->blueStretch_gain.value = p->value;
+            update_coeffs = 1;
+            break;
+        case VADisplayAttribSkinColorCorrection:
+            driver_data->skinColorCorrection_gain.value = p->value;
+            update_coeffs = 1;
+            break;
+        case VADisplayAttribBackgroundColor:
+            driver_data->clear_color = p->value;
+            break;
+        case VADisplayAttribOutofLoopDeblock:
+            driver_data->is_oold = p->value;
+            break;
+        case VADisplayAttribRotation:
+            driver_data->rotate = p->value;
+            if(driver_data->rotate == 4)
+                driver_data->rotate = 3; /* Match with hw definition */
+               
+        default:
+            break;
         }
         p++;
     }
@@ -1878,3 +1947,4 @@ VAStatus psb_SetDisplayAttributes (
 
     return VA_STATUS_SUCCESS;
 }
+

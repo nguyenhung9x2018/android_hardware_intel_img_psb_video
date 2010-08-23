@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -438,14 +436,14 @@ static VAStatus psb_VC1_CreateContext(
         return vaStatus;
     }
         
-    ctx = (context_VC1_p) malloc(sizeof(struct context_VC1_s));
+    ctx = (context_VC1_p) calloc(1, sizeof(struct context_VC1_s));
     if (NULL == ctx)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
         return vaStatus;
     }
-    memset(ctx, 0, sizeof(struct context_VC1_s));
+
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
     ctx->pic_params = NULL;
@@ -453,7 +451,7 @@ static VAStatus psb_VC1_CreateContext(
     ctx->split_buffer_pending = FALSE;
 
     ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p*) malloc(sizeof(object_buffer_p)*ctx->slice_param_list_size);
+    ctx->slice_param_list = (object_buffer_p*) calloc(1, sizeof(object_buffer_p)*ctx->slice_param_list_size);
     ctx->slice_param_list_idx = 0;
     
     if (NULL == ctx->slice_param_list)
@@ -464,7 +462,7 @@ static VAStatus psb_VC1_CreateContext(
     
     ctx->colocated_buffers_size = obj_context->num_render_targets;
     ctx->colocated_buffers_idx = 0;
-    ctx->colocated_buffers = (psb_buffer_p) malloc(sizeof(struct psb_buffer_s)*ctx->colocated_buffers_size);
+    ctx->colocated_buffers = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s)*ctx->colocated_buffers_size);
     if (NULL == ctx->colocated_buffers)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -750,7 +748,7 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
 {
     VAStatus vaStatus;
     VAPictureParameterBufferVC1 *pic_params;
-    IMG_UINT8	ui8LumaScale1, ui8LumaShift1, ui8LumaScale2, ui8LumaShift2;
+    IMG_UINT8	ui8LumaScale1 = 0, ui8LumaShift1 = 0, ui8LumaScale2 = 0, ui8LumaShift2 = 0;
 
     ASSERT(obj_buffer->type == VAPictureParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
@@ -1882,7 +1880,7 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
 static void psb__VC1_build_VLC_tables(context_VC1_p ctx)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    int i;
+    unsigned int i;
     uint16_t RAM_location = 0;
     uint32_t reg_value;
 
@@ -2600,7 +2598,7 @@ static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterB
     /* Is this correct? */
     // Write to the VC1_FE_VOPDQUANT_PRESENT register according to PowerVR decoder's implementation.
     if (((ctx->profile == WMF_PROFILE_ADVANCED) && (pic_params->pic_quantizer_fields.bits.dquant != 0)) 
-	|| ((ctx->profile != WMF_PROFILE_ADVANCED) && ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) || (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P))) && (pic_params->pic_quantizer_fields.bits.dquant != 0))
+	|| (((ctx->profile != WMF_PROFILE_ADVANCED) && ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) || (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P))) && (pic_params->pic_quantizer_fields.bits.dquant != 0)))
     {
         REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_VOPDQUANT_PRESENT, 1);
     }

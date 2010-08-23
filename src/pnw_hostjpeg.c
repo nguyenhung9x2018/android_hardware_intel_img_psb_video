@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -681,7 +679,6 @@ IMG_ERRORCODE AllocateCodedDataBuffers(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext)
 	    pContext->sScan_Encode_Info.aBufferTable[ui8Loop].ui32DataBufferUsedBytes = 0;
 	    pContext->sScan_Encode_Info.aBufferTable[ui8Loop].i8MTXNumber = 0; // Indicates buffer is idle
 	    pContext->sScan_Encode_Info.aBufferTable[ui8Loop].ui16ScanNumber = 0; // Indicates buffer is idle
-	    /*TODO: The first coded buffer is the one provided by application. The other are allocated by video driever*/
 	    pContext->sScan_Encode_Info.aBufferTable[ui8Loop].pMemInfo = 
 		pContext->jpeg_coded_buf.pMemInfo + PNW_JPEG_HEADER_MAX_SIZE + ui8Loop * pContext->ui32SizePerCodedBuffer;
 
@@ -813,6 +810,8 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
     IMG_UINT16 ui16_comp_width, ui16_comp_height;
     IMG_UINT8  uc_h_scale_max =0, uc_v_scale_max= 0, uc_h_scale =0;
     IMG_UINT8  uc_v_scale;
+    IMG_UINT16 ui16_height;
+    context_ENC_p ctx = (context_ENC_p)pContext->ctx;
 
     /*************************************************************************/
     /* Determine the horizontal and the vertical scaling factor of each of   */
@@ -820,8 +819,11 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
     /*************************************************************************/
 
     /*FIXME: ONLY support NV12, YV12 here*/
-    ui16_height_min = pTFrame->height >> 1;
-    ui16_height_max = pTFrame->height;
+    /*pTFrame->height isn't the real height of image, since vaCreateSurface
+     * makes it aligned with 32*/
+    ui16_height = ctx->Height;
+    ui16_height_min = ui16_height >> 1;
+    ui16_height_max = ui16_height;
     ui16_width_min = pTFrame->width >> 1;
     ui16_width_max = pTFrame->width;
     /*ui16_height_min = ui16_width_min  = 65535;
@@ -862,12 +864,12 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
 	if (0 == uc_i)
 	{
 	     ui16_comp_width  = pTFrame->width;
-	     ui16_comp_height = pTFrame->height;
+	     ui16_comp_height = ui16_height;
 	}
 	else
 	{
 	     ui16_comp_width  = pTFrame->width >> 1;
-	     ui16_comp_height = pTFrame->height >> 1;
+	     ui16_comp_height = ui16_height >> 1;
 	}
 
 	uc_h_scale       = (ui16_comp_width *  uc_h_scale_max) / 
@@ -2093,7 +2095,6 @@ IMG_ERRORCODE SetupJPEGTables( TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODE
     IMG_UINT8* QuantChromaTableOnHost;
     JPEG_MTX_QUANT_TABLE * psQuantTables;*/
     IMG_UINT16 ui16Lp;
-    IMG_UINT32 ui32UpperLimit;
     IMG_UINT8 ui8Planes[MAX_COMP_IN_SCAN]; 
     /*IMG_ENC_CONTEXT * pEncContext = (IMG_ENC_CONTEXT*)hEncContext;*/
     /*TOPAZSC_JPEG_ENCODER_CONTEXT * pContext = pEncContext->psJpegHC;*/
@@ -2184,18 +2185,19 @@ IMG_ERRORCODE SetupJPEGTables( TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODE
 
     pContext->sScan_Encode_Info.ui32NumberMCUsY=(pContext->pMTXSetup->MCUComponent[0].ui32YLimit+(pContext->pMTXSetup->MCUComponent[0].ui32HeightBlocks-1))/pContext->pMTXSetup->MCUComponent[0].ui32HeightBlocks;
     pContext->sScan_Encode_Info.ui32NumberMCUsToEncode=pContext->sScan_Encode_Info.ui32NumberMCUsX*pContext->sScan_Encode_Info.ui32NumberMCUsY;
-    pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan=(pContext->sScan_Encode_Info.ui32NumberMCUsToEncode+ctx->NumCores-1)/ctx->NumCores;
-    psb__information_message(" MCUs To Encode %dx%d\n", 
+    pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan = JPEG_MCU_PER_SCAN(ctx->Width, ctx->Height, ctx->NumCores); 
+
+    psb__information_message("MCUs To Encode %dx%d\n", 
 	    pContext->sScan_Encode_Info.ui32NumberMCUsX,
 	    pContext->sScan_Encode_Info.ui32NumberMCUsY);
+    psb__information_message("Total MCU %d, per scan %d\n", pContext->sScan_Encode_Info.ui32NumberMCUsToEncode, pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan);
 
+#if 0
     //Limit the scan size to maximum useable (due to it being used as the 16 bit field for Restart Intervals) = 0xFFFF MCUs
     //In reality, worst case allocatable bytes is less than this, something around 0x159739C == 0x4b96 MCUs = 139 x 139 MCUS = 2224 * 2224 pixels, approx.
     //We'll give this upper limit some margin for error, and limit our MCUsPerScan to 2000 * 2000 pixels = 125 * 125 MCUS = 0x3D09 MCUS = 0x116F322 bytes (1170 worst case per MCU)
     //ui32UpperLimit=0x3D09;
-    ui32UpperLimit=0x3D09;
 
-#if 0
     // Old MCU size limiting code, kept in case we find we require reintroduction of a sliding scale.
     if (pContext->sScan_Encode_Info.ui32NumberMCUsToEncode>DMEMORYMCUSATSIXSEVENTY_ESTIMATE)
     {
@@ -2208,9 +2210,9 @@ IMG_ERRORCODE SetupJPEGTables( TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODE
 	ui32UpperLimit=3000+(((DMEMORYMCUSATSIXSEVENTY_ESTIMATE-pContext->sScan_Encode_Info.ui32NumberMCUsToEncode)*(0xFFFF - 3000)) / DMEMORYMCUSATSIXSEVENTY_ESTIMATE);
 
     if (pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan>ui32UpperLimit) pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan=(ui32UpperLimit+pEncContext->i32NumCores-1)/pEncContext->i32NumCores;
-#endif
 
     if (pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan>ui32UpperLimit) pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan=ui32UpperLimit;
+#endif
 
     //Allocate our coded data buffers here now we know the number of MCUs we're encoding
     /*Use slice parameter buffer*/
@@ -2546,7 +2548,11 @@ IMG_ERRORCODE IssueBufferToHW(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, TOPAZSC_JP
     printf("\n**************************************************************************\n");
     printf("** HOST SENDING Scan:%i (%i MCUs) to MTX %i, using Buffer %i\n", pWriteBuf->ui16ScanNumber,ui32NoMCUsToEncode, i8MTXNumber-1, ui16BCnt);
 #endif
-    psb__information_message("HOST SENDING Scan:%d (%d MCUs) to MTX %d, using Buffer %d\n", pWriteBuf->ui16ScanNumber,ui32NoMCUsToEncode, i8MTXNumber-1, ui16BCnt);
+    psb__information_message("HOST SENDING Scan:%d (%d MCUs, offset %d MCUs)"
+	    " to MTX %d, using Buffer %d\n", 
+	    pWriteBuf->ui16ScanNumber,ui32NoMCUsToEncode, 
+	    pContext->sScan_Encode_Info.ui32CurMCUsOffset,
+	    i8MTXNumber, ui16BCnt);
 
     // Issue to MTX ////////////////////////////
     ASSERT( pWriteBuf->pMemInfo );
@@ -2558,9 +2564,9 @@ IMG_ERRORCODE IssueBufferToHW(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, TOPAZSC_JP
     //psBufferCmd->ui32MCUCntAndResetFlag	= ( DATA_BUFFER_SIZE(pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan) << 16) | (ui32NoMCUsToEncode << 1) | 0x1;
 
     psBufferCmd->ui32MCUCntAndResetFlag	= (ui32NoMCUsToEncode << 1) | 0x1;
-    psBufferCmd->ui32CurrentMTXScanMCUPosition = (pContext->sScan_Encode_Info.ui16ScansInImage-pWriteBuf->ui16ScanNumber)*pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan;
-     psb__information_message("TOPAZ_PDUMP: ui32MCUCntAndResetFlag 0x%x\n", psBufferCmd->ui32MCUCntAndResetFlag);
-     psb__information_message("TOPAZ_PDUMP: ui32CurrentMTXScanMCUPosition 0x%x\n", psBufferCmd->ui32CurrentMTXScanMCUPosition);	
+    psBufferCmd->ui32CurrentMTXScanMCUPosition = pContext->sScan_Encode_Info.ui32CurMCUsOffset; 
+    psb__information_message("TOPAZ_PDUMP: ui32MCUCntAndResetFlag 0x%x\n", psBufferCmd->ui32MCUCntAndResetFlag);
+    psb__information_message("TOPAZ_PDUMP: ui32CurrentMTXScanMCUPosition 0x%x\n", psBufferCmd->ui32CurrentMTXScanMCUPosition);	
     /* We do not need to do this but in order for params to match on HW we need to know whats in the buffer*/
     /*MMUpdateDeviceMemory(pWriteBuf->pMemInfo );*/
 
@@ -2572,10 +2578,10 @@ IMG_ERRORCODE IssueBufferToHW(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, TOPAZSC_JP
 	    &pWriteBuf->ui32WriteBackVal,
 	    pWriteBuf->pMemInfo );*/
     pnw_cmdbuf_insert_command_package(ctx->obj_context, 
-	    (IMG_INT32) (i8MTXNumber-1) , 
+	    (IMG_INT32) (i8MTXNumber) , 
 	    MTX_CMDID_ISSUEBUFF,
 	    ctx->coded_buf->psb_buffer,
-	    (i8MTXNumber-1)* pContext->ui32SizePerCodedBuffer + PNW_JPEG_HEADER_MAX_SIZE );
+	    ui16BCnt * pContext->ui32SizePerCodedBuffer + PNW_JPEG_HEADER_MAX_SIZE );
 
     return IMG_ERR_OK;
 }
@@ -2592,12 +2598,16 @@ IMG_ERRORCODE IssueBufferToHW(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, TOPAZSC_JP
  *						starts a scan, with output to be sent to the buffer.
  ************************************************************************************/
 
-IMG_ERRORCODE SubmitScanToMTX(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, IMG_UINT16 ui16BCnt, IMG_INT8 i8MTXNumber)
+IMG_ERRORCODE SubmitScanToMTX(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, 
+	IMG_UINT16 ui16BCnt, 
+	IMG_INT8 i8MTXNumber,
+	IMG_UINT32 ui32NoMCUsToEncode)
 {
     /*IMG_ENC_CONTEXT * pEncContext = (IMG_ENC_CONTEXT*)hContext;
     TOPAZSC_JPEG_ENCODER_CONTEXT *pContext = pEncContext->psJpegHC;*/
 
 
+#if 0
     // Submit a scan and buffer to the appropriate MTX unit
     IMG_UINT32 ui32NoMCUsToEncode;
 
@@ -2609,14 +2619,12 @@ IMG_ERRORCODE SubmitScanToMTX(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, IMG_UINT16
     }
     else
 	ui32NoMCUsToEncode = pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan;
-
+#endif
     //Set the buffer returned size to -1
     pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui32DataBufferUsedBytes=((BUFFER_HEADER*)(pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].pMemInfo ))->ui32BytesUsed=-1; // Won't be necessary with SC Peek commands enabled
     IssueBufferToHW(pContext,&(pContext->sScan_Encode_Info.aBufferTable[ui16BCnt]), ui16BCnt,ui32NoMCUsToEncode,i8MTXNumber);
 
-#ifdef JPEG_VERBOSE
-    printf("Submitting scan %i to MTX %i and Buffer %i\n",pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber, i8MTXNumber-1, ui16BCnt);
-#endif
+    psb__information_message("Submitting scan %i to MTX %i and Buffer %i\n",pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber, i8MTXNumber, ui16BCnt);
     return IMG_ERR_OK;
 }
 

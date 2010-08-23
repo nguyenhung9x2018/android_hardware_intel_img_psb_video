@@ -1,25 +1,23 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 #include "psb_buffer.h"
@@ -92,7 +90,7 @@ static VAStatus psb_buffer_init_camera( psb_driver_data_p driver_data )
     /* hasn't grab camera device memory region
      * grab the whole 4M camera device memory
      */
-    driver_data->camera_bo = malloc(sizeof(struct psb_buffer_s));
+    driver_data->camera_bo = calloc(1, sizeof(struct psb_buffer_s));
     if (driver_data->camera_bo == NULL)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
@@ -154,6 +152,71 @@ VAStatus psb_buffer_create_camera( psb_driver_data_p driver_data,
     
     return ret;
 }
+
+/*
+ * Create one buffer from user buffer
+ * id_or_ofs is CI frame ID (actually now is frame offset), or V4L2 buffer offset
+ * user_ptr :virtual address of user buffer start.
+ */
+VAStatus psb_buffer_create_camera_from_ub( psb_driver_data_p driver_data,
+                            psb_buffer_p buf,
+                            int id_or_ofs,
+			    int size,
+			    const unsigned long * user_ptr)
+{  
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    int allignment;
+    uint32_t placement;
+    int ret;
+
+    buf->rar_handle = 0;
+    buf->buffer_ofs = 0;
+    buf->type = psb_bt_user_buffer;
+    buf->user_ptr = (void *)user_ptr;
+    buf->driver_data = driver_data;
+
+    allignment = 4096;
+    placement =  DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_TT | WSBM_PL_FLAG_CACHED | WSBM_PL_FLAG_SHARED ;
+    ret = LOCK_HARDWARE(driver_data);
+    if (ret)
+    {
+	UNLOCK_HARDWARE(driver_data);
+	vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+	DEBUG_FAILURE_RET;
+	return vaStatus;
+    }
+    ret = wsbmGenBuffers(driver_data->main_pool, 1, &buf->drm_buf,
+	    allignment, placement);
+    if (!buf->drm_buf) {
+	psb__error_message("failed to gen wsbm buffers\n");
+	UNLOCK_HARDWARE(driver_data);		
+	return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    }
+    
+#ifndef ANDROID    
+    extern int wsbmBODataUB(struct _WsbmBufferObject *buf,
+	    unsigned size, const void *data,
+	    struct _WsbmBufferPool *newPool, uint32_t placement, const unsigned long *user_ptr);
+
+    /* here use the placement when gen buffer setted */ 
+    ret = wsbmBODataUB(buf->drm_buf, size, NULL, NULL, 0, user_ptr); 
+    UNLOCK_HARDWARE(driver_data);        
+    if (ret) { 
+	psb__error_message("failed to alloc wsbm buffers\n"); 
+	return VA_STATUS_ERROR_ALLOCATION_FAILED;                                                                              
+    } 
+    psb__information_message("Create BO from user buffer 0x%08x (%d byte),BO GPU offset hint=0x%08x\n",
+			     user_ptr, size, wsbmBOOffsetHint(buf->drm_buf));
+
+#endif
+    
+    buf->pl_flags = placement;
+    buf->status = psb_bs_ready;
+    buf->wsbm_synccpu_flag = 0;
+
+    return VA_STATUS_SUCCESS;
+}
+
 
 static int psb_buffer_info_rar(psb_driver_data_p driver_data)
 {
@@ -217,11 +280,11 @@ static VAStatus psb_buffer_init_rar( psb_driver_data_p driver_data )
     /* hasn't grab RAR device memory region
      * grab the whole 8M RAR device memory
      */
-    driver_data->rar_bo = malloc(sizeof(struct psb_buffer_s));
+    driver_data->rar_bo = calloc(1, sizeof(struct psb_buffer_s));
     if (driver_data->rar_bo == NULL)
         goto exit_error;
     
-    driver_data->rar_rd = malloc(sizeof(RAR_desc_t));
+    driver_data->rar_rd = calloc(1, sizeof(RAR_desc_t));
     if (driver_data->rar_rd == NULL)
         goto exit_error;
 

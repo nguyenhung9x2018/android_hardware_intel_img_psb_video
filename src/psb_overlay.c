@@ -1,25 +1,23 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
+ * 
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 #include <errno.h>
@@ -32,48 +30,19 @@
 #include "psb_drv_video.h"
 #include "psb_output.h"
 #include "psb_overlay.h"
-#include "psb_xvva.h"
+
+#include "img_iep_defs.h"
+#include "csc2.h"
+#include "iep_lite_api.h"
+#include "iep_lite_utils.h"
 
 #define INIT_DRIVER_DATA psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
-#define SURFACE(id)	((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
+#define SURFACE(id) ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
+#define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
 
-typedef struct _PsbPortPrivRec {
-    int curBuf;
-    Bool is_mfld;
-
-    /* used to check downscale*/
-    short width_save;
-    short height_save;
-
-    /* information of display attribute */
-    ov_psb_fixed32 brightness;
-    ov_psb_fixed32 contrast;
-    ov_psb_fixed32 saturation;
-    ov_psb_fixed32 hue;
-
-    /* hwoverlay */
-    uint32_t gamma0;
-    uint32_t gamma1;
-    uint32_t gamma2;
-    uint32_t gamma3;
-    uint32_t gamma4;
-    uint32_t gamma5;
-    uint32_t colorKey;
-
-    //TODO zhaohan
-    int oneLineMode;
-    int scaleRatio;
-    int rotation;
-
-    struct _WsbmBufferObject *wsbo;
-    uint32_t YBuf0offset;
-    uint32_t UBuf0offset;
-    uint32_t VBuf0offset;
-    uint32_t YBuf1offset;
-    uint32_t UBuf1offset;
-    uint32_t VBuf1offset;
-    unsigned char *regmap;
-} PsbPortPrivRec, *PsbPortPrivPtr;
+#ifndef VA_FOURCC_I420
+#define VA_FOURCC_I420          0x30323449
+#endif
 
 
 /**********************************************************************************************
@@ -108,8 +77,7 @@ I830ResetVideo(PsbPortPrivPtr pPriv)
         overlay->OCONFIG &= OVERLAY_C_PIPE_A | (~OVERLAY_C_PIPE_MASK);
         overlay->OCONFIG |= IEP_LITE_BYPASS;    /* By pass IEP functionality */
         overlay->OCONFIG |= ZORDER_TOP;
-    }
-    else
+    } else
         overlay->OCONFIG |= OVERLAY_PIPE_A; /* mrst */
 }
 
@@ -164,7 +132,7 @@ I830UpdateGamma(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 static void I830StopVideo(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
-    PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(driver_data->dri_priv);
+    PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
     long offset = wsbmBOOffsetHint(pPriv->wsbo) & 0x0FFFFFFF;
     struct drm_psb_register_rw_arg regs;
 
@@ -331,7 +299,9 @@ i830_display_video(
 
     I830OverlayRegPtr overlay = (I830OverlayRegPtr)(pPriv->regmap);
     struct drm_psb_register_rw_arg regs;
-
+    CSC_sHSBCSettings	sHSBCSettings;
+    char * pcEnableIEP = NULL;
+    int i32EnableIEP = 1;
     /* FIXME: don't know who and why add this 
      *        comment it for full screen scale issue
      *        any concern contact qiang.miao@intel.com 
@@ -670,8 +640,96 @@ i830_display_video(
 
     memset(&regs, 0, sizeof(regs));
     regs.overlay_write_mask = OV_REGRWBITS_OVADD;
-    regs.overlay.OVADD = offset | 1;
+
+    if(pPriv->is_mfld) {
+        pcEnableIEP = getenv("ENABLE_IEP");
+        if (pcEnableIEP) {
+            if (strcmp(pcEnableIEP, "0") == 0) {
+	        i32EnableIEP = 0;
+	    }
+            else if (strcmp(pcEnableIEP, "1") == 0) {
+	        i32EnableIEP = 1;
+	    }
+	} else {
+	    i32EnableIEP = 0;
+	}
+
+        if (i32EnableIEP == 0) {
+            overlay->OCONFIG = CC_OUT_8BIT;
+            overlay->OCONFIG &= OVERLAY_C_PIPE_A | (~OVERLAY_C_PIPE_MASK);
+            overlay->OCONFIG |= IEP_LITE_BYPASS;
+            regs.overlay.OVADD = offset | 1;
+#ifndef ANDROID    
+            regs.overlay.IEP_ENABLED = 0;
+#endif
+        }
+        else {
+            #if 0
+            printf("ble black %d white %d\n",
+            driver_data->ble_black_mode.value,
+            driver_data->ble_white_mode.value);
+            #endif
+            IEP_LITE_BlackLevelExpanderConfigure(pPriv->p_iep_lite_context,
+                                                 driver_data->ble_black_mode.value, 
+                                                 driver_data->ble_white_mode.value);
+            iep_lite_RenderCompleteCallback (pPriv->p_iep_lite_context);
+                   
+            #if 0
+            printf("bs gain %d, scc gain %d\n",
+            driver_data->blueStretch_gain.value,
+            driver_data->skinColorCorrection_gain.value);
+            #endif
+            IEP_LITE_BlueStretchConfigure(pPriv->p_iep_lite_context,
+                                          driver_data->blueStretch_gain.value);
+            IEP_LITE_SkinColourCorrectionConfigure(pPriv->p_iep_lite_context,
+                                                   driver_data->skinColorCorrection_gain.value);
+            
+            #if 0
+            printf("hue %d saturation %d brightness %d contrast %d\n",
+            driver_data->hue.value,
+            driver_data->saturation.value,
+            driver_data->brightness.value,
+            driver_data->contrast.value);
+            #endif
+            #if 0
+            sHSBCSettings.i32Hue	    = (img_int32) (5.25f * (1<<25));
+            sHSBCSettings.i32Saturation = (img_int32) (1.07f * (1<<25));
+            sHSBCSettings.i32Brightness = (img_int32) (-10.1f * (1<<10));
+            sHSBCSettings.i32Contrast   = (img_int32) (0.99f * (1<<25));
+            #else
+            sHSBCSettings.i32Hue	    = (img_int32) driver_data->hue.value;
+            sHSBCSettings.i32Saturation = (img_int32) driver_data->saturation.value;
+            sHSBCSettings.i32Brightness = (img_int32) driver_data->brightness.value;
+            sHSBCSettings.i32Contrast   = (img_int32) driver_data->contrast.value;
+            #endif
+            IEP_LITE_CSCConfigure(pPriv->p_iep_lite_context,
+                                  CSC_COLOURSPACE_YCC_BT601,
+                                  CSC_COLOURSPACE_RGB,
+                                  &sHSBCSettings);
+         
+            overlay->OCONFIG = 0x18;
+            regs.overlay.OVADD = offset | 0x1d; 
+
+#ifndef ANDROID    
+            regs.overlay.IEP_ENABLED = 1;
+#endif
+        }
+    }
+
     drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+
+#ifndef ANDROID    
+    if(pPriv->is_mfld) {
+        if (regs.overlay.IEP_ENABLED) { 
+             #if 0  
+             printf("regs.overlay BLE minmax 0x%x, BSSCC control 0x%x\n", 
+                     regs.overlay.IEP_BLE_MINMAX, regs.overlay.IEP_BSSCC_CONTROL);
+             #endif
+             *(unsigned int *)((unsigned int)&(overlay->IEP_SPACE[0]) + 0x804)  = regs.overlay.IEP_BLE_MINMAX;
+        }
+    }
+#endif
+
 }
 
 /*
@@ -706,22 +764,36 @@ static int I830PutImage(
     struct _WsbmBufferObject *drm_buf;
     BoxRec dstBox;
     PsbPortPrivPtr pPriv;
-
-    pPriv = (PsbPortPrivPtr)(driver_data->dri_priv);
-
     object_surface_p obj_surface = SURFACE(surface);
-    psb_surface_p psb_surface = obj_surface->psb_surface;
+    psb_surface_p psb_surface = NULL;
 
+    /* silent kw */
+    if (NULL == obj_surface)
+	return 1;
+    
+    /* rotate support here: more check? 
+     * and for oold also?
+     */
+    
+    if(driver_data->rotate == VA_ROTATION_NONE)
+        psb_surface = obj_surface->psb_surface;
+    else
+        psb_surface = obj_surface->psb_surface_rotate;
+
+    pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
+    
     switch (fourcc) {
     case VA_FOURCC_NV12:
-        width = obj_surface->width;
-        height = obj_surface->height;
+        width = obj_surface->width_r;
+        height = obj_surface->height_r;
         break;
     default:
-        width = obj_surface->width;
-        height = obj_surface->height;
+        width = obj_surface->width_r;
+        height = obj_surface->height_r;
         break;
     }
+
+    width = (width <= 1920) ? width : 1920;
 
     /* If dst width and height are less than 1/8th the src size, the
      * src/dst scale factor becomes larger than 8 and doesn't fit in
@@ -869,15 +941,8 @@ static int I830PutImage(
 
 
 
-static PsbPortPrivPtr
-psbPortPrivCreate(void)
+static void psbPortPrivCreate(PsbPortPrivPtr pPriv)
 {
-    PsbPortPrivPtr pPriv;
-
-    pPriv = calloc(1, sizeof(*pPriv));
-    if (!pPriv)
-        return NULL;
-
 #if 0
     REGION_NULL(pScreen, &pPriv->clip);
 #endif
@@ -900,36 +965,31 @@ psbPortPrivCreate(void)
     pPriv->width_save = 1024;
     pPriv->height_save = 600;
 #endif
-
-    return pPriv;
 }
 
 static void
 psbPortPrivDestroy(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 {
-    if (!pPriv)
-        return;
-
     I830StopVideo(ctx);
 
     wsbmBOUnmap(pPriv->wsbo);
     wsbmBOUnreference(&pPriv->wsbo);
-
-    free(pPriv);
+    if (pPriv->is_mfld) {
+        if (pPriv->p_iep_lite_context) 
+            free(pPriv->p_iep_lite_context);
+    }
+    pPriv->p_iep_lite_context = NULL;
 }
 
 static PsbPortPrivPtr
-psbSetupImageVideoOverlay(VADriverContextP ctx)
+psbSetupImageVideoOverlay(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 {
     INIT_DRIVER_DATA;
-    PsbPortPrivPtr pPriv;
+    I830OverlayRegPtr overlay = NULL;
     int ret;
+    psbPortPrivCreate(pPriv);
 
-    pPriv = psbPortPrivCreate();
-    if (!pPriv)
-        goto out_err;
 
-    pPriv->is_mfld = IS_MFLD(driver_data);
     /* use green as color key by default for android media player */
     pPriv->colorKey = 0 /*0x0440*/;
 
@@ -952,7 +1012,8 @@ psbSetupImageVideoOverlay(VADriverContextP ctx)
 
     /* With LFP's we need to detect whether we're in One Line Mode, which
      * essentially means a resolution greater than 1024x768, and fix up
-     * the scaler accordingly. */
+     * the scaler accordingly.
+     */
     pPriv->scaleRatio = 0x10000;
     pPriv->oneLineMode = FALSE;
 
@@ -960,10 +1021,10 @@ psbSetupImageVideoOverlay(VADriverContextP ctx)
                          &pPriv->wsbo, 0,
                          WSBM_PL_FLAG_TT);
     if (ret)
-        goto out_err_ppriv;
+        goto out_err;
 
     ret = wsbmBOData(pPriv->wsbo,
-                     4096,
+                     5 * 4096,
                      NULL, NULL,
                      WSBM_PL_FLAG_TT);
 
@@ -971,248 +1032,110 @@ psbSetupImageVideoOverlay(VADriverContextP ctx)
         goto out_err_bo;
 
     pPriv->regmap = wsbmBOMap(pPriv->wsbo, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
-    if (!pPriv->regmap) {
+    if (!pPriv->regmap)
         goto out_err_bo;
-    }
 
-    return pPriv;
+    psb__information_message("Create Overlay BO (%d byte),BO GPU offset hint=0x%08x\n",
+			     5*4096, wsbmBOOffsetHint(pPriv->wsbo));
+
+    overlay = (I830OverlayRegPtr)(pPriv->regmap);
+    
+    if (pPriv->is_mfld) {
+        pPriv->p_iep_lite_context = (void *)calloc(1, sizeof(IEP_LITE_sContext));
+        if (NULL == pPriv->p_iep_lite_context) 
+            goto out_err_bo;
+
+        IEP_LITE_Initialise(pPriv->p_iep_lite_context,(unsigned int)&overlay->IEP_SPACE[0]); 
+
+        driver_data->ble_black_mode.value = 1;
+        driver_data->ble_white_mode.value = 3;
+        driver_data->blueStretch_gain.value = 200;
+        driver_data->skinColorCorrection_gain.value = 100;
+        driver_data->hue.value = (5.25f * (1<<25));
+        driver_data->saturation.value = (1.07f * (1<<25));
+        driver_data->brightness.value = (-10.1f * (1<<10));
+        driver_data->contrast.value = (0.99f * (1<<25));
+    }
+      
+    return 0;
 
   out_err_bo:
     wsbmBOUnreference(&pPriv->wsbo);
 
-  out_err_ppriv:
-    free(pPriv);
   out_err:
-    return NULL;
+    return 0;
 }
 
-int
-psbInitVideo(VADriverContextP ctx)
+int psb_coverlay_init(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
-    PsbPortPrivPtr pPriv;
+    PsbPortPrivPtr pPriv = &driver_data->coverlay_priv;
 
-    pPriv = psbSetupImageVideoOverlay(ctx);
+    pPriv->is_mfld = IS_MFLD(driver_data);
+    
+    psbSetupImageVideoOverlay(ctx, pPriv);
 
-    if (pPriv) {
-        I830ResetVideo(pPriv);
-        I830UpdateGamma(ctx, pPriv);
-        driver_data->dri_priv = pPriv;
-        return 0;
-    }
-    return -1; // error
-}
-
-int
-psbDeInitVideo(VADriverContextP ctx)
-{
-    INIT_DRIVER_DATA;
-    PsbPortPrivPtr pPriv;
-
-    pPriv = (PsbPortPrivPtr)(driver_data->dri_priv);
-    if (pPriv)
-        psbPortPrivDestroy(ctx, pPriv);
+    I830ResetVideo(pPriv);
+    I830UpdateGamma(ctx, pPriv);
 
     return 0;
 }
 
+int psb_coverlay_stop(VADriverContextP ctx)
+{
+    INIT_DRIVER_DATA;
+    
+    I830StopVideo(ctx);
 
-static int psb__CheckPutSurfaceXvPort(
+    driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
+    driver_data->last_displaying_surface = VA_INVALID_SURFACE;
+    
+    return 0;
+}
+
+int psb_coverlay_deinit(VADriverContextP ctx)
+{
+    INIT_DRIVER_DATA;
+    PsbPortPrivPtr pPriv = &driver_data->coverlay_priv;
+
+    psbPortPrivDestroy(ctx, pPriv);
+
+    return 0;
+}
+
+VAStatus psb_putsurface_overlay(
     VADriverContextP ctx,
     VASurfaceID surface,
-    Drawable draw,
     short srcx,
     short srcy,
     unsigned short srcw,
     unsigned short srch,
-    short destx,
+    short destx, /* screen cooridination */
     short desty,
     unsigned short destw,
     unsigned short desth,
-    VARectangle *cliprects, /* client supplied clip list */
-    unsigned int number_cliprects, /* number of clip rects in the clip list */
     unsigned int flags /* de-interlacing flags */
 )
 {
     INIT_DRIVER_DATA;
     object_surface_p obj_surface = SURFACE(surface);
-    uint32_t buf_pl;
     
-    /* silent klockwork */
-    if (obj_surface && obj_surface->psb_surface)
-        buf_pl = obj_surface->psb_surface->buf.pl_flags;
-    else
-        return -1;
-    
-    if (flags & VA_CLEAR_DRAWABLE)
-        return 0;
+    I830PutImage(ctx, surface, srcx, srcy, srcw, srch,
+                 destx, desty, destw, desth,
+                 VA_FOURCC_NV12, flags);
 
-    if (((buf_pl & (WSBM_PL_FLAG_TT | DRM_PSB_FLAG_MEM_RAR | DRM_PSB_FLAG_MEM_CI)) == 0) /* buf not in TT/RAR or CI */
-        || (obj_surface->width > 1920)  /* overlay can't support subpicture */
-        || (obj_surface->subpic_count > 0)  /* overlay can't support subpicture */
-        ) {
-        psb__error_message("ERROR: %s() Overlay can not support subpicture or width>1920",__func__);
-        return -1;
-    }
-        
-    return 0;
-}
-
-static int last_num_clipbox = 0;
-static VARectangle last_clipbox[16];
-
-VAStatus psb_putsurface_overlay(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    Drawable draw,
-    short srcx,
-    short srcy,
-    unsigned short srcw,
-    unsigned short srch,
-    short destx,
-    short desty,
-    unsigned short destw,
-    unsigned short desth,
-    VARectangle *cliprects, /* client supplied clip list */
-    unsigned int number_cliprects, /* number of clip rects in the clip list */
-    unsigned int flags /* de-interlacing flags */
-    ){
-    INIT_DRIVER_DATA;
-    psb_output_p output = GET_OUTPUT_DATA(ctx);
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    object_surface_p obj_surface = SURFACE(surface);
-    psb_surface_p psb_surface = obj_surface->psb_surface;
-
-    int i=0;
-    int id;
-#ifndef ANDROID
-    int display_width  = (int)(DisplayWidth(ctx->native_dpy, DefaultScreen(ctx->native_dpy))) - 1;
-    int display_height = (int)(DisplayHeight(ctx->native_dpy, DefaultScreen(ctx->native_dpy))) - 1;
-#else
-    int display_width = 1024;
-    int display_height = 600;
-#endif
-    int x11_window_width, x11_window_height;
-
-    if (NULL == psb_surface) {
-	psb__error_message("%s L%d Invalide surface handle\n", __FUNCTION__, __LINE__);
-	return VA_STATUS_ERROR_INVALID_SURFACE;
-    }
-
-    pthread_mutex_lock(&output->output_mutex);
-    psb__CheckPutSurfaceXvPort(ctx, surface, draw,
-                               srcx, srcy, srcw, srch,
-                               destx, desty, destw, desth,
-                               cliprects, number_cliprects, flags);
-
-    if (destx < 0) {
-        x11_window_width = destw + destx;
-        srcx = -destx;
-        destx = 0;
-    } else
-        x11_window_width = destw;
-    
-    if (desty < 0) {
-        x11_window_height = desth + desty;
-        srcy = -desty;
-        desty = 0;
-    } else
-        x11_window_height = desth;
-
-    if ((destx + x11_window_width) > display_width)
-        x11_window_width = display_width - destx;
-
-    if ((desty + x11_window_height) > display_height)
-        x11_window_height = display_height - desty;
-
-    /* TODO zhaohan: Currently Android color key is set by test app*/
-#ifndef ANDROID
-    if (output->output_drawable != draw) 
-    {
-        PsbPortPrivRec *pPriv = (PsbPortPrivPtr)(driver_data->dri_priv);
-        
-        output->output_drawable = draw;
-        if (output->gc)
-            XFreeGC((Display *)ctx->native_dpy, output->gc);
-	output->gc = XCreateGC ((Display *)ctx->native_dpy, draw, 0, NULL);
-
-        /* paint the color key */
-        XSetForeground((Display *)ctx->native_dpy, output->gc, pPriv->colorKey);
-        XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
-        XSync((Display *)ctx->native_dpy, False);
-    }
-
-    if ((number_cliprects != last_num_clipbox) ||
-        (memcmp(&cliprects[0], &last_clipbox[0], (number_cliprects > 16 ? 16: number_cliprects)*sizeof(VARectangle))!=0)) {
-        if (number_cliprects <= 1) {
-            XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
-        } else {
-            for (i = 0; i < number_cliprects; i++) {
-                psb__error_message("cliprect # %d @(%d, %d) width %d height %d\n", i, 
-                                   cliprects[i].x, cliprects[i].y,
-                                   cliprects[i].width, cliprects[i].height);
-                XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 
-                               cliprects[i].x - destx, cliprects[i].y - desty,
-                               cliprects[i].width, cliprects[i].height);
-            }
-        }
-        last_num_clipbox = number_cliprects;
-        memcpy(&last_clipbox[0], &cliprects[0],(number_cliprects > 16 ? 16 : number_cliprects)*sizeof(VARectangle));
-        
-        XSync((Display *)ctx->native_dpy, False);
-    }
-#endif /* endif Android */
-
-    if (flags & VA_CLEAR_DRAWABLE) {
-	I830StopVideo(ctx);
-        return 0;
-    }
-
-    if (flags & VA_CLEAR_DRAWABLE) {
-        psb__information_message("Clean draw with color 0x%08x\n",output->clear_color); 
-        driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
-        driver_data->last_displaying_surface = VA_INVALID_SURFACE;
-        obj_surface->display_timestamp = 0;
-
-        return vaStatus;
-    }
-
-    /* FIXME: Set NV12 as default */
-    id = VA_FOURCC_NV12;
-
-#ifdef ANDROID /* USE_FIT_SCR_SIZE */
-    /* calculate fit screen size of frame */
-    unsigned short _scr_x = 1024;
-    unsigned short _scr_y = 600;
-    float _slope_xy = (float)srch/srcw;
-    unsigned short _destw = (short)(_scr_y/_slope_xy);
-    unsigned short _desth = (short)(_scr_x*_slope_xy);
-    short _pos_x, _pos_y;
-    if (_destw <= _scr_x) {
-        _desth = _scr_y;
-        _pos_x = (_scr_x-_destw)>>1;
-        _pos_y = 0;
-    } else {
-        _destw = _scr_x;
-        _pos_x = 0;
-        _pos_y = (_scr_y-_desth)>>1;
-    }
-    destx += _pos_x;
-    desty += _pos_y;
-    destw = _destw;
-    desth = _desth;
-    /* psb_force_dpms_on(ctx); */
-    I830PutImage(ctx, surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, id, flags);
-#else
-    I830PutImage(ctx, surface, srcx, srcy, srcw, srch, destx, desty, x11_window_width, x11_window_height, id, flags);
-#endif
-
-
-    if (driver_data->cur_displaying_surface != VA_INVALID_SURFACE)
+    /* current surface is being displayed */
+    if (driver_data->cur_displaying_surface != VA_INVALID_SURFACE) 
         driver_data->last_displaying_surface = driver_data->cur_displaying_surface;
-    obj_surface->display_timestamp = 0;
-    driver_data->cur_displaying_surface = surface;
+    
+    if (obj_surface == NULL)
+    {
+	psb__error_message("Invalid surface ID: 0x%08x\n", surface);
+	return VA_STATUS_ERROR_INVALID_SURFACE; 
+    }
 
-    pthread_mutex_unlock(&output->output_mutex);
-    return vaStatus;
+    obj_surface->display_timestamp = GetTickCount();
+    driver_data->cur_displaying_surface = surface;
+    
+    return VA_STATUS_SUCCESS;
 }

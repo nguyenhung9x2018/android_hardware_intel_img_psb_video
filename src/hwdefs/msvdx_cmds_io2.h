@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK  
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 /*!
@@ -1227,7 +1225,27 @@ extern "C" {
 #define MSVDX_CMDS_VC1_INLOOP_CHROMA_BOUNDARY_ABOVE2_INLOOP_CB_BOUNDARY_ABOVE2_LSBMASK		(0x000000FF)
 #define MSVDX_CMDS_VC1_INLOOP_CHROMA_BOUNDARY_ABOVE2_INLOOP_CB_BOUNDARY_ABOVE2_SHIFT		(0)
 
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_OFFSET		(0x003C)
 
+// MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION, ROTATION_ROW_STRIDE
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_ROTATION_ROW_STRIDE_MASK         (0x00000070)
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_ROTATION_ROW_STRIDE_LSBMASK              (0x00000007)
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_ROTATION_ROW_STRIDE_SHIFT                (4)
+
+// MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION, ALT_PICTURE_ENABLE
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_ALT_PICTURE_ENABLE_MASK          (0x00000008)
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_ALT_PICTURE_ENABLE_LSBMASK               (0x00000001)
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_ALT_PICTURE_ENABLE_SHIFT         (3)
+
+// MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION, RECON_WRITE_DISABLE
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_RECON_WRITE_DISABLE_MASK         (0x00000004)
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_RECON_WRITE_DISABLE_LSBMASK              (0x00000001)
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_RECON_WRITE_DISABLE_SHIFT                (2)
+
+// MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION, ROTATION_MODE
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_ROTATION_MODE_MASK               (0x00000003)
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_ROTATION_MODE_LSBMASK            (0x00000003)
+#define MSVDX_CMDS_ALTERNATIVE_OUTPUT_PICTURE_ROTATION_ROTATION_MODE_SHIFT              (0)
 
 #ifdef __cplusplus
 }

@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -630,14 +628,14 @@ static VAStatus psb_MPEG2_CreateContext(
         DEBUG_FAILURE;
         return vaStatus;
     }
-    ctx = (context_MPEG2_p) malloc(sizeof(struct context_MPEG2_s));
+    ctx = (context_MPEG2_p) calloc(1, sizeof(struct context_MPEG2_s));
     if (NULL == ctx)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
         return vaStatus;
     }
-    memset(ctx, 0, sizeof(struct context_MPEG2_s));
+
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
     ctx->pic_params = NULL;
@@ -647,7 +645,7 @@ static VAStatus psb_MPEG2_CreateContext(
     ctx->split_buffer_pending = FALSE;
 
     ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p*) malloc(sizeof(object_buffer_p)*ctx->slice_param_list_size);
+    ctx->slice_param_list = (object_buffer_p*) calloc(1, sizeof(object_buffer_p)*ctx->slice_param_list_size);
     ctx->slice_param_list_idx = 0;
 
     if (NULL == ctx->slice_param_list)
@@ -945,12 +943,49 @@ static void psb__MPEG2_write_VLC_tables(context_MPEG2_p ctx)
                                 0, LLDMA_TYPE_VLC_TABLE );
 }
 
+/* Programme the Alt output if there is a rotation*/
+static void psb__MPEG2_setup_alternative_frame( context_MPEG2_p ctx )
+{
+    uint32_t cmd;
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    object_context_p obj_context = ctx->obj_context;
+
+    if(rotate_surface->extra_info[5] != obj_context->rotate)
+        psb__error_message("Display rotate mode does not match surface rotate mode!\n");
+        
+
+    /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
+    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS)  );
+
+    psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
+    psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
+
+    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+
+    /* Set the rotation registers */
+    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION)  );
+    cmd = 0;
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ALT_PICTURE_ENABLE,1 );
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_MODE, rotate_surface->extra_info[5]);
+
+    psb_cmdbuf_rendec_write( cmdbuf, cmd );
+
+    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+}
+
 static void psb__MPEG2_set_operating_mode(context_MPEG2_p ctx)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
 
     psb_cmdbuf_rendec_start_block( cmdbuf );
+
+    if(ctx->obj_context->rotate != VA_ROTATION_NONE)
+        psb__MPEG2_setup_alternative_frame( ctx );
+
     psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE) );
     psb_cmdbuf_rendec_write( cmdbuf, ctx->display_picture_size );
     psb_cmdbuf_rendec_write( cmdbuf, ctx->coded_picture_size );
@@ -1427,6 +1462,97 @@ static VAStatus psb__MPEG2_process_slice_data(context_MPEG2_p ctx, object_buffer
     return vaStatus;
 }
 
+static void psb__MEPG2_send_highlevel_cmd(context_MPEG2_p ctx)
+{
+    uint32_t cmd;
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
+
+    psb_cmdbuf_reg_start_block( cmdbuf );
+    psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE), ctx->display_picture_size);
+    psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, CODED_PICTURE_SIZE), ctx->coded_picture_size);
+
+    cmd = 0;
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, CHROMA_FORMAT, 1);
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE, 1); // 0 = VDMC and VDEB active.  1 = VDEB pass-thru.
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, CODEC_MODE, 3);        // MPEG2
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, CODEC_PROFILE, 1); // MAIN
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, ROW_STRIDE, target_surface->stride_mode );
+    psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, OPERATING_MODE), cmd);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES), 
+                             &target_surface->buf, target_surface->buf.buffer_ofs);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES),
+                              &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + (0 * 8), 
+                             &target_surface->buf, target_surface->buf.buffer_ofs);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + 4 + (0 * 8),
+                              &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + (1 * 8), 
+                             &target_surface->buf, target_surface->buf.buffer_ofs);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + 4 + (1 * 8),
+                              &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+
+    cmd = 0;
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, SLICE_PARAMS, SLICE_FIELD_TYPE,   2); /* FRAME PICTURE -- ui8SliceFldType */
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, SLICE_PARAMS, SLICE_CODE_TYPE,    1); /* P PICTURE -- (ui8PicType == WMF_PTYPE_BI) ? WMF_PTYPE_I : (ui8PicType & 0x3) */
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, SLICE_PARAMS), cmd );
+    *ctx->p_slice_params = cmd;
+    psb_cmdbuf_reg_end_block( cmdbuf );
+
+
+    psb_cmdbuf_reg_start_block( cmdbuf );
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS), 
+                             &target_surface->buf, target_surface->buf.buffer_ofs);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, VC1_CHROMA_RANGE_MAPPING_BASE_ADDRESS),
+                              &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+    psb_cmdbuf_reg_end_block( cmdbuf );
+
+}
+
+static void psb__MEPG2_send_blit_cmd(context_MPEG2_p ctx)
+{
+    uint32_t cmd;
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+
+    psb_cmdbuf_reg_start_block( cmdbuf );
+    cmd = 0;
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ALT_PICTURE_ENABLE,1 );
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,RECON_WRITE_DISABLE, 0);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_MODE, rotate_surface->extra_info[5]);
+    psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION), cmd);
+    psb_cmdbuf_reg_end_block( cmdbuf );
+
+    *cmdbuf->cmd_idx++ = 0x40000000; /* CMD_BLIT_CMD */
+    *cmdbuf->cmd_idx++ = ctx->picture_width_mb;
+    *cmdbuf->cmd_idx++ = ctx->picture_height_mb * 2; /* FIXME */
+}
+
+static void psb__MPEG2_insert_blit_cmd_to_rotate( context_MPEG2_p ctx )
+{
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+
+    /* See RENDER_BUFFER_HEADER */
+    *cmdbuf->cmd_idx++ = CMD_HEADER; /* FIXME  use CMD_HEADER_VC1? */
+    
+    ctx->p_slice_params = cmdbuf->cmd_idx;
+    *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
+
+    cmdbuf->cmd_idx++; /* skip two lldma addr field */
+    cmdbuf->cmd_idx++;
+
+    psb__MEPG2_send_highlevel_cmd(ctx);
+    psb__MEPG2_send_blit_cmd(ctx);
+}
+
 static VAStatus psb_MPEG2_BeginPicture(
             object_context_p obj_context)
 {
@@ -1504,6 +1630,13 @@ static VAStatus psb_MPEG2_EndPicture(
     INIT_CONTEXT_MPEG2
 
     psb__information_message("psb_MPEG2_EndPicture\n");
+
+    if(ctx->obj_context->rotate != VA_ROTATION_NONE)
+    {
+        if( !(ctx->pic_params->picture_coding_extension.bits.progressive_frame) && 
+            !(ctx->pic_params->picture_coding_extension.bits.is_first_field))
+            psb__MPEG2_insert_blit_cmd_to_rotate(ctx);
+    }
 
     if (psb_context_flush_cmdbuf(ctx->obj_context))
     {

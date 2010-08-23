@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -36,11 +34,46 @@
 #define PNW_JPEG_COMPONENTS_NUM (3)
 
 #define PNW_JPEG_HEADER_MAX_SIZE (1024)
-//Limit the scan size to maximum useable (due to it being used as the 16 bit field for Restart Intervals) = 0xFFFF MCUs
-    //In reality, worst case allocatable bytes is less than this, something around 0x159739C == 0x4b96 MCUs = 139 x 139 MCUS = 2224 * 2224 pixels, approx.
-    //We'll give this upper limit some margin for error, and limit our MCUsPerScan to 2000 * 2000 pixels = 125 * 125 MCUS = 0x3D09 MCUS = 0x116F322 bytes (1170 worst case per MCU)
+/*Limit the scan size to maximum useable (due to it being used as the 
+ * 16 bit field for Restart Intervals) = 0xFFFF MCUs
+ * In reality, worst case allocatable bytes is less than this, something 
+ * around 0x159739C == 0x4b96 MCUs = 139 x 139 MCUS = 2224 * 2224 pixels, approx.
+ * We'll give this upper limit some margin for error, and limit our 
+ * MCUsPerScan to 2000 * 2000 pixels = 125 * 125 MCUS = 0x3D09 MCUS 
+ * = 0x116F322 bytes (1170 worst case per MCU)*/
+#define JPEG_MAX_MCU_PER_SCAN 0x3D09 
 
-#define PNW_JPEG_MCU_PERCORE_MAX (0x3D09)
+#define JPEG_MCU_NUMBER(width, height) ((((width) + 15) / 16) * (((height) + 15) / 16))
+
+#define JPEG_MCU_PER_CORE(width, height, core) \
+    ((core) > 1 ? ((JPEG_MCU_NUMBER(width, height) + (core) - 1) / (core))\
+     :JPEG_MCU_NUMBER(width, height)) 
+
+#define JPEG_SCANNING_COUNT(width, height, core) \
+    ((JPEG_MCU_PER_CORE(width, height, core) > JPEG_MAX_MCU_PER_SCAN) ? \
+      ((JPEG_MCU_NUMBER(width, height) + JPEG_MAX_MCU_PER_SCAN - 1) \
+     / JPEG_MAX_MCU_PER_SCAN) \
+       : (core))
+
+#define JPEG_MCU_PER_SCAN(width, height, core) \
+    ((JPEG_MCU_PER_CORE(width, height, core) > JPEG_MAX_MCU_PER_SCAN) ? \
+    JPEG_MAX_MCU_PER_SCAN : JPEG_MCU_PER_CORE(width, height, core))
+
+/*The start address of every segment must align 128bits -- DMA burst width*/
+#define JPEG_CODED_BUF_SEGMENT_SIZE(total, width, height, core) \
+    (((total) - PNW_JPEG_HEADER_MAX_SIZE) / \
+     JPEG_SCANNING_COUNT(ctx->Width, ctx->Height, ctx->NumCores) \
+     & (~0xf))
+
+/*pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan=(pContext->sScan_Encode_Info.ui32NumberMCUsToEncode+pEncContext->i32NumCores-1)/pEncContext->i32NumCores;
+ *pContext->sScan_Encode_Info.aBufferTable[ui8Loop].ui32DataBufferSizeBytes = (DATA_BUFFER_SIZE(pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan) +sizeof(BUFFER_HEADER)) + 3 & ~3;
+ ui32NumberMCUsToEncode is equal (width/16) * (height/16) 
+ MAX_MCU_SIZE is 1170
+ For 352x288, size of data buffer is 231676. 
+ The number of data buffer is equal to the number of cores minus one*/ 	
+#define PNW_JPEG_CODED_BUF_SIZE(width, height, NumCores)  ((((((width) + 15) / 16) * (((height) + 15) / 16) * MAX_MCU_SIZE ) + 0xf) & ~0xf)
+
+
 typedef struct
 {
     unsigned int	ui32Width;		//!< Width of the image component
@@ -577,6 +610,7 @@ typedef struct
     IMG_UINT32 ui32NumberMCUsToEncode; /*Total number of MCUs to encode*/
     IMG_UINT32 ui32NumberMCUsToEncodePerScan; /*Number of MCUs per scan, should be  ui32NumberMCUsX * ui32NumberMCUsY*/
     IMG_UINT8 ui8NumberOfCodedBuffers;
+    IMG_UINT32 ui32CurMCUsOffset;
 } TOPAZSC_SCAN_ENCODE_INFO;
 
 typedef struct
@@ -610,20 +644,8 @@ typedef struct context_jpeg_ENC_s
 
     void *ctx;
     IMG_UINT32 ui32SizePerCodedBuffer;
+    IMG_UINT8  ui8ScanNum;
 } TOPAZSC_JPEG_ENCODER_CONTEXT;
-
-#ifdef JPEGHEADERSIMTEST
-IMG_UINT32 ui32aQuality = 90;
-#endif
-
-/*FIXME: ONLY support NV12, YV12*/
-/*pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan=(pContext->sScan_Encode_Info.ui32NumberMCUsToEncode+pEncContext->i32NumCores-1)/pEncContext->i32NumCores;
- *pContext->sScan_Encode_Info.aBufferTable[ui8Loop].ui32DataBufferSizeBytes = (DATA_BUFFER_SIZE(pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan) +sizeof(BUFFER_HEADER)) + 3 & ~3;
- ui32NumberMCUsToEncode is equal (width/16) * (height/16) 
- MAX_MCU_SIZE is 1170
- For 352x288, size of data buffer is 231676. 
- The number of data buffer is equal to the number of cores minus one*/ 	
-#define PNW_JPEG_CODED_BUF_SIZE(width, height, NumCores)  (((((((width) + 15) / 16) * (((height) + 15) / 16) * ((NumCores) -1) / (NumCores)) * MAX_MCU_SIZE  ) + 0xf) & ~0xf)
 
 //////////////////////////////////////////////////////
 //Function Declarations unchanged by TopazSC
@@ -665,7 +687,7 @@ IMG_ERRORCODE IMG_JPEG_AllocateCodedBuffer(IMG_UINT32 ui32CBufferSize, IMG_CODED
 
 IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, object_surface_p pTFrame);
 IMG_ERRORCODE SetupJPEGTables( TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED_BUFFER *pCBuffer,  object_surface_p pTFrame);
-IMG_ERRORCODE SubmitScanToMTX(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, IMG_UINT16 ui16BCnt, IMG_INT8 i8MTXNumber);
+IMG_ERRORCODE SubmitScanToMTX(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, IMG_UINT16 ui16BCnt, IMG_INT8 i8MTXNumber, IMG_UINT32 ui32NoMCUsToEncode);
 void pnw_jpeg_set_default_qmatix(void *pMemInfoTableBlock);
 void fPutBitsToBuffer(STREAMTYPEW *BitStream,IMG_UINT8 NoOfBytes, IMG_UINT32 ActualBits);
 #endif /*_HOST_JPEG_H_*/

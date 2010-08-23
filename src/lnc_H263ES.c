@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -29,6 +27,7 @@
 #include "psb_cmdbuf.h"
 #include "lnc_H263ES.h"
 #include "lnc_hostheader.h"
+#include "lnc_hostcode.h"
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -189,6 +188,8 @@ static VAStatus lnc__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     else
 	ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
 
+    ctx->reinit_rc_control = 1;
+
     ctx->sRCParams.FrameRate = pSequenceParams->frame_rate;
     ctx->sRCParams.InitialQp = pSequenceParams->initial_qp;
     ctx->sRCParams.MinQP = pSequenceParams->min_qp;
@@ -335,7 +336,7 @@ static VAStatus lnc__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
                          &cmdbuf->header_mem);
         }
     
-	if( (ctx->obj_context->frame_count == 0) && (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
+	if( ((ctx->obj_context->frame_count == 0) || ctx->reinit_rc_control) && (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
 	    lnc_reset_encoder_params(ctx);
 
 	if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[(pBuffer->slice_flags.bits.is_intra ? 0:1)], pBuffer) == 0) {

@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -40,6 +38,7 @@
 #define ALIGN_TO(value, align) ((value + align - 1) & ~(align - 1))
 #define PAGE_ALIGN(value) ALIGN_TO(value, 4096)
 
+static VAStatus pnw_DetectFrameSkip(context_ENC_p ctx);
 
 IMG_UINT32 MVEARegBase[4] = {0x13000, 0x23000, 0x33000, 0x43000}; /* From TopazSC TRM */
 
@@ -486,25 +485,31 @@ VAStatus pnw_CreateContext(
 
     width = obj_context->picture_width;
     height = obj_context->picture_height;
-    ctx = (context_ENC_p) malloc(sizeof(struct context_ENC_s));
+    ctx = (context_ENC_p) calloc(1, sizeof(struct context_ENC_s));
     if(NULL == ctx) {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
         return vaStatus;
     }
-    memset(ctx, 0, sizeof(struct context_ENC_s));
+
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
 
-    ctx->Width = (unsigned short) width;
-    ctx->Height = (unsigned short) height;
-    /*
-    ctx->HeightMinus16MinusLRBTopOffset = ctx->Height-(MVEA_LRB_TOP_OFFSET + 16);
-    ctx->HeightMinus32MinusLRBTopOffset = ctx->Height-(MVEA_LRB_TOP_OFFSET + 32);
-    ctx->HeightMinusLRB_TopAndBottom_OffsetsPlus16 = ctx->Height-(MVEA_LRB_TOP_OFFSET + MVEA_LRB_TOP_OFFSET + 16);
-    ctx->HeightMinusLRBSearchHeight = ctx->Height - MVEA_LRB_SEARCH_HEIGHT;
-    */
+    ctx->RawWidth = (unsigned short) width;
+    ctx->RawHeight = (unsigned short) height;
 
+    if (is_JPEG == 0)
+    {
+	ctx->Width = (unsigned short)(~0xf & (width + 0xf));
+	ctx->Height = (unsigned short) (~0xf & (height + 0xf));
+    }
+    else
+    {
+	/*JPEG only require them are even*/
+	ctx->Width = (unsigned short)(~0x1 & (width + 0x1));
+	ctx->Height = (unsigned short) (~0x1 & (height + 0x1));
+    }
+    
     /* pre-calculated values based on other stream properties */
     SearchHeight = min(MVEA_LRB_SEARCH_HEIGHT, ctx->Height);
     SearchWidth = min (MVEA_LRB_SEARCH_WIDTH, ctx->Width);
@@ -575,7 +580,17 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
 
     /* clear frameskip flag to 0 */
     CLEAR_SURFACE_INFO_skipped_flag(ctx->src_surface->psb_surface);
-    
+
+    if (ctx->sRCParams.RCEnable == IMG_TRUE)
+    {
+	pnw_DetectFrameSkip(ctx);
+	if (0 != (GET_SURFACE_INFO_skipped_flag(ctx->src_surface->psb_surface)  
+		    & SURFACE_INFO_SKIP_FLAG_SETTLED)) 
+	    ctx->sRCParams.FrameSkip = IMG_TRUE;
+	else
+	    ctx->sRCParams.FrameSkip = IMG_FALSE;
+    }
+
     /* Initialise the command buffer */
     ret = pnw_context_get_next_cmdbuf(ctx->obj_context);
     if(ret) {
@@ -731,6 +746,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
     
     psPicParams = cmdbuf->pic_params_p + ctx->pic_params_size * core;
 
+    memset(psPicParams, 0, sizeof(PIC_PARAMS));
     /* second frame will reuse some rate control parameters (IN_PARAMS_MP4)
      * so only memset picture parames except IN_PARAMS
      * BUT now IN_RC_PARAMS was reload from the cache, so it now can
@@ -959,6 +975,36 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->CodedBase, ctx->coded_buf_per_slice * core, ctx->coded_buf->psb_buffer); 
     
+#if 0
+    psb__information_message("PicParams->SrcYBase  0x%08x\n",psPicParams->SrcYBase);
+    psb__information_message("PicParams->SrcUBase 0x%08x\n",psPicParams->SrcUBase);
+    psb__information_message("PicParams->SrcVBase 0x%08x\n",psPicParams->SrcVBase);
+    psb__information_message("PicParams->DstYBase 0x%08x\n",psPicParams->DstYBase);
+    psb__information_message("PicParams->DstUVBase 0x%08x\n",psPicParams->DstUVBase);
+    psb__information_message("PicParams->SrcYStride 0x%08x\n",psPicParams->SrcYStride);
+    psb__information_message("PicParams->SrcUVStride 0x%08x\n",psPicParams->SrcUVStride);
+    psb__information_message("PicParams->SrcYRowStride 0x%08x\n",psPicParams->SrcYRowStride);
+    psb__information_message("PicParams->SrcUVRowStride 0x%08x\n",psPicParams->SrcUVRowStride);
+    psb__information_message("PicParams->DstYStride 0x%08x\n",psPicParams->DstYStride);
+    psb__information_message("PicParams->DstUVStride 0x%08x\n",psPicParams->DstUVStride);
+    psb__information_message("PicParams->DstYRowStride 0x%08x\n",psPicParams->DstYRowStride);
+    psb__information_message("PicParams->DstUVRowStride 0x%08x\n",psPicParams->DstUVRowStride);
+    psb__information_message("PicParams->InParamsBase 0x%08x\n",psPicParams->InParamsBase);
+    psb__information_message("PicParams->InParamsRowStride 0x%08x\n",psPicParams->InParamsRowStride);
+    psb__information_message("PicParams->OutParamsBase 0x%08x\n",psPicParams->OutParamsBase);
+    psb__information_message("PicParams->CodedBase 0x%08x\n",psPicParams->CodedBase);
+    psb__information_message("PicParams->BelowParamsInBase 0x%08x\n",psPicParams->BelowParamsInBase);
+    psb__information_message("PicParams->BelowParamsOutBase 0x%08x\n",psPicParams->BelowParamsOutBase);
+    psb__information_message("PicParams->BelowParamRowStride 0x%08x\n",psPicParams->BelowParamRowStride);
+    psb__information_message("PicParams->AboveParamsBase 0x%08x\n",psPicParams->AboveParamsBase);
+    psb__information_message("PicParams->AboveParamRowStride 0x%08x\n",psPicParams->AboveParamRowStride);
+    psb__information_message("PicParams->Width 0x%08x\n",psPicParams->Width);
+    psb__information_message("PicParams->Height 0x%08x\n",psPicParams->Height);
+    psb__information_message("PicParams->Flags 0x%08x\n",psPicParams->Flags);
+    psb__information_message("PicParams->SerachWidth 0x%08x\n",psPicParams->SearchWidth);
+    psb__information_message("PicParams->SearchHeight 0x%08x\n",psPicParams->SearchHeight);
+    psb__information_message("PicParams->NumSlices 0x%08x\n",psPicParams->NumSlices);
+#endif
     return VA_STATUS_SUCCESS;
 }
 
@@ -1006,9 +1052,11 @@ static VAStatus pnw_DetectFrameSkip(context_ENC_p ctx)
     VAStatus vaStatus;
     psb_surface_p surface;
     
-    /* it will ensure previous encode finished */
-    /*vaStatus = psb_buffer_map(ctx->pprevisous_coded_buf->psb_buffer, &pBuffer);*/
-    vaStatus = psb_buffer_map(ctx->previous_coded_buf->psb_buffer, &pBuffer); /* FIXME May be multiple coded buffers */
+    if (NULL == ctx->pprevious_coded_buf)
+	return 0;
+
+    /* it will ensure previous previous encode finished */
+    vaStatus = psb_buffer_map(ctx->previous_coded_buf->psb_buffer, &pBuffer);
 
     if (vaStatus) 
         return vaStatus;
@@ -1018,10 +1066,8 @@ static VAStatus pnw_DetectFrameSkip(context_ENC_p ctx)
     frame_skip = *(CodedData + 1);
 
     surface = ctx->src_surface->psb_surface;
-    if (GET_SURFACE_INFO_skipped_flag(surface) & SURFACE_INFO_SKIP_FLAG_SETTLED) {
-        frame_skip = GET_SURFACE_INFO_skipped_flag(surface) & 1;
-    }
-    else if(frame_skip) {
+
+    if(frame_skip) {
         SET_SURFACE_INFO_skipped_flag(surface, frame_skip);
         psb__information_message("Detected a skipped frame for encode\n");
     }
@@ -1042,17 +1088,18 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     if (ctx->sRCParams.RCEnable == IMG_TRUE) {
         if (ctx->obj_context->frame_count == 0)
             pnw_SetupRCParam(ctx);
-        /*if (ctx->obj_context->frame_count > 1)
-            pnw_PatchRCMode(ctx);*/
-        if (ctx->obj_context->frame_count)
-            pnw_DetectFrameSkip(ctx);
     }
 
     /* save current settings */
     ctx->previous_src_surface = ctx->src_surface;
     ctx->previous_ref_surface = ctx->ref_surface;
     ctx->previous_dest_surface = ctx->dest_surface; /* reconstructed surface */
-    ctx->pprevisous_coded_buf = ctx->previous_coded_buf;
+
+    /*Frame Skip flag in Coded Buffer of frame N determines if frame N+2 
+     * should be skipped, which means sending encoding commands of frame N+1 doesn't 
+     * have to wait until frame N is completed encoded. It reduces the precision of 
+     * rate control but improves HD encoding performance a lot.*/
+    ctx->pprevious_coded_buf = ctx->previous_coded_buf; 
     ctx->previous_coded_buf = ctx->coded_buf;
     
     for(i = (ctx->ParallelCores - 1); i >= 0; i--) { 
@@ -1925,19 +1972,19 @@ IMG_UINT32 pnw__send_encode_slice_params(
                            ctx->in_params_ofs + CurrentSlice * ctx->in_params_size,
                            &cmdbuf->topaz_in_params); 
 
-#if 0
+#if 0 
     psb__information_message("psSliceParams->SliceStartRowNum %d\n", psSliceParams->SliceStartRowNum);
     psb__information_message("psSliceParams->SliceHeight %d\n", psSliceParams->SliceHeight);
-    psb__information_message(" psSliceParams->RefYBase %x\n", psSliceParams->RefYBase );
-    psb__information_message(" psSliceParams->RefUVBase %x\n", psSliceParams->RefUVBase );
-    psb__information_message(" psSliceParams->RefYStride %d\n", psSliceParams->RefYStride);
-    psb__information_message(" psSliceParams->RefUVStride %d\n", psSliceParams->RefUVStride);
-    psb__information_message(" psSliceParams->RefYRowStride %d\n", psSliceParams->RefYRowStride);
-    psb__information_message(" psSliceParams->RefUVRowStride %d\n", psSliceParams->RefUVRowStride);
+    psb__information_message("psSliceParams->RefYBase %x\n", psSliceParams->RefYBase );
+    psb__information_message("psSliceParams->RefUVBase %x\n", psSliceParams->RefUVBase );
+    psb__information_message("psSliceParams->RefYStride %d\n", psSliceParams->RefYStride);
+    psb__information_message("psSliceParams->RefUVStride %d\n", psSliceParams->RefUVStride);
+    psb__information_message("psSliceParams->RefYRowStride %d\n", psSliceParams->RefYRowStride);
+    psb__information_message("psSliceParams->RefUVRowStride %d\n", psSliceParams->RefUVRowStride);
     psb__information_message("psSliceParams->CodedData %x\n", psSliceParams->CodedData); 
-    psb__information_message(" psSliceParams->Flags %x\n", psSliceParams->Flags);
+    psb__information_message("psSliceParams->Flags %x\n", psSliceParams->Flags);
     psb__information_message("psSliceParams->CodedDataPos %d\n", psSliceParams->CodedDataPos); 
-    psb__information_message(" psSliceParams->TotalCoded %d\n",  psSliceParams->TotalCoded);
+    psb__information_message("psSliceParams->TotalCoded %d\n",  psSliceParams->TotalCoded);
     psb__information_message("psSliceParams->FCode %x\n", psSliceParams->FCode);
     psb__information_message("psSliceParams->InParamsBase %x\n", psSliceParams->InParamsBase);
     psb__information_message("psSliceParams->NumAirMBs %d\n", psSliceParams->NumAirMBs);
@@ -1997,3 +2044,6 @@ void pnw_reset_encoder_params(context_ENC_p ctx)
     Add_Above = cmdbuf->topaz_above_params_p + ctx->above_params_ofs;
     memset(Add_Above, 0, ctx->above_params_size * MAX_TOPAZ_CORES);
 }
+
+
+

@@ -1,26 +1,23 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -131,7 +128,7 @@ VAStatus psb_cmdbuf_create(object_context_p obj_context, psb_driver_data_p drive
     cmdbuf->last_next_segment_cmd = NULL;
     cmdbuf->buffer_refs_count = 0;
     cmdbuf->buffer_refs_allocated = 10;
-    cmdbuf->buffer_refs = (psb_buffer_p *) malloc(sizeof(psb_buffer_p) * cmdbuf->buffer_refs_allocated);
+    cmdbuf->buffer_refs = (psb_buffer_p *) calloc(1, sizeof(psb_buffer_p) * cmdbuf->buffer_refs_allocated);
     if (NULL == cmdbuf->buffer_refs)
     {
         cmdbuf->buffer_refs_allocated = 0;
@@ -287,7 +284,7 @@ int psb_cmdbuf_buffer_ref( psb_cmdbuf_p cmdbuf, psb_buffer_p buf )
 			/* Allocate more entries */
 			int new_size = cmdbuf->buffer_refs_allocated+10;
 			psb_buffer_p *new_array;
-			new_array = (psb_buffer_p *) malloc(sizeof(psb_buffer_p) * new_size);
+			new_array = (psb_buffer_p *) calloc(1, sizeof(psb_buffer_p) * new_size);
 			if (NULL == new_array)
 			{
 				return -1; /* Allocation failure */
@@ -465,7 +462,7 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list,int buffer_coun
     Bool have_then = FALSE;
     uint64_t mask = PSB_GPU_ACCESS_MASK;
 
-    arg_list = (struct psb_validate_arg *) malloc(sizeof(struct psb_validate_arg)*buffer_count);
+    arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg)*buffer_count);
     if (arg_list == NULL) {
         psb__error_message("Malloc failed \n");
         return -ENOMEM;
@@ -990,6 +987,13 @@ int psb_context_submit_oold( object_context_p obj_context,
     uint32_t *msg = cmdbuf->MTX_msg + cmdbuf->cmd_count * FW_DXVA_RENDER_SIZE;
     FW_DXVA_OOLD_MSG *oold_msg;
 
+    if (NULL == src_buf || NULL == dst_buf || NULL == colocate_buffer)
+    {
+	psb__error_message("%s L%d Invalide src_buf, dst_buf or colocate_buffer\n",
+		__FUNCTION__, __LINE__);
+	return VA_STATUS_ERROR_INVALID_BUFFER;
+    }
+
     psb__information_message("Send out of loop deblock cmd\n");
 
     cmdbuf->oold_count++;
@@ -1159,11 +1163,6 @@ psb__information_message("MSG FIRST_MB_IN_SLICE = %08x\n", MEMIO_READ_FIELD(msg,
 psb__information_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FLAGS) );
 #endif
 
-#if 0  /* todo */
-        /* Update SAREA */
-        driver_data->psb_sarea->msvdx_context = obj_context->msvdx_context;
-#endif
-        
         msg += FW_DXVA_RENDER_SIZE / sizeof(uint32_t);
         msg_size += FW_DXVA_RENDER_SIZE;
     }

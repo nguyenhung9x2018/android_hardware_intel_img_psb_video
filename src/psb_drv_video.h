@@ -1,25 +1,23 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -32,10 +30,10 @@
 #include <va/va.h>
 #include "object_heap.h"
 #include "psb_def.h"
-#include "psb_xvva.h"
 #include "xf86drm.h"
-#include "drm_sarea.h"
 #include "psb_drm.h"
+#include "psb_overlay.h"
+#include "psb_texture.h"
 #include <stdint.h>
 #ifndef ANDROID
 #include <X11/Xlibint.h>
@@ -50,6 +48,13 @@
 #include "hwdefs/dxva_fw_flags.h"
 #include <wsbm/wsbm_pool.h>
 
+#ifndef min
+#define min(a, b) ((a) < (b)) ? (a) : (b)
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b)) ? (a) : (b)
+#endif
 /*
  * WORKAROUND_DMA_OFF_BY_ONE: LLDMA requests may access one additional byte which can cause
  * a MMU fault if the next byte after the buffer end is on a different page that isn't mapped.
@@ -79,11 +84,22 @@ typedef struct object_subpic_s *object_subpic_p;
 typedef struct format_vtable_s *format_vtable_p;
 typedef struct psb_driver_data_s *psb_driver_data_p;
 
-typedef enum _xvideo_port_type
-{
-    PSB_XVIDEO = 0,
-    PSB_XVIDEO_HW_OVERLAY = 1
-} xvideo_port_type;
+    /* post-processing data structure */
+enum psb_output_method_t {
+    PSB_PUTSURFACE_NONE = 0,
+    PSB_PUTSURFACE_X11,/* use x11 method */
+    PSB_PUTSURFACE_TEXTURE,/* texture xvideo */
+    PSB_PUTSURFACE_OVERLAY,/* overlay xvideo */
+    PSB_PUTSURFACE_COVERLAY,/* client overlay */
+    PSB_PUTSURFACE_CTEXTURE,/* client textureblit */
+    PSB_PUTSURFACE_TEXSTREAMING,/* texsteaming */
+    
+    PSB_PUTSURFACE_FORCE_TEXTURE,/* force texture xvideo */
+    PSB_PUTSURFACE_FORCE_OVERLAY,/* force overlay xvideo */
+    PSB_PUTSURFACE_FORCE_CTEXTURE,/* force client textureblit */
+    PSB_PUTSURFACE_FORCE_COVERLAY,/* force client overlay */
+    PSB_PUTSURFACE_FORCE_TEXSTREAMING,/* force texstreaming */
+};
 
 struct psb_driver_data_s {
     struct object_heap_s	config_heap;
@@ -92,10 +108,6 @@ struct psb_driver_data_s {
     struct object_heap_s	buffer_heap;
     struct object_heap_s	image_heap;
     struct object_heap_s	subpic_heap;
-    drm_handle_t		sarea_handle;
-    drmAddress                  sarea_map;
-    volatile struct drm_psb_sarea *psb_sarea;
-    void *                      dri_priv;
     char *			bus_id;
     uint32_t                    dev_id;
     int				drm_fd;
@@ -107,7 +119,6 @@ struct psb_driver_data_s {
     int				contended_lock;
     pthread_mutex_t		drm_mutex;
     format_vtable_p		profile2Format[PSB_MAX_PROFILES][PSB_MAX_ENTRYPOINTS];
-    void *			video_output;
     uint32_t			msvdx_context_base;
     int				video_sd_disabled;
     int				video_hd_disabled;
@@ -130,8 +141,53 @@ struct psb_driver_data_s {
     struct _WsbmBufferPool *main_pool;
     struct _WsbmFenceMgr *fence_mgr;
 
+    enum psb_output_method_t output_method;
+    
+    /* whether the post-processing use client overlay or not */
+    int coverlay;
+    PsbPortPrivRec coverlay_priv;
+    
+    
+    /* whether the post-processing use client textureblit or not */
+    int ctexture;
+    struct psb_texture_s ctexture_priv;    
+
+    /*
+    //whether the post-processing use texstreaing or not
+    int ctexstreaing;
+    struct psb_texstreaing ctexstreaing_priv;    
+    */
+    
+    void *ws_priv; /* window system related data structure */
+    
+
     VASurfaceID cur_displaying_surface;
     VASurfaceID last_displaying_surface;
+
+    VADisplayAttribute ble_black_mode;
+    VADisplayAttribute ble_white_mode;
+    
+    VADisplayAttribute blueStretch_gain;
+    VADisplayAttribute skinColorCorrection_gain;
+    
+    VADisplayAttribute brightness;
+    VADisplayAttribute hue;
+    VADisplayAttribute contrast;
+    VADisplayAttribute saturation;
+    unsigned int clear_color;
+
+    int  is_oold;
+
+    /* subpic number current buffers support */
+    unsigned int max_subpic;
+    
+    /* for multi-thread safe */
+    pthread_mutex_t output_mutex;
+    int rotate;
+    int drawable_info;
+    int dummy_putsurface;
+    int fixed_fps;
+    unsigned int frame_count;
 };
 
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)
@@ -193,6 +249,7 @@ struct object_context_s {
     uint32_t last_mb;
 
     int is_oold;
+    int rotate;
 
     uint32_t msvdx_context;
     
@@ -207,7 +264,10 @@ struct object_surface_s {
     VAContextID context_id;
     int width;
     int height;
+    int width_r;
+    int height_r;
     struct psb_surface_s *psb_surface;
+    struct psb_surface_s *psb_surface_rotate; /* Alternative output surface for rotation */
     void *subpictures;/* if not NULL, have subpicture information */
     unsigned int subpic_count; /* to ensure output have enough space for PDS & RAST */
     unsigned int derived_imgcnt; /* is the surface derived by a VAImage? */
@@ -258,6 +318,11 @@ struct object_subpic_s {
     void *surfaces; /* surfaces, associated with this subpicture */
 };
 
+#define MEMSET_OBJECT(ptr, data_struct) \
+	memset((void *)ptr + sizeof(struct object_base_s),\
+		0,			    \
+	       sizeof(data_struct) - sizeof(struct object_base_s))
+
 struct format_vtable_s {
     void (*queryConfigAttributes) (
         VAProfile profile,
@@ -292,6 +357,14 @@ struct format_vtable_s {
 #define psb__bounds_check(x, max)                                       \
     do { ASSERT(x < max); if (x >= max) x = max - 1; } while(0);
 
+static inline unsigned long GetTickCount()
+{
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL))
+        return 0;
+    return tv.tv_usec/1000+tv.tv_sec*1000;
+}
+
 inline static char * buffer_type_to_string(int type)
 {
     switch (type) {
@@ -314,7 +387,7 @@ inline static char * buffer_type_to_string(int type)
     }
 }
 
-int  LOCK_HARDWARE(psb_driver_data_p driver_data);
+int LOCK_HARDWARE(psb_driver_data_p driver_data);
 int UNLOCK_HARDWARE(psb_driver_data_p driver_data);
 
 #endif /* _PSB_DRV_VIDEO_H_ */

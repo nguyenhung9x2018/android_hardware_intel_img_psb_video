@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -213,11 +211,12 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     ctx->sRCParams.QCPOffset = 0;/* FIXME */
     ctx->sRCParams.IntraFreq = seq_params->intra_period;
 
-    if (ctx->sRCParams.BitsPerSecond < 256000)
+   /* if (ctx->sRCParams.BitsPerSecond < 256000)
         ctx->sRCParams.BufferSize = (9 * ctx->sRCParams.BitsPerSecond) >> 1;
     else
-        ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;
+        ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
 
+    ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond;
     ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
     ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
 
@@ -279,6 +278,7 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
     unsigned long *pPictureHeaderMem;
     MTX_HEADER_PARAMS *psPicHeader;
     int i;
+    IMG_BOOL bIsVOPCoded = IMG_TRUE;
 
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
@@ -300,13 +300,16 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
     ASSERT(ctx->Width == pBuffer->picture_width);
     ASSERT(ctx->Height == pBuffer->picture_height);
 
+    /*if (ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip)
+    	bIsVOPCoded = IMG_FALSE;*/
+
     ctx->FCode = 4 - 1; /* 4 is default value of "ui8Search_range" */
 
     pPictureHeaderMem = cmdbuf->header_mem_p + ctx->pic_header_ofs;
     psPicHeader = (MTX_HEADER_PARAMS *)pPictureHeaderMem;
 
     pnw__MPEG4_prepare_vop_header(pPictureHeaderMem,
-                                  IMG_TRUE,
+                                  bIsVOPCoded,
                                   pBuffer->vop_time_increment, /* In testbench, this should be FrameNum */ 
                                   4,/* default value is 4,search range */
                                   pBuffer->picture_type,
@@ -348,6 +351,15 @@ static VAStatus pnw__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
 
     pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
+
+    /*In DDK186, firmware handles the frame skip*/
+    /* do nothing for skip frame if RC enabled */
+    /*if ((ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip)) {
+	free(obj_buffer->buffer_data);   
+	obj_buffer->buffer_data = NULL;
+	psb__information_message("MPEG4 : will skip current frame.\n");
+	return VA_STATUS_SUCCESS;
+    }*/
     /* 
     if (0 == pBuffer->start_row_number)
     {

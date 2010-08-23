@@ -64,12 +64,17 @@ FILE * pfDebugOutput = IMG_NULL;
 ******************************************************************************/
 
 img_result	
-IEP_LITE_Initialise(img_uint32 ui32RegBaseAddr)
+IEP_LITE_Initialise(void * p_iep_lite_context, img_uint32 ui32RegBaseAddr)
 {
+    IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;
 	DEBUG_PRINT ( "Entering IEP_LITE_Initialise\n" );
 
+    if (NULL == sIEP_LITE_Context) 
+    {
+        return IMG_FAILED;
+    }
 	/* If the API is already initialised, just return */
-	if ( sIEP_LITE_Context.bInitialised == IMG_TRUE )
+	if ( sIEP_LITE_Context->bInitialised == IMG_TRUE )
 	{
 		return IMG_SUCCESS;	
 	}
@@ -81,12 +86,12 @@ IEP_LITE_Initialise(img_uint32 ui32RegBaseAddr)
 	/* automatically after the h/w has finished rendering.						*/
 	REGISTER_CALLBACK(RENDER_COMPLETE,iep_lite_RenderCompleteCallback);
 							
-	IMG_MEMSET (	&sIEP_LITE_Context,
+	IMG_MEMSET (	sIEP_LITE_Context,
 					0x00,
 					sizeof ( IEP_LITE_sContext ) );
 
-	sIEP_LITE_Context.bInitialised = IMG_TRUE;
-        sIEP_LITE_Context.ui32RegBaseAddr = ui32RegBaseAddr;
+	sIEP_LITE_Context->bInitialised = IMG_TRUE;
+    sIEP_LITE_Context->ui32RegBaseAddr = ui32RegBaseAddr;
 
 	DEBUG_PRINT ( "Leaving IEP_LITE_Initialise\n" );
 
@@ -100,19 +105,24 @@ IEP_LITE_Initialise(img_uint32 ui32RegBaseAddr)
  @Function				IEP_LITE_IEPCSCConfigure
 
 ******************************************************************************/
-img_result	IEP_LITE_CSCConfigure	(				
+img_result	IEP_LITE_CSCConfigure	(	
+                                            void * p_iep_lite_context,			
 											CSC_eColourSpace	eInputColourSpace,
 											CSC_eColourSpace	eOutputColourSpace,	
 											CSC_psHSBCSettings	psHSBCSettings								
 									)
 {
+    IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;
 	CSC_sConfiguration				sInternalConfig;
 	img_uint32						ui32MyReg;
 
 	DEBUG_PRINT ( "Entering IEP_LITE_IEPCSCConfigure\n" );
-
+    if (NULL == sIEP_LITE_Context) 
+    {
+        return IMG_FAILED;
+    }
 	/* Ensure API is initialised */
-	IMG_ASSERT ( sIEP_LITE_Context.bInitialised == IMG_TRUE );
+	IMG_ASSERT ( sIEP_LITE_Context->bInitialised == IMG_TRUE );
 
 	/* Generate the CSC matrix coefficients */
 	CSC_GenerateMatrix	(	eInputColourSpace,
@@ -124,7 +134,7 @@ img_result	IEP_LITE_CSCConfigure	(
 							psHSBCSettings,
 							&sInternalConfig	);
 														
-	READ_REGISTER ( IEP_LITE_HS_CONF_STATUS_OFFSET, ui32MyReg);
+	READ_REGISTER ( sIEP_LITE_Context,IEP_LITE_HS_CONF_STATUS_OFFSET, &ui32MyReg);
 	/* Colour configuration matrix */		
 	ui32MyReg = 0;
 				
@@ -237,7 +247,7 @@ img_result	IEP_LITE_CSCConfigure	(
 	WRITE_REGISTER ( IEP_LITE_HS_CONF_STATUS_OFFSET,
 					 IEP_LITE_HS_CONF_STATUS_HS_EN_MASK );
 	
-	READ_REGISTER ( IEP_LITE_HS_CONF_STATUS_OFFSET, ui32MyReg);
+	READ_REGISTER ( sIEP_LITE_Context, IEP_LITE_HS_CONF_STATUS_OFFSET, &ui32MyReg);
 	DEBUG_PRINT ( "Leaving IEP_LITE_IEPCSCConfigure\n" );
 
 	return IMG_SUCCESS;
@@ -249,25 +259,30 @@ img_result	IEP_LITE_CSCConfigure	(
  @Function				IEP_LITE_BlackLevelExpanderConfigure
 
 ******************************************************************************/
-img_result	IEP_LITE_BlackLevelExpanderConfigure	(																
+img_result	IEP_LITE_BlackLevelExpanderConfigure	(	
+                                                        void * p_iep_lite_context,															
 														IEP_LITE_eBLEMode					eBLEBlackMode,
 														IEP_LITE_eBLEMode					eBLEWhiteMode												
 													)
 {
+    IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;
 	IEP_LITE_eBLEMode		eCurrentBlackMode;
 	IEP_LITE_eBLEMode		eCurrentWhiteMode;
 	
 	DEBUG_PRINT ( "Entering IEP_LITE_BlackLevelExpanderConfigure\n" );
-
+    if (NULL == sIEP_LITE_Context) 
+    {
+        return IMG_FAILED;
+    }
 	/* Ensure API is initialised */
-	IMG_ASSERT ( sIEP_LITE_Context.bInitialised == IMG_TRUE );
+	IMG_ASSERT ( sIEP_LITE_Context->bInitialised == IMG_TRUE );
 	
 	/* Store current mode */
-	eCurrentBlackMode = sIEP_LITE_Context.eBLEBlackMode;
-	eCurrentWhiteMode = sIEP_LITE_Context.eBLEWhiteMode;
+	eCurrentBlackMode = sIEP_LITE_Context->eBLEBlackMode;
+	eCurrentWhiteMode = sIEP_LITE_Context->eBLEWhiteMode;
 
-	sIEP_LITE_Context.eBLEBlackMode = eBLEBlackMode;
-	sIEP_LITE_Context.eBLEWhiteMode = eBLEWhiteMode;
+	sIEP_LITE_Context->eBLEBlackMode = eBLEBlackMode;
+	sIEP_LITE_Context->eBLEWhiteMode = eBLEWhiteMode;
 					
 	/* Are we switching the hardware off ? */					
 	if (
@@ -281,7 +296,7 @@ img_result	IEP_LITE_BlackLevelExpanderConfigure	(
 		WRITE_REGISTER ( IEP_LITE_BLE_CONF_STATUS_OFFSET,
 						 0 );
 		
-		sIEP_LITE_Context.bFirstLUTValuesWritten 		= IMG_FALSE;
+		sIEP_LITE_Context->bFirstLUTValuesWritten 		= IMG_FALSE;
 	}
 	
 	DEBUG_PRINT ( "Leaving IEP_LITE_BlackLevelExpanderConfigure\n" );
@@ -296,22 +311,28 @@ img_result	IEP_LITE_BlackLevelExpanderConfigure	(
  @Function				IEP_LITE_BlueStretchConfigure
 
 ******************************************************************************/
-img_result	IEP_LITE_BlueStretchConfigure		(				
+img_result	IEP_LITE_BlueStretchConfigure		(	
+                                                    void * p_iep_lite_context,			
 													img_uint8							ui8Gain
 												)
-{		
+{	
+    IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;	
 	img_uint32	ui32Offset = 0;
 	img_uint32	ui32MyReg = 0;
 	img_uint32	ui32EnableReg = 0;
 
 	DEBUG_PRINT ( "Entering IEP_LITE_BlueStretchConfigure\n" );
-
+    if (NULL == sIEP_LITE_Context) 
+    {
+        return IMG_FAILED;
+    }
 	/* Ensure API is initialised */
-	IMG_ASSERT ( sIEP_LITE_Context.bInitialised == IMG_TRUE );
+	IMG_ASSERT ( sIEP_LITE_Context->bInitialised == IMG_TRUE );
 
 	/* Standard setup using gain slider */
-	READ_REGISTER ( IEP_LITE_BSSCC_CTRL_OFFSET,
-					ui32EnableReg );
+	READ_REGISTER ( sIEP_LITE_Context,
+                    IEP_LITE_BSSCC_CTRL_OFFSET,
+					&ui32EnableReg );
 	
 	if ( ui8Gain == 0 )
 	{
@@ -381,7 +402,7 @@ img_result	IEP_LITE_BlueStretchConfigure		(
 	}
 	
 	/* Store current setting in context structure */
-	sIEP_LITE_Context.ui8BSGain = ui8Gain;
+	sIEP_LITE_Context->ui8BSGain = ui8Gain;
 
 	DEBUG_PRINT ( "Leaving IEP_LITE_BlueStretchConfigure\n" );
 
@@ -395,20 +416,26 @@ img_result	IEP_LITE_BlueStretchConfigure		(
 
 ******************************************************************************/
 img_result	IEP_LITE_SkinColourCorrectionConfigure	(	
+                                                        void * p_iep_lite_context,
 														img_uint8							ui8Gain
 													)
 {	
+    IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;
 	img_uint32	ui32MyReg = 0;
 	img_uint32	ui32Offset = 0;
 	img_uint32	ui32EnableReg = 0;
 
 	DEBUG_PRINT ( "Entering IEP_LITE_SkinColourCorrectionConfigure\n" );
-
+    if (NULL == sIEP_LITE_Context) 
+    {
+        return IMG_FAILED;
+    }
 	/* Ensure API is initialised */
-	IMG_ASSERT ( sIEP_LITE_Context.bInitialised == IMG_TRUE );
+	IMG_ASSERT ( sIEP_LITE_Context->bInitialised == IMG_TRUE );
 
-	READ_REGISTER ( IEP_LITE_BSSCC_CTRL_OFFSET,
-					ui32EnableReg );
+	READ_REGISTER ( sIEP_LITE_Context,
+                    IEP_LITE_BSSCC_CTRL_OFFSET,
+					&ui32EnableReg );
 
 	/* Standard setup using gain slider */
 	if ( ui8Gain == 0 )
@@ -428,7 +455,10 @@ img_result	IEP_LITE_SkinColourCorrectionConfigure	(
 							1,												
 							ui32EnableReg	);							
 
-		/* Skin colour correction colour radius parameters */
+                /* FIXME: forget to enable control bit in register ? by Daniel Miao */
+                WRITE_REGISTER ( IEP_LITE_BSSCC_CTRL_OFFSET, ui32EnableReg );									
+		
+                /* Skin colour correction colour radius parameters */
 		ui32MyReg = 0;			
 		
 		WRITE_BITFIELD ( IEP_LITE_SCC_RADIUS_R2,
@@ -476,7 +506,7 @@ img_result	IEP_LITE_SkinColourCorrectionConfigure	(
 	}
 	
 	/* Store current setting in context structure */
-	sIEP_LITE_Context.ui8SCCGain = ui8Gain;
+	sIEP_LITE_Context->ui8SCCGain = ui8Gain;
 
 	DEBUG_PRINT ( "Leaving IEP_LITE_SkinColourCorrectionConfigure\n" );
 

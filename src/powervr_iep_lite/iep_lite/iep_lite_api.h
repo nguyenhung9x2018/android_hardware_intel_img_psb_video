@@ -45,11 +45,11 @@ extern FILE * pfDebugOutput;
 {																			\
 	if ( pfDebugOutput == IMG_NULL )										\
 	{																		\
-		pfDebugOutput = fopen ( "iep_lite_demo_output.txt", "w" );			\
-		IMG_ASSERT ( pfDebugOutput != IMG_NULL );							\
+		/*pfDebugOutput = fopen ( "/tmp/iep_lite_demo_output.txt", "w" );*/			\
+		/*IMG_ASSERT ( pfDebugOutput != IMG_NULL );*/							\
 	}																		\
 																			\
-	fprintf ( pfDebugOutput, (msg) );										\
+	/*fprintf ( pfDebugOutput, (msg) );*/										\
 }
 
 /*-------------------------------------------------------------------------------*/
@@ -104,7 +104,7 @@ typedef enum
 
 ******************************************************************************/
 
-extern	img_result	IEP_LITE_Initialise	(	img_uint32 ui32RegBaseAddr	);
+extern	img_result	IEP_LITE_Initialise	(void * p_iep_lite_context,	img_uint32 ui32RegBaseAddr	);
 /*!
 ******************************************************************************
 
@@ -134,7 +134,8 @@ extern	img_result	IEP_LITE_Initialise	(	img_uint32 ui32RegBaseAddr	);
 
 ******************************************************************************/
 
-extern img_result	IEP_LITE_BlackLevelExpanderConfigure	(																
+extern img_result	IEP_LITE_BlackLevelExpanderConfigure	(	
+                                                                void * p_iep_lite_context,															
 																IEP_LITE_eBLEMode							eBLEBlackMode,
 																IEP_LITE_eBLEMode							eBLEWhiteMode
 															);
@@ -158,7 +159,8 @@ extern img_result	IEP_LITE_BlackLevelExpanderConfigure	(
 
 ******************************************************************************/
 
-extern	img_result	IEP_LITE_BlueStretchConfigure			(				
+extern	img_result	IEP_LITE_BlueStretchConfigure			(	
+                                                                void * p_iep_lite_context,			
 																img_uint8								ui8Gain
 															);
 
@@ -181,7 +183,8 @@ extern	img_result	IEP_LITE_BlueStretchConfigure			(
 
 ******************************************************************************/
 
-extern	img_result	IEP_LITE_SkinColourCorrectionConfigure	(	
+extern	img_result	IEP_LITE_SkinColourCorrectionConfigure	(
+                                                                void * p_iep_lite_context,	
 																img_uint8							ui8Gain
 															);
 /*!
@@ -196,7 +199,8 @@ extern	img_result	IEP_LITE_SkinColourCorrectionConfigure	(
 
 ******************************************************************************/
 
-extern	img_result	IEP_LITE_CSCConfigure	(	
+extern	img_result	IEP_LITE_CSCConfigure	(
+                                                void * p_iep_lite_context,	
 												CSC_eColourSpace	eInputColourSpace,
 												CSC_eColourSpace	eOutputColourSpace,	
 												CSC_psHSBCSettings	psHSBCSettings	

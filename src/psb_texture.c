@@ -1,4 +1,25 @@
 /*
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ *
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
+ * 
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
+ */
+/*
 ** psb_texture.c
 ** Login : <brady@luna.bj.intel.com>
 ** Started on  Wed Mar 31 14:40:46 2010 brady
@@ -28,16 +49,13 @@
 
 #include <wsbm/wsbm_manager.h>
 
-#include <pvr2d.h>
-#include <pvr_android.h>
+#include "pvr2d.h"
 
 #include "psb_drv_video.h"
 #include "psb_output.h"
 
 #include "psb_texture.h"
 
-#define LOG_TAG "psb_texture"
-#include <cutils/log.h>
 
 #define INIT_DRIVER_DATA	psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 
@@ -59,62 +77,6 @@
 #define OV_SATURATION_DEFAULT_VALUE   100
 #define OV_SATURATION_MIN             0
 #define OV_SATURATION_MAX             200
-
-typedef struct _ov_psb_fixed32
-{
-	union
-	{
-		struct
-		{
-			unsigned short Fraction;
-			short Value;
-		};
-		long ll;
-	};
-} ov_psb_fixed32;
-
-typedef struct _psb_coeffs_
-{
-    signed char rY;
-    signed char rU;
-    signed char rV;
-    signed char gY;
-    signed char gU;
-    signed char gV;
-    signed char bY;
-    signed char bU;
-    signed char bV;
-    unsigned char rShift;
-    unsigned char gShift;
-    unsigned char bShift;
-    signed short rConst;
-    signed short gConst;
-    signed short bConst;
-} psb_coeffs_s, *psb_coeffs_p;
-
-struct psb_texture_s {
-	PVR2DCONTEXTHANDLE hPVR2DContext;
-
-	struct _WsbmBufferObject *vaSrf;
-
-	unsigned int video_transfermatrix;
-	unsigned int src_nominalrange;
-	unsigned int dst_nominalrange;
-
-	uint32_t gamma0;
-	uint32_t gamma1;
-	uint32_t gamma2;
-	uint32_t gamma3;
-	uint32_t gamma4;
-	uint32_t gamma5;
-
-	ov_psb_fixed32 brightness;
-	ov_psb_fixed32 contrast;
-	ov_psb_fixed32 saturation;
-	ov_psb_fixed32 hue;
-
-	psb_coeffs_s coeffs;
-};
 
 typedef struct _psb_transform_coeffs_
 {
@@ -192,185 +154,253 @@ psb_transform_sathuecoeffs(psb_transform_coeffs * dest,
 			   const psb_transform_coeffs * const source,
 			   double fHue, double fSat);
 
-unsigned long PVRCalculateStride(unsigned long widthInPixels, unsigned int bitsPerPixel)
-{
 #define STRIDE_ALIGNMENT		32
-	// Round up to next 32 pixel boundry, as according to PVR2D docs
-	int ulActiveLinelenInPixels = (widthInPixels + (STRIDE_ALIGNMENT-1)) & ~(STRIDE_ALIGNMENT-1); 
-	return ((ulActiveLinelenInPixels * bitsPerPixel)+7)>>3; // pixels to bytes
+static unsigned long PVRCalculateStride(unsigned long widthInPixels, unsigned int bitsPerPixel)
+{
+    // Round up to next 32 pixel boundry, as according to PVR2D docs
+    int ulActiveLinelenInPixels = (widthInPixels + (STRIDE_ALIGNMENT-1)) & ~(STRIDE_ALIGNMENT-1); 
+    return ((ulActiveLinelenInPixels * bitsPerPixel)+7)>>3; // pixels to bytes
 }
 
-void init_test_texture(VADriverContextP ctx)
+static int pvr_context_create(void **pvr_ctx)
 {
-	INIT_DRIVER_DATA;
+    int ret = 0;
+    int pvr_devices = PVR2DEnumerateDevices(0);
+    PVR2DDEVICEINFO *pvr_devs = NULL;
+        
+    if ((pvr_devices < PVR2D_OK) || (pvr_devices == 0)) {
+        psb__error_message("%s(): PowerVR device not found", __func__);
+        goto out;
+    }
 
-	struct psb_texture_s *texture_priv;
-	int ret;
+    pvr_devs = calloc(1, pvr_devices * sizeof(*pvr_devs));
+    if (!pvr_devs) {
+        psb__error_message("%s(): not enough memory", __func__);
+        goto out;
+    }
 
-	texture_priv = calloc(1, sizeof(*texture_priv));
-	if (!texture_priv)
-		printf("ERROR -- failed to allocate texture_priv\n");
+    ret = PVR2DEnumerateDevices(pvr_devs);
+    if (ret != PVR2D_OK) {
+        free(pvr_devs);
+        psb__error_message("%s(): PVR2DEnumerateDevices() failed(%d)", __func__,
+             ret);
+        goto out;
+    }
 
-	ret = pvr_android_context_create(&texture_priv->hPVR2DContext);
-	if (ret < 0) {
-		printf("%s(): null PVR context!!", __func__);
-	}
+    /* Choose the first display device */
+    ret = PVR2DCreateDeviceContext(pvr_devs[0].ulDevID, (PVR2DCONTEXTHANDLE *)pvr_ctx, 0);
+    if (ret != PVR2D_OK) {
+        psb__error_message("%s(): PVR2DCreateDeviceContext() failed(%d)", __func__,
+             ret);
+        goto out;
+    }
 
-	texture_priv->video_transfermatrix = PSB_VideoTransferMatrix_BT709;
-	texture_priv->src_nominalrange = PSB_NominalRange_0_255;
-	texture_priv->dst_nominalrange = PSB_NominalRange_0_255;
-
-	texture_priv->brightness.Value = OV_BRIGHTNESS_DEFAULT_VALUE;
-	texture_priv->brightness.Fraction = 0;
-	texture_priv->contrast.Value = OV_CONTRAST_DEFAULT_VALUE;
-	texture_priv->contrast.Fraction = 0;
-	texture_priv->hue.Value = OV_HUE_DEFAULT_VALUE;
-	texture_priv->hue.Fraction = 0;
-	texture_priv->saturation.Value = OV_SATURATION_DEFAULT_VALUE;
-	texture_priv->saturation.Fraction = 0;
-
-	printf("FIXME: should has some way to modify these values\n");
-	texture_priv->brightness.Value = -19; /* (255/219) * -16 */
-	texture_priv->contrast.Value = 75;  /* 255/219 * 64 */
-	texture_priv->saturation.Value = 146; /* 128/112 * 128 */
-
-	texture_priv->gamma5 = 0xc0c0c0;
-	texture_priv->gamma4 = 0x808080;
-	texture_priv->gamma3 = 0x404040;
-	texture_priv->gamma2 = 0x202020;
-	texture_priv->gamma1 = 0x101010;
-	texture_priv->gamma0 = 0x080808;
-
-	driver_data->dri_priv = texture_priv;
-
-	psb_setup_coeffs(texture_priv);
+  out:
+    if (pvr_devs)
+        free(pvr_devs);
+    
+    return ret;
 }
 
-void deinit_test_texture(VADriverContextP ctx)
+void psb_ctexture_init(VADriverContextP ctx)
 {
-	INIT_DRIVER_DATA;
-	struct psb_texture_s *texture_priv;
+    INIT_DRIVER_DATA;
+    struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
+    int ret;
 
-	texture_priv = (struct psb_overlay_s *)(driver_data->dri_priv);
+    ret = pvr_context_create(&texture_priv->hPVR2DContext);
+    if (ret != PVR2D_OK) {
+        psb__error_message("%s(): null PVR context!!", __func__);
+    }
 
-	free(texture_priv);
-	driver_data->dri_priv = NULL;
-}
+    texture_priv->video_transfermatrix = PSB_VideoTransferMatrix_BT709;
+    texture_priv->src_nominalrange = PSB_NominalRange_0_255;
+    texture_priv->dst_nominalrange = PSB_NominalRange_0_255;
 
-void blit_texture_to_buf(VADriverContextP ctx, unsigned char * data, int src_x, int src_y, int src_w,
-			 int src_h, int dst_x, int dst_y, int dst_w, int dst_h,
-			 int width, int height, int src_pitch, struct _WsbmBufferObject * src_buf,
-			 unsigned int placement)
-{
-#if 0
-	INIT_DRIVER_DATA;
-	struct psb_texture_s *texture_priv;
+    texture_priv->brightness.Value = OV_BRIGHTNESS_DEFAULT_VALUE;
+    texture_priv->brightness.Fraction = 0;
+    texture_priv->contrast.Value = OV_CONTRAST_DEFAULT_VALUE;
+    texture_priv->contrast.Fraction = 0;
+    texture_priv->hue.Value = OV_HUE_DEFAULT_VALUE;
+    texture_priv->hue.Fraction = 0;
+    texture_priv->saturation.Value = OV_SATURATION_DEFAULT_VALUE;
+    texture_priv->saturation.Fraction = 0;
 
-	int update_coeffs = 0;
-	PVR2D_VPBLT sBltVP;
-	int i;
-	unsigned char * tmp_buffer;
-	PVR2DERROR ePVR2DStatus;
-	PPVR2DMEMINFO pVaVideoMemInfo;
-	PPVR2DMEMINFO pDstMeminfo;
-	unsigned char temp;
+    texture_priv->brightness.Value = -19; /* (255/219) * -16 */
+    texture_priv->contrast.Value = 75;  /* 255/219 * 64 */
+    texture_priv->saturation.Value = 146; /* 128/112 * 128 */
 
-	texture_priv = (struct psb_overlay_s *)(driver_data->dri_priv);
-
-	src_pitch = (src_pitch + 0x3) & ~0x3;
-
-	//printf("check whether we need to update coeffs\n");
-	/* check whether we need to update coeffs */
-	if ((height > 576) &&
-	    (texture_priv->video_transfermatrix != PSB_VideoTransferMatrix_BT709)) {
-		texture_priv->video_transfermatrix = PSB_VideoTransferMatrix_BT709;
-		update_coeffs = 1;
-	} else if ((height <= 576) &&
-            (texture_priv->video_transfermatrix != PSB_VideoTransferMatrix_BT601)) {
-		texture_priv->video_transfermatrix = PSB_VideoTransferMatrix_BT601;
-		update_coeffs = 1;
-        }
-
-	//printf("prepare coeffs if needed\n");
-	/* prepare coeffs if needed */
-	memset(&sBltVP, 0, sizeof(PVR2D_VPBLT));
-	if (update_coeffs == 1) {
-		psb_setup_coeffs(texture_priv);
-		sBltVP.psYUVCoeffs = (PPVR2D_YUVCOEFFS) &texture_priv->coeffs;
-		/* FIXME: is it right? */
-		sBltVP.bCoeffsGiven   = 1;
-	}
-	printf("now wrap the source wsbmBO\n");
-	/* now wrap the source wsbmBO */
-	tmp_buffer = NULL;
-	tmp_buffer = wsbmBOMap (src_buf, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
-	for (i = 0; i < height * src_pitch * 1.5; i = i + 4096)
-                memcpy(&temp, tmp_buffer + i, 1);
-	ePVR2DStatus = PVR2DMemWrap(texture_priv->hPVR2DContext,
-				    tmp_buffer,
-				    0,
-				    (src_pitch * height * 1.5),
-				    NULL,
-				    &pVaVideoMemInfo);
-
-	/* wrap the dest source */
-	/* FIXME: this is wrap for rgb565 */
-	ePVR2DStatus = PVR2DMemWrap(texture_priv->hPVR2DContext,
-				    data,
-				    0,
-				    (dst_w * dst_h * 2),
-				    NULL,
-				    &pDstMeminfo);
-	sBltVP.sDst.pSurfMemInfo = pDstMeminfo;
-	sBltVP.sDst.SurfOffset   = 0;
-	/* FIXME: this wrong, how to get system pitch */
-	sBltVP.sDst.Stride       = dst_w * 2;//align_to(dst_w, 64);
-//	sBltVP.sDst.Stride       = PVRCalculateStride(dst_w, 16);
-	sBltVP.sDst.Format       = PVR2D_RGB565;
-	sBltVP.sDst.SurfWidth    = dst_w;
-	sBltVP.sDst.SurfHeight   = dst_h;
-     
-	/* Y plane UV plane */       
-	sBltVP.uiNumLayers      = 1; 
-	sBltVP.sSrc->Stride     = src_pitch;
-	sBltVP.sSrc->Format     = FOURCC_NV12;
-	sBltVP.sSrc->SurfWidth  = width;
-	sBltVP.sSrc->SurfHeight = height;
-	sBltVP.sSrc[0].pSurfMemInfo = pVaVideoMemInfo;
-
-	/* FIXME: check for top-bottom */
-        sBltVP.sSrc->SurfOffset = 0;
-
-	/* FIXME: check rotation setting */
-	/* FIXME: use PVR define */
-	sBltVP.RotationValue = 1;
-
-	/* clip box */
-	sBltVP.rcDest.left = dst_x;
-	sBltVP.rcDest.right = dst_x + dst_w;
-	sBltVP.rcDest.top = dst_y;
-	sBltVP.rcDest.bottom = dst_y + dst_h;
-
-	sBltVP.rcSource->left = src_x;
-	sBltVP.rcSource->right = src_x + src_w;
-	sBltVP.rcSource->top = src_y;
-	sBltVP.rcSource->bottom = src_y + src_h;
-	ePVR2DStatus = PVR2DBltVideo(texture_priv->hPVR2DContext, &sBltVP);
-	if (ePVR2DStatus != PVR2D_OK) 
-	{
-	        LOGE("%s: failed to do PVR2DBltVideo with error code %d\n", 
-	               __FUNCTION__, ePVR2DStatus);
-                return FALSE;
-	}
-	ePVR2DStatus = PVR2DQueryBlitsComplete(texture_priv->hPVR2DContext, pDstMeminfo, 1);
-	if (ePVR2DStatus!= PVR2D_OK)
-	{
-		LOGE("%s: PVR2DQueryBlitsComplete error %d\n", __FUNCTION__, ePVR2DStatus);
-	}
-	ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pVaVideoMemInfo);
-	ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pDstMeminfo);
-        wsbmBOUnmap(src_buf);
+    texture_priv->gamma5 = 0xc0c0c0;
+    texture_priv->gamma4 = 0x808080;
+    texture_priv->gamma3 = 0x404040;
+    texture_priv->gamma2 = 0x202020;
+    texture_priv->gamma1 = 0x101010;
+    texture_priv->gamma0 = 0x080808;
+#ifndef ANDROID
+    texture_priv->dri_init_flag = 0;
+    texture_priv->current_blt_buffer = 0;
+    memset(&texture_priv->dri2_bb_export, 0, sizeof(PVRDRI2BackBuffersExport));
 #endif
+
+    psb_setup_coeffs(texture_priv);
+}
+
+void psb_ctexture_deinit(VADriverContextP ctx)
+{
+    INIT_DRIVER_DATA;
+    int i;
+
+    struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
+#ifndef ANDROID
+    if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS)
+	for(i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++)
+	    PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->blt_meminfo[i]);
+    else if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN)
+	for(i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++)
+	    PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->flip_meminfo[i]);
+    texture_priv->dri_init_flag = 0;
+    texture_priv->current_blt_buffer = 0;
+#endif
+
+    (void)texture_priv;
+    
+}
+
+#ifndef ANDROID
+void psb_putsurface_textureblit(
+    VADriverContextP ctx, PPVR2DMEMINFO pDstMeminfo, int src_x, int src_y, int src_w,
+    int src_h, int dst_x, int dst_y, int dst_w, int dst_h,
+    int width, int height,
+    int src_pitch, struct _WsbmBufferObject * src_buf,
+    unsigned int placement)
+#else
+void psb_putsurface_textureblit(
+    VADriverContextP ctx, unsigned char * data, int src_x, int src_y, int src_w,
+    int src_h, int dst_x, int dst_y, int dst_w, int dst_h,
+    int width, int height,
+    int src_pitch, struct _WsbmBufferObject * src_buf,
+    unsigned int placement)
+#endif
+{
+    INIT_DRIVER_DATA;
+    struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
+
+    int update_coeffs = 0;
+    PVR2D_VPBLT sBltVP;
+    int i;
+    unsigned char * tmp_buffer;
+    PVR2DERROR ePVR2DStatus;
+    PPVR2DMEMINFO pVaVideoMemInfo;
+#ifdef ANDROId
+    PPVR2DMEMINFO pDstMeminfo;
+#endif
+    unsigned char temp;
+
+    //texture_priv = (struct psb_texture_s*)(driver_data->ctexture_priv);
+
+    src_pitch = (src_pitch + 0x3) & ~0x3;
+
+    /* check whether we need to update coeffs */
+    if ((height > 576) &&
+        (texture_priv->video_transfermatrix != PSB_VideoTransferMatrix_BT709)) {
+        texture_priv->video_transfermatrix = PSB_VideoTransferMatrix_BT709;
+        update_coeffs = 1;
+    } else if ((height <= 576) &&
+               (texture_priv->video_transfermatrix != PSB_VideoTransferMatrix_BT601)) {
+        texture_priv->video_transfermatrix = PSB_VideoTransferMatrix_BT601;
+        update_coeffs = 1;
+    }
+
+    /* prepare coeffs if needed */
+    memset(&sBltVP, 0, sizeof(PVR2D_VPBLT));
+    if (update_coeffs == 1) {
+        psb_setup_coeffs(texture_priv);
+        sBltVP.psYUVCoeffs = (PPVR2D_YUVCOEFFS) &texture_priv->coeffs;
+        /* FIXME: is it right? */
+        sBltVP.bCoeffsGiven   = 1;
+    }
+    psb__information_message("now wrap the source wsbmBO\n");
+    /* now wrap the source wsbmBO */
+    tmp_buffer = NULL;
+    tmp_buffer = wsbmBOMap (src_buf, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
+    for (i = 0; i < height * src_pitch * 1.5; i = i + 4096)
+        memcpy(&temp, tmp_buffer + i, 1);
+    ePVR2DStatus = PVR2DMemWrap(texture_priv->hPVR2DContext,
+                                tmp_buffer,
+                                0,
+                                (src_pitch * height * 1.5),
+                                NULL,
+                                &pVaVideoMemInfo);
+
+    /* wrap the dest source */
+    /* FIXME: this is wrap for rgb565 */
+#ifdef ANDROID
+    PVR2DMEMINFO *pDstMeminfo;
+    ePVR2DStatus = PVR2DMemWrap(texture_priv->hPVR2DContext,
+                                data,
+                                0,
+                                (dst_w * dst_h * 2),
+                                NULL,
+                                &pDstMeminfo);
+#endif
+    sBltVP.sDst.pSurfMemInfo = pDstMeminfo;
+    sBltVP.sDst.SurfOffset   = 0;
+#ifndef ANDROID
+    sBltVP.sDst.Stride       = PVRCalculateStride(dst_w, 32);
+    sBltVP.sDst.Format       = PVR2D_ARGB8888;
+#else
+    /* FIXME: this wrong, how to get system pitch */
+    sBltVP.sDst.Stride       = dst_w * 2;//align_to(dst_w, 64);
+    //	sBltVP.sDst.Stride       = PVRCalculateStride(dst_w, 16);
+    sBltVP.sDst.Format       = PVR2D_RGB565;
+#endif
+    sBltVP.sDst.SurfWidth    = dst_w;
+    sBltVP.sDst.SurfHeight   = dst_h;
+     
+    /* Y plane UV plane */       
+    sBltVP.uiNumLayers      = 1; 
+    sBltVP.sSrc->Stride     = src_pitch;
+    sBltVP.sSrc->Format     = VA_FOURCC_NV12;
+    sBltVP.sSrc->SurfWidth  = width;
+    sBltVP.sSrc->SurfHeight = height;
+    sBltVP.sSrc[0].pSurfMemInfo = pVaVideoMemInfo;
+
+    /* FIXME: check for top-bottom */
+    sBltVP.sSrc->SurfOffset = 0;
+
+    /* FIXME: check rotation setting */
+    /* FIXME: use PVR define */
+    sBltVP.RotationValue = 1;
+
+    /* clip box */
+    sBltVP.rcDest.left = dst_x;
+    sBltVP.rcDest.right = dst_x + dst_w;
+    sBltVP.rcDest.top = dst_y;
+    sBltVP.rcDest.bottom = dst_y + dst_h;
+
+    sBltVP.rcSource->left = src_x;
+    sBltVP.rcSource->right = src_x + src_w;
+    sBltVP.rcSource->top = src_y;
+    sBltVP.rcSource->bottom = src_y + src_h;
+#ifndef ANDROID    
+    ePVR2DStatus = PVR2DBltVideo(texture_priv->hPVR2DContext, &sBltVP);
+#endif
+    if (ePVR2DStatus != PVR2D_OK) 
+    {
+        psb__error_message("%s: failed to do PVR2DBltVideo with error code %d\n", 
+             __FUNCTION__, ePVR2DStatus);
+    }
+
+    ePVR2DStatus = PVR2DQueryBlitsComplete(texture_priv->hPVR2DContext, pDstMeminfo, 1);
+    if (ePVR2DStatus!= PVR2D_OK)
+    {
+        psb__error_message("%s: PVR2DQueryBlitsComplete error %d\n", __FUNCTION__, ePVR2DStatus);
+    }
+    ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pVaVideoMemInfo);
+#ifdef ANDROID
+    ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pDstMeminfo);
+#endif
+    wsbmBOUnmap(src_buf);
 }
 
 static void
@@ -380,7 +410,7 @@ psb_setup_coeffs(struct psb_texture_s * pPriv)
     double fContrast;
     double Y_offset, CbCr_offset, RGB_offset;
     int bright_off = 0;
-    psb_transform_coeffs coeffs, transfer_matrix;
+    psb_transform_coeffs coeffs = {0}, transfer_matrix = {0};
 
     /* Offsets in the input and output ranges are
      * included in the constant of the transform equation
@@ -521,16 +551,16 @@ psb_select_transfermatrix(struct psb_texture_s * pPriv,
     switch (pPriv->src_nominalrange) {
     case PSB_NominalRange_0_255:
 	/* Y has a range of [0, 255], U and V have a range of [0, 255] */
-	{
-	    double tmp = 0.0;
+    {
+        double tmp = 0.0;
 
-	    (void)tmp;
-	}			       /* workaroud for float point bug? */
-	Y_scale = 255.0;
-	*Y_offset = 0;
-	Cb_scale = Cr_scale = 255;
-	*CbCr_offset = 128;
-	break;
+        (void)tmp;
+    }			       /* workaroud for float point bug? */
+    Y_scale = 255.0;
+    *Y_offset = 0;
+    Cb_scale = Cr_scale = 255;
+    *CbCr_offset = 128;
+    break;
     case PSB_NominalRange_16_235:
     case PSB_NominalRange_Unknown:
 	/* Y has a range of [16, 235] and Cb, Cr have a range of [16, 240] */

@@ -1,33 +1,31 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
 
 #include "psb_drv_video.h"
 
-#include "lnc_H263ES.h"
+#include "lnc_hostcode.h"
 #include "hwdefs/topaz_defs.h"
 #include "psb_def.h"
 #include "psb_cmdbuf.h"
@@ -132,18 +130,22 @@ VAStatus lnc_CreateContext(
 
     width = obj_context->picture_width;
     height = obj_context->picture_height;
-    ctx = (context_ENC_p) malloc(sizeof(struct context_ENC_s));
+    ctx = (context_ENC_p) calloc(1, sizeof(struct context_ENC_s));
     if(NULL == ctx) {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
         return vaStatus;
     }
-    memset(ctx, 0, sizeof(struct context_ENC_s));
+
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
 
-    ctx->Width = (unsigned short) width;
-    ctx->Height = (unsigned short) height;
+    ctx->RawWidth = (unsigned short) width;
+    ctx->RawHeight = (unsigned short) height;
+
+    ctx->Width = (unsigned short)(~0xf & (width + 0xf));
+    ctx->Height = (unsigned short) (~0xf & (height + 0xf));
+
     ctx->HeightMinus16MinusLRBTopOffset = ctx->Height-(MVEA_LRB_TOP_OFFSET + 16);
     ctx->HeightMinus32MinusLRBTopOffset = ctx->Height-(MVEA_LRB_TOP_OFFSET + 32);
     ctx->HeightMinusLRB_TopAndBottom_OffsetsPlus16 = ctx->Height-(MVEA_LRB_TOP_OFFSET + MVEA_LRB_TOP_OFFSET + 16);
@@ -376,11 +378,11 @@ VAStatus lnc_RenderPictureParameter(context_ENC_p ctx)
     default:
         return VA_STATUS_ERROR_UNKNOWN;
     }
-    
+
 
     if (ctx->sRCParams.RCEnable) {
         /* for the first frame, will setup RC params in EndPicture */
-        if (ctx->obj_context->frame_count > 0) { /* reuse in_params parameter */
+	    if (ctx->obj_context->frame_count > 0) { /* reuse in_params parameter */
             /* reload IN_RC_PARAMS from cache */
             memcpy(&psPicParams->sInParams, &ctx->in_params_cache, sizeof(IN_RC_PARAMS));
 
@@ -454,7 +456,7 @@ static VAStatus lnc__PatchBitsConsumedInRCParam(context_ENC_p ctx)
     VAStatus vaStatus;
     
     /* it will wait until last encode session is done */
-    vaStatus = psb_buffer_map(ctx->pprevisous_coded_buf->psb_buffer, &pBuffer);
+    vaStatus = psb_buffer_map(ctx->pprevious_coded_buf->psb_buffer, &pBuffer);
     if (vaStatus) 
         return vaStatus;
 
@@ -462,7 +464,7 @@ static VAStatus lnc__PatchBitsConsumedInRCParam(context_ENC_p ctx)
     /*With firmware v108 or obove, BitsConsumed isn't required*/
     ctx->sRCParams.BitsConsumed = (*CodedData) << 3;
     
-    psb_buffer_unmap(ctx->pprevisous_coded_buf->psb_buffer);
+    psb_buffer_unmap(ctx->pprevious_coded_buf->psb_buffer);
     
     ctx->InBuffer += *CodedData;
     BitsPerFrame = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
@@ -525,7 +527,8 @@ static VAStatus lnc_RedoRenderPictureSkippedFrame(context_ENC_p ctx)
                                            pBuffer->slice_flags.bits.disable_deblocking_filter_idc,
                                            ctx->obj_context->frame_count,
                                            FirstMBAddress,
-                                           MBSkipRun); 
+                                           MBSkipRun,
+					   ctx->reinit_rc_control); 
 
             lnc_cmdbuf_insert_command(cmdbuf, MTX_CMDID_DO_HEADER, 2, (i<<2)|2);
             RELOC_CMDBUF(cmdbuf->cmd_idx++,
@@ -567,10 +570,11 @@ static VAStatus lnc_SetupRCParam(context_ENC_p ctx)
     
     psPicParams->Flags |= ISRC_FLAGS;
     lnc__setup_rcdata(ctx, psPicParams, &ctx->sRCParams);
+    psPicParams->sInParams.BitsTransmitted = 0;
     
     /* restore it, just keep same with DDK */
     ctx->sRCParams.InitialQp = origin_qp;
-    
+
     /* save IN_RC_PARAMS into the cache */
     memcpy(&ctx->in_params_cache, (void *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
 
@@ -582,16 +586,17 @@ static VAStatus lnc_PatchRCMode(context_ENC_p ctx)
     int frame_skip = 0;
 
     /* it will ensure previous encode finished */
-    lnc__PatchBitsConsumedInRCParam(ctx);
+    if (!ctx->reinit_rc_control)
+	    lnc__PatchBitsConsumedInRCParam(ctx);
 
     /* get frameskip flag */
-    lnc_surface_get_frameskip(ctx->obj_context->driver_data, ctx->src_surface->psb_surface, &frame_skip);
+    lnc_surface_get_frameskip(ctx->obj_context, ctx->src_surface->psb_surface, &frame_skip);
     /* current frame is skipped
      * redo RenderPicture with FrameSkip set
      */
     if (frame_skip == 1) 
         lnc_RedoRenderPictureSkippedFrame(ctx);
-    
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -601,17 +606,21 @@ VAStatus lnc_EndPicture(context_ENC_p ctx)
     lnc_cmdbuf_p cmdbuf = ctx->obj_context->lnc_cmdbuf;
 
     if (ctx->sRCParams.RCEnable == IMG_TRUE) {
-        if (ctx->obj_context->frame_count == 0)
-            lnc_SetupRCParam(ctx);
-        if (ctx->obj_context->frame_count > 1)
-            lnc_PatchRCMode(ctx);
+	    if ((ctx->obj_context->frame_count == 0) ||
+		ctx->reinit_rc_control)
+		    lnc_SetupRCParam(ctx);
+
+	    if ((ctx->obj_context->frame_count > 1) && !ctx->reinit_rc_control)
+		    lnc_PatchRCMode(ctx);
+
+	    ctx->reinit_rc_control = 0;
     }
 
     /* save current settings */
     ctx->previous_src_surface = ctx->src_surface;
     ctx->previous_ref_surface = ctx->ref_surface;
     ctx->previous_dest_surface = ctx->dest_surface; /* reconstructed surface */
-    ctx->pprevisous_coded_buf = ctx->previous_coded_buf;
+    ctx->pprevious_coded_buf = ctx->previous_coded_buf;
     ctx->previous_coded_buf = ctx->coded_buf;
     
     lnc_cmdbuf_insert_command(cmdbuf,MTX_CMDID_END_PIC,3,0);
@@ -759,7 +768,7 @@ void lnc__setup_rcdata(
 {
     IMG_INT32	FrameRate;
     double	L1, L2, L3,L4, L5, flBpp;
-    INT16	tmp_qp = 0; 
+    int	tmp_qp = 0; 
     IMG_INT32   max_bitrate = psContext->Width * psContext->Height * 1.5 * 8 *60;
    
     /* frameskip is always cleared, specially handled at vaEndPicture */
@@ -898,6 +907,44 @@ void lnc__setup_rcdata(
 
     case IMG_CODEC_MPEG4_CBR:
     case IMG_CODEC_MPEG4_VBR:
+        psPicParams->sInParams.MaxQPVal	 = 31;
+
+        if(psContext->Width == 176)
+        {
+            L1 = 0.1;	L2 = 0.3;	L3 = 0.6;
+        }
+        else if(psContext->Width == 352)
+        {	
+            L1 = 0.2;	L2 = 0.6;	L3 = 1.2;
+        }
+        else
+        {
+            L1 = 0.25;	L2 = 1.4;	L3 = 2.4;
+        }
+
+        /* Calculate Initial QP if it has not been specified */
+        if(psPicParams->sInParams.SeInitQP==0)
+        {
+            if(flBpp <= L1)
+                psPicParams->sInParams.SeInitQP = 31;
+            else
+            {
+                if(flBpp <= L2)
+                    psPicParams->sInParams.SeInitQP = 25;
+                else
+                    psPicParams->sInParams.SeInitQP = (flBpp <= L3) ? 20 : 10;
+            }
+        }
+        if(flBpp >= 0.25)
+        {
+            psPicParams->sInParams.MinQPVal = 1;
+        }
+        else
+        {
+            psPicParams->sInParams.MinQPVal = 2;
+        }
+	break;
+
     case IMG_CODEC_H263_CBR: 
     case IMG_CODEC_H263_VBR:
         psPicParams->sInParams.MaxQPVal	 = 31;
@@ -929,14 +976,7 @@ void lnc__setup_rcdata(
             }
         }
 
-        if(flBpp >= 0.25)
-        {
-            psPicParams->sInParams.MinQPVal = 1;
-        }
-        else
-        {
-            psPicParams->sInParams.MinQPVal = 2;
-        }
+	psPicParams->sInParams.MinQPVal = 2;
         break;
 
     default:

@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -1839,87 +1837,117 @@ static void H263_writebits_VideoPictureHeader(
     /* source_format				= 3	Bits	= 1-4	See note */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, SourceFormatType, 3);
 #endif
-    
-	if (SourceFormatType != 7)
+    /*Write optional Custom Picture Clock Frequency(OCPCF)*/
+    if (FrameRate == 30 || FrameRate == 0/* unspecified */)
+    {
+	OCPCF = 0; // 0 for CIF PCF
+    }
+    else
+    {
+	OCPCF = 1; //1 for Custom PCF
+    }
+
+    if (SourceFormatType != 7)
+    {
+	// picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
+	pnw__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 1);
+	// four_reserved_zero_bits	= 4 Bits	= 0
+	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 4);
+    }
+    else
+    {
+	static unsigned char  RTYPE = 0;
+
+	// if I- Frame set Update Full Extended PTYPE to true
+	if ((PictureCodingType == I_FRAME) || (SourceFormatType == 7) || OCPCF )
 	{
-		// picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
-		pnw__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 1);
-		// four_reserved_zero_bits	= 4 Bits	= 0
-		pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 4);
+	    UFEP = 1;
 	}
 	else
 	{
-		if (PictureCodingType == I_FRAME)
-		{
-			UFEP = 1;
-		}
-		else
-		{
-			UFEP = 0;
-		}
-		pnw__write_upto8bits_elements(mtx_hdr, elt_p, UFEP, 3);
-		if (UFEP == 1)
-		{
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, 6, 3);
-			// souce_format_optional
-			if (FrameRate == 30 || FrameRate == 0 /* unspecified */)
-			{
-				OCPCF  = 0;
-			}
-			else
-			{
-				OCPCF = 1;
-			}
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, OCPCF , 1);
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 10);
-				// 10 reserve bits
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, 8, 4);
-				// 4 reserve bits
-		}
-			// picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
-		pnw__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 3 );
-
-		pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0x02 , 2+1+2+1+1);
-	       // two_reserve_bits,      rounding_type,       two_reserve_bits       marker_bit       CPM
-		if (UFEP == 1)
-		{
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
-				// aspect ratio
-			PictureWidth--;
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth >> 8), 1);
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth & 0xFF), 8);
-
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-			// marker_bit				= 1 Bit		= 1
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight >> 8), 1);
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight & 0xFF), 8);
-// good up to that point
-		//	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-			// marker_bit				= 1 Bit		= 1
-				// just checking
-
-			if (OCPCF == 1)
-			{
-				IMG_UINT8 CPCFC;
-				CPCFC = (IMG_UINT8)(1800/(IMG_UINT16)FrameRate);
-						// you can use the table for division
-				CPCFC <<= 1; // for Clock Conversion Code
-				pnw__write_upto8bits_elements(mtx_hdr, elt_p, CPCFC, 8);
-			}
-		}
-		if (OCPCF == 1)
-		{
-			pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
-				// Two MSBs of temporal_reference
-		}
+	    UFEP = 0;
 	}
+	pnw__write_upto8bits_elements(mtx_hdr, elt_p, UFEP, 3);
+	if (UFEP == 1)
+	{
+	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 6, 3);
+	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, OCPCF , 1);
+	    pnw__write_upto32bits_elements(mtx_hdr, elt_p, 0, 10);
+	    // 10 reserve bits
+	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 8, 4);
+	    // 4 reserve bits
+	}
+	// picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
+	pnw__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 3 );
+
+	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
+	// two_reserve_bits,      rounding_type,       two_reserve_bits       marker_bit       CPM
+        // Rounding Type (RTYPE) (1 for P Picture, 0 for all other Picture frames.
+	pnw__write_upto8bits_elements(mtx_hdr, elt_p, RTYPE, 1);
+        //2 reserve bits
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
+        //   - 1 (ON) to prevent start code emulation.
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1 , 1);
+        // CPM immediately follows the PPTYPE part of the header.
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0 ,1);
+
+
+	if (UFEP == 1)
+	{
+	    IMG_UINT16 ui16PWI,ui16PHI;
+	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
+	    // aspect ratio
+	    //PictureWidth--;
+	    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth >> 8), 1);
+	    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth & 0xFF), 8);
+	    //Width = (PWI-1)*4, Height = PHI*4, see H263 spec 5.1.5
+	    ui16PWI = (PictureWidth >> 2) - 1;
+	    pnw__write_upto32bits_elements(mtx_hdr, elt_p,(IMG_UINT8)ui16PWI, 9);
+
+	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+	    // marker_bit				= 1 Bit		= 1
+	    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight >> 8), 1);
+	    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight & 0xFF), 8);
+
+	    ui16PHI = PictureHeight >> 2;
+	    pnw__write_upto32bits_elements(mtx_hdr, elt_p,(IMG_UINT8)ui16PHI, 9);
+	    // good up to that point
+	    //	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+	    // marker_bit				= 1 Bit		= 1
+	    // just checking
+	    if (OCPCF == 1)
+	    {
+		//IMG_UINT8 CPCFC;
+		//CPCFC = (IMG_UINT8)(1800/(IMG_UINT16)FrameRate);
+		/* you can use the table for division */
+		//CPCFC <<= 1; /* for Clock Conversion Code */
+		pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+		// Clock Divisor : 7 bits The natural binary representation of the value of the clock divisor.
+		pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1800000/(FrameRate*1000), 7);				
+	    }
+	}
+	if (OCPCF == 1)
+	{
+	    IMG_UINT8 ui8ETR; // extended Temporal reference 
+	    // Two MSBs of 10 bit temporal_reference : value 0
+	    ui8ETR = Temporal_Ref >> 8;
+
+	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, ui8ETR, 2);
+	    /* Two MSBs of temporal_reference */
+	}
+    }
     // vop_quant				= 5 Bits	= x	5-bit frame Q_scale from rate control - GENERATED BY MTX
 	//pnw__write_upto8bits_elements(mtx_hdr, elt_p, ui8Q_Scale, 5);
 	pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_FRAMEQSCALE); // Insert token to tell MTX to insert rate-control value (QScale is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, FrameQScale))
 	pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
 	// zero_bit					= 1 Bit		= 0
 	// pei						= 1 Bit		= 0	No direct effect on encoding of picture
-	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
+	if (SourceFormatType != 7)
+	{
+	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+	}
+
+	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 	// FOLLOWING SECTION CAN'T BE GENERATED HERE
     //gob_data( )
     //for(i=1; i<num_gob_in_picture; i++) {

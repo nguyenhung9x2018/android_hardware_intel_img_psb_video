@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -179,6 +177,10 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->num_elements == 1);
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH264));
 
+    ctx->reinit_rc_control = 1;
+    /* a new sequence and IDR need reset frame_count */
+    ctx->obj_context->frame_count = 0;
+
     if ((obj_buffer->num_elements != 1) ||
         (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH264) ) )
     {
@@ -224,16 +226,17 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     sCrop.TopCropOffset = 0;
     sCrop.BottomCropOffset = 0;
 
-    if (ctx->Height & 0xf)
+    if (ctx->RawHeight & 0xf)
+    {
+	sCrop.bClip = IMG_TRUE;
+	sCrop.BottomCropOffset = (((ctx->RawHeight + 0xf) & (~0xf)) - ctx->RawHeight)/2;
+    }
+    if (ctx->RawWidth & 0xf)
     {
         sCrop.bClip = IMG_TRUE;
-        sCrop.BottomCropOffset = (((ctx->Height + 0xf) & (~0xf)) - ctx->Height)/2;
+        sCrop.RightCropOffset = (((ctx->RawWidth + 0xf) & (~0xf)) - ctx->RawWidth)/2;
     }
-    if (ctx->Width & 0xf)
-    {
-        sCrop.bClip = IMG_TRUE;
-        sCrop.RightCropOffset = (((ctx->Width + 0xf) & (~0xf)) - ctx->Width)/2;
-    }
+
     /* sequence header is always inserted */
     if (ctx->eCodec== IMG_CODEC_H264_NO_RC)
 	    VUI_Params.CBR = 0;
@@ -278,7 +281,7 @@ static VAStatus lnc__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     ASSERT(ctx->Height == pBuffer->picture_height);
 
     /* For H264, PicHeader only needed in the first picture*/
-    if( !(ctx->obj_context->frame_count) ) {
+    if( !(ctx->obj_context->frame_count) || (ctx->reinit_rc_control)) {
         cmdbuf = ctx->obj_context->lnc_cmdbuf;
     
         lnc_cmdbuf_insert_command(cmdbuf, MTX_CMDID_DO_HEADER, 2,1);/* picture header */
@@ -351,7 +354,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
 				       pBuffer->slice_flags.bits.disable_deblocking_filter_idc,
                                        ctx->obj_context->frame_count,
                                        FirstMBAddress,
-                                       MBSkipRun); 
+                                       MBSkipRun, ctx->reinit_rc_control); 
 
         lnc_cmdbuf_insert_command(cmdbuf, MTX_CMDID_DO_HEADER, 2, (ctx->obj_context->slice_count<<2)|2);
         RELOC_CMDBUF(cmdbuf->cmd_idx++,
@@ -359,7 +362,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
                      &cmdbuf->header_mem);
 
         if (!(ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip)) {
-            if( (ctx->obj_context->frame_count == 0) &&  (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
+		if( ((ctx->obj_context->frame_count == 0) || ctx->reinit_rc_control) &&  (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
                 lnc_reset_encoder_params(ctx);
 
 	    if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[(pBuffer->slice_flags.bits.is_intra ? 0:1)], pBuffer) == 0) {

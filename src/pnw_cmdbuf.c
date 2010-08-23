@@ -1,26 +1,23 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 
 
@@ -81,7 +78,7 @@ VAStatus pnw_cmdbuf_create(
     cmdbuf->reloc_idx = NULL;
     cmdbuf->buffer_refs_count = 0;
     cmdbuf->buffer_refs_allocated = 10;
-    cmdbuf->buffer_refs = (psb_buffer_p *) malloc(sizeof(psb_buffer_p) * cmdbuf->buffer_refs_allocated);
+    cmdbuf->buffer_refs = (psb_buffer_p *) calloc(1, sizeof(psb_buffer_p) * cmdbuf->buffer_refs_allocated);
     if (NULL == cmdbuf->buffer_refs)
     {
         cmdbuf->buffer_refs_allocated = 0;
@@ -253,7 +250,7 @@ int pnw_cmdbuf_buffer_ref( pnw_cmdbuf_p cmdbuf, psb_buffer_p buf )
             /* Allocate more entries */
             int new_size = cmdbuf->buffer_refs_allocated+10;
             psb_buffer_p *new_array;
-            new_array = (psb_buffer_p *) malloc(sizeof(psb_buffer_p) * new_size);
+            new_array = (psb_buffer_p *) calloc(1, sizeof(psb_buffer_p) * new_size);
             if (NULL == new_array)
             {
                 return -1; /* Allocation failure */
@@ -435,7 +432,7 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     int ret;
     uint64_t mask = PSB_GPU_ACCESS_MASK;
 
-    arg_list = (struct psb_validate_arg *) malloc(sizeof(struct psb_validate_arg)*buffer_count);
+    arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg)*buffer_count);
     if (arg_list == NULL) {
         psb__error_message("Allocate memory failed\n");
         return -ENOMEM;
@@ -573,6 +570,8 @@ int pnw_context_submit_cmdbuf( object_context_p obj_context )
     return 0;
 }
 
+
+
 /*
  * FrameSkip is only meaningful for RC enabled mode
  * Topaz raises this flag after surface N encoding is finished (vaSyncSurface gets back)
@@ -581,34 +580,23 @@ int pnw_context_submit_cmdbuf( object_context_p obj_context )
  * vaQuerySurfaceStatus is supposed only to be called after vaEndPicture/vaSyncSurface,
  * The caller should ensure the surface pertains to an encode context
  */
-int pnw_surface_get_frameskip(psb_driver_data_p driver_data, psb_surface_p surface, int *frame_skip)
+int pnw_surface_get_frameskip( object_context_p obj_context, psb_surface_p surface, int *frame_skip)
 {
-    struct drm_lnc_video_getparam_arg arg;
-    unsigned long temp;
-    int ret = 0;
+    context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
+
+    if (ctx->sRCParams.RCEnable == 0)
+	return 0;
 
     /* bit31 indicate if frameskip is already settled, it is used to record the frame skip flag for old surfaces
-     * because current FRAMESKIP in hardware can't be applied to the old surfaces
      * bit31 is cleared when the surface is used as encode render target or reference/reconstrucure target
      */
     if (GET_SURFACE_INFO_skipped_flag(surface) & SURFACE_INFO_SKIP_FLAG_SETTLED) {
         *frame_skip = GET_SURFACE_INFO_skipped_flag(surface) & 1;
-        return 0;
     }
+    else
+	*frame_skip = 0;
 
-    /* not settled, we get it from current HW FRAMESKIP flag */ 
-    arg.key = LNC_VIDEO_FRAME_SKIP;
-    arg.value = (uint64_t)((unsigned long) &temp);
-    ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset, /* FIXME Still use ioctl cmd? */
-                              &arg, sizeof(arg));
-    if (ret==0) {
-        SET_SURFACE_INFO_skipped_flag(surface, temp);
-        *frame_skip = temp;
-        if (temp == 1)
-            psb__information_message("Detected a skipped frame for encode\n");
-    }
-    
-    return ret;
+    return 0;
 }
 
 
@@ -690,3 +678,11 @@ int pnw_context_flush_cmdbuf( object_context_p obj_context )
     return 0;
 }
 
+
+int pnw_get_parallel_core_number(object_context_p obj_context)
+{
+
+    context_ENC_p ctx = (context_ENC_p) (obj_context->format_data);
+    return ctx->ParallelCores; 
+
+}

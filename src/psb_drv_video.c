@@ -1,32 +1,27 @@
 /*
- * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission. 
  * 
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
- * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
  */
 #include <va/va_backend.h>
 #include <va/va_backend_tpi.h>
-#ifndef ANDROID
-#include <va/va_dri.h>
-#include <va/va_dri2.h>
-#endif
+
 #include <va/va_dricommon.h>
 
 #include "psb_drv_video.h"
@@ -50,16 +45,6 @@
 #include "pnw_jpeg.h"
 #include "psb_output.h"
 #include "lnc_ospm_event.h"
-#ifndef ANDROID 
-#include <X11/Xutil.h>
-#include <X11/Xlibint.h>
-#include <X11/extensions/Xv.h>
-#include <X11/extensions/Xvlib.h>
-#include <X11/X.h>
-#include <X11/Xlib.h>
-#else
-#include "android/psb_android_glue.h"
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -70,8 +55,11 @@
 #include <wsbm/wsbm_util.h>
 #include <wsbm/wsbm_fencemgr.h>
 #include <linux/videodev2.h>
+#include <sys/mman.h>
 
-#include "psb_dri.h"
+#ifdef ANDROID
+#include <cutils/log.h>
+#endif
 
 #include "psb_def.h"
 #include "psb_ws_driver.h"
@@ -82,8 +70,7 @@
 #endif
 
 #define PSB_DRV_VERSION  PSB_PACKAGE_VERSION
-#define PSB_CHG_REVISION "(0X00000023)"
-
+#define PSB_CHG_REVISION "(0X00000031)"
 
 #define PSB_STR_VENDOR	"Intel GMA500-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 
@@ -98,7 +85,7 @@
 #define EXPORT __attribute__ ((visibility("default")))
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
-#define INIT_FORMAT_VTABLE format_vtable_p format_vtable = (((profile >= 0) && (profile < PSB_MAX_PROFILES)) && (entrypoint >=0 && (entrypoint < PSB_MAX_ENTRYPOINTS))) ? driver_data->profile2Format[profile][entrypoint] : NULL;
+#define INIT_FORMAT_VTABLE format_vtable_p format_vtable = ((profile < PSB_MAX_PROFILES) && (entrypoint < PSB_MAX_ENTRYPOINTS)) ? driver_data->profile2Format[profile][entrypoint] : NULL;
 
 #define CONFIG(id)  ((object_config_p) object_heap_lookup( &driver_data->config_heap, id ))
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
@@ -114,31 +101,97 @@
 
 static int psb_get_device_info( VADriverContextP ctx );
 
+int psb_parse_config(char *env_from_file, char *env_value)
+{
+    char *token, *value, *saveptr;
+    char oneline[1024];
+    FILE *fp=NULL;
+
+
+    if (env_from_file == NULL)
+        return 1;
+    
+    fp = fopen("/etc/psbvideo.conf", "r");
+    if (fp == NULL)
+        return 1;
+    
+    while (fgets(oneline, 1024, fp) != NULL) {
+	if (strlen(oneline) == 1)
+	    continue;
+        token = strtok_r(oneline, "=\n", &saveptr);
+	value = strtok_r(NULL, "=\n", &saveptr);
+
+        if (strcmp(token, env_from_file) == 0) {
+            if (env_value)
+                strcpy(env_value,value);
+
+            fclose(fp);
+
+            return 0;
+        }
+    }
+
+    fclose(fp);
+    
+    return 1;
+}
+
+static FILE *psb_video_debug_fp = NULL;
+
+static void psb__open_log(void)
+{
+    char log_fn[1024];
+    
+    if (psb_parse_config("PSB_VIDEO_DEBUG", &log_fn[0]) == 0) {
+        unsigned int suffix=0xffff & ((unsigned int)time(NULL));
+
+        sprintf(log_fn+strlen(log_fn), ".%d", suffix);
+        psb_video_debug_fp = fopen(log_fn, "w");
+    }
+    
+    if (getenv("PSB_VIDEO_DEBUG") != NULL)
+        psb_video_debug_fp = stderr;
+}
+
+static void psb__close_log(void)
+{
+    if ((psb_video_debug_fp != NULL) && (psb_video_debug_fp != stderr))
+        fclose(psb_video_debug_fp);
+}
+
 void psb__error_message(const char *msg, ...)
 {
     va_list args;
+    FILE *fp;
 
-    fprintf(stderr, "psb_drv_video error: ");
+    if (psb_video_debug_fp == NULL) /* not set the debug */
+        fp = stderr;
+    else
+        fp = psb_video_debug_fp;
+    
+    fprintf(fp, "[0x%08lx]psb_drv_video error(%d:0x%08lx) ",
+            GetTickCount(), getpid(), pthread_self());
     va_start(args, msg);
-    vfprintf(stderr, msg, args);
+    vfprintf(fp, msg, args);
     va_end(args);
+
+    fflush(fp);
+    fsync(fileno(fp));
 }
 
 void psb__information_message(const char *msg, ...)
 {
-    static int psb_video_debug = -1;
-    if (psb_video_debug == -1)
-    {
-        psb_video_debug = (getenv("PSB_VIDEO_DEBUG") != NULL);
-    }
-    if (psb_video_debug)
+    if (psb_video_debug_fp)
     {
         va_list args;
 
-        fprintf(stderr, "psb_drv_video: ");
+        fprintf(psb_video_debug_fp, "[0x%08lx]psb_drv_video(%d:0x%08lx) ",
+                GetTickCount(),getpid(), pthread_self());
         va_start(args, msg);
-        vfprintf(stderr, msg, args);
+        vfprintf(psb_video_debug_fp, msg, args);
         va_end(args);
+        fflush(psb_video_debug_fp);
+        fsync(fileno(psb_video_debug_fp));
     }
 }
 
@@ -151,7 +204,14 @@ void psb__trace_message(const char *msg, ...)
     
     if (!trace_file)
     {
-        trace_file = getenv("PSB_VIDEO_TRACE");
+        char trace_fn[1024];
+        
+        if (psb_parse_config("PSB_VIDEO_TRACE", &trace_fn[0]) == 0)
+            trace_file = trace_fn;
+
+        if (getenv("PSB_VIDEO_TRACE"))
+            trace_file = getenv("PSB_VIDEO_TRACE");
+        
         if (trace_file)
         {
             trace = fopen(trace_file, "w");
@@ -244,7 +304,7 @@ VAStatus psb_QueryConfigEntrypoints(
 {
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    format_vtable_p * format_vtable = ((profile >= 0) && (profile < PSB_MAX_PROFILES)) ? driver_data->profile2Format[profile] : NULL;
+    format_vtable_p * format_vtable = ((profile < PSB_MAX_PROFILES)) ? driver_data->profile2Format[profile] : NULL;
     int entrypoints = 0;
 
     if(NULL == entrypoint_list)
@@ -290,7 +350,7 @@ VAStatus psb_QueryConfigEntrypoints(
  */
 static VAStatus psb__error_unsupported_profile_entrypoint( psb_driver_data_p driver_data, VAProfile profile, VAEntrypoint entrypoint)
 {
-    format_vtable_p * format_vtable = ((profile >= 0) && (profile < PSB_MAX_PROFILES)) ? driver_data->profile2Format[profile] : NULL;
+    format_vtable_p * format_vtable = ((profile < PSB_MAX_PROFILES)) ? driver_data->profile2Format[profile] : NULL;
 
     /* Does the driver support _any_ entrypoint for this profile? */
     if (format_vtable)
@@ -442,6 +502,7 @@ VAStatus psb_CreateConfig(
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         return vaStatus;
     }
+    MEMSET_OBJECT(obj_config, struct object_config_s);
 
     obj_config->profile = profile;
     obj_config->format_vtable = format_vtable;
@@ -569,8 +630,13 @@ static void psb__destroy_surface(psb_driver_data_p driver_data, object_surface_p
     {
         /* delete subpicture association */
         psb_SurfaceDeassociateSubpict(driver_data,obj_surface);
-        
+
         psb_surface_destroy(obj_surface->psb_surface);
+
+        if(obj_surface->psb_surface_rotate) {
+            psb_surface_destroy(obj_surface->psb_surface_rotate);
+        }
+        
         free(obj_surface->psb_surface);
         object_heap_free( &driver_data->surface_heap, (object_base_p) obj_surface);
     }
@@ -583,7 +649,7 @@ VAStatus psb__checkSurfaceDimensions(psb_driver_data_p driver_data, int width, i
     {
         return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
     }
-    if ((width <= 0) || (width > 4096) || (height <= 0) || (height > 4096))
+    if ((width <= 0) || (width > 5120) || (height <= 0) || (height > 5120))
     {
         return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
     }
@@ -598,71 +664,6 @@ VAStatus psb__checkSurfaceDimensions(psb_driver_data_p driver_data, int width, i
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus psb_register_video_bcd(
-        VADriverContextP ctx, 
-        int width, 
-        int height, 
-        int stride, 
-        int num_surfaces, 
-        VASurfaceID *surface_list
-    )
-{
-    INIT_DRIVER_DATA
-    int i;
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-
-    BC_Video_ioctl_package ioctl_package;
-    bc_buf_params_t buf_param;
-
-    buf_param.count = num_surfaces;
-    buf_param.width = width;
-    buf_param.stride = stride;
-    buf_param.height = height;
-    buf_param.fourcc = BC_PIX_FMT_NV12;
-    buf_param.type = BC_MEMORY_USERPTR;
-        
-    ioctl_package.ioctl_cmd = BC_Video_ioctl_request_buffers;
-    ioctl_package.inputparam = (int)(&buf_param);
-    if(drmCommandWriteRead(driver_data->drm_fd, DRM_BUFFER_CLASS_VIDEO, &ioctl_package, sizeof(ioctl_package)) != 0)
-    {
-        LOGE("Failed to request buffers from buffer class video driver (errno=%d).\n", errno);
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    ioctl_package.ioctl_cmd = BC_Video_ioctl_get_buffer_count;
-    if(drmCommandWriteRead(driver_data->drm_fd, DRM_BUFFER_CLASS_VIDEO, &ioctl_package, sizeof(ioctl_package)) != 0)
-    {
-        LOGE("Failed to get buffer count from buffer class video driver (errno=%d).\n", errno);
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    if (ioctl_package.outputparam != num_surfaces) {
-        LOGE("buffer count is not correct (errno=%d).\n", errno);
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    bc_buf_ptr_t buf_pa;
-
-    for (i = 0; i < num_surfaces; i++)
-    {
-        psb_surface_p psb_surface;
-        object_surface_p obj_surface = SURFACE(surface_list[i]);
-        psb_surface = obj_surface->psb_surface;
-        /*get ttm buffer handle*/
-        buf_pa.handle = wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf));
-        buf_pa.index = i;
-        ioctl_package.ioctl_cmd = BC_Video_ioctl_set_buffer_phyaddr;
-        ioctl_package.inputparam = (int) (&buf_pa);
-        /*bind bcd buffer index with ttm buffer handle and set buffer phyaddr in kernel driver*/
-        if(drmCommandWriteRead(driver_data->drm_fd, DRM_BUFFER_CLASS_VIDEO, &ioctl_package, sizeof(ioctl_package)) != 0)
-        {
-            LOGE("Failed to set buffer phyaddr from buffer class video driver (errno=%d).\n", errno);
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
-    }
-    return vaStatus;
-}
-
 
 VAStatus psb_CreateSurfaces(
         VADriverContextP ctx,
@@ -671,12 +672,11 @@ VAStatus psb_CreateSurfaces(
         int format,
         int num_surfaces,
         VASurfaceID *surface_list        /* out */
-    )
+)
 {
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    int i;
-    unsigned int stride = 0;
+    int i, height_origin;
 
     if (num_surfaces <= 0)
     {
@@ -707,6 +707,7 @@ VAStatus psb_CreateSurfaces(
     }
 
     /* Adjust height to be a multiple of 32 (height of macroblock in interlaced mode) */
+    height_origin = height;
     height = (height + 0x1f) & ~0x1f;
 
     for (i = 0; i < num_surfaces; i++)
@@ -723,17 +724,17 @@ VAStatus psb_CreateSurfaces(
             DEBUG_FAILURE;
             break;
         }
+        MEMSET_OBJECT(obj_surface, struct object_surface_s);
         
         obj_surface->surface_id = surfaceID;
         surface_list[i] = surfaceID;
         obj_surface->context_id = -1;
         obj_surface->width = width;
         obj_surface->height = height;
-        obj_surface->subpictures = NULL;
-        obj_surface->subpic_count = 0; 
-        obj_surface->derived_imgcnt = 0;
+        obj_surface->width_r = width;
+        obj_surface->height_r = height;
 
-        psb_surface = (psb_surface_p) malloc(sizeof(struct psb_surface_s));
+        psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
         if (NULL == psb_surface)
         {
             object_heap_free( &driver_data->surface_heap, (object_base_p) obj_surface);
@@ -744,7 +745,6 @@ VAStatus psb_CreateSurfaces(
             DEBUG_FAILURE;
             break;
         }
-        memset(psb_surface, 0, sizeof(struct psb_surface_s));
         
         vaStatus = psb_surface_create( driver_data, width, height, VA_FOURCC_NV12, 
                                        (VA_RT_FORMAT_PROTECTED & format), psb_surface
@@ -759,14 +759,58 @@ VAStatus psb_CreateSurfaces(
             DEBUG_FAILURE;
             break;
         }
-
-        stride = psb_surface->stride;
         
 	/* by default, surface fourcc is NV12 */
         memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
         psb_surface->extra_info[4] = VA_FOURCC_NV12;
 
         obj_surface->psb_surface = psb_surface;
+
+        /* Allocate alternative output surface */ 
+        if(driver_data->rotate != VA_ROTATION_NONE)
+        {
+            psb__information_message("Try to allocate surface for alternative rotate output\n");
+            psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
+            if (NULL == psb_surface)
+            {
+                object_heap_free( &driver_data->surface_heap, (object_base_p) obj_surface);
+                obj_surface->surface_id = VA_INVALID_SURFACE;
+                psb_surface_destroy(obj_surface->psb_surface);
+
+                vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+                DEBUG_FAILURE;
+                break;
+            }
+        
+            if(driver_data->rotate == VA_ROTATION_180)
+                vaStatus = psb_surface_create( driver_data, width, height, VA_FOURCC_NV12, 
+                                               (VA_RT_FORMAT_PROTECTED & format), psb_surface);
+            else
+            {
+                vaStatus = psb_surface_create( driver_data, height_origin, ((width + 0x1f) & ~0x1f), VA_FOURCC_NV12, 
+                                               (VA_RT_FORMAT_PROTECTED & format), psb_surface
+                                               );
+                obj_surface->width_r = height_origin;
+                obj_surface->height_r = ((width + 0x1f) & ~0x1f);
+            }
+            if ( VA_STATUS_SUCCESS != vaStatus )
+            {
+                free(psb_surface);
+                object_heap_free( &driver_data->surface_heap, (object_base_p) obj_surface);
+                obj_surface->surface_id = VA_INVALID_SURFACE;
+                psb_surface_destroy(obj_surface->psb_surface);
+    
+                DEBUG_FAILURE;
+                break;
+            }
+	    /* by default, surface fourcc is NV12 */
+            memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
+            psb_surface->extra_info[4] = VA_FOURCC_NV12;
+            psb_surface->extra_info[5] = driver_data->rotate;
+    
+            obj_surface->psb_surface_rotate = psb_surface;
+        }
     }
 
     /* Error recovery */
@@ -780,10 +824,6 @@ VAStatus psb_CreateSurfaces(
             surface_list[i] = VA_INVALID_SURFACE;
         }
     }
-
-#if ANDROID_VIDEO_TEXTURE_STREAM
-    vaStatus = psb_register_video_bcd(ctx, width, height, stride, num_surfaces, surface_list);
-#endif    
 
     return vaStatus;
 }
@@ -851,16 +891,15 @@ VAStatus psb_CreateSurfaceFromCIFrame(
         return vaStatus;
     }
         
+    MEMSET_OBJECT(obj_surface, struct object_surface_s);
+
     obj_surface->surface_id = surfaceID;
     *surface = surfaceID;
     obj_surface->context_id = -1;
     obj_surface->width = frame_info.width;
     obj_surface->height = frame_info.height;
-    obj_surface->subpictures = NULL;
-    obj_surface->subpic_count = 0; 
-    obj_surface->derived_imgcnt = 0;
 
-    psb_surface = (psb_surface_p) malloc(sizeof(struct psb_surface_s));
+    psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
     if (NULL == psb_surface)
     {
         object_heap_free( &driver_data->surface_heap, (object_base_p) obj_surface);
@@ -915,7 +954,6 @@ VAStatus psb_DestroySurfaces(
     )
 {
     INIT_DRIVER_DATA
-    psb_output_p output = GET_OUTPUT_DATA(ctx);
     int i;
 
     if (num_surfaces <= 0)
@@ -928,8 +966,16 @@ VAStatus psb_DestroySurfaces(
         return VA_STATUS_ERROR_INVALID_SURFACE;
     }
 
+    if (driver_data->output_method == PSB_PUTSURFACE_TEXSTREAMING || 
+	driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING) {
+#ifdef ANDROID        
+        LOGD("In psb_DestroySurfaces, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
+        psb_android_texture_streaming_destroy();
+#endif        
+    }
+
     /* Make validation happy */
-    for(i = num_surfaces; i--; )
+    for (i = 0; i < num_surfaces; i++)
     {
         object_surface_p obj_surface = SURFACE(surface_list[i]);
         if (obj_surface == NULL)
@@ -942,9 +988,14 @@ VAStatus psb_DestroySurfaces(
         }
     }
 
-    for(i = num_surfaces; i--; )
+    for (i = 0; i < num_surfaces; i++)
     {
         object_surface_p obj_surface = SURFACE(surface_list[i]);
+
+        if (driver_data->cur_displaying_surface == surface_list[i]) {
+            /* Surface is being displaying. Need to stop overlay here */
+        }
+        
         psb__destroy_surface(driver_data, obj_surface);
         surface_list[i] = VA_INVALID_SURFACE;
     }
@@ -965,10 +1016,10 @@ VAStatus psb_CreateContext(
 {
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    psb_output_p output = GET_OUTPUT_DATA(ctx);
     object_config_p obj_config;
     int cmdbuf_num, encode=0;
     int i, ret;
+    unsigned int buffer_stride;
 
     if (num_render_targets <= 0)
     {
@@ -1015,16 +1066,20 @@ VAStatus psb_CreateContext(
     }
 
     *context = contextID;
+
+    MEMSET_OBJECT(obj_context, struct object_context_s);
+
     obj_context->driver_data = driver_data;
     obj_context->current_render_target = NULL;
-    obj_context->is_oold = output->is_oold;
+    obj_context->is_oold = driver_data->is_oold;
+    obj_context->rotate = driver_data->rotate;
 
     obj_context->context_id = contextID;
     obj_context->config_id = config_id;
     obj_context->picture_width = picture_width;
     obj_context->picture_height = picture_height;
     obj_context->num_render_targets = num_render_targets;
-    obj_context->render_targets = (VASurfaceID *) malloc(num_render_targets * sizeof(VASurfaceID));
+    obj_context->render_targets = (VASurfaceID *) calloc(1, num_render_targets * sizeof(VASurfaceID));
     if (obj_context->render_targets == NULL)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -1037,7 +1092,7 @@ VAStatus psb_CreateContext(
 
     /* allocate buffer points for vaRenderPicture */
     obj_context->num_buffers = 10;
-    obj_context->buffer_list = (object_buffer_p *) malloc(sizeof(object_buffer_p) * obj_context->num_buffers);
+    obj_context->buffer_list = (object_buffer_p *) calloc(1, sizeof(object_buffer_p) * obj_context->num_buffers);
     if (obj_context->buffer_list == NULL) {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
@@ -1077,7 +1132,7 @@ VAStatus psb_CreateContext(
         /* Clear format specific surface info */
         obj_context->render_targets[i] = render_targets[i];
         obj_surface->context_id = contextID; /* Claim ownership of surface */
-
+        buffer_stride = psb_surface->stride;
 #if 0
         /* for decode, move the surface into |TT */
         if ((encode == 0) && /* decode */
@@ -1086,6 +1141,7 @@ VAStatus psb_CreateContext(
                                  WSBM_PL_FLAG_TT | WSBM_PL_FLAG_SHARED, DRM_PSB_FLAG_MEM_MMU);
 #endif
     }
+
     obj_context->va_flags = flag;
     obj_context->format_vtable = obj_config->format_vtable;
     obj_context->format_data = NULL;
@@ -1132,12 +1188,12 @@ VAStatus psb_CreateContext(
             
         if (encode)  /* Topaz encode context */{
 	    if (IS_MFLD(obj_context->driver_data))
-		cmdbuf = malloc(sizeof(struct pnw_cmdbuf_s)); 
+		cmdbuf = calloc(1, sizeof(struct pnw_cmdbuf_s)); 
 	    else
-		cmdbuf = malloc(sizeof(struct lnc_cmdbuf_s));
+		cmdbuf = calloc(1, sizeof(struct lnc_cmdbuf_s));
 	}
         else  /* MSVDX decode context */
-            cmdbuf =  malloc(sizeof(struct psb_cmdbuf_s));
+            cmdbuf =  calloc(1, sizeof(struct psb_cmdbuf_s));
             
         if (NULL == cmdbuf)
         {
@@ -1173,6 +1229,7 @@ VAStatus psb_CreateContext(
     obj_context->cmdbuf_current = -1;
     obj_context->cmdbuf = NULL;
     obj_context->lnc_cmdbuf = NULL;
+    obj_context->pnw_cmdbuf = NULL;
     obj_context->frame_count = 0;
     obj_context->slice_count = 0;
     obj_context->msvdx_context = driver_data->msvdx_context_base | (contextID & 0xffff);
@@ -1235,6 +1292,16 @@ VAStatus psb_CreateContext(
                 psb__information_message("lnc_ospm_event_send start ok\n");
         }
     }
+
+#ifdef ANDROID
+    if ((obj_config->entrypoint != VAEntrypointEncSlice) && (obj_config->entrypoint != VAEntrypointEncPicture)) {
+        int buffer_width, buffer_height;
+        buffer_width = picture_width;
+        buffer_height = (picture_height + 0x1f) & ~0x1f;
+        vaStatus = psb_register_video_bcd(ctx, buffer_width, buffer_height, buffer_stride, num_render_targets, render_targets);
+    }
+#endif  
+
     return vaStatus;
 }
 
@@ -1293,13 +1360,12 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
         }
         else
         {
-            obj_buffer->psb_buffer = (psb_buffer_p) malloc(sizeof(struct psb_buffer_s));
+            obj_buffer->psb_buffer = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
             if (NULL == obj_buffer->psb_buffer)
             {
                 vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
                 DEBUG_FAILURE;
-            } else
-                memset(obj_buffer->psb_buffer, 0, sizeof(struct psb_buffer_s));
+            }
         }
         if (VA_STATUS_SUCCESS == vaStatus)
         {
@@ -1512,7 +1578,25 @@ VAStatus psb_DestroyContext(
         DEBUG_FAILURE;
         return vaStatus;
     }
-  
+
+#ifdef ANDROID
+    if (driver_data->output_method == PSB_PUTSURFACE_TEXSTREAMING || 
+	driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING) {
+        object_config_p obj_config = CONFIG(obj_context->config_id);
+        if (NULL == obj_config) { /* not have a validate context */
+            LOGE("In psb_DestroySurfaces, Failed to get object_config.\n");
+            return VA_STATUS_ERROR_INVALID_CONFIG;
+        }
+        if ((obj_config->entrypoint != VAEntrypointEncSlice) && (obj_config->entrypoint != VAEntrypointEncPicture)) {
+            if (VA_STATUS_SUCCESS != psb_release_video_bcd(ctx))
+                return VA_STATUS_ERROR_UNKNOWN;
+            LOGD("In psb_DestroySurfaces, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
+            psb_android_texture_streaming_destroy();
+        }
+
+    }
+#endif
+
     psb__destroy_context(driver_data, obj_context);    
     
     return vaStatus;
@@ -1606,6 +1690,9 @@ VAStatus psb__CreateBuffer(
             DEBUG_FAILURE;
             return vaStatus;
         }
+
+	MEMSET_OBJECT(obj_buffer, struct object_buffer_s);
+
         psb__information_message("Allocating new buffer %08x type %s.\n", bufferID, buffer_type_to_string(type));
         obj_buffer->type = type;
         obj_buffer->buffer_data = NULL;
@@ -1993,7 +2080,7 @@ VAStatus psb_RenderPicture(
     if (num_buffers > obj_context->num_buffers) {
         free(obj_context->buffer_list);
         
-        obj_context->buffer_list = (object_buffer_p *) malloc(sizeof(object_buffer_p) * num_buffers);
+        obj_context->buffer_list = (object_buffer_p *) calloc(1, sizeof(object_buffer_p) * num_buffers);
         if (obj_context->buffer_list ==NULL)
         {
             vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -2072,13 +2159,6 @@ VAStatus psb_EndPicture(
 }
 
 
-static unsigned long GetTickCount()
-{
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL))
-        return 0;
-    return tv.tv_usec/1000+tv.tv_sec*1000;
-}
 
 VAStatus psb_SyncSurface(
         VADriverContextP ctx,
@@ -2140,10 +2220,8 @@ VAStatus psb_QuerySurfaceStatus(
     object_surface_p obj_surface;
     object_context_p obj_context;
     object_config_p obj_config;
-    context_ENC_p ctx_enc;
     VASurfaceStatus surface_status;
     int frame_skip = 0;
-    psb_output_p output = GET_OUTPUT_DATA(ctx);
     
     obj_surface = SURFACE(render_target);
     if (NULL == obj_surface)
@@ -2164,7 +2242,7 @@ VAStatus psb_QuerySurfaceStatus(
     /* The cur_displaying_surface indicates the surface being displayed by overlay.
      * The diaplay_timestamp records the time point of put surface, which would
      * be set to zero while using texture blit.*/
-    pthread_mutex_lock(&output->output_mutex);
+    pthread_mutex_lock(&driver_data->output_mutex);
     if ( render_target == driver_data->cur_displaying_surface )
         surface_status = VASurfaceDisplaying; 
     else if ( ( VA_INVALID_SURFACE != driver_data->cur_displaying_surface ) /* use overlay */ 
@@ -2182,7 +2260,7 @@ VAStatus psb_QuerySurfaceStatus(
             surface_status = VASurfaceDisplaying;
         }
     }
-    pthread_mutex_unlock(&output->output_mutex);
+    pthread_mutex_unlock(&driver_data->output_mutex);
 
     /* try to get frameskip flag */    
     obj_context = CONTEXT(obj_surface->context_id);    
@@ -2196,11 +2274,11 @@ VAStatus psb_QuerySurfaceStatus(
     if (obj_config->entrypoint != VAEntrypointEncSlice)
         goto out_done; /* not encode context */
         
-    ctx_enc = (context_ENC_p) obj_context->format_data;
-    if (ctx_enc->sRCParams.RCEnable == 0)
-        goto out_done; /* the context is not in RC mode */
+    if (IS_MRST(obj_context->driver_data))
+	lnc_surface_get_frameskip(obj_context, obj_surface->psb_surface, &frame_skip);
+    else
+	pnw_surface_get_frameskip(obj_context, obj_surface->psb_surface, &frame_skip);
 
-    lnc_surface_get_frameskip(obj_context->driver_data, obj_surface->psb_surface, &frame_skip);
     if (frame_skip == 1)
         surface_status = surface_status | VASurfaceSkipped;
 
@@ -2312,17 +2390,17 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
     struct v4l2_format *v4l2_fmt,       /* format of V4L2 */
     struct v4l2_buffer *v4l2_buf,       /* V4L2 buffer */
     VASurfaceID *surface	/* out */
-    )
+)
 {
     INIT_DRIVER_DATA;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    
     int surfaceID;
     object_surface_p obj_surface;
     psb_surface_p psb_surface;
     int width, height, buf_stride, buf_offset, size;
-    
-    if (IS_MRST(driver_data) == 0) {
+    unsigned long *user_ptr = NULL;
+
+    if (IS_MRST(driver_data) == 0 && IS_MFLD(driver_data) == 0) {
         psb__error_message("CreateSurfaceFromV4L2Buf isn't supported on non-MRST platform\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -2330,6 +2408,14 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
     /* Todo:
      * sanity check if the v4l2 device on MRST is supported
      */
+    if (V4L2_MEMORY_USERPTR == v4l2_buf->memory) {
+        unsigned long tmp = (unsigned long)(v4l2_buf->m.userptr);
+
+        if (tmp & 0xfff) {
+            psb__error_message("The buffer address 0x%08x must be page aligned\n", tmp);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+    }
     
     surfaceID = object_heap_allocate( &driver_data->surface_heap );
     obj_surface = SURFACE(surfaceID);
@@ -2339,6 +2425,7 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
         DEBUG_FAILURE;
         return vaStatus;
     }
+    MEMSET_OBJECT(obj_surface, struct object_surface_s);
 
     width = v4l2_fmt->fmt.pix.width;
     height = v4l2_fmt->fmt.pix.height;
@@ -2360,7 +2447,7 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
     obj_surface->derived_imgcnt = 0;
     obj_surface->display_timestamp = 0;
 
-    psb_surface = (psb_surface_p) malloc(sizeof(struct psb_surface_s));
+    psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
     if (NULL == psb_surface)
     {
         object_heap_free( &driver_data->surface_heap, (object_base_p) obj_surface);
@@ -2374,7 +2461,31 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
     }
 
     /* current assume it is NV12 */
-    vaStatus = psb_surface_create_camera( driver_data, width, height, buf_stride, size, psb_surface, 1, buf_offset);
+    if (IS_MRST(driver_data))
+	vaStatus = psb_surface_create_camera( driver_data, width, height, buf_stride, size, psb_surface, 1, buf_offset);
+    else
+    {
+	if (V4L2_MEMORY_USERPTR == v4l2_buf->memory)
+	    user_ptr = (unsigned long *)(v4l2_buf->m.userptr);
+	else 
+	{
+	    user_ptr = mmap (NULL /* start anywhere */ ,
+		    v4l2_buf->length,
+		    PROT_READ ,
+		    MAP_SHARED /* recommended */ ,
+		    v4l2_fd, v4l2_buf->m.offset);
+	}
+
+	if (NULL != user_ptr && MAP_FAILED != user_ptr)
+	    vaStatus = psb_surface_create_camera_from_ub( driver_data, width, height,
+		    buf_stride, size, psb_surface, 1, buf_offset, user_ptr);
+	else
+	{
+	    DEBUG_FAILURE;
+	    vaStatus = VA_STATUS_ERROR_UNKNOWN;
+	}
+    }
+
     if ( VA_STATUS_SUCCESS != vaStatus )
     {
         free(psb_surface);
@@ -2450,9 +2561,7 @@ static void psb__deinitDRM( VADriverContextP ctx )
 	if (wsbmIsInitialized())
 		wsbmTakedown();
 	    
-	driver_data->psb_sarea = NULL;
 	driver_data->drm_fd  = -1;
-	driver_data->sarea_handle = 0;
 }
 
 
@@ -2463,27 +2572,14 @@ static VAStatus psb__initDRI( VADriverContextP ctx )
 
     assert(dri_state);
     assert(dri_state->driConnectedFlag == VA_DRI2 || 
-           dri_state->driConnectedFlag == VA_DRI1 ||
 	   dri_state->driConnectedFlag == VA_DUMMY);
 
     driver_data->drm_fd = dri_state->fd;
     driver_data->dri_dummy = (dri_state->driConnectedFlag == VA_DUMMY);
     driver_data->dri2 = (dri_state->driConnectedFlag == VA_DRI2);
-    driver_data->sarea_handle = 0;
-    driver_data->sarea_map = NULL;
-    driver_data->psb_sarea = NULL;
-    driver_data->dri_priv = NULL;
+    driver_data->ws_priv = NULL;
     driver_data->bus_id = NULL;
-#ifndef ANDROID
-    if (!driver_data->dri2 && !driver_data->dri_dummy) {
-        drm_sarea_t *pSAREA;
 
-        pSAREA = (drm_sarea_t *)dri_state->pSAREA;
-        driver_data->drm_lock = (drmLock *)(&pSAREA->lock);
-        driver_data->psb_sarea = (void *)pSAREA + sizeof(drm_sarea_t);
-	driver_data->drm_context = dri_state->hwContext;
-    }
-#endif 
     return VA_STATUS_SUCCESS;
 }
 
@@ -2574,6 +2670,8 @@ VAStatus psb_Terminate( VADriverContextP ctx )
     object_config_p obj_config;
     object_heap_iterator iter;
 
+    psb__information_message("vaTerminate: begin to tear down\n");
+    
     /* Clean up left over contexts */
     obj_context = (object_context_p) object_heap_first( &driver_data->context_heap, &iter);
     while (obj_context)
@@ -2635,12 +2733,16 @@ VAStatus psb_Terminate( VADriverContextP ctx )
 
 
     if (driver_data->camera_bo) {
+        psb__information_message("vaTerminate: clearup camera global BO\n");
+        
         psb_buffer_destroy((psb_buffer_p)driver_data->camera_bo);
         free(driver_data->camera_bo);
         driver_data->camera_bo = NULL;
     }
 
     if (driver_data->rar_bo) {
+        psb__information_message("vaTerminate: clearup RAR global BO\n");
+        
         psb_buffer_destroy((psb_buffer_p)driver_data->rar_bo);
         free(driver_data->rar_bo);
         driver_data->rar_bo = NULL;
@@ -2649,19 +2751,30 @@ VAStatus psb_Terminate( VADriverContextP ctx )
     if (driver_data->rar_rd) {
         RAR_desc_t *rar_rd = driver_data->rar_rd;
 
+        psb__information_message("vaTerminate: tear down RAR device\n");
+        
         RAR_fini(rar_rd);
         free(driver_data->rar_rd);
         driver_data->rar_rd = NULL;
     }
-    
-    if (driver_data->video_output) {
-        psb_deinitOutput(ctx);
-        driver_data->video_output = NULL;
+
+    if (driver_data->ws_priv) {
+        psb__information_message("vaTerminate: tear down output portion\n");
+        
+	psb_deinitOutput(ctx);
+	driver_data->ws_priv = NULL;
     }
 
+    psb__information_message("vaTerminate: de-initialized DRM\n");
+    
     psb__deinitDRM(ctx);
     free(ctx->pDriverData);
     ctx->pDriverData = NULL;
+    
+    psb__information_message("vaTerminate: cleanup successfully, goodbye\n\n");
+
+    psb__close_log();
+    
     return VA_STATUS_SUCCESS;
 }
 
@@ -2676,6 +2789,10 @@ EXPORT VAStatus __vaDriverInit_0_31(  VADriverContextP ctx )
     signal(SIGUSR1,SIG_IGN);
     kill(getpid(),SIGUSR1);
 #endif
+
+    psb__open_log();
+
+    psb__information_message("vaInitilize: start the journey\n");
     
     ctx->version_major = 0;
     ctx->version_minor = 31;
@@ -2733,17 +2850,14 @@ EXPORT VAStatus __vaDriverInit_0_31(  VADriverContextP ctx )
     ctx->vtable.vaBufferInfo = psb_BufferInfo;
     ctx->vtable.vaLockSurface = psb_LockSurface;
     ctx->vtable.vaUnlockSurface = psb_UnlockSurface;
-    ctx->vtable_tpi = malloc(sizeof(struct VADriverVTableTPI));
+    ctx->vtable_tpi = calloc(1, sizeof(struct VADriverVTableTPI));
     if (NULL == ctx->vtable_tpi)
 	return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
     tpi = (struct VADriverVTableTPI *)ctx->vtable_tpi;
     tpi->vaCreateSurfaceFromCIFrame = psb_CreateSurfaceFromCIFrame;
     tpi->vaCreateSurfaceFromV4L2Buf = psb_CreateSurfaceFromV4L2Buf;
-#ifdef ANDROID    
-    tpi->vaPutSurfaceBuf = psb_PutSurfaceBuf;
-#endif
-    driver_data = (psb_driver_data_p) malloc( sizeof(*driver_data) );
+    driver_data = (psb_driver_data_p) calloc(1, sizeof(*driver_data) );
     ctx->pDriverData = (void *) driver_data;
     if ( NULL == driver_data)
     {
@@ -2751,7 +2865,6 @@ EXPORT VAStatus __vaDriverInit_0_31(  VADriverContextP ctx )
             free(ctx->vtable_tpi);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
-    memset(driver_data,0, sizeof(*driver_data));/* clear it */
 
     if (VA_STATUS_SUCCESS != psb__initDRM(ctx))
     {
@@ -2886,6 +2999,9 @@ EXPORT VAStatus __vaDriverInit_0_31(  VADriverContextP ctx )
 
     driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
     driver_data->last_displaying_surface = VA_INVALID_SURFACE;
+
+    psb__information_message("vaInitilize: succeeded!\n\n");
+    
     return VA_STATUS_SUCCESS;
 }
 
