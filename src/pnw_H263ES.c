@@ -281,6 +281,9 @@ static VAStatus pnw__H263ES_process_picture_param(context_ENC_p ctx, object_buff
         return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
     }
 
+    memset(cmdbuf->header_mem_p + ctx->pic_header_ofs,
+	    0,
+	    HEADER_SIZE);
     pnw__H263_prepare_picture_header(cmdbuf->header_mem_p + ctx->pic_header_ofs,
                                      ctx->obj_context->frame_count,
                                      pBuffer->picture_type,
@@ -358,11 +361,17 @@ static VAStatus pnw__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
 
         /* Insert Do Header command, relocation is needed */
         if( ctx->obj_context->slice_count ) { /*First slice of a frame need not slice header*/
-		pnw__H263_prepare_GOBslice_header(
-                    cmdbuf->header_mem_p + ctx->slice_header_ofs + ctx->obj_context->slice_count * HEADER_SIZE,                    
-                    ctx->obj_context->slice_count,
-                    ctx->obj_context->frame_count);
-       
+	    memset(cmdbuf->header_mem_p + ctx->slice_header_ofs
+		    + ctx->obj_context->slice_count * HEADER_SIZE,                    
+		    0,
+		    HEADER_SIZE);
+
+	    pnw__H263_prepare_GOBslice_header(
+		    cmdbuf->header_mem_p + ctx->slice_header_ofs 
+		    + ctx->obj_context->slice_count * HEADER_SIZE,                    
+		    ctx->obj_context->slice_count,
+		    ctx->obj_context->frame_count);
+
             ctx->LastSliceNum[ctx->SliceToCore] = ctx->obj_context->slice_count;
 
             pnw_cmdbuf_insert_command_package(ctx->obj_context,

@@ -111,6 +111,8 @@ struct psb_driver_data_s {
     char *			bus_id;
     uint32_t                    dev_id;
     int				drm_fd;
+    /*  PM_QoS */
+    int                         pm_qos_fd;
     int				dri2;
     int 			dri_dummy;
     XID				context_id;

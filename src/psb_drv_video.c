@@ -44,7 +44,7 @@
 #include "pnw_H263ES.h"
 #include "pnw_jpeg.h"
 #include "psb_output.h"
-#include "lnc_ospm_event.h"
+#include "lnc_ospm.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -966,14 +966,6 @@ VAStatus psb_DestroySurfaces(
         return VA_STATUS_ERROR_INVALID_SURFACE;
     }
 
-    if (driver_data->output_method == PSB_PUTSURFACE_TEXSTREAMING || 
-	driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING) {
-#ifdef ANDROID        
-        LOGD("In psb_DestroySurfaces, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
-        psb_android_texture_streaming_destroy();
-#endif        
-    }
-
     /* Make validation happy */
     for (i = 0; i < num_surfaces; i++)
     {
@@ -1018,7 +1010,7 @@ VAStatus psb_CreateContext(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_config_p obj_config;
     int cmdbuf_num, encode=0;
-    int i, ret;
+    int i;
     unsigned int buffer_stride;
 
     if (num_render_targets <= 0)
@@ -1277,21 +1269,8 @@ VAStatus psb_CreateContext(
         obj_context->num_render_targets = 0;
         obj_context->va_flags = 0;
         object_heap_free( &driver_data->context_heap, (object_base_p) obj_context);
-    }
-    else
-    {
-        if (getenv("PSB_VIDEO_NO_OSPM") == NULL) { 
-            if (encode)
-                ret = lnc_ospm_event_send("video_record", "start");
-            else
-                ret = lnc_ospm_event_send("video_playback", "start");
-
-            if (ret != 0)
-                psb__information_message("lnc_ospm_event_send start error: #%d\n", ret);
-            else
-                psb__information_message("lnc_ospm_event_send start ok\n");
-        }
-    }
+    } else
+        lnc_ospm_start(driver_data, encode);
 
 #ifdef ANDROID
     if ((obj_config->entrypoint != VAEntrypointEncSlice) && (obj_config->entrypoint != VAEntrypointEncPicture)) {
@@ -1482,27 +1461,14 @@ void psb__suspend_buffer(psb_driver_data_p driver_data, object_buffer_p obj_buff
 
 static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p obj_context)
 {
-    int i;
+    int encode, i;
 
-    if (getenv("PSB_VIDEO_NO_OSPM") == NULL) {
-        int encode, ret;
-        
-        if (obj_context->entry_point == VAEntrypointEncSlice) 
-            encode = 1;
-        else
-            encode = 0;
+    if (obj_context->entry_point == VAEntrypointEncSlice) 
+        encode = 1;
+    else
+        encode = 0;
 
-        if (encode)
-            ret = lnc_ospm_event_send("video_record", "stop");
-        else
-            ret = lnc_ospm_event_send("video_playback", "stop");
-        
-        if (ret != 0)
-            psb__information_message("lnc_ospm_event_send stop error: #%d\n", ret);
-        else
-            psb__information_message("lnc_ospm_event_send stop ok\n");
-    }
-    
+    lnc_ospm_stop(driver_data, encode);
     
     obj_context->format_vtable->destroyContext(obj_context);
 

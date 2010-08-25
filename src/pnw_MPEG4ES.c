@@ -246,6 +246,10 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
 	    break;
     }
      
+    memset(cmdbuf->header_mem_p + ctx->seq_header_ofs,
+	    0,
+	    HEADER_SIZE);
+
     pnw__MPEG4_prepare_sequence_header(
         cmdbuf->header_mem_p + ctx->seq_header_ofs,
         0, /* BFrame? */
@@ -307,6 +311,8 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
 
     pPictureHeaderMem = cmdbuf->header_mem_p + ctx->pic_header_ofs;
     psPicHeader = (MTX_HEADER_PARAMS *)pPictureHeaderMem;
+
+    memset(pPictureHeaderMem, 0, HEADER_SIZE);
 
     pnw__MPEG4_prepare_vop_header(pPictureHeaderMem,
                                   bIsVOPCoded,

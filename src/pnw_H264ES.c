@@ -269,6 +269,10 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     if (ctx->eCodec== IMG_CODEC_H264_NO_RC)
 	    VUI_Params.CBR = 0;
     */
+    memset(cmdbuf->header_mem_p + ctx->seq_header_ofs,
+	    0,
+	    HEADER_SIZE); 
+
     if (ctx->eCodec== IMG_CODEC_H264_NO_RC)
 	pnw__H264_prepare_sequence_header(cmdbuf->header_mem_p + ctx->seq_header_ofs,
 		pSequenceParams->picture_width_in_mbs,
@@ -378,10 +382,9 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
     pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
     obj_buffer->size = 0;
 
-    if (ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip) /* we know it is true */
-	MBSkipRun = (ctx->Width * ctx->Height) / 256;
-    else
-	MBSkipRun = 0;
+    /* H264: Calculate number of Mskip to skip IF this was a skip frame */
+    MBSkipRun = (ctx->Width * ctx->Height) / 256;
+
     /* 
     if (0 == pBuffer->start_row_number)
     {
@@ -430,8 +433,15 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
 	    deblock_idc = 2;
 
 	FirstMBAddress = (pBuffer->start_row_number * ctx->Width) / 16; 
+
+	memset(cmdbuf->header_mem_p + ctx->slice_header_ofs 
+		+ ctx->obj_context->slice_count * HEADER_SIZE,
+		0,
+		HEADER_SIZE);
+
 	/* Insert Do Header command, relocation is needed */
-	pnw__H264_prepare_slice_header(cmdbuf->header_mem_p + ctx->slice_header_ofs + ctx->obj_context->slice_count * HEADER_SIZE,
+	pnw__H264_prepare_slice_header(cmdbuf->header_mem_p + ctx->slice_header_ofs 
+	    + ctx->obj_context->slice_count * HEADER_SIZE,
 		is_intra,
 		pBuffer->slice_flags.bits.disable_deblocking_filter_idc,
 		ctx->obj_context->frame_count,

@@ -31,7 +31,7 @@ LOCAL_SRC_FILES :=		\
 	lnc_cmdbuf.c            \
 	lnc_hostcode.c          \
 	lnc_hostheader.c        \
-	lnc_ospm_event.c	\
+	lnc_ospm.c		\
 	object_heap.c           \
 	psb_H264.c          	\
 	psb_MPEG2.c         	\
@@ -77,7 +77,7 @@ LOCAL_C_INCLUDES :=			\
         $(TOPDIR)hardware/intel/include         \
         $(TOPDIR)hardware/intel/include/eurasia/pvr2d              \
 	$(TARGET_OUT_HEADERS)/libva	\
-	$(TOPDIR)hardware/intel/include/drm     \
+        $(TOPDIR)hardware/intel/include/drm     \
 	$(TARGET_OUT_HEADERS)/libttm	\
 	$(TARGET_OUT_HEADERS)/libmemrar	\
 	$(TARGET_OUT_HEADERS)/libwsbm	\
