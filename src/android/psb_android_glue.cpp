@@ -57,7 +57,8 @@ unsigned char* psb_android_registerBuffers(void** android_isurface, int pid, int
 
 void psb_android_postBuffer(int offset)
 {
-    isurface->postBuffer(offset);
+    if (isurface.get())
+        isurface->postBuffer(offset);
 }
 
 //called in DestroySurfaces
@@ -89,11 +90,13 @@ void psb_android_register_isurface(void** android_isurface, int bcd_id, int srcw
 
 void psb_android_texture_streaming_display(int buffer_index)
 {
-    isurface->displayTextureStreamBuffer(buffer_index);
+    if (isurface.get())
+        isurface->displayTextureStreamBuffer(buffer_index);
 }
 
 void psb_android_texture_streaming_destroy()
 {
-    isurface->destroyTextureStreamSource();
+    if (isurface.get())
+        isurface->destroyTextureStreamSource();
 }
 
