@@ -159,6 +159,7 @@ static VAStatus psb_putsurface_ctexture(
                         psb_surface->buf.pl_flags);
 
     psb_android_postBuffer(offset);
+    return VA_STATUS_SUCCESS;
 }
 
 
@@ -299,4 +300,5 @@ VAStatus psb_PutSurface(
                                       destx, desty, destw, desth,
 				      flags);
     }
+    return VA_STATUS_SUCCESS;
 }
