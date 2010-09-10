@@ -2190,7 +2190,7 @@ void lnc__H264_prepare_slice_header(
     IMG_UINT32 uiFrameNumber,
     IMG_UINT32 uiFirst_MB_Address,
     IMG_UINT32 uiMBSkipRun,
-	IMG_UINT32 ui_need_idr)
+    IMG_UINT32 force_idr)
 {
     H264_SLICE_HEADER_PARAMS SlHParams;
     MTX_HEADER_PARAMS *mtx_hdr;
@@ -2199,11 +2199,12 @@ void lnc__H264_prepare_slice_header(
     mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
 
     SlHParams.Start_Code_Prefix_Size_Bytes = 4;
+    
     /* pcb -  I think that this is more correct now*/ 
-    if (ui_need_idr)
-	    SlHParams.SliceFrame_Type =	bIntraSlice ? SLHP_IDR_SLICEFRAME_TYPE : SLHP_P_SLICEFRAME_TYPE;
+    if (force_idr)
+        SlHParams.SliceFrame_Type = SLHP_IDR_SLICEFRAME_TYPE;
     else
-	    SlHParams.SliceFrame_Type =	bIntraSlice ? (((uiFrameNumber%(1<<5))==0) ? SLHP_IDR_SLICEFRAME_TYPE :SLHP_I_SLICEFRAME_TYPE ) : SLHP_P_SLICEFRAME_TYPE;
+        SlHParams.SliceFrame_Type = bIntraSlice ? SLHP_I_SLICEFRAME_TYPE : SLHP_P_SLICEFRAME_TYPE;
 
     SlHParams.Frame_Num_DO = (IMG_UINT8) uiFrameNumber%(1<<5);
     SlHParams.Picture_Num_DO = (IMG_UINT8) (SlHParams.Frame_Num_DO * 2);

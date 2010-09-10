@@ -78,6 +78,8 @@ typedef struct _RC_PARAMS_
     IMG_UINT32	BufferSize;
     IMG_UINT32	BitsConsumed;
     IMG_UINT32	IntraFreq;
+    IMG_UINT16	IDRFreq;
+    
     IMG_INT16	MinQP;
     IMG_BOOL	RCEnable;
     IMG_BOOL	FrameSkip;
@@ -211,7 +213,8 @@ struct context_ENC_s {
     uint32_t MPEG4_vop_time_increment_frameskip;
     uint32_t MPEG4_picture_type_frameskip;
     uint8_t profile_idc;
-	uint32_t reinit_rc_control;
+    uint8_t force_idr_h264;
+    uint32_t reinit_rc_control;
 };
 
 typedef struct context_ENC_s *context_ENC_p;

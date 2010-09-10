@@ -2082,7 +2082,7 @@ void pnw__H264_prepare_sequence_header(
 
     /* Setup Sequence Header information  */
 
-    /* 
+     
     switch (uiProfile)
     {
         case 5:
@@ -2119,20 +2119,17 @@ void pnw__H264_prepare_sequence_header(
         case 31:
           SHParams.ucLevel =  SH_LEVEL_31;  
           break;
+	case 40:
+	  SHParams.ucLevel =  SH_LEVEL_4;
+	  break;
+	case 41:
+	  SHParams.ucLevel =  SH_LEVEL_41;
+	  break;
         default:
           SHParams.ucLevel =  SH_LEVEL_3;
           break;
     }  
-    */
-    if(uiPicWidthInMbs >= (576 / 16)) {
-          SHParams.ucProfile  = SH_PROFILE_MP;    
-          SHParams.ucLevel =  SH_LEVEL_4;
-    }
-    else {
-          SHParams.ucProfile  = SH_PROFILE_BP;
-          SHParams.ucLevel =  SH_LEVEL_3;
-    }
-
+    
     SHParams.ucWidth_in_mbs_minus1 = (IMG_UINT8) (uiPicWidthInMbs-1);
     SHParams.ucHeight_in_maps_units_minus1 = (IMG_UINT8) (uiPicHeightInMbs-1);
     SHParams.VUI_Params_Present	= VUI_present;

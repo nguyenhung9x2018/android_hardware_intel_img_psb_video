@@ -19,27 +19,6 @@
  * otherwise. Any license under such intellectual property rights must be
  * express and approved by Intel in writing.
  */
-/*
-** psb_texture.h
-** Login : <brady@luna.bj.intel.com>
-** Started on  Wed Mar 31 14:40:52 2010 brady
-** $Id$
-** 
-** Copyright (C) 2010 brady
-** This program is free software; you can redistribute it and/or modify
-** it under the terms of the GNU General Public License as published by
-** the Free Software Foundation; either version 2 of the License, or
-** (at your option) any later version.
-** 
-** This program is distributed in the hope that it will be useful,
-** but WITHOUT ANY WARRANTY; without even the implied warranty of
-** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-** GNU General Public License for more details.
-** 
-** You should have received a copy of the GNU General Public License
-** along with this program; if not, write to the Free Software
-** Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-*/
 
 #ifndef   	PSB_TEXTURE_H_
 # define   	PSB_TEXTURE_H_
@@ -122,6 +101,8 @@ struct psb_texture_s {
     struct dri_drawable *dri_drawable;
     union dri_buffer *dri_buffer;
 
+    uint32_t rootwin_width;
+    uint32_t rootwin_height;
     PVRDRI2BackBuffersExport dri2_bb_export;
     PVR2DMEMINFO *blt_meminfo[DRI2_BLIT_BUFFERS_NUM];
     PVR2DMEMINFO *flip_meminfo[DRI2_FLIP_BUFFERS_NUM];

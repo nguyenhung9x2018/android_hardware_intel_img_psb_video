@@ -96,7 +96,10 @@ typedef enum _SHLEVELS
     SH_LEVEL_31=31,
     SH_LEVEL_32=32,
     SH_LEVEL_4=40,
-    SH_LEVEL_5=50
+    SH_LEVEL_41=41,
+    SH_LEVEL_42=42,
+    SH_LEVEL_5=50,
+    SH_LEVEL_51=51
 } SH_LEVEL_TYPE;
 
 

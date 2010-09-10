@@ -25,7 +25,7 @@
 
 #include "psb_drv_video.h"
 
-#define PNW_JPEG_MAX_SCAN_NUM 6
+#define PNW_JPEG_MAX_SCAN_NUM 7 
 extern struct format_vtable_s pnw_JPEG_vtable;
 extern VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, void *raw_coded_buf);
 

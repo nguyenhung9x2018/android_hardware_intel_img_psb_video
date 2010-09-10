@@ -70,9 +70,10 @@
 #endif
 
 #define PSB_DRV_VERSION  PSB_PACKAGE_VERSION
-#define PSB_CHG_REVISION "(0X00000031)"
+#define PSB_CHG_REVISION "(0X00000035)"
 
-#define PSB_STR_VENDOR	"Intel GMA500-" PSB_DRV_VERSION " " PSB_CHG_REVISION
+#define PSB_STR_VENDOR_MRST	"Intel GMA500-MRST-" PSB_DRV_VERSION " " PSB_CHG_REVISION
+#define PSB_STR_VENDOR_MFLD	"Intel GMA500-MFLD-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 
 #define MAX_UNUSED_BUFFERS	16
 
@@ -120,6 +121,9 @@ int psb_parse_config(char *env_from_file, char *env_value)
 	    continue;
         token = strtok_r(oneline, "=\n", &saveptr);
 	value = strtok_r(NULL, "=\n", &saveptr);
+
+	if (NULL == token || NULL == value)
+	    continue;
 
         if (strcmp(token, env_from_file) == 0) {
             if (env_value)
@@ -1550,16 +1554,13 @@ VAStatus psb_DestroyContext(
 	driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING) {
         object_config_p obj_config = CONFIG(obj_context->config_id);
         if (NULL == obj_config) { /* not have a validate context */
-            LOGE("In psb_DestroySurfaces, Failed to get object_config.\n");
+            LOGE("In psb_DestroyContext, Failed to get object_config.\n");
             return VA_STATUS_ERROR_INVALID_CONFIG;
         }
         if ((obj_config->entrypoint != VAEntrypointEncSlice) && (obj_config->entrypoint != VAEntrypointEncPicture)) {
             if (VA_STATUS_SUCCESS != psb_release_video_bcd(ctx))
                 return VA_STATUS_ERROR_UNKNOWN;
-            LOGD("In psb_DestroySurfaces, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
-            psb_android_texture_streaming_destroy();
         }
-
     }
 #endif
 
@@ -2769,7 +2770,6 @@ EXPORT VAStatus __vaDriverInit_0_31(  VADriverContextP ctx )
     ctx->max_image_formats = PSB_MAX_IMAGE_FORMATS;
     ctx->max_subpic_formats = PSB_MAX_SUBPIC_FORMATS;
     ctx->max_display_attributes = PSB_MAX_DISPLAY_ATTRIBUTES;
-    ctx->str_vendor = PSB_STR_VENDOR;
     
     ctx->vtable.vaTerminate = psb_Terminate;
     ctx->vtable.vaQueryConfigEntrypoints = psb_QueryConfigEntrypoints;
@@ -2966,6 +2966,11 @@ EXPORT VAStatus __vaDriverInit_0_31(  VADriverContextP ctx )
     driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
     driver_data->last_displaying_surface = VA_INVALID_SURFACE;
 
+    if (IS_MFLD(driver_data))
+        ctx->str_vendor = PSB_STR_VENDOR_MFLD;
+    else 
+        ctx->str_vendor = PSB_STR_VENDOR_MRST;
+    
     psb__information_message("vaInitilize: succeeded!\n\n");
     
     return VA_STATUS_SUCCESS;

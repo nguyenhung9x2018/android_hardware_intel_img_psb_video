@@ -392,7 +392,6 @@ static int psb_cleardrawable_stopoverlay(
     unsigned short desth
 )
 {
-    INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
     
     XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, destx, desty, destw, desth);

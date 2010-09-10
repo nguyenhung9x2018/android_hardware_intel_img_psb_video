@@ -715,6 +715,11 @@ i830_display_video(
 #endif
         }
     }
+    else {
+        overlay->OCONFIG = CC_OUT_8BIT;
+        overlay->OCONFIG |= IEP_LITE_BYPASS;
+        regs.overlay.OVADD = offset | 1;
+    }
 
     drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
 

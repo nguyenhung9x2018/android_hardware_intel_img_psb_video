@@ -208,8 +208,12 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     ctx->sRCParams.BUSize = pSequenceParams->basic_unit_size;
 	
     ctx->sRCParams.Slices = 1;
+    
     ctx->sRCParams.IntraFreq = pSequenceParams->intra_period;
-
+    if (ctx->sRCParams.IntraFreq == 0)
+        ctx->sRCParams.IntraFreq = 1000;
+    
+    ctx->sRCParams.IDRFreq = pSequenceParams->intra_idr_period;
 
     VUI_Params.Time_Scale = ctx->sRCParams.FrameRate*2;
     VUI_Params.bit_rate_value_minus1 = ctx->sRCParams.BitsPerSecond/64 -1;
@@ -239,7 +243,7 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
 
     /* sequence header is always inserted */
     if (ctx->eCodec== IMG_CODEC_H264_NO_RC)
-	    VUI_Params.CBR = 0;
+        VUI_Params.CBR = 0;
 
     lnc__H264_prepare_sequence_header(cmdbuf->header_mem_p + ctx->seq_header_ofs,
 				      pSequenceParams->picture_width_in_mbs,
@@ -280,8 +284,26 @@ static VAStatus lnc__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     ASSERT(ctx->Width == pBuffer->picture_width);
     ASSERT(ctx->Height == pBuffer->picture_height);
 
+    if (ctx->sRCParams.IDRFreq != 0) { /* period IDR is desired */
+        unsigned int is_intra = 0;
+        unsigned int intra_cnt = 0;
+
+        ctx->force_idr_h264 = 0;
+        
+        if ((ctx->obj_context->frame_count % ctx->sRCParams.IntraFreq) == 0) {
+            is_intra = 1; /* suppose current frame is I frame */
+            intra_cnt = ctx->obj_context->frame_count / ctx->sRCParams.IntraFreq;
+        }
+
+        /* current frame is I frame (suppose), and an IDR frame is desired*/        
+        if ((is_intra) && ((intra_cnt % ctx->sRCParams.IDRFreq) == 0)) {
+            ctx->force_idr_h264 = 1;
+            ctx->obj_context->frame_count = 0;
+        }
+    }
+        
     /* For H264, PicHeader only needed in the first picture*/
-    if( !(ctx->obj_context->frame_count) || (ctx->reinit_rc_control)) {
+    if (!(ctx->obj_context->frame_count) || (ctx->reinit_rc_control)) {
         cmdbuf = ctx->obj_context->lnc_cmdbuf;
     
         lnc_cmdbuf_insert_command(cmdbuf, MTX_CMDID_DO_HEADER, 2,1);/* picture header */
@@ -334,9 +356,15 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
          *3.setup Slice params
          *4.Insert Do slice command
          * */
-        int deblock_on;
+        int deblock_on, force_idr = 0;
 
-        if((pBuffer->slice_flags.bits.disable_deblocking_filter_idc==0)
+        /* set to INTRA frame */
+        if (ctx->force_idr_h264 || ctx->reinit_rc_control) {
+            force_idr = 1;
+            pBuffer->slice_flags.bits.is_intra = 1;
+        }
+            
+        if ((pBuffer->slice_flags.bits.disable_deblocking_filter_idc==0)
            || (pBuffer->slice_flags.bits.disable_deblocking_filter_idc==2))
             deblock_on = IMG_TRUE;
         else
@@ -354,7 +382,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
 				       pBuffer->slice_flags.bits.disable_deblocking_filter_idc,
                                        ctx->obj_context->frame_count,
                                        FirstMBAddress,
-                                       MBSkipRun, ctx->reinit_rc_control); 
+                                       MBSkipRun, force_idr);
 
         lnc_cmdbuf_insert_command(cmdbuf, MTX_CMDID_DO_HEADER, 2, (ctx->obj_context->slice_count<<2)|2);
         RELOC_CMDBUF(cmdbuf->cmd_idx++,
@@ -362,7 +390,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
                      &cmdbuf->header_mem);
 
         if (!(ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip)) {
-		if( ((ctx->obj_context->frame_count == 0) || ctx->reinit_rc_control) &&  (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
+            if (((ctx->obj_context->frame_count == 0) || ctx->reinit_rc_control) &&  (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
                 lnc_reset_encoder_params(ctx);
 
 	    if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[(pBuffer->slice_flags.bits.is_intra ? 0:1)], pBuffer) == 0) {

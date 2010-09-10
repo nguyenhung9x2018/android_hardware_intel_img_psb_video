@@ -612,9 +612,8 @@ VAStatus lnc_EndPicture(context_ENC_p ctx)
 
 	    if ((ctx->obj_context->frame_count > 1) && !ctx->reinit_rc_control)
 		    lnc_PatchRCMode(ctx);
-
-	    ctx->reinit_rc_control = 0;
     }
+    ctx->reinit_rc_control = 0;
 
     /* save current settings */
     ctx->previous_src_surface = ctx->src_surface;

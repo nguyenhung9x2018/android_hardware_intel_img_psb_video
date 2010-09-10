@@ -459,6 +459,8 @@ static VAStatus pnw_MPEG4_CreateContext(
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
+	free(ctx);
+	return vaStatus;
     }
     
     ctx->colocated_buffers_size = obj_context->num_render_targets;
@@ -468,6 +470,9 @@ static VAStatus pnw_MPEG4_CreateContext(
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
+	free(ctx->slice_param_list);
+	free(ctx);
+	return vaStatus;
     }
 
     switch (obj_config->profile )

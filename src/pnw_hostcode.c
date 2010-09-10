@@ -419,7 +419,19 @@ static VAStatus pnw__alloc_context_buffer(context_ENC_p ctx, unsigned char is_JP
 	      vaStatus |= psb_buffer_create(ctx->obj_context->driver_data, ctx->above_params_size + ctx->bellow_params_size, psb_bt_cpu_vpu, &ctx->topaz_above_bellow_params);
 	      */
 	vaStatus = psb_buffer_create(ctx->obj_context->driver_data, ctx->below_params_size * 4, psb_bt_cpu_vpu, &ctx->topaz_below_params);
+	
+	if(VA_STATUS_SUCCESS != vaStatus)
+	{
+	    return vaStatus;
+	}
 
+	vaStatus = psb_buffer_create(ctx->obj_context->driver_data, ctx->above_params_size * 4, psb_bt_cpu_vpu, &ctx->topaz_above_params);
+		
+	if(VA_STATUS_SUCCESS != vaStatus)
+	{
+	    psb_buffer_destroy(&ctx->topaz_below_params);
+	    return vaStatus;
+	}
 	ctx->below_params_ofs = 0;
 	ctx->above_params_ofs = 0;
     }
@@ -526,7 +538,7 @@ VAStatus pnw_CreateContext(
     ctx->NumCores = 2; /* FIXME Assume there is two encode cores in Penwell, precise value should read from HW */
 
     ctx->BelowParamsBufIdx = 0;
-    ctx->AccessUnitNum = -1;
+    ctx->AccessUnitNum = 0;
     ctx->SyncSequencer = 0; /* FIXME Refer to DDK */
     ctx->SliceToCore =  -1;
     ctx->EncodeToCore = -1;
@@ -964,18 +976,21 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
     /*RELOC_PIC_PARAMS(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_P);*/
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->BelowParamsInBase, 
-           ctx->below_params_ofs + ctx->below_params_size * (core * 2 + ((ctx->AccessUnitNum)&0x1)),
+           ctx->below_params_ofs + ctx->below_params_size * ( ((ctx->AccessUnitNum)&0x1)),
                          cmdbuf->topaz_below_params);
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->BelowParamsOutBase, 
-           ctx->below_params_ofs + ctx->below_params_size * (core * 2 + ((ctx->AccessUnitNum + 1)&0x1)), 
+           ctx->below_params_ofs + ctx->below_params_size * (((ctx->AccessUnitNum + 1)&0x1)), 
                          cmdbuf->topaz_below_params);
 
-    RELOC_PIC_PARAMS_PNW(&psPicParams->AboveParamsBase, ctx->above_params_ofs + ctx->above_params_size * core, &cmdbuf->topaz_above_params);
+    RELOC_PIC_PARAMS_PNW(&psPicParams->AboveParamsBase, 
+	    ctx->above_params_ofs + ctx->above_params_size * (core * 2 + (ctx->AccessUnitNum & 0x1)), 
+		cmdbuf->topaz_above_params);
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->CodedBase, ctx->coded_buf_per_slice * core, ctx->coded_buf->psb_buffer); 
+    psb__information_message("For core %d, above_parmas_off %x\n", core, ctx->above_params_ofs + ctx->above_params_size * (core * 2 + ((ctx->AccessUnitNum) & 0x1)));
     
-#if 0
+#if TOPAZ_PIC_PARAMS_VERBOS 
     psb__information_message("PicParams->SrcYBase  0x%08x\n",psPicParams->SrcYBase);
     psb__information_message("PicParams->SrcUBase 0x%08x\n",psPicParams->SrcUBase);
     psb__information_message("PicParams->SrcVBase 0x%08x\n",psPicParams->SrcVBase);
@@ -1082,7 +1097,9 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
-
+#if TOPAZ_PIC_PARAMS_VERBOSE
+    PIC_PARAMS *psPicParams = cmdbuf->pic_params_p; 
+#endif
     ctx->AccessUnitNum++;
 
     if (ctx->sRCParams.RCEnable == IMG_TRUE) {
@@ -1090,6 +1107,33 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
             pnw_SetupRCParam(ctx);
     }
 
+#if TOPAZ_PIC_PARAMS_VERBOSE 
+    psb__information_message("End Picture for frame %d\n", ctx->obj_context->frame_count); 
+    psb__information_message("psPicParams->sInParams.SeInitQP %d\n",psPicParams->sInParams.SeInitQP);
+    psb__information_message("psPicParams->sInParams.MinQPVal %d\n",psPicParams->sInParams.MinQPVal);
+    psb__information_message("psPicParams->sInParams.MaxQPVal %d\n",psPicParams->sInParams.MaxQPVal);
+    psb__information_message("psPicParams->sInParams.MBPerRow %d\n",psPicParams->sInParams.MBPerRow);
+    psb__information_message("psPicParams->sInParams.MBPerFrm %d\n",psPicParams->sInParams.MBPerFrm);
+    psb__information_message("psPicParams->sInParams.MBPerBU %d\n",psPicParams->sInParams.MBPerBU);
+    psb__information_message("psPicParams->sInParams.BUPerFrm %d\n",psPicParams->sInParams.BUPerFrm);
+    psb__information_message("psPicParams->sInParams.IntraPeriod %d\n",psPicParams->sInParams.IntraPeriod);
+    psb__information_message("psPicParams->sInParams.BitsPerFrm %d\n",psPicParams->sInParams.BitsPerFrm);
+    psb__information_message("psPicParams->sInParams.BitsPerBU %d\n",psPicParams->sInParams.BitsPerBU);
+    psb__information_message("psPicParams->sInParams.BitsPerMB %d\n",psPicParams->sInParams.BitsPerMB);
+    psb__information_message("psPicParams->sInParams.BitRate %d\n",psPicParams->sInParams.BitRate);
+    psb__information_message("psPicParams->sInParams.BufferSize %d\n",psPicParams->sInParams.BufferSize);
+    psb__information_message("psPicParams->sInParams.InitialLevel %d\n",psPicParams->sInParams.InitialLevel);
+    psb__information_message("psPicParams->sInParams.InitialDelay %d\n",psPicParams->sInParams.InitialDelay);
+    psb__information_message("psPicParams->sInParams.ScaleFactor %d\n",psPicParams->sInParams.ScaleFactor);
+    psb__information_message("psPicParams->sInParams.BUPerSlice %d\n",psPicParams->sInParams.BUPerSlice);
+    psb__information_message("psPicParams->sInParams.HalfFrameRate %d\n",psPicParams->sInParams.HalfFrameRate);
+    psb__information_message("psPicParams->sInParams.FCode %d\n",psPicParams->sInParams.FCode);
+    psb__information_message("psPicParams->sInParams.BitsPerGOP %d\n",psPicParams->sInParams.BitsPerGOP);
+    psb__information_message("psPicParams->sInParams.AvQPVal %d\n",psPicParams->sInParams.AvQPVal);
+    psb__information_message("psPicParams->sInParams.MyInitQP %d\n",psPicParams->sInParams.MyInitQP);
+    psb__information_message("psPicParams->sInParams.BitsTransmitted %d\n",psPicParams->sInParams.BitsTransmitted);
+    psb__information_message("psPicParams->sInParams.RCScaleFactor %d\n",psPicParams->sInParams.RCScaleFactor);
+#endif
     /* save current settings */
     ctx->previous_src_surface = ctx->src_surface;
     ctx->previous_ref_surface = ctx->ref_surface;
@@ -1132,7 +1176,7 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     }
 
     if (cmdbuf->topaz_above_params_p != NULL) {
-	psb_buffer_unmap(&cmdbuf->topaz_above_params);
+	psb_buffer_unmap(cmdbuf->topaz_above_params);
 	cmdbuf->topaz_above_params_p= NULL;
     }
 
@@ -1243,7 +1287,9 @@ static void pnw__setup_busize(context_ENC_p ctx)
             BUsLastSlice = MBsLastSlice/BUSize;
         }
 
-        ctx->sRCParams.BUSize = BUSize;
+	ctx->sRCParams.BUSize = BUSize;
+	ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
+	ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
     }
 
     if (ctx->sRCParams.BUSize != old_busize)  
@@ -1385,17 +1431,17 @@ void pnw__setup_rcdata(
     case IMG_CODEC_H263_VBR:
         psPicParams->sInParams.MaxQPVal	 = 31;
 
-        if(psContext->Width == 176)
+        if(psContext->Width <= 176)
         {
-            L1 = 0.042;	L2 = 0.084;	L3 = 0.126; L4 = 0.168; L5 = 0.336; L6 = 0.505;
+            L1 = 0.043;	L2 = 0.085;	L3 = 0.126; L4 = 0.168; L5 = 0.336; L6 = 0.505;
         }
         else if(psContext->Width == 352)
         {	
-            L1 = 0.064;	L2 = 0.084;	L3 = 0.106; L4 = 0.126; L5 = 0.168 ; L6 = 0.210;
+            L1 = 0.065;	L2 = 0.085;	L3 = 0.106; L4 = 0.126; L5 = 0.168 ; L6 = 0.210;
         }
         else
         {
-            L1 = 0.050;	L2 = 0.0760;	L3 = 0.096; L4 = 0.145; L5 = 0.193; L6 = 0.289;
+            L1 = 0.051;	L2 = 0.0770;	L3 = 0.096; L4 = 0.145; L5 = 0.193; L6 = 0.289;
         }
 
         /* Calculate Initial QP if it has not been specified */
@@ -1649,10 +1695,11 @@ static void pnw__setup_slice_row_params(
 		srcY = ctx->HeightMinusLRBSearchHeight;
 
 
-	if((ctx->eCodec==IMG_CODEC_H263_NO_RC)||(ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
-		ui16tmp = CurrentRowY;
-	else
-		ui16tmp = (CurrentRowY!=SliceStartRowY);
+	/*DDK 243 removed this block of code.*/
+	/*if((ctx->eCodec==IMG_CODEC_H263_NO_RC)||(ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
+	      ui16tmp = CurrentRowY;
+	else*/
+	ui16tmp = (CurrentRowY!=SliceStartRowY);
 
 	for(iPos=0;iPos<ctx->Width;iPos+=16,psCurrent++)
 	{
@@ -1698,11 +1745,12 @@ static void pnw__setup_slice_row_params(
 				}
 			}
 		}
-		if((ctx->eCodec==IMG_CODEC_H263_NO_RC) || (ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
+		/*DDK 243 removed this block of code.*/
+		/*if((ctx->eCodec==IMG_CODEC_H263_NO_RC) || (ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
 		{
 			// clear the above params valid bits
 			psCurrent->ParamsValid &=~(PARAMS_ABOVEL_VALID|PARAMS_ABOVER_VALID|PARAMS_ABOVE_VALID); // OPTI
-		}
+		}*/
 		// Have to fill in the right hand row of 4x4 vectors into the the left block
 		if(iPos)
 		{
@@ -2021,7 +2069,7 @@ void pnw_reset_encoder_params(context_ENC_p ctx)
      * map it only when necessary
      */
     if (cmdbuf->topaz_above_params_p == NULL) {
-        VAStatus vaStatus = psb_buffer_map(&cmdbuf->topaz_above_params, &cmdbuf->topaz_above_params_p);
+        VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_above_params, &cmdbuf->topaz_above_params_p);
         if (vaStatus != VA_STATUS_SUCCESS) {
             psb__error_message("map topaz MTX_CURRENT_IN_PARAMS failed\n");
             return;

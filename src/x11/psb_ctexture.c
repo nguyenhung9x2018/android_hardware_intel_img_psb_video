@@ -19,28 +19,6 @@
  * otherwise. Any license under such intellectual property rights must be
  * express and approved by Intel in writing.
  */
-/*
-** psb_texture.c
-** Login : <brady@luna.bj.intel.com>
-** Started on  Wed Mar 31 14:40:46 2010 brady
-** $Id$
-** 
-** Copyright (C) 2010 brady
-** This program is free software; you can redistribute it and/or modify
-** it under the terms of the GNU General Public License as published by
-** the Free Software Foundation; either version 2 of the License, or
-** (at your option) any later version.
-** 
-** This program is distributed in the hope that it will be useful,
-** but WITHOUT ANY WARRANTY; without even the implied warranty of
-** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-** GNU General Public License for more details.
-** 
-** You should have received a copy of the GNU General Public License
-** along with this program; if not, write to the Free Software
-** Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-*/
-
 #include <stdio.h>
 #include <math.h>
 
@@ -175,7 +153,7 @@ VAStatus psb_putsurface_ctexture(
 
     } else if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN) {
 
-	psb_putsurface_textureblit(ctx, texture_priv->flip_meminfo[texture_priv->current_blt_buffer], srcx, srcy, srcw, srch, destx, desty, 1024, 600,
+	psb_putsurface_textureblit(ctx, texture_priv->flip_meminfo[texture_priv->current_blt_buffer], srcx, srcy, srcw, srch, destx, desty, texture_priv->rootwin_width, texture_priv->rootwin_height,
                         obj_surface->width, obj_surface->height,
                         psb_surface->stride, psb_surface->buf.drm_buf,
                         psb_surface->buf.pl_flags);

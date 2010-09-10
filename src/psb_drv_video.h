@@ -282,7 +282,7 @@ struct object_buffer_s {
     object_buffer_p *pptr_prev_next; /* Generic ptr for linked list */
     struct psb_buffer_s *psb_buffer;
     void *buffer_data;
-    VACodedBufferSegment codedbuf_mapinfo[4]; /* for VAEncCodedBufferType */
+    VACodedBufferSegment codedbuf_mapinfo[8]; /* for VAEncCodedBufferType */
     unsigned int size;
     unsigned int alloc_size;
     int max_num_elements;

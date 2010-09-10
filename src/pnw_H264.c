@@ -593,7 +593,9 @@ static VAStatus pnw_H264_CreateContext(
     if (NULL == ctx->slice_param_list)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
+	DEBUG_FAILURE;
+	free(ctx);
+	return vaStatus;
     }
 
     for(i = 0; i < 16; i++) {
@@ -609,6 +611,9 @@ static VAStatus pnw_H264_CreateContext(
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
+	free(ctx->slice_param_list);
+	free(ctx);
+	return vaStatus;
     }
 
     switch (obj_config->profile )
@@ -688,6 +693,9 @@ static VAStatus pnw_H264_CreateContext(
             if (NULL == obj_surface)
             {
                 vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
+		free(ctx->slice_param_list);
+		free(ctx->colocated_buffers);
+		free(ctx);
                 DEBUG_FAILURE;
                 return vaStatus;
             }
@@ -698,6 +706,9 @@ static VAStatus pnw_H264_CreateContext(
             if (NULL == psb_surface->in_loop_buf)
             {
                 vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+		free(ctx->slice_param_list);
+		free(ctx->colocated_buffers);
+		free(ctx);
                 DEBUG_FAILURE;
                 return vaStatus;
             }

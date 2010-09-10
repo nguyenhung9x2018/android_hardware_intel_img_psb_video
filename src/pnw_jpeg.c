@@ -35,7 +35,7 @@
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
-static const uint32_t aui32_jpg_mtx_num[PNW_JPEG_MAX_SCAN_NUM]= {0x1, 0x1, 0x1, 0x5, 0x15, 0};
+static const uint32_t aui32_jpg_mtx_num[PNW_JPEG_MAX_SCAN_NUM]= {0x1, 0x1, 0x1, 0x5, 0x15, 0x15, 0x55};
 
 static void pnw_jpeg_QueryConfigAttributes(
     VAProfile profile,

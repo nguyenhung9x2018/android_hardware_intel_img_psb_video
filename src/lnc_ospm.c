@@ -119,30 +119,51 @@ static int lnc_handle_pm_qos(psb_driver_data_p driver_data)
 
 static int lnc_toggle_gfxd0i3(psb_driver_data_p driver_data, int enable)
 {
-    int ret = 0;
+    int ret = -1;
+    struct stat buf;
 
     if (enable) {
         /* Android */
-        ret = system("echo 1 > /sys/module/pvrsrvkm/parameters/ospm");
-        if (ret == -1) /* mrst MeeGo */
+        if (stat("/proc/dri/0/ospm", &buf)==0)
+            ret = system("echo 1 > /proc/dri/0/ospm");
+        
+        if (stat("/sys/module/pvrsrvkm/parameters/ospm", &buf)==0) {
+            ret = system("echo 1 > /sys/module/pvrsrvkm/parameters/ospm");
+            return ret;
+        }
+        
+         /* mrst MeeGo */
+        if (stat("/sys/module/mrst_gfx/parameters/ospm", &buf)==0) {
             ret = system("echo 1 > /sys/module/mrst_gfx/parameters/ospm");
-        if (ret == -1) /* mfld MeeGo */
+            return ret;
+        }
+        
+        /* mfld MeeGo */
+        if (stat("/sys/module/medfield_gfx/parameters/ospm", &buf)==0) {
             ret = system("echo 1 > /sys/module/medfield_gfx/parameters/ospm");
-        if (ret == -1)
-            psb__information_message("enable gfx D0i3 failed\n");
-        else
-            psb__information_message("enable gfx D0i3 successfully\n");
+            return ret;
+        }
     } else {
+        if (stat("/proc/dri/0/ospm", &buf)==0)
+            ret = system("echo 0 > /proc/dri/0/ospm");
+        
         /* Android */
-        ret = system("echo 0 > /sys/module/pvrsrvkm/parameters/ospm");
-        if (ret == -1) /* mrst MeeGo */
+        if (stat("/sys/module/pvrsrvkm/parameters/ospm", &buf)==0) {
+            ret = system("echo 0 > /sys/module/pvrsrvkm/parameters/ospm");
+            return ret;
+        }
+        
+         /* mrst MeeGo */
+        if (stat("/sys/module/mrst_gfx/parameters/ospm", &buf)==0) {
             ret = system("echo 0 > /sys/module/mrst_gfx/parameters/ospm");
-        if (ret == -1) /* mfld MeeGo */
+            return ret;
+        }
+        
+        /* mfld MeeGo */
+        if (stat("/sys/module/medfield_gfx/parameters/ospm", &buf)==0) {
             ret = system("echo 0 > /sys/module/medfield_gfx/parameters/ospm");
-        if (ret == -1)
-            psb__information_message("disable gfx D0i3 failed\n");
-        else
-            psb__information_message("disable gfx D0i3 successfully\n");
+            return ret;
+        }
     }
 
     return ret;
@@ -175,8 +196,10 @@ int lnc_ospm_start(psb_driver_data_p driver_data, int encode)
     }
 
     if (encode) {
-        psb__information_message("OSPM:disable Gfx D0i3 for encode\n");
-        lnc_toggle_gfxd0i3(driver_data, 0);
+        ret = lnc_toggle_gfxd0i3(driver_data, 0);
+        
+        if (ret == 0)
+            psb__information_message("OSPM:disabled Gfx D0i3 for encode\n");        
     }
 
     return 0;
@@ -209,8 +232,9 @@ int lnc_ospm_stop(psb_driver_data_p driver_data, int encode)
     }
 
     if (encode) {
-        psb__information_message("OSPM:re-enable Gfx D0i3 for encode\n");
-        lnc_toggle_gfxd0i3(driver_data, 1);
+        ret = lnc_toggle_gfxd0i3(driver_data, 1);
+        if (ret == 0)
+            psb__information_message("OSPM:re-enabled Gfx D0i3 for encode\n");        
     }
 
     return 0;

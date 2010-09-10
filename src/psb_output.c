@@ -77,7 +77,6 @@ int psb_coverlay_deinit(VADriverContextP ctx);
 
 VAStatus psb_initOutput(VADriverContextP ctx)
 {
-printf("%s : %d\n", __func__, __LINE__);
     INIT_DRIVER_DATA;
     void *ws_priv = NULL;
     char *fps = NULL;

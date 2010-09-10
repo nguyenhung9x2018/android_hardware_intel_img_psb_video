@@ -104,15 +104,11 @@ VAStatus pnw_cmdbuf_create(
 	if(VA_STATUS_SUCCESS != vaStatus)
 	    goto error_out5;
 
-	/* create topaz parameter buffer */
-	vaStatus = psb_buffer_create(driver_data, ctx->above_params_size * MAX_TOPAZ_CORES, psb_bt_cpu_vpu, &cmdbuf->topaz_above_params);
-	if(VA_STATUS_SUCCESS != vaStatus)
-	    goto error_out4;
     }
     /* create topaz parameter buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->pic_params_size * MAX_TOPAZ_CORES, psb_bt_cpu_vpu, &cmdbuf->pic_params);
     if(VA_STATUS_SUCCESS != vaStatus)
-        goto error_out3;
+        goto error_out4;
 
     /* create header buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->header_buffer_size, psb_bt_cpu_vpu, &cmdbuf->header_mem);
@@ -133,6 +129,7 @@ VAStatus pnw_cmdbuf_create(
     cmdbuf->topaz_above_bellow_params = &ctx->topaz_above_bellow_params;
     */
     cmdbuf->topaz_below_params = &ctx->topaz_below_params;
+    cmdbuf->topaz_above_params = &ctx->topaz_above_params;
 
     return vaStatus;
     
@@ -140,8 +137,6 @@ VAStatus pnw_cmdbuf_create(
     psb_buffer_destroy(&cmdbuf->header_mem);
   error_out2:
     psb_buffer_destroy(&cmdbuf->pic_params);
-  error_out3:
-    psb_buffer_destroy(&cmdbuf->topaz_above_params);
   error_out4:
     psb_buffer_destroy(&cmdbuf->topaz_in_params);
   error_out5:

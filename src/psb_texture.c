@@ -1,6 +1,7 @@
 /*
  * INTEL CONFIDENTIAL
  * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
  * The source code contained or described herein and all documents related to
  * the source code ("Material") are owned by Intel Corporation or its suppliers
@@ -19,27 +20,6 @@
  * otherwise. Any license under such intellectual property rights must be
  * express and approved by Intel in writing.
  */
-/*
-** psb_texture.c
-** Login : <brady@luna.bj.intel.com>
-** Started on  Wed Mar 31 14:40:46 2010 brady
-** $Id$
-** 
-** Copyright (C) 2010 brady
-** This program is free software; you can redistribute it and/or modify
-** it under the terms of the GNU General Public License as published by
-** the Free Software Foundation; either version 2 of the License, or
-** (at your option) any later version.
-** 
-** This program is distributed in the hope that it will be useful,
-** but WITHOUT ANY WARRANTY; without even the implied warranty of
-** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-** GNU General Public License for more details.
-** 
-** You should have received a copy of the GNU General Public License
-** along with this program; if not, write to the Free Software
-** Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-*/
 
 #include <stdio.h>
 #include <math.h>
@@ -48,6 +28,7 @@
 #include <va/va_backend.h>
 
 #include <wsbm/wsbm_manager.h>
+#include <X11/Xlib.h>
 
 #include "pvr2d.h"
 
@@ -154,12 +135,10 @@ psb_transform_sathuecoeffs(psb_transform_coeffs * dest,
 			   const psb_transform_coeffs * const source,
 			   double fHue, double fSat);
 
-#define STRIDE_ALIGNMENT		32
-static unsigned long PVRCalculateStride(unsigned long widthInPixels, unsigned int bitsPerPixel)
+static unsigned long PVRCalculateStride(unsigned long widthInPixels, unsigned int bitsPerPixel, unsigned int stride_alignment)
 {
-    // Round up to next 32 pixel boundry, as according to PVR2D docs
-    int ulActiveLinelenInPixels = (widthInPixels + (STRIDE_ALIGNMENT-1)) & ~(STRIDE_ALIGNMENT-1); 
-    return ((ulActiveLinelenInPixels * bitsPerPixel)+7)>>3; // pixels to bytes
+    int ulActiveLinelenInPixels = (widthInPixels + (stride_alignment - 1)) & ~(stride_alignment - 1); 
+    return ((ulActiveLinelenInPixels * bitsPerPixel)+7) >> 3;
 }
 
 static int pvr_context_create(void **pvr_ctx)
@@ -240,6 +219,11 @@ void psb_ctexture_init(VADriverContextP ctx)
     texture_priv->dri_init_flag = 0;
     texture_priv->current_blt_buffer = 0;
     memset(&texture_priv->dri2_bb_export, 0, sizeof(PVRDRI2BackBuffersExport));
+
+    XWindowAttributes attr;
+    XGetWindowAttributes(ctx->native_dpy, DefaultRootWindow(ctx->native_dpy), &attr);
+    texture_priv->rootwin_width = attr.width;
+    texture_priv->rootwin_height = attr.height;
 #endif
 
     psb_setup_coeffs(texture_priv);
@@ -260,6 +244,7 @@ void psb_ctexture_deinit(VADriverContextP ctx)
 	    PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->flip_meminfo[i]);
     texture_priv->dri_init_flag = 0;
     texture_priv->current_blt_buffer = 0;
+    texture_priv->rootwin_width = texture_priv->rootwin_height = 0;
 #endif
 
     (void)texture_priv;
@@ -282,21 +267,16 @@ void psb_putsurface_textureblit(
     unsigned int placement)
 #endif
 {
+#ifndef ANDROID
     INIT_DRIVER_DATA;
+    int i, update_coeffs = 0;
+    unsigned char * tmp_buffer;
+    unsigned char temp;
     struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
 
-    int update_coeffs = 0;
     PVR2D_VPBLT sBltVP;
-    int i;
-    unsigned char * tmp_buffer;
     PVR2DERROR ePVR2DStatus;
     PPVR2DMEMINFO pVaVideoMemInfo;
-#ifdef ANDROId
-    PPVR2DMEMINFO pDstMeminfo;
-#endif
-    unsigned char temp;
-
-    //texture_priv = (struct psb_texture_s*)(driver_data->ctexture_priv);
 
     src_pitch = (src_pitch + 0x3) & ~0x3;
 
@@ -319,18 +299,24 @@ void psb_putsurface_textureblit(
         /* FIXME: is it right? */
         sBltVP.bCoeffsGiven   = 1;
     }
+
     psb__information_message("now wrap the source wsbmBO\n");
     /* now wrap the source wsbmBO */
     tmp_buffer = NULL;
     tmp_buffer = wsbmBOMap (src_buf, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
     for (i = 0; i < height * src_pitch * 1.5; i = i + 4096)
         memcpy(&temp, tmp_buffer + i, 1);
+
     ePVR2DStatus = PVR2DMemWrap(texture_priv->hPVR2DContext,
                                 tmp_buffer,
                                 0,
                                 (src_pitch * height * 1.5),
                                 NULL,
                                 &pVaVideoMemInfo);
+    if (ePVR2DStatus!= PVR2D_OK)
+    {
+        psb__error_message("%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
+    }
 
     /* wrap the dest source */
     /* FIXME: this is wrap for rgb565 */
@@ -342,26 +328,32 @@ void psb_putsurface_textureblit(
                                 (dst_w * dst_h * 2),
                                 NULL,
                                 &pDstMeminfo);
+    if (ePVR2DStatus!= PVR2D_OK)
+    {
+        psb__error_message("%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
+    }
 #endif
     sBltVP.sDst.pSurfMemInfo = pDstMeminfo;
     sBltVP.sDst.SurfOffset   = 0;
 #ifndef ANDROID
-    sBltVP.sDst.Stride       = PVRCalculateStride(dst_w, 32);
-    sBltVP.sDst.Format       = PVR2D_ARGB8888;
+    if (IS_MFLD(driver_data))
+	sBltVP.sDst.Stride = PVRCalculateStride(dst_w, 32, 8);
+    if (IS_MRST(driver_data))
+	sBltVP.sDst.Stride = PVRCalculateStride(dst_w, 32, 32);
+    sBltVP.sDst.Format = PVR2D_ARGB8888;
 #else
     /* FIXME: this wrong, how to get system pitch */
-    sBltVP.sDst.Stride       = dst_w * 2;//align_to(dst_w, 64);
-    //	sBltVP.sDst.Stride       = PVRCalculateStride(dst_w, 16);
-    sBltVP.sDst.Format       = PVR2D_RGB565;
+    sBltVP.sDst.Stride = dst_w * 2;//align_to(dst_w, 64);
+    sBltVP.sDst.Format = PVR2D_RGB565;
 #endif
-    sBltVP.sDst.SurfWidth    = dst_w;
-    sBltVP.sDst.SurfHeight   = dst_h;
+    sBltVP.sDst.SurfWidth = dst_w;
+    sBltVP.sDst.SurfHeight = dst_h;
      
     /* Y plane UV plane */       
-    sBltVP.uiNumLayers      = 1; 
-    sBltVP.sSrc->Stride     = src_pitch;
-    sBltVP.sSrc->Format     = VA_FOURCC_NV12;
-    sBltVP.sSrc->SurfWidth  = width;
+    sBltVP.uiNumLayers = 1; 
+    sBltVP.sSrc->Stride = src_pitch;
+    sBltVP.sSrc->Format = VA_FOURCC_NV12;
+    sBltVP.sSrc->SurfWidth = width;
     sBltVP.sSrc->SurfHeight = height;
     sBltVP.sSrc[0].pSurfMemInfo = pVaVideoMemInfo;
 
@@ -382,9 +374,8 @@ void psb_putsurface_textureblit(
     sBltVP.rcSource->right = src_x + src_w;
     sBltVP.rcSource->top = src_y;
     sBltVP.rcSource->bottom = src_y + src_h;
-#ifndef ANDROID    
+
     ePVR2DStatus = PVR2DBltVideo(texture_priv->hPVR2DContext, &sBltVP);
-#endif
     if (ePVR2DStatus != PVR2D_OK) 
     {
         psb__error_message("%s: failed to do PVR2DBltVideo with error code %d\n", 
@@ -396,11 +387,21 @@ void psb_putsurface_textureblit(
     {
         psb__error_message("%s: PVR2DQueryBlitsComplete error %d\n", __FUNCTION__, ePVR2DStatus);
     }
+
     ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pVaVideoMemInfo);
+    if (ePVR2DStatus!= PVR2D_OK)
+    {
+        psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+    }
 #ifdef ANDROID
     ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pDstMeminfo);
+    if (ePVR2DStatus!= PVR2D_OK)
+    {
+        psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+    }
 #endif
     wsbmBOUnmap(src_buf);
+#endif
 }
 
 static void

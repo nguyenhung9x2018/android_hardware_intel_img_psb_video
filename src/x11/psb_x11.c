@@ -275,6 +275,8 @@ void *psb_x11_output_init(VADriverContextP ctx)
         psb__information_message("Use client overlay mode for post-processing\n");
         
         driver_data->coverlay = 1;
+	driver_data->ctexture = 1;
+
         driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
     }
 
@@ -288,18 +290,18 @@ void *psb_x11_output_init(VADriverContextP ctx)
         driver_data->output_method = PSB_PUTSURFACE_FORCE_OVERLAY;
     }
 
-    if (getenv("PSB_VIDEO_COVERLAY")) {
-        psb__information_message("Putsurface force to use client Overlay\n");
-
-        driver_data->coverlay = 1;        
-        driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
-    }
-
     if (getenv("PSB_VIDEO_CTEXTURE")) {
-        psb__information_message("Putsurface force to use client Texture\n");
+        psb__information_message("Putsurface force to use Client Texture\n");
         
         driver_data->ctexture = 1;
         driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
+    }
+
+    if (getenv("PSB_VIDEO_COVERLAY")) {
+        psb__information_message("Putsurface force to use Client Overlay\n");
+
+        driver_data->coverlay = 1;        
+        driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
     }
 
     return output;
@@ -310,6 +312,24 @@ void psb_x11_output_deinit(VADriverContextP ctx)
     psb_deinit_xvideo(ctx);
 }
 
+static int pnw_check_output_method(VADriverContextP ctx, int width, int height)
+{
+    INIT_DRIVER_DATA;
+    if (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXTURE ||
+       driver_data->output_method == PSB_PUTSURFACE_FORCE_OVERLAY ||
+       driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE ||
+       driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) {
+       psb__information_message("Force to use %08x for PutSurface\n", driver_data->output_method);
+       return 0;
+    }
+
+    if (width >= 2048 || height >= 2048) {
+       psb__information_message("Clip resolution %dx%d, Putsurface fall back to use Client Texture\n", width, height);
+       driver_data->output_method = PSB_PUTSURFACE_CTEXTURE;
+    }
+
+    return 0;
+}
 
 VAStatus psb_PutSurface(
     VADriverContextP ctx,
@@ -357,6 +377,9 @@ VAStatus psb_PutSurface(
         
         psb_doframerate(driver_data->fixed_fps);
     }
+
+    if (IS_MFLD(driver_data))
+       pnw_check_output_method(ctx, srcw, srch);
 
     pthread_mutex_lock(&driver_data->output_mutex);
 

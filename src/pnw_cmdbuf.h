@@ -89,7 +89,7 @@ struct pnw_cmdbuf_s {
     void *slice_params_p;
 
     /* AboveParams[MAX_TOPAZ_CORES]; */
-    struct psb_buffer_s topaz_above_params;
+    struct psb_buffer_s *topaz_above_params;
     void *topaz_above_params_p;
 
     /* Referenced buffers */

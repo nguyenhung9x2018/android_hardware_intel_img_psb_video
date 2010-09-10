@@ -28,6 +28,8 @@
 #include "pnw_cmdbuf.h"
 #include "pnw_hostjpeg.h"
 
+#define TOPAZ_PIC_PARAMS_VERBOS 0
+
 #define MAX_SLICES_PER_PICTURE 72
 #define MAX_TOPAZ_CORES        4
 #define MAX_TOPAZ_CMD_COUNT    (0x1000)
@@ -220,6 +222,7 @@ struct context_ENC_s {
     */
 
     struct psb_buffer_s topaz_below_params; /* MB MVs read & written by HW */
+    struct psb_buffer_s topaz_above_params; /* MB MVs read & written by HW */
 
     uint32_t topaz_buffer_size;
     uint32_t in_params_size;
