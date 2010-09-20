@@ -28,7 +28,9 @@
 #include <va/va_backend.h>
 
 #include <wsbm/wsbm_manager.h>
+#ifndef ANDROID
 #include <X11/Xlib.h>
+#endif
 
 #include "pvr2d.h"
 
@@ -411,7 +413,9 @@ psb_setup_coeffs(struct psb_texture_s * pPriv)
     double fContrast;
     double Y_offset, CbCr_offset, RGB_offset;
     int bright_off = 0;
-    psb_transform_coeffs coeffs = {0}, transfer_matrix = {0};
+    psb_transform_coeffs coeffs, transfer_matrix;
+    memset(&coeffs, 0, sizeof(psb_transform_coeffs));
+    memset(&transfer_matrix, 0, sizeof(psb_transform_coeffs));
 
     /* Offsets in the input and output ranges are
      * included in the constant of the transform equation
