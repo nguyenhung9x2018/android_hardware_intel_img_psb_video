@@ -1,3 +1,4 @@
+ifeq ($(strip $(ENABLE_IMG_GRAPHICS)),true)
 # INTEL CONFIDENTIAL
 # Copyright 2007 Intel Corporation. All Rights Reserved.
 #
@@ -102,3 +103,4 @@ endif
 
 include $(BUILD_SHARED_LIBRARY)
 
+endif
