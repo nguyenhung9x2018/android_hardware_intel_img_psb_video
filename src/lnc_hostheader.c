@@ -529,7 +529,7 @@ static void lnc__H264_writebits_VUI_params(
      */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
     /* bit_rate_scale (4 bits) = 0 in Topaz, cpb_size_scale (4 bits) = 0 in Topaz */
-    lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
+    lnc__write_upto8bits_elements(mtx_hdr, elt_p, 2, 8);
 
     /* bit_rate_value_minus1[0] ue(v) = (Bitrate/64)-1 [RANGE:0 to (2^32)-2] */
     lnc__generate_ue(mtx_hdr, elt_p, VUIParams->bit_rate_value_minus1);
@@ -1781,10 +1781,10 @@ static void H263_writebits_VideoPictureHeader(
     H263_SOURCE_FORMAT_TYPE SourceFormatType,
     IMG_UINT8 FrameRate,
     IMG_UINT16 PictureWidth,
-    IMG_UINT16 PictureHeigth)
+    IMG_UINT16 PictureHeight,
+    IMG_UINT8 *OptionalCustomPCF)
 {
     IMG_UINT8 UFEP;
-    IMG_UINT8 OCPCF = 0;
 
 #ifdef USESTATICWHEREPOSSIBLE
     IMG_UINT16 *p;
@@ -1827,11 +1827,11 @@ static void H263_writebits_VideoPictureHeader(
     /*Write optional Custom Picture Clock Frequency(OCPCF)*/
     if (FrameRate == 30 || FrameRate == 0/* unspecified */)
     {
-        OCPCF = 0; // 0 for CIF PCF
+	    *OptionalCustomPCF = 0; // 0 for CIF PCF
     }
     else
     {
-        OCPCF = 1; //1 for Custom PCF
+        *OptionalCustomPCF = 1; //1 for Custom PCF
     }
 
 
@@ -1848,7 +1848,7 @@ static void H263_writebits_VideoPictureHeader(
         static IMG_UINT8 RTYPE = 0;
 
         // if I- Frame set Update Full Extended PTYPE to true
-        if ((PictureCodingType == I_FRAME) || (SourceFormatType == 7) || OCPCF )
+        if ((PictureCodingType == I_FRAME) || (SourceFormatType == 7) || *OptionalCustomPCF )
         {
             UFEP = 1;
         }
@@ -1871,7 +1871,7 @@ static void H263_writebits_VideoPictureHeader(
             lnc__write_upto8bits_elements(mtx_hdr, elt_p, 6, 3);
             /* souce_format_optional */
 
-            lnc__write_upto8bits_elements(mtx_hdr, elt_p, OCPCF , 1);
+            lnc__write_upto8bits_elements(mtx_hdr, elt_p, *OptionalCustomPCF , 1);
             lnc__write_upto32bits_elements(mtx_hdr, elt_p, 0, 10);
             /* 10 reserve bits */
             lnc__write_upto8bits_elements(mtx_hdr, elt_p, 8, 4);
@@ -1909,13 +1909,13 @@ static void H263_writebits_VideoPictureHeader(
             //lnc__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeigth >> 8), 1);
             //lnc__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeigth & 0xFF), 8);
             /* good up to that point */
-            ui16PHI = PictureHeigth >> 2;
+            ui16PHI = PictureHeight >> 2;
             lnc__write_upto32bits_elements(mtx_hdr, elt_p,(IMG_UINT8)ui16PHI, 9);
 
             /* lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1); */
             /* marker_bit				= 1 Bit		= 1	 */
             /* just checking */
-            if (OCPCF == 1)
+            if (*OptionalCustomPCF == 1)
             {
                 //IMG_UINT8 CPCFC;
                 //CPCFC = (IMG_UINT8)(1800/(IMG_UINT16)FrameRate);
@@ -1926,7 +1926,7 @@ static void H263_writebits_VideoPictureHeader(
                 lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1800000/(FrameRate*1000), 7);				
             }
         }
-        if (OCPCF == 1)
+        if (*OptionalCustomPCF == 1)
         {
             IMG_UINT8 ui8ETR; // extended Temporal reference 
             // Two MSBs of 10 bit temporal_reference : value 0
@@ -2036,7 +2036,8 @@ static void lnc__H263_getelements_videopicture_header(
     H263_SOURCE_FORMAT_TYPE SourceFormatType,
     IMG_UINT8 FrameRate,
     IMG_UINT16 PictureWidth,
-    IMG_UINT16 PictureHeigth)
+    IMG_UINT16 PictureHeight,
+    IMG_UINT8 *OptionalCustomPCF)
 {
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
@@ -2052,8 +2053,8 @@ static void lnc__H263_getelements_videopicture_header(
         SourceFormatType,
         FrameRate,
         PictureWidth,
-        PictureHeigth);
-
+        PictureHeight,
+	OptionalCustomPCF);
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 
@@ -2337,7 +2338,8 @@ void lnc__H263_prepare_picture_header(
     H263_SOURCE_FORMAT_TYPE SourceFormatType,
     IMG_UINT8 FrameRate,
     IMG_UINT16 PictureWidth,
-    IMG_UINT16 PictureHeigth)
+    IMG_UINT16 PictureHeight,
+    IMG_UINT8 *OptionalCustomPCF)
 {
     MTX_HEADER_PARAMS *mtx_hdr;
 
@@ -2349,7 +2351,8 @@ void lnc__H263_prepare_picture_header(
         SourceFormatType,
         FrameRate,
         PictureWidth,
-        PictureHeigth);
+        PictureHeight,
+	OptionalCustomPCF);
 }
 
 void lnc__H263_prepare_GOBslice_header(

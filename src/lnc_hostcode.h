@@ -28,6 +28,10 @@
 #include "lnc_cmdbuf.h"
 
 #define MAX_SLICES_PER_PICTURE 72
+
+#define CODED_BUFFER_EOSEQ_FLAG (0x1u<<0)
+#define CODED_BUFFER_EOSTREAM_FLAG (0x1u<<1)
+
 /* commands for topaz,shared with user space driver */
 enum drm_lnc_topaz_cmd {
     MTX_CMDID_NULL = 0,
@@ -50,6 +54,7 @@ enum drm_lnc_topaz_codec {
     IMG_CODEC_H264_NO_RC,
     IMG_CODEC_H264_VBR,
     IMG_CODEC_H264_CBR,
+    IMG_CODEC_H264_VCM,
     IMG_CODEC_H263_NO_RC,
     IMG_CODEC_H263_VBR,
     IMG_CODEC_H263_CBR,
@@ -134,6 +139,12 @@ typedef struct
     IMG_UINT32  RCScaleFactor;  /* A constant used in rate control = (GopSize/(BufferSize-InitialLevel))*256 */
 } IN_RC_PARAMS;
 
+struct coded_buf_aux_info
+{
+    object_buffer_p buf;
+    uint32_t aux_flag;		/*Indicate which operation should be applied when map coded buffer.*/
+    struct coded_buf_aux_info *next;
+};
 
 struct context_ENC_s {
     object_context_p obj_context; /* back reference */
@@ -148,9 +159,6 @@ struct context_ENC_s {
     unsigned int    FCode;
     IMG_RC_PARAMS   sRCParams;
 
-    IMG_UINT32      InBuffer; /* total coded data in Byte */
-    IMG_BOOL        Transmitting;
-    
     IMG_INT16       HeightMinus16MinusLRBTopOffset;
     IMG_INT16       HeightMinus32MinusLRBTopOffset;
     IMG_INT16       HeightMinusLRB_TopAndBottom_OffsetsPlus16;
@@ -214,7 +222,14 @@ struct context_ENC_s {
     uint32_t MPEG4_picture_type_frameskip;
     uint8_t profile_idc;
     uint8_t force_idr_h264;
-    uint32_t reinit_rc_control;
+    uint32_t update_rc_control;
+    uint8_t OptionalCustomPCF;
+    uint32_t max_slice_size;
+    uint16_t num_air_mbs;
+    uint16_t air_threshold;
+    uint32_t autotune_air_flag;
+
+    struct coded_buf_aux_info *p_coded_buf_info;
 };
 
 typedef struct context_ENC_s *context_ENC_p;
@@ -240,6 +255,8 @@ typedef struct context_ENC_s *context_ENC_p;
 #define ISVBR_FLAGS		0x80
 #define ISRC_I16BIAS		0x100
 #define INTERLEAVE_TARGET 	0x200
+#define ISVCM_FLAGS		0x400
+#define AUTOTUNE_AIR		0x800
 
 
 #define SPE_EDGE_LEFT	1	/* ->bMinXRealEdge*/
@@ -368,7 +385,10 @@ typedef struct _SLICE_PARAMS_
     IMG_UINT32	CodedDataPos;
     IMG_UINT32	TotalCoded;
     IMG_UINT32	FCode;
-    IMG_UINT32  PADDING[2];
+
+    IMG_UINT32  MaxSliceSize;
+    IMG_INT16	NumAirMBs;			//!< Maximum number of Adaptive intra refresh macroblocks for this slice
+    IMG_INT16	AirThreshold;		//!< Theshold value used in Adaptive intra refresh calculation.
 
 }SLICE_PARAMS;
 
@@ -453,9 +473,14 @@ typedef struct _ENCODER_VARIABLES_
 #define SLICE_FLAGS_ISINTER			0x00000001
 #define SLICE_FLAGS_DEBLOCK			0x00000002
 
+#define RC_STATUS_FRAME_AVE_QP_MASK		0x0ff   /* the average Qp used in this frame */
+#define RC_STATUS_FLAG_LARGE_SLICE		0x100	/* At least one slice in this frame was large enough for the firmware to try to reduce it by increasing Qp or skipping MBs */
+#define RC_STATUS_FLAG_SLICE_OVERFLOW		0x200	/* At least one slice in this frame was larger than the slice limit */
+
 enum {
     CBR = 0,
-    VBR
+    VBR,
+    VCM
 } eRCMode;
 
 enum {
@@ -488,6 +513,7 @@ VAStatus lnc_CreateContext( object_context_p obj_context,
 
 
 void lnc__setup_rcdata(context_ENC_p ctx, PIC_PARAMS *psPicParams,IMG_RC_PARAMS *rc_params);
+void lnc__update_rcdata(context_ENC_p ctx, PIC_PARAMS *psPicParams, IMG_RC_PARAMS *rc_params);
 
 void lnc_DestroyContext(
     object_context_p obj_context
@@ -508,7 +534,8 @@ IMG_UINT32 lnc__send_encode_slice_params(
     IMG_BOOL DeblockSlice,
     IMG_UINT32 FrameNum,
     IMG_UINT16 SliceHeight,
-    IMG_UINT16 CurrentSlice);
+    IMG_UINT16 CurrentSlice,
+    IMG_UINT32 MaxSliceSize);
 
 VAStatus lnc_RenderPictureParameter(context_ENC_p ctx);
 

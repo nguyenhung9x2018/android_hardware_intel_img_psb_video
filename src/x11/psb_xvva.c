@@ -26,6 +26,7 @@
 #include "psb_output.h"
 #include "psb_surface_ext.h"
 #include "psb_x11.h"
+#include "psb_xrandr.h"
 
 #include <X11/extensions/dpms.h>
 
@@ -149,18 +150,24 @@ VAStatus psb_init_xvideo(VADriverContextP ctx, psb_x11_output_p output)
         driver_data->output_method = PSB_PUTSURFACE_TEXTURE;
     if (output->overlay_portID)
         driver_data->output_method = PSB_PUTSURFACE_OVERLAY;
-    
+
     return VA_STATUS_SUCCESS;
 }
 
 
 VAStatus psb_deinit_xvideo(VADriverContextP ctx)
 {
+    INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
 
     if (output->gc) {
 	XFreeGC((Display *)ctx->native_dpy, output->gc);
         output->gc = NULL;
+    }
+	
+    if (output->extend_gc) {
+	XFreeGC((Display *)ctx->native_dpy, output->extend_gc);
+	output->extend_gc = NULL;
     }
 
     if (output->textured_xvimage) {
@@ -198,9 +205,19 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
 	XvUngrabPort((Display *)ctx->native_dpy, output->overlay_portID, CurrentTime);
 	output->overlay_portID = 0;
     }
+
+    if (output->output_drawable) {
+        if (driver_data->use_xrandr_thread && driver_data->xrandr_thread_id) {
+            psb_xrandr_thread_exit(output->output_drawable);
+            pthread_join(driver_data->xrandr_thread_id, NULL);
+	    driver_data->xrandr_thread_id = 0;
+        }
+        psb_xrandr_deinit();
+    }
     output->using_port = 0;
     output->output_drawable = 0;
-    
+    output->extend_drawable = 0;
+	
     XSync((Display *)ctx->native_dpy, False);
 
     return VA_STATUS_SUCCESS;

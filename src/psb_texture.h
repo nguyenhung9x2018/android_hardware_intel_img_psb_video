@@ -1,6 +1,7 @@
 /*
  * INTEL CONFIDENTIAL
  * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
  *
  * The source code contained or described herein and all documents related to
  * the source code ("Material") are owned by Intel Corporation or its suppliers
@@ -95,17 +96,21 @@ struct psb_texture_s {
 
     psb_coeffs_s coeffs;
 #ifndef ANDROID
+    PVRDRI2BackBuffersExport dri2_bb_export;
+    PVRDRI2BackBuffersExport extend_dri2_bb_export;
+    struct dri_drawable *extend_dri_drawable;
+    struct dri_drawable *dri_drawable;
     uint32_t dri_init_flag;
     uint32_t current_blt_buffer;
 
-    struct dri_drawable *dri_drawable;
-    union dri_buffer *dri_buffer;
-
+    uint32_t extend_current_blt_buffer;
     uint32_t rootwin_width;
     uint32_t rootwin_height;
-    PVRDRI2BackBuffersExport dri2_bb_export;
+
     PVR2DMEMINFO *blt_meminfo[DRI2_BLIT_BUFFERS_NUM];
     PVR2DMEMINFO *flip_meminfo[DRI2_FLIP_BUFFERS_NUM];
+    PVR2DMEMINFO *extend_blt_meminfo[DRI2_BLIT_BUFFERS_NUM];
+    PVR2DMEMINFO *pal_meminfo[6];
 #endif
 };
 
@@ -117,6 +122,20 @@ void blit_texture_to_buf(VADriverContextP ctx, unsigned char * data, int src_x, 
 			 int src_h, int dst_x, int dst_y, int dst_w, int dst_h,
 			 int width, int height, int src_pitch, struct _WsbmBufferObject * src_buf,
 			 unsigned int placement);
-
+#ifndef ANDROID
+void psb_putsurface_textureblit(
+    VADriverContextP ctx, PPVR2DMEMINFO pDstMeminfo, VASurfaceID surface, int src_x, int src_y, int src_w,
+    int src_h, int dst_x, int dst_y, int dst_w, int dst_h,
+    int width, int height,
+    int src_pitch, struct _WsbmBufferObject * src_buf,
+    unsigned int placement);
+#else
+void psb_putsurface_textureblit(
+    VADriverContextP ctx, unsigned char * data, int src_x, int src_y, int src_w,
+    int src_h, int dst_x, int dst_y, int dst_w, int dst_h,
+    int width, int height,
+    int src_pitch, struct _WsbmBufferObject * src_buf,
+    unsigned int placement);
+#endif
 
 #endif 	    /* !PSB_TEXTURE_H_ */

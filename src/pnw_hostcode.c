@@ -950,10 +950,11 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
                          srf_buf_offset + src_surface->psb_surface->stride * src_surface->height + (src_surface->psb_surface->stride/2) * (src_surface->height/2), 
                          &src_surface->psb_surface->buf);
 
-        break;
+	break;
     case IMG_CODEC_IMC2:
     case IMG_CODEC_NV12:
-        break;
+    default:
+	break;
     }
 
     /*

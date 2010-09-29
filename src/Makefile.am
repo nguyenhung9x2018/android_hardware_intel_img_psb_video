@@ -21,7 +21,7 @@
 pvr_drv_video_la_LTLIBRARIES = pvr_drv_video.la
 pvr_drv_video_ladir = /usr/lib/dri
 pvr_drv_video_la_LDFLAGS = -lwsbm -pthread -module -avoid-version -Wl,--no-undefined
-pvr_drv_video_la_LIBADD = -ldrm -lX11 -lXv -lm -lXext -lva-x11 /usr/lib/libmemrar.a -lpvr2d -lGL  
+pvr_drv_video_la_LIBADD = -ldrm -lX11 -lXrandr -lva-x11 -lXv -lm -lXext /usr/lib/libmemrar.a -lpvr2d  
 AM_CFLAGS = -DDEBUG -DLINUX -I$(top_srcdir)/src/hwdefs $(DRM_CFLAGS) \
 		-I$(top_srcdir)/src/powervr_iep_lite/include \
 		-I$(top_srcdir)/src/powervr_iep_lite/include/win32 \
@@ -39,7 +39,7 @@ pvr_drv_video_la_SOURCES = psb_drv_video.c object_heap.c psb_buffer.c psb_buffer
 		pnw_cmdbuf.c pnw_H264ES.c pnw_H263ES.c pnw_MPEG4ES.c \
 		pnw_H264.c pnw_MPEG2.c pnw_MPEG4.c pnw_hostjpeg.c pnw_jpeg.c \
 		psb_output.c  psb_overlay.c psb_texture.c \
-		x11/psb_x11.c x11/psb_coverlay.c x11/psb_xvva.c x11/psb_ctexture.c\
+		x11/psb_x11.c x11/psb_coverlay.c x11/psb_xrandr.c x11/psb_xvva.c x11/psb_ctexture.c \
 		powervr_iep_lite/csc/csc2.c \
 		powervr_iep_lite/csc/csc2_data.c \
 		powervr_iep_lite/fixedpointmaths/fixedpointmaths.c \
@@ -50,7 +50,7 @@ pvr_drv_video_la_SOURCES = psb_drv_video.c object_heap.c psb_buffer.c psb_buffer
 #		vc1_shiftreg.c vc1_spmp.c vc1_utils.c 
 
 
-CFLAGS = -O0 -Wall -ffloat-store -fvisibility=hidden
+CFLAGS = -O1 -Wall -ffloat-store -fvisibility=hidden
 
 symbol_info:	pvr_drv_video.la
 	objdump -T .libs/pvr_drv_video.so | grep UND | sort -k 5 > Linker_dependencies.txt

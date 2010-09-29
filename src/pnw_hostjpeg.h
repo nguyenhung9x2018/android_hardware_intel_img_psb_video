@@ -43,26 +43,28 @@
  * = 0x116F322 bytes (1170 worst case per MCU)*/
 #define JPEG_MAX_MCU_PER_SCAN 0x3D09 
 
-#define JPEG_MCU_NUMBER(width, height) ((((width) + 15) / 16) * (((height) + 15) / 16))
+#define JPEG_MCU_NUMBER(width, height, eFormat) \
+    ((((width) + 15) / 16) * (((height) + 15) / 16) * \
+     (((eFormat) == IMG_CODEC_YV16) ? 2 : 1))
 
-#define JPEG_MCU_PER_CORE(width, height, core) \
-    ((core) > 1 ? ((JPEG_MCU_NUMBER(width, height) + (core) - 1) / (core))\
-     :JPEG_MCU_NUMBER(width, height)) 
-
-#define JPEG_SCANNING_COUNT(width, height, core) \
-    ((JPEG_MCU_PER_CORE(width, height, core) > JPEG_MAX_MCU_PER_SCAN) ? \
-      ((JPEG_MCU_NUMBER(width, height) + JPEG_MAX_MCU_PER_SCAN - 1) \
-     / JPEG_MAX_MCU_PER_SCAN) \
+#define JPEG_MCU_PER_CORE(width, height, core, eFormat) \
+        ((core) > 1 ? ((JPEG_MCU_NUMBER(width, height, eFormat) + (core) - 1) / (core))\
+         :JPEG_MCU_NUMBER(width, height, eFormat)) 
+    
+#define JPEG_SCANNING_COUNT(width, height, core, eFormat) \
+    ((JPEG_MCU_PER_CORE(width, height, core, eFormat) > JPEG_MAX_MCU_PER_SCAN) ? \
+      ((JPEG_MCU_NUMBER(width, height, eFormat) + JPEG_MAX_MCU_PER_SCAN - 1) \
+        / JPEG_MAX_MCU_PER_SCAN) \
        : (core))
 
-#define JPEG_MCU_PER_SCAN(width, height, core) \
-    ((JPEG_MCU_PER_CORE(width, height, core) > JPEG_MAX_MCU_PER_SCAN) ? \
-    JPEG_MAX_MCU_PER_SCAN : JPEG_MCU_PER_CORE(width, height, core))
+#define JPEG_MCU_PER_SCAN(width, height, core, eFormat) \
+     ((JPEG_MCU_PER_CORE(width, height, core, eFormat) > JPEG_MAX_MCU_PER_SCAN) ? \
+    JPEG_MAX_MCU_PER_SCAN : JPEG_MCU_PER_CORE(width, height, core, eFormat))
 
 /*The start address of every segment must align 128bits -- DMA burst width*/
-#define JPEG_CODED_BUF_SEGMENT_SIZE(total, width, height, core) \
+#define JPEG_CODED_BUF_SEGMENT_SIZE(total, width, height, core, eFormat) \
     (((total) - PNW_JPEG_HEADER_MAX_SIZE) / \
-     JPEG_SCANNING_COUNT(ctx->Width, ctx->Height, ctx->NumCores) \
+     JPEG_SCANNING_COUNT(ctx->Width, ctx->Height, ctx->NumCores, eFormat) \
      & (~0xf))
 
 /*pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan=(pContext->sScan_Encode_Info.ui32NumberMCUsToEncode+pEncContext->i32NumCores-1)/pEncContext->i32NumCores;
@@ -99,6 +101,7 @@ typedef enum _img_format_
     IMG_CODEC_PL8,
     IMG_CODEC_PL12,
     IMG_CODEC_NV12,
+    IMG_CODEC_YV16,
 } IMG_FORMAT;
 
 typedef struct

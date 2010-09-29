@@ -61,7 +61,11 @@ static void lnc_MPEG4ES_QueryConfigAttributes(
         case VAConfigAttribRateControl:
             attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR;
             break;
-              
+#if 0
+	case VAConfigAttribEncMaxSliceSize:
+		attrib_list[i].value = 0;
+		break;
+#endif         
         default:
             attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
             break;
@@ -101,16 +105,21 @@ static VAStatus lnc_MPEG4ES_CreateContext(
     ctx = (context_ENC_p) obj_context->format_data;
     ctx->FCode = 3;
 
+    ctx->max_slice_size = 0;
+    eRCmode = VA_RC_NONE;
+
     for (i = 0; i < obj_config->attrib_count; i++) {
-        if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
-            break;
+#if 0
+	    if(obj_config->attrib_list[i].type == VAConfigAttribEncMaxSliceSize)
+		    ctx->max_slice_size = obj_config->attrib_list[i].value;
+	    else if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
+		    eRCmode = obj_config->attrib_list[i].value;
+	    
+#else
+	    if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
+		    eRCmode = obj_config->attrib_list[i].value;
+#endif
     }
-
-    if (i >= obj_config->attrib_count)
-        eRCmode = VA_RC_NONE;
-    else
-        eRCmode = obj_config->attrib_list[i].value;
-
 
     if (eRCmode == VA_RC_VBR) {
         ctx->eCodec = IMG_CODEC_MPEG4_VBR;
@@ -188,6 +197,10 @@ static VAStatus lnc__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
+    if ((ctx->obj_context->frame_count != 0) &&
+	(ctx->sRCParams.BitsPerSecond != seq_params->bits_per_second))
+	    ctx->update_rc_control = 1;
+
     if (seq_params->bits_per_second > TOPAZ_MPEG4_MAX_BITRATE)
     {
 	ctx->sRCParams.BitsPerSecond = TOPAZ_MPEG4_MAX_BITRATE;
@@ -206,8 +219,6 @@ static VAStatus lnc__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
  
     ctx->sRCParams.Slices = 1;
     ctx->sRCParams.IntraFreq = seq_params->intra_period;
-
-    ctx->reinit_rc_control = 1;
 
     cmdbuf = ctx->obj_context->lnc_cmdbuf;
 
@@ -347,7 +358,8 @@ static VAStatus lnc__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
 	                                  IMG_FALSE, 	/* Deblock is off for MPEG4*/
 	                                  ctx->obj_context->frame_count,
                                           pBuffer->slice_height*16,
-	                                  ctx->obj_context->slice_count);
+	                                  ctx->obj_context->slice_count,
+					  ctx->max_slice_size);
 
             psb__information_message("Now frame_count/slice_count is %d/%d\n", 
                                      ctx->obj_context->frame_count, ctx->obj_context->slice_count);
@@ -364,6 +376,90 @@ static VAStatus lnc__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     return vaStatus;
 }
 
+static VAStatus lnc__MPEG4ES_process_misc_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
+    VAEncMiscParameterBuffer *pBuffer;
+    VAEncMiscParameterBitRate *bitrate_param;
+    VAEncMiscParameterAIR *air_param;
+    VAEncMiscParameterMaxSliceSize *max_slice_size_param;
+    VAEncMiscParameterFrameRate *frame_rate_param;
+
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+
+    ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
+
+    pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
+    obj_buffer->size = 0;
+
+    switch (pBuffer->type) {
+    case VAEncMiscParameterTypeFrameRate:
+	    frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
+	    psb__information_message("%s: frame rate changed to %d\n",
+				     frame_rate_param->framerate);
+	    break;
+
+    case VAEncMiscParameterTypeBitRate:
+	    bitrate_param = (VAEncMiscParameterBitRate *)pBuffer->data;
+
+	    psb__information_message("%s: bit rate changed to %d\n",
+				     bitrate_param->bitrate);
+
+	    if (bitrate_param->bitrate == ctx->sRCParams.BitsPerSecond)
+		    break;
+	    else
+		    ctx->update_rc_control = 1;
+
+	    if (bitrate_param->bitrate > TOPAZ_MPEG4_MAX_BITRATE) {
+		    ctx->sRCParams.BitsPerSecond = TOPAZ_MPEG4_MAX_BITRATE;
+		    psb__information_message(" bits_per_second(%d) exceeds \
+		the maximum bitrate, set it with %d\n", 
+					     bitrate_param->bitrate,
+					     TOPAZ_MPEG4_MAX_BITRATE);
+	    }
+	    else
+		    ctx->sRCParams.BitsPerSecond = bitrate_param->bitrate;
+	    
+	    break;
+
+    case VAEncMiscParameterTypeMaxSliceSize:
+	    max_slice_size_param = (VAEncMiscParameterMaxSliceSize *)pBuffer->data;
+
+	    if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
+		    break;
+
+	    psb__information_message("%s: max slice size changed to %d\n",
+				     max_slice_size_param->max_slice_size);
+
+	    ctx->max_slice_size = max_slice_size_param->max_slice_size;
+
+	    break;
+
+    case VAEncMiscParameterTypeAIR:
+	    air_param = (VAEncMiscParameterAIR *)pBuffer->data;
+
+	    psb__information_message("%s: air slice size changed to num_air_mbs %d "
+				     "air_threshold %d, air_auto %d\n",
+				     air_param->air_num_mbs, air_param->air_threshold,
+				     air_param->air_auto);
+
+	    ctx->num_air_mbs = air_param->air_num_mbs;
+	    ctx->air_threshold = air_param->air_threshold;
+	    ctx->autotune_air_flag = air_param->air_auto;
+
+	    break;
+
+    default:
+            vaStatus = VA_STATUS_ERROR_UNKNOWN;
+            DEBUG_FAILURE;
+	    break;
+    }
+
+    free(obj_buffer->buffer_data );
+    obj_buffer->buffer_data = NULL;
+    
+    return VA_STATUS_SUCCESS;
+}
 
 static VAStatus lnc_MPEG4ES_RenderPicture(
     object_context_p obj_context,
@@ -397,6 +493,13 @@ static VAStatus lnc_MPEG4ES_RenderPicture(
             vaStatus = lnc__MPEG4ES_process_slice_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
+
+	case VAEncMiscParameterBufferType:
+		psb__information_message("lnc_MPEG4ES_RenderPicture got VAEncMiscParameterBufferType\n");
+		vaStatus = lnc__MPEG4ES_process_misc_param(ctx, obj_buffer);
+		DEBUG_FAILURE;
+		break;
+
         default:
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;

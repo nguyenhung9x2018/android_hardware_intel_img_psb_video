@@ -59,9 +59,13 @@ static void lnc_H264ES_QueryConfigAttributes(
             break;
                 
         case VAConfigAttribRateControl:
-            attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR;
+            attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR | VA_RC_VCM;
             break;
-              
+#if 0
+	case VAConfigAttribEncMaxSliceSize:
+		attrib_list[i].value = 0;
+		break;
+#endif
         default:
             attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
             break;
@@ -88,7 +92,7 @@ static VAStatus lnc_H264ES_CreateContext(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_p ctx;
     int i;
-    unsigned int eRCmode;
+    unsigned int eRCmode = 0;
 
     psb__information_message("lnc_H264ES_CreateContext\n");
 
@@ -99,16 +103,21 @@ static VAStatus lnc_H264ES_CreateContext(
     
     ctx = (context_ENC_p) obj_context->format_data;
 
+    ctx->max_slice_size = 0;
+    eRCMode = VA_RC_NONE;
     for(i = 0; i < obj_config->attrib_count; i++) {
-        if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
-            break;
+#if 0
+	    if(obj_config->attrib_list[i].type == VAConfigAttribEncMaxSliceSize)
+		    ctx->max_slice_size = obj_config->attrib_list[i].value;
+	    else if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
+		    eRCmode = obj_config->attrib_list[i].value;
+#else
+	    if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
+		    eRCmode = obj_config->attrib_list[i].value;
+#endif
     }
 
-    if(i >= obj_config->attrib_count)
-        eRCmode = VA_RC_NONE;
-    else
-        eRCmode = obj_config->attrib_list[i].value;
-
+    psb__information_message("lnc_H264ES_CreateContext: max slice size %d\n", ctx->max_slice_size);
 
     if( eRCmode == VA_RC_VBR) {
         ctx->eCodec = IMG_CODEC_H264_VBR;
@@ -118,6 +127,10 @@ static VAStatus lnc_H264ES_CreateContext(
         ctx->eCodec = IMG_CODEC_H264_CBR;
         ctx->sRCParams.RCEnable = IMG_TRUE;
     }
+    else if ( eRCmode == VA_RC_VCM) {
+        ctx->eCodec = IMG_CODEC_H264_VCM;
+        ctx->sRCParams.RCEnable = IMG_TRUE;
+    }	    
     else if ( eRCmode == VA_RC_NONE) {
         ctx->eCodec = IMG_CODEC_H264_NO_RC;
         ctx->sRCParams.RCEnable = IMG_FALSE;
@@ -148,8 +161,16 @@ static VAStatus lnc_H264ES_CreateContext(
 static void lnc_H264ES_DestroyContext(
     object_context_p obj_context)
 {
+    struct coded_buf_aux_info *p_aux_info;
+    INIT_CONTEXT_H264ES;
     psb__information_message("lnc_H264ES_DestroyPicture\n");
 
+    while (ctx->p_coded_buf_info != NULL)
+    {
+	p_aux_info = ctx->p_coded_buf_info->next;
+	free(ctx->p_coded_buf_info);
+	ctx->p_coded_buf_info = p_aux_info;
+    }
     lnc_DestroyContext(obj_context);
 }
 
@@ -177,10 +198,6 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->num_elements == 1);
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH264));
 
-    ctx->reinit_rc_control = 1;
-    /* a new sequence and IDR need reset frame_count */
-    ctx->obj_context->frame_count = 0;
-
     if ((obj_buffer->num_elements != 1) ||
         (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH264) ) )
     {
@@ -190,6 +207,13 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     pSequenceParams = (VAEncSequenceParameterBufferH264 *) obj_buffer->buffer_data;
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
+
+    if ((ctx->obj_context->frame_count != 0) &&
+	(ctx->sRCParams.BitsPerSecond != pSequenceParams->bits_per_second))
+	    ctx->update_rc_control = 1;
+
+    /* a new sequence and IDR need reset frame_count */
+    ctx->obj_context->frame_count = 0;
 
     if (pSequenceParams->bits_per_second > TOPAZ_H264_MAX_BITRATE)
     {
@@ -214,6 +238,8 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
         ctx->sRCParams.IntraFreq = 1000;
     
     ctx->sRCParams.IDRFreq = pSequenceParams->intra_idr_period;
+    psb__information_message("IntraFreq: %d\n, intra_idr_period: %d\n",
+	    ctx->sRCParams.IntraFreq, ctx->sRCParams.IDRFreq);
 
     VUI_Params.Time_Scale = ctx->sRCParams.FrameRate*2;
     VUI_Params.bit_rate_value_minus1 = ctx->sRCParams.BitsPerSecond/64 -1;
@@ -263,6 +289,7 @@ static VAStatus lnc__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     VAStatus vaStatus;
     VAEncPictureParameterBufferH264 *pBuffer;
     lnc_cmdbuf_p cmdbuf = ctx->obj_context->lnc_cmdbuf;
+    struct coded_buf_aux_info *p_aux_info;
 
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
@@ -303,13 +330,34 @@ static VAStatus lnc__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     }
         
     /* For H264, PicHeader only needed in the first picture*/
-    if (!(ctx->obj_context->frame_count) || (ctx->reinit_rc_control)) {
+    if (!ctx->obj_context->frame_count) {
         cmdbuf = ctx->obj_context->lnc_cmdbuf;
     
         lnc_cmdbuf_insert_command(cmdbuf, MTX_CMDID_DO_HEADER, 2,1);/* picture header */
         RELOC_CMDBUF(cmdbuf->cmd_idx++, ctx->pic_header_ofs, &cmdbuf->header_mem);
         
         lnc__H264_prepare_picture_header(cmdbuf->header_mem_p + ctx->pic_header_ofs);
+    }
+
+    /*Record if EOSEQ or EOSTREAM should be appended to the coded buffer.*/
+    if (0 != pBuffer->last_picture)
+    {
+	psb__information_message("It's the last picture in sequence or stream."
+		   " Will append EOSEQ/EOSTREAM to the coded buffer.\n");
+	p_aux_info = calloc(1, sizeof(struct coded_buf_aux_info));
+	if (NULL == p_aux_info)
+	{
+	    free(pBuffer);
+	    return VA_STATUS_ERROR_ALLOCATION_FAILED;
+	}
+	p_aux_info->buf = ctx->coded_buf;
+	p_aux_info->aux_flag = pBuffer->last_picture;
+	if (NULL != ctx->p_coded_buf_info)
+	    p_aux_info->next = ctx->p_coded_buf_info;
+	else
+	    p_aux_info->next = NULL;
+
+	ctx->p_coded_buf_info = p_aux_info;
     }
 
     vaStatus = lnc_RenderPictureParameter(ctx);
@@ -359,7 +407,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
         int deblock_on, force_idr = 0;
 
         /* set to INTRA frame */
-        if (ctx->force_idr_h264 || ctx->reinit_rc_control) {
+        if (ctx->force_idr_h264 || (ctx->obj_context->frame_count == 0)) {
             force_idr = 1;
             pBuffer->slice_flags.bits.is_intra = 1;
         }
@@ -390,7 +438,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
                      &cmdbuf->header_mem);
 
         if (!(ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip)) {
-            if (((ctx->obj_context->frame_count == 0) || ctx->reinit_rc_control) &&  (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
+            if ((ctx->obj_context->frame_count == 0) &&  (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
                 lnc_reset_encoder_params(ctx);
 
 	    if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[(pBuffer->slice_flags.bits.is_intra ? 0:1)], pBuffer) == 0) {
@@ -414,7 +462,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
                                           deblock_on,
                                           ctx->obj_context->frame_count,
                                           pBuffer->slice_height*16,
-                                          ctx->obj_context->slice_count);
+                                          ctx->obj_context->slice_count,ctx->max_slice_size);
     
             psb__information_message("Now frame_count/slice_count is %d/%d\n", 
                                      ctx->obj_context->frame_count, ctx->obj_context->slice_count);
@@ -423,6 +471,92 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
         pBuffer++; /* Move to the next buffer */
 
         ASSERT(ctx->obj_context->slice_count < MAX_SLICES_PER_PICTURE);
+    }
+
+    free(obj_buffer->buffer_data );
+    obj_buffer->buffer_data = NULL;
+    
+    return VA_STATUS_SUCCESS;
+}
+
+static VAStatus lnc__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
+    VAEncMiscParameterBuffer *pBuffer;
+    VAEncMiscParameterBitRate *bitrate_param;
+    VAEncMiscParameterAIR *air_param;
+    VAEncMiscParameterMaxSliceSize *max_slice_size_param;
+    VAEncMiscParameterFrameRate *frame_rate_param;
+
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+
+    ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
+
+    /* Transfer ownership of VAEncMiscParameterBuffer data */
+    pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
+    obj_buffer->size = 0;
+
+    switch (pBuffer->type) {
+    case VAEncMiscParameterTypeFrameRate:
+	    frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
+	    psb__information_message("%s: frame rate changed to %d\n",
+				     frame_rate_param->framerate);
+	    break;
+
+    case VAEncMiscParameterTypeBitRate:
+	    bitrate_param = (VAEncMiscParameterBitRate *)pBuffer->data;
+
+	    psb__information_message("%s: bit rate changed to %d\n",
+				     bitrate_param->bitrate);
+
+	    if (bitrate_param->bitrate == ctx->sRCParams.BitsPerSecond)
+		    break;
+	    else
+		    ctx->update_rc_control = 1;
+
+	    if (bitrate_param->bitrate > TOPAZ_H264_MAX_BITRATE) {
+		    ctx->sRCParams.BitsPerSecond = TOPAZ_H264_MAX_BITRATE;
+		    psb__information_message(" bits_per_second(%d) exceeds \
+                                             the maximum bitrate, set it with %d\n", 
+					     bitrate_param->bitrate,
+					     TOPAZ_H264_MAX_BITRATE);
+	    }
+	    else
+		    ctx->sRCParams.BitsPerSecond = bitrate_param->bitrate;
+	    
+	    break;
+
+    case VAEncMiscParameterTypeMaxSliceSize:
+	    max_slice_size_param = (VAEncMiscParameterMaxSliceSize *)pBuffer->data;
+
+	    if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
+		    break;
+
+	    psb__information_message("%s: max slice size changed to %d\n",
+				     max_slice_size_param->max_slice_size);
+
+	    ctx->max_slice_size = max_slice_size_param->max_slice_size;
+
+	    break;
+
+    case VAEncMiscParameterTypeAIR:
+	    air_param = (VAEncMiscParameterAIR *)pBuffer->data;
+
+	    psb__information_message("%s: air slice size changed to num_air_mbs %d "
+				     "air_threshold %d, air_auto %d\n",
+				     air_param->air_num_mbs, air_param->air_threshold,
+				     air_param->air_auto);
+
+	    ctx->num_air_mbs = air_param->air_num_mbs;
+	    ctx->air_threshold = air_param->air_threshold;
+	    ctx->autotune_air_flag = air_param->air_auto;
+
+	    break;
+
+    default:
+            vaStatus = VA_STATUS_ERROR_UNKNOWN;
+            DEBUG_FAILURE;
+	    break;
     }
 
     free(obj_buffer->buffer_data );
@@ -465,6 +599,12 @@ static VAStatus lnc_H264ES_RenderPicture(
             DEBUG_FAILURE;
             break;
 
+	case VAEncMiscParameterBufferType:
+		psb__information_message("lnc_H264_RenderPicture got VAEncMiscParameterBufferType\n");
+		vaStatus = lnc__H264ES_process_misc_param(ctx, obj_buffer);
+		DEBUG_FAILURE;
+		break;
+
         default:
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
@@ -501,3 +641,76 @@ struct format_vtable_s lnc_H264ES_vtable = {
   renderPicture: lnc_H264ES_RenderPicture,
   endPicture: lnc_H264ES_EndPicture
 };
+
+static inline void lnc_H264_append_EOSEQ(unsigned char *p_buf, unsigned long *p_size)
+{
+    /*nal_ref_idc should be 0 and nal_ref_idc should be 10 for End of Sequence RBSP*/
+    const unsigned char EOSEQ[] = {0x00, 0x00, 0x00, 0x01, 0xa};
+    psb__information_message("Append %d bytes of End of Sequence RBSP at offset %d\n",
+	    sizeof(EOSEQ), *p_size);
+    psb__information_message("Previous 4 bytes: %x %x %x %x\n", *(p_buf-3), *(p_buf-2),*(p_buf-1),*(p_buf)); 
+    p_buf += *p_size;
+    memcpy(p_buf, &EOSEQ[0], sizeof(EOSEQ));
+    psb__information_message("After 4 bytes: %x %x %x %x\n", *(p_buf+1), *(p_buf+2),*(p_buf+3),*(p_buf+4)); 
+    *p_size += sizeof(EOSEQ);
+}
+
+static inline void lnc_H264_append_EOSTREAM(unsigned char *p_buf, unsigned long *p_size)
+{
+    /*nal_ref_idc should be 0 and nal_ref_idc should be 11 for End of Stream RBSP*/
+    const unsigned char EOSTREAM[] = {0x00, 0x00, 0x00, 0x01, 0xb};
+    psb__information_message("Append %d bytes of End of Stream RBSP.\n",
+	    sizeof(EOSTREAM));
+    p_buf += *p_size;
+    memcpy(p_buf, EOSTREAM, sizeof(EOSTREAM));
+    *p_size += sizeof(EOSTREAM);
+}
+
+VAStatus lnc_H264_append_aux_info(object_context_p obj_context,
+	       object_buffer_p obj_buffer,
+	       unsigned char *buf,
+	       unsigned long *p_size)
+{
+    INIT_CONTEXT_H264ES;
+    struct coded_buf_aux_info *p_aux_info;
+    struct coded_buf_aux_info *p_prev_aux_info;
+
+    if ( NULL == ctx->p_coded_buf_info ||
+	    (ctx->eCodec != IMG_CODEC_H264_VBR
+	     && ctx->eCodec != IMG_CODEC_H264_CBR
+	     && ctx->eCodec != IMG_CODEC_H264_NO_RC))
+	return VA_STATUS_SUCCESS;
+
+    ASSERT(obj_buffer);
+    ASSERT(buf);
+    ASSERT(p_size);
+
+    p_aux_info = ctx->p_coded_buf_info;
+    p_prev_aux_info = ctx->p_coded_buf_info;
+    while (p_aux_info != NULL)
+    {
+	/*Check if we need to append NAL to this coded buffer*/
+	if (p_aux_info->buf == obj_buffer)
+	    break;
+	p_prev_aux_info = p_aux_info;
+	p_aux_info = p_aux_info->next;
+    }
+
+    if (NULL != p_aux_info)
+    {
+	psb__information_message("coded_buf_aux_info 0x%08x\n", p_aux_info->aux_flag);
+	if (0 != (p_aux_info->aux_flag & CODED_BUFFER_EOSEQ_FLAG))
+	    lnc_H264_append_EOSEQ(buf, p_size);
+
+	if (0 != (p_aux_info->aux_flag & CODED_BUFFER_EOSTREAM_FLAG))
+	    lnc_H264_append_EOSTREAM(buf, p_size);
+
+	if (p_aux_info == ctx->p_coded_buf_info)
+	    ctx->p_coded_buf_info = p_aux_info->next;
+	else
+	    p_prev_aux_info->next = p_aux_info->next;
+
+	free(p_aux_info);
+    }
+    return VA_STATUS_SUCCESS;
+}

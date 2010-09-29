@@ -279,7 +279,8 @@ void lnc__H263_prepare_picture_header(
     H263_SOURCE_FORMAT_TYPE SourceFormatType,
     IMG_UINT8 FrameRate,
     IMG_UINT16 PictureWidth,
-    IMG_UINT16 PictureHeigth);
+    IMG_UINT16 PictureHeight,
+    IMG_UINT8 *OptionalCustomPCF);
 
 void lnc__H263_prepare_GOBslice_header(
     IMG_UINT32 *pHeaderMem,

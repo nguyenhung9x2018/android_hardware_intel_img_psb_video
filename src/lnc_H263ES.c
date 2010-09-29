@@ -59,7 +59,11 @@ static void lnc_H263ES_QueryConfigAttributes(
         case VAConfigAttribRateControl:
             attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR;
             break;
-
+#if 0
+	case VAConfigAttribEncMaxSliceSize:
+		attrib_list[i].value = 0;
+		break;
+#endif
         default:
             attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
             break;
@@ -97,16 +101,20 @@ static VAStatus lnc_H263ES_CreateContext(
 
     ctx = (context_ENC_p) obj_context->format_data;
 
+    ctx->max_slice_size = 0;
+    eRCmode = VA_RC_NONE;
+
     for(i = 0; i < obj_config->attrib_count; i++) {
-        if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
-            break;
+#if 0
+	    if(obj_config->attrib_list[i].type == VAConfigAttribEncMaxSliceSize)
+		    ctx->max_slice_size = obj_config->attrib_list[i].value;
+	    else if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
+		    eRCmode = obj_config->attrib_list[i].value;
+#else
+	    if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
+		    eRCmode = obj_config->attrib_list[i].value;
+#endif
     }
-
-    if(i >= obj_config->attrib_count)
-        eRCmode = VA_RC_NONE;
-    else
-        eRCmode = obj_config->attrib_list[i].value;
-
 
     if( eRCmode == VA_RC_VBR) {
         ctx->eCodec = IMG_CODEC_H263_VBR;
@@ -125,6 +133,8 @@ static VAStatus lnc_H263ES_CreateContext(
     ctx->eFormat = IMG_CODEC_PL12;
 
     ctx->IPEControl = lnc__get_ipe_control(ctx->eCodec);
+
+    ctx->OptionalCustomPCF = 0;
     
     return vaStatus;
 
@@ -177,6 +187,10 @@ static VAStatus lnc__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
+    if ((ctx->obj_context->frame_count != 0) &&
+	(ctx->sRCParams.BitsPerSecond != pSequenceParams->bits_per_second))
+	    ctx->update_rc_control = 1;
+
     if (pSequenceParams->bits_per_second > TOPAZ_H263_MAX_BITRATE)
     {
 	ctx->sRCParams.BitsPerSecond = TOPAZ_H263_MAX_BITRATE;
@@ -187,8 +201,6 @@ static VAStatus lnc__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     }
     else
 	ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
-
-    ctx->reinit_rc_control = 1;
 
     ctx->sRCParams.FrameRate = pSequenceParams->frame_rate;
     ctx->sRCParams.InitialQp = pSequenceParams->initial_qp;
@@ -273,7 +285,8 @@ static VAStatus lnc__H263ES_process_picture_param(context_ENC_p ctx, object_buff
                                          SourceFormatType,
                                          ctx->sRCParams.FrameRate,
                                          ctx->Width,
-                                         ctx->Height);
+                                         ctx->Height,
+					 &ctx->OptionalCustomPCF);
     
         lnc_cmdbuf_insert_command(cmdbuf, MTX_CMDID_DO_HEADER, 2,1);
         RELOC_CMDBUF(cmdbuf->cmd_idx++, ctx->pic_header_ofs, &cmdbuf->header_mem);
@@ -336,7 +349,7 @@ static VAStatus lnc__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
                          &cmdbuf->header_mem);
         }
     
-	if( ((ctx->obj_context->frame_count == 0) || ctx->reinit_rc_control) && (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
+	if( (ctx->obj_context->frame_count == 0) && (pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra)
 	    lnc_reset_encoder_params(ctx);
 
 	if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[(pBuffer->slice_flags.bits.is_intra ? 0:1)], pBuffer) == 0) {
@@ -360,7 +373,8 @@ static VAStatus lnc__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
                                       0, /* no deblock for H263 */
                                       ctx->obj_context->frame_count,
                                       pBuffer->slice_height*16,
-                                      ctx->obj_context->slice_count);
+                                      ctx->obj_context->slice_count,
+				      ctx->max_slice_size);
     
         psb__information_message("Now frame_count/slice_count is %d/%d\n", 
                                  ctx->obj_context->frame_count, ctx->obj_context->slice_count);
@@ -376,7 +390,90 @@ static VAStatus lnc__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
     return VA_STATUS_SUCCESS;
 }
 
+static VAStatus lnc__H263ES_process_misc_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
+    VAEncMiscParameterBuffer *pBuffer;
+    VAEncMiscParameterBitRate *bitrate_param;
+    VAEncMiscParameterAIR *air_param;
+    VAEncMiscParameterMaxSliceSize *max_slice_size_param;
+    VAEncMiscParameterFrameRate *frame_rate_param;
 
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+
+    ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
+
+    pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
+    obj_buffer->size = 0;
+
+    switch (pBuffer->type) {
+    case VAEncMiscParameterTypeFrameRate:
+	    frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
+	    psb__information_message("%s: frame rate changed to %d\n",
+				     frame_rate_param->framerate);
+	    break;
+
+    case VAEncMiscParameterTypeBitRate:
+	    bitrate_param = (VAEncMiscParameterBitRate *)pBuffer->data;
+
+	    psb__information_message("%s: bit rate changed to %d\n",
+				     bitrate_param->bitrate);
+
+	    if (bitrate_param->bitrate == ctx->sRCParams.BitsPerSecond)
+		    break;
+	    else
+		    ctx->update_rc_control = 1;
+
+	    if (bitrate_param->bitrate > TOPAZ_H263_MAX_BITRATE) {
+		    ctx->sRCParams.BitsPerSecond = TOPAZ_H263_MAX_BITRATE;
+		    psb__information_message(" bits_per_second(%d) exceeds \
+		the maximum bitrate, set it with %d\n", 
+					     bitrate_param->bitrate,
+					     TOPAZ_H263_MAX_BITRATE);
+	    }
+	    else
+		    ctx->sRCParams.BitsPerSecond = bitrate_param->bitrate;
+	    
+	    break;
+
+    case VAEncMiscParameterTypeMaxSliceSize:
+	    max_slice_size_param = (VAEncMiscParameterMaxSliceSize *)pBuffer->data;
+
+	    if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
+		    break;
+
+	    psb__information_message("%s: max slice size changed to %d\n",
+				     max_slice_size_param->max_slice_size);
+
+	    ctx->max_slice_size = max_slice_size_param->max_slice_size;
+
+	    break;
+
+    case VAEncMiscParameterTypeAIR:
+	    air_param = (VAEncMiscParameterAIR *)pBuffer->data;
+
+	    psb__information_message("%s: air slice size changed to num_air_mbs %d "
+				     "air_threshold %d, air_auto %d\n",
+				     air_param->air_num_mbs, air_param->air_threshold,
+				     air_param->air_auto);
+
+	    ctx->num_air_mbs = air_param->air_num_mbs;
+	    ctx->air_threshold = air_param->air_threshold;
+	    ctx->autotune_air_flag = air_param->air_auto;
+
+	    break;
+
+    default:
+            vaStatus = VA_STATUS_ERROR_UNKNOWN;
+            DEBUG_FAILURE;
+	    break;
+    }
+
+    free(obj_buffer->buffer_data );
+    obj_buffer->buffer_data = NULL;
+    
+    return VA_STATUS_SUCCESS;
+}
 
 static VAStatus lnc_H263ES_RenderPicture(
     object_context_p obj_context,
@@ -413,6 +510,12 @@ static VAStatus lnc_H263ES_RenderPicture(
             DEBUG_FAILURE;
             break;
 
+	case VAEncMiscParameterBufferType:
+		psb__information_message("lnc_H263ES_RenderPicture got VAEncMiscParameterBufferType\n");
+		vaStatus = lnc__H263ES_process_misc_param(ctx, obj_buffer);
+		DEBUG_FAILURE;
+		break;
+
         default:
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
@@ -437,8 +540,6 @@ static VAStatus lnc_H263ES_EndPicture(
 
     vaStatus = lnc_EndPicture(ctx);
 
-    /* ctx->sRCParams.BitsConsumed this value must be updated */
-    /* ctx->sRCParams.BitsConsumed = Size << 3; Size is the number of bytes for last frame data*/
     return vaStatus;
 }
 

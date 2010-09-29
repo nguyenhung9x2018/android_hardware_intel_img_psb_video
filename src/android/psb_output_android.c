@@ -43,6 +43,52 @@
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
 
 
+typedef struct _psb_android_output_s {
+    /* information of output display */
+    unsigned short screen_width;
+    unsigned short screen_height;
+
+    /* for android surface register */
+    int register_flag;
+
+    /* for memory heap base used by putsurface */
+    unsigned char* heap_addr;
+} psb_android_output_s, *psb_android_output_p;
+
+static int parse_psbvideo_config(VADriverContextP ctx)
+{
+
+    INIT_DRIVER_DATA;
+    char *token, *value, *saveptr;
+    char oneline[1024];
+
+    FILE *fp = fopen("/etc/psbvideo.conf", "r");
+    if (fp == NULL)
+        return 0;
+
+    while (fgets(oneline, 1024, fp) != NULL) {
+	if (strlen(oneline) == 1)
+	    continue;
+        token = strtok_r(oneline, "=\n", &saveptr);
+	value = strtok_r(NULL, "=\n", &saveptr);
+
+        if (strcmp(token, "PSB_VIDEO_CTEXTURE") == 0) {
+	    psb__information_message("Putsurface use client textureblit\n");
+            driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
+            driver_data->ctexture = 1;
+        }
+
+        if (strcmp(token, "PSB_VIDEO_COVERLAY") == 0) {
+	    psb__information_message("Putsurface use client overlay\n");
+            driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
+            driver_data->coverlay = 1;
+        }
+    }
+
+    fclose(fp);
+    return 1;
+}
+
 void *psb_android_output_init(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
@@ -71,28 +117,16 @@ void *psb_android_output_init(VADriverContextP ctx)
     close(fbfd);
     output->screen_width = vinfo.xres;
     output->screen_height = vinfo.yres;
-    
-    if (psb_parse_config("PSB_VIDEO_CTEXTURE", &put_surface[0]) == 0) {
-        psb__information_message("Putsurface use client textureblit\n");
-        driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
-        driver_data->ctexture = 1;
-    }
+
+    /* TS by default */
+    driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
 
     if (psb_parse_config("PSB_VIDEO_COVERLAY", &put_surface[0]) == 0) {
         psb__information_message("Putsurface use client overlay\n");
         driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
         driver_data->coverlay = 1;
     }
-    
-    /* config file not exist or parse failed, use texturestreaming by default*/
-    if (!ret || ((driver_data->output_method != PSB_PUTSURFACE_FORCE_CTEXTURE) && (driver_data->output_method != PSB_PUTSURFACE_FORCE_COVERLAY)))
-	driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
 
-    if (getenv("PSB_VIDEO_CTEXTURE")) {
-	psb__information_message("Putsurface use client textureblit\n");
-	driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
-	driver_data->ctexture = 1;
-    }
     
     if (getenv("PSB_VIDEO_COVERLAY")) {
         psb__information_message("Putsurface use client overlay\n");
@@ -148,7 +182,7 @@ static VAStatus psb_putsurface_ctexture(
 
     printf("FIXME: camera preview surface is different, all is \n"
            "just one buffer, so a pre_add is needed\n");
-    LOGE("srcx %d, srcy %d, srcw %d, srch %d, destx %d, desty %d, destw %d,\n"
+    psb__error_message("srcx %d, srcy %d, srcw %d, srch %d, destx %d, desty %d, destw %d,\n"
          "desth %d, width %d height %d, stride %d drm_buf %x\n",
          srcx, srcy, srcw, srch, destx, desty, destw, desth, obj_surface->width,
          obj_surface->height, psb_surface->stride, psb_surface->buf.drm_buf);
@@ -207,7 +241,7 @@ VAStatus psb_putsurface_coverlay(
     vaStatus = psb_putsurface_overlay(
         ctx, surface, srcx, srcy, srcw, srch,
         destx, desty, destw, desth, /* screen coordinate */
-        flags); 
+        flags, OVERLAY_A, PIPEA); 
 
     return vaStatus;
 }
@@ -250,10 +284,10 @@ VAStatus psb_PutSurface(
 
     if (driver_data->output_method == PSB_PUTSURFACE_TEXSTREAMING || 
 	driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING) {
-        LOGV("In psb_PutSurface, use texture streaming to display video.\n");
+        psb__information_message("In psb_PutSurface, use texture streaming to display video.\n");
         if (!output->register_flag)
         {
-            LOGD("In psb_PutSurface, call psb_android_register_isurface to create texture streaming source, srcw is %d, srch is %d.\n", srcw, srch);
+            psb__information_message("In psb_PutSurface, call psb_android_register_isurface to create texture streaming source, srcw is %d, srch is %d.\n", srcw, srch);
             psb_android_register_isurface(android_isurface, buffer_device_id, srcw, srch);
             output->register_flag = 1;
         }
@@ -267,38 +301,22 @@ VAStatus psb_PutSurface(
 
         if(drmCommandWriteRead(driver_data->drm_fd, DRM_BUFFER_CLASS_VIDEO, &ioctl_package, sizeof(ioctl_package)) != 0)
         {
-            LOGE("Failed to get buffer index from buffer class video driver (errno=%d).\n", errno);
+            psb__error_message("Failed to get buffer index from buffer class video driver (errno=%d).\n", errno);
             return VA_STATUS_ERROR_UNKNOWN;
         }
-        LOGV("buffer handle is %d and buffer index is %d.\n", ioctl_package.inputparam, ioctl_package.outputparam);
+        psb__information_message("buffer handle is %d and buffer index is %d.\n", ioctl_package.inputparam, ioctl_package.outputparam);
         psb_android_texture_streaming_display(ioctl_package.outputparam);
         
         return VA_STATUS_SUCCESS;
-    } else if (driver_data->output_method == PSB_PUTSURFACE_CTEXTURE || 
-               driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE) {
-        LOGD("In psb_PutSurface, use general texture path to display video.\n");
-        /* register Buffer only once */
-    	if (!output->register_flag) {
-            LOGV("In psb_PutSurface, call psb_android_register_isurface to create texture streaming source.\n");
-    	    output->heap_addr = psb_android_registerBuffers(android_isurface, getpid(), srcw, srch);
-    	    if (VA_STATUS_SUCCESS != vaStatus) {
-    		    psb__information_message("vaPutSurface: register buffers failed, return directly\n");
-    		    return vaStatus;
-    	    }
-    	    output->register_flag = 1;
-	    }
-
-	    return psb_putsurface_ctexture(ctx, surface, output->heap_addr, srcx, srcy, srcw, srch,
-                                       destx, desty, destw, desth, flags);
     } else if (driver_data->output_method == PSB_PUTSURFACE_COVERLAY ||
                driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) {
-        LOGV("In psb_PutSurface, use overlay to display video.\n");
-        LOGV("srcx is %d, srcy is %d, srcw is %d, srch is %d, destx is %d, desty is %d, destw is %d, desth is %d.\n", \
+        psb__information_message("In psb_PutSurface, use overlay to display video.\n");
+        psb__information_message("srcx is %d, srcy is %d, srcw is %d, srch is %d, destx is %d, desty is %d, destw is %d, desth is %d.\n", \
              srcx, srcy, srcw, srch, destx, desty, destw, desth);
         return psb_putsurface_coverlay(ctx, surface,
                                       srcx, srcy, srcw, srch,
                                       destx, desty, destw, desth,
 				      flags);
     }
-    return VA_STATUS_SUCCESS;
+    return vaStatus;
 }

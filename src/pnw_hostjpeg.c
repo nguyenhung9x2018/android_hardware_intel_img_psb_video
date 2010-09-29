@@ -822,11 +822,23 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
     /*pTFrame->height isn't the real height of image, since vaCreateSurface
      * makes it aligned with 32*/
     ui16_height = ctx->Height;
-    ui16_height_min = ui16_height >> 1;
-    ui16_height_max = ui16_height;
-    ui16_width_min = pTFrame->width >> 1;
-    ui16_width_max = pTFrame->width;
-    /*ui16_height_min = ui16_width_min  = 65535;
+    switch (pContext->eFormat)
+    {
+	case IMG_CODEC_YV16: /*422 format*/
+	    ui16_height_min = ui16_height;
+	    ui16_height_max = ui16_height;
+	    ui16_width_min = pTFrame->width >> 1;
+	    ui16_width_max = pTFrame->width;
+	    break;
+	case IMG_CODEC_NV12:
+	default:
+	    ui16_height_min = ui16_height >> 1;
+	    ui16_height_max = ui16_height;
+	    ui16_width_min = pTFrame->width >> 1;
+	    ui16_width_max = pTFrame->width;
+	    break;
+    }
+        /*ui16_height_min = ui16_width_min  = 65535;
     ui16_height_max = ui16_width_max  = 0;
 
     for(uc_i = 0; uc_i < pContext->pMTXSetup->ui32ComponentsInScan; uc_i++)
@@ -859,7 +871,7 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
     
 /*	ui16_comp_width  = pTFrame->aui32ComponentInfo[uc_i].ui32Width;
 	ui16_comp_height = pTFrame->aui32ComponentInfo[uc_i].ui32Height;*/
-	/*FIXME: only support NV12, YV12 here. uc_h/v_scale should be 
+	/*Support NV12, YV12, YV16 here. uc_h/v_scale should be 
 	 * 2x2(Y) or 1x1(U/V)*/
 	if (0 == uc_i)
 	{
@@ -868,8 +880,17 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
 	}
 	else
 	{
-	     ui16_comp_width  = pTFrame->width >> 1;
-	     ui16_comp_height = ui16_height >> 1;
+	    switch (pContext->eFormat)
+	    {
+		case IMG_CODEC_YV16: /*422 format*/
+		    ui16_comp_width  = pTFrame->width >> 1;
+		    ui16_comp_height = ui16_height;
+		    break;
+		case IMG_CODEC_NV12:
+		default:
+		    ui16_comp_width  = pTFrame->width >> 1;
+		    ui16_comp_height = ui16_height >> 1;
+	    }
 	}
 
 	uc_h_scale       = (ui16_comp_width *  uc_h_scale_max) / 
@@ -897,6 +918,8 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
 	    case LC_VUINTERLEAVE:
 		//Y0UY1V_8888 or Y0VY1U_8888 format
 		ui16_comp_width <<= 1;
+		break;
+	    default:
 		break;
 	}
 
@@ -1576,7 +1599,7 @@ IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UIN
 	MMDeviceMemWriteDeviceMemRef(pContext->pMemInfoMTXSetup->iu32MemoryRegionID, pContext->pMemInfoMTXSetup->hShadowMem, (IMG_UINT32)   ((IMG_BYTE*)&pSrcPlane->ui32PhysAddr - (IMG_BYTE*)pContext->pMTXSetup),TAL_NULL_MANGLER_ID,(IMG_HANDLE) pTFrame->psBuffer->pMemInfo->hShadowMem, pTFrame->aui32ComponentOffset[aui8Planes[n]]);
 	TIMER_END("HW - MMDeviceMemWriteDeviceMemRef in SetupIssueSetup (hostjpeg.c)");
     }*/
-    /*FIXME: only support PL12/NV12, YV12/IYUV*/
+    /*Support PL12/NV12, YV12/IYUV, YV16*/
     srf_buf_offset = pTFrame->psb_surface->buf.buffer_ofs;
     RELOC_PIC_PARAMS_PNW(&pContext->pMTXSetup->ComponentPlane[0].ui32PhysAddr, srf_buf_offset , &pTFrame->psb_surface->buf);
     switch(pContext->eFormat)
@@ -1594,16 +1617,31 @@ IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UIN
 	case IMG_CODEC_IMC2:
 	case IMG_CODEC_PL12:
 	case IMG_CODEC_NV12:
-	    RELOC_PIC_PARAMS_PNW(&pContext->pMTXSetup->ComponentPlane[1].ui32PhysAddr, 
-		    srf_buf_offset + pTFrame->psb_surface->stride * pTFrame->height, 
+	    RELOC_PIC_PARAMS_PNW(&pContext->pMTXSetup->ComponentPlane[1].ui32PhysAddr,
+		    srf_buf_offset + pTFrame->psb_surface->stride * pTFrame->height,
 		    &pTFrame->psb_surface->buf);
 	    //Byte interleaved surface, so need to force chroma to use single surface by fooling it into
 	    //thinking it's dealing with standard 8x8 planaerblocks
-	    RELOC_PIC_PARAMS_PNW(&pContext->pMTXSetup->ComponentPlane[2].ui32PhysAddr, 
+	    RELOC_PIC_PARAMS_PNW(&pContext->pMTXSetup->ComponentPlane[2].ui32PhysAddr,
 		    srf_buf_offset + pTFrame->psb_surface->stride * pTFrame->height
-			+ 8, 
+			+ 8,
 		    &pTFrame->psb_surface->buf);
 	   break;
+	case IMG_CODEC_YV16:
+	   /*V*/
+	   RELOC_PIC_PARAMS_PNW(&pContext->pMTXSetup->ComponentPlane[2].ui32PhysAddr,
+		   srf_buf_offset + pTFrame->psb_surface->stride * pTFrame->height,
+		   &pTFrame->psb_surface->buf);
+	   /*U*/
+	   RELOC_PIC_PARAMS_PNW(&pContext->pMTXSetup->ComponentPlane[1].ui32PhysAddr,
+		   srf_buf_offset + pTFrame->psb_surface->stride * pTFrame->height
+		   + (pTFrame->psb_surface->stride) * (pTFrame->height) / 2,
+		   &pTFrame->psb_surface->buf);
+	   break;
+	default:
+	   psb__error_message(" Not supported FOURCC %x!\n", pContext->eFormat);
+	   return -1;
+
     }
 
 
@@ -2185,7 +2223,9 @@ IMG_ERRORCODE SetupJPEGTables( TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODE
 
     pContext->sScan_Encode_Info.ui32NumberMCUsY=(pContext->pMTXSetup->MCUComponent[0].ui32YLimit+(pContext->pMTXSetup->MCUComponent[0].ui32HeightBlocks-1))/pContext->pMTXSetup->MCUComponent[0].ui32HeightBlocks;
     pContext->sScan_Encode_Info.ui32NumberMCUsToEncode=pContext->sScan_Encode_Info.ui32NumberMCUsX*pContext->sScan_Encode_Info.ui32NumberMCUsY;
-    pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan = JPEG_MCU_PER_SCAN(ctx->Width, ctx->Height, ctx->NumCores); 
+
+    pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan = 
+	JPEG_MCU_PER_SCAN(ctx->Width, ctx->Height, ctx->NumCores, pContext->eFormat); 
 
     psb__information_message("MCUs To Encode %dx%d\n", 
 	    pContext->sScan_Encode_Info.ui32NumberMCUsX,
@@ -2250,10 +2290,21 @@ IMG_ERRORCODE SetupJPEGTables( TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODE
 
     switch(pContext->eFormat)
     {
+	case IMG_CODEC_YV16:
+	    pContext->pMTXSetup->ComponentPlane[0].ui32Stride = pTFrame->psb_surface->stride;
+	    pContext->pMTXSetup->ComponentPlane[1].ui32Stride = pTFrame->psb_surface->stride / 2;    
+	    pContext->pMTXSetup->ComponentPlane[2].ui32Stride = pTFrame->psb_surface->stride / 2;
+
+	    pContext->pMTXSetup->ComponentPlane[0].ui32Height = pTFrame->height;
+	    pContext->pMTXSetup->ComponentPlane[1].ui32Height = pTFrame->height;
+	    pContext->pMTXSetup->ComponentPlane[2].ui32Height = pTFrame->height;
+
+	    /*YV16's plane order is Y, V, U*/
+	    ui8Planes[0]=0;ui8Planes[2]=1;ui8Planes[1]=2;
+	    break;
 	case IMG_CODEC_IYUV:
 	case IMG_CODEC_IMC2:
-	/*case IMG_CODEC_422_YV12:
-	case IMG_CODEC_422_IMC2:
+	/*case IMG_CODEC_422_IMC2:
 	    SetupYUVPlaneDetails(&(pContext->pMTXSetup->ComponentPlane[0]),
 		    &(pTFrame->aui32ComponentInfo[0]));
 

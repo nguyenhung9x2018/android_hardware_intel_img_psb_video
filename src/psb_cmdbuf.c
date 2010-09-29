@@ -1400,7 +1400,7 @@ static const DMA_DETAIL_LOOKUP DmaDetailLookUp[] =
 									DMA_BURST_1		/* Into MTX */
 								},
 	/*LLDMA_TYPE_MPEG4_FESTATE_SAVE*/{
-									(REG_MSVDX_VEC_RAM_OFFSET + 0x700 ),
+									(REG_MSVDX_VEC_RAM_OFFSET + 0xB90 ),
 									DMA_PWIDTH_32_BIT,
 									DMA_PERIPH_INCR_4,	
 									DMA_PERIPH_INCR_ON,
@@ -1410,7 +1410,7 @@ static const DMA_DETAIL_LOOKUP DmaDetailLookUp[] =
 									DMA_BURST_2		 /* From VLR */
 								},
 	/*LLDMA_TYPE_MPEG4_FESTATE_RESTORE*/{
-									(REG_MSVDX_VEC_RAM_OFFSET + 0x700 ),
+									(REG_MSVDX_VEC_RAM_OFFSET + 0xB90 ),
 									DMA_PWIDTH_32_BIT,
 									DMA_PERIPH_INCR_4,	
 									DMA_PERIPH_INCR_ON,

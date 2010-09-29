@@ -47,7 +47,7 @@ VAStatus psb_surface_create( psb_driver_data_p driver_data,
 	    
         if (0)
         {
-            ;
+	    ;
         }
         else if (512 >= width)
         {
@@ -94,6 +94,16 @@ VAStatus psb_surface_create( psb_driver_data_p driver_data,
         psb_surface->chroma_offset = 0;
         psb_surface->size = psb_surface->stride * height;
         psb_surface->extra_info[4] = VA_FOURCC_RGBA;
+    }
+    else if (fourcc == VA_FOURCC_YV16)
+    {
+	psb_surface->stride_mode = STRIDE_NA;
+	psb_surface->stride = (width + 1) & ~0x1;
+
+	psb_surface->luma_offset = 0;
+	psb_surface->chroma_offset = psb_surface->stride * height;
+	psb_surface->size = psb_surface->stride * height * 2;
+	psb_surface->extra_info[4] = VA_FOURCC_YV16;
     }
 	
     if (protected == 0)

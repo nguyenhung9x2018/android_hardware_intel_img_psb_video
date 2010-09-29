@@ -80,6 +80,7 @@ static VAStatus pnw_jpeg_CreateContext(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_p ctx;
     TOPAZSC_JPEG_ENCODER_CONTEXT *jpeg_ctx_p;
+    int i;
 
     psb__information_message("pnw_jpeg_CreateContext\n");
 
@@ -90,9 +91,28 @@ static VAStatus pnw_jpeg_CreateContext(
     ctx = (context_ENC_p) obj_context->format_data;
 
     ctx->eCodec = IMG_CODEC_JPEG; 
-    ctx->eFormat = IMG_CODEC_PL12;
-//    ctx->eFormat = IMG_CODEC_IYUV;
 
+    for (i = 0; i < obj_config->attrib_count; i++) {
+        if (VAConfigAttribRTFormat ==  obj_config->attrib_list[i].type) {
+	    switch (obj_config->attrib_list[i].value)
+	    {
+		case VA_RT_FORMAT_YUV420:
+		    ctx->eFormat = IMG_CODEC_PL12;
+		    psb__information_message("JPEG encoding: Choose NV12 format\n");
+		    break;
+		case VA_RT_FORMAT_YUV422:
+		    ctx->eFormat = IMG_CODEC_YV16;
+		    psb__information_message("JPEG encoding: Choose YV16 format\n");
+		    break;
+		default:
+		    psb__error_message("JPEG encoding: unsupported YUV format!\n");   
+		    ctx->eFormat = IMG_CODEC_PL12;
+		    break;
+	    } 
+	    break;
+        }
+    }
+ 
     ctx->Slices = 2;
     ctx->ParallelCores = 2;
     ctx->NumCores = 2;
@@ -104,7 +124,8 @@ static VAStatus pnw_jpeg_CreateContext(
     jpeg_ctx_p = ctx->jpeg_ctx;
     jpeg_ctx_p->eFormat = ctx->eFormat;
 
-    jpeg_ctx_p->ui8ScanNum = JPEG_SCANNING_COUNT(ctx->Width, ctx->Height, ctx->NumCores);
+    /*Chroma sampling step x_step X y_step*/
+    jpeg_ctx_p->ui8ScanNum = JPEG_SCANNING_COUNT(ctx->Width, ctx->Height, ctx->NumCores, jpeg_ctx_p->eFormat);
 
     if (jpeg_ctx_p->ui8ScanNum < 2 || jpeg_ctx_p->ui8ScanNum > PNW_JPEG_MAX_SCAN_NUM)
     {
@@ -286,7 +307,7 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
 
     jpeg_ctx->ui32SizePerCodedBuffer = 
 	JPEG_CODED_BUF_SEGMENT_SIZE(ctx->coded_buf->size, 
-		ctx->Width, ctx->Height, ctx->NumCores); 
+		ctx->Width, ctx->Height, ctx->NumCores, jpeg_ctx->eFormat); 
 
     psb__information_message("Coded buffer total size is %d," 
 	    "coded segment size per scan is %d\n",

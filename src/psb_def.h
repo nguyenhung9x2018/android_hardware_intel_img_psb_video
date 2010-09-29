@@ -69,4 +69,8 @@ void psb__trace_message(const char *msg, ...);
 #define DEBUG_FAILURE		while(vaStatus) {psb__information_message("%s fails with '%d' at %s:%d\n", __FUNCTION__, vaStatus, __FILE__, __LINE__);break;}
 #define DEBUG_FAILURE_RET	while(ret)		{psb__information_message("%s fails with '%s' at %s:%d\n", __FUNCTION__, strerror(ret < 0 ? -ret : ret), __FILE__, __LINE__);break;}
 
+
+#ifndef VA_FOURCC_YV16
+#define VA_FOURCC_YV16 0x36315659
+#endif
 #endif /* _PSB_DEF_H_ */

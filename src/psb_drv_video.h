@@ -184,7 +184,10 @@ struct psb_driver_data_s {
     unsigned int max_subpic;
     
     /* for multi-thread safe */
+    int use_xrandr_thread;
     pthread_mutex_t output_mutex;
+    pthread_t xrandr_thread_id;
+
     int rotate;
     int drawable_info;
     int dummy_putsurface;

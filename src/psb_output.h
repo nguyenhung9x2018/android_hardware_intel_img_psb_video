@@ -39,7 +39,7 @@
 #define LOG_TAG "pvr_drv_video"
 #endif
 
-#define PSB_MAX_IMAGE_FORMATS      4 /* sizeof(psb__CreateImageFormat)/sizeof(VAImageFormat) */
+#define PSB_MAX_IMAGE_FORMATS      5 /* sizeof(psb__CreateImageFormat)/sizeof(VAImageFormat) */
 #define PSB_MAX_SUBPIC_FORMATS     3 /* sizeof(psb__SubpicFormat)/sizeof(VAImageFormat) */
 #define PSB_MAX_DISPLAY_ATTRIBUTES 6 /* sizeof(psb__DisplayAttribute)/sizeof(VADisplayAttribute) */
 
@@ -120,17 +120,17 @@
     0xff000000                                  \
 }
 
-typedef struct _psb_android_output_s {
-    /* information of output display */
-    unsigned short screen_width;
-    unsigned short screen_height;
-
-    /* for android surface register */
-    int register_flag;
-
-    /* for memory heap base used by putsurface */
-    unsigned char* heap_addr;
-} psb_android_output_s, *psb_android_output_p;
+#define psb__ImageYV16                          \
+{                                               \
+    VA_FOURCC_YV16,                             \
+    VA_LSB_FIRST,                               \
+    16,                                         \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+    0,                                          \
+}
 
 VAStatus psb__destroy_subpicture(psb_driver_data_p driver_data, object_subpic_p obj_subpic);
 VAStatus psb__destroy_image(psb_driver_data_p driver_data, object_image_p obj_image);

@@ -8,10 +8,6 @@ static pthread_mutex_t psb_extvideo_mutex;
 static XRRScreenResources *res;
 Display *dpy;
 Window root;
-int screen;
-
-#define USE_XRANDR_THREAD
-//#undef USE_XRANDR_THREAD
 
 #define MWM_HINTS_DECORATIONS (1L << 1)
 typedef struct
@@ -23,7 +19,7 @@ typedef struct
         int status;
 } MWMHints;
 
-static char* location2string(psb_xrandr_location location)
+char* location2string(psb_xrandr_location location)
 {
     switch (location)
     {
@@ -121,7 +117,7 @@ static void psb_extvideo_prop()
 
 	if (!psb_xrandr_info->primary_crtc || !psb_xrandr_info->extend_crtc || !psb_xrandr_info->primary_output || !psb_xrandr_info->extend_output)
 	{
-	    psb__error_message("failed to get primary/extend crtc/output\n");
+	    psb__error_message("Xrandr: failed to get primary/extend crtc/output\n");
 	    return;
 	}
 
@@ -334,7 +330,7 @@ void psb_xrandr_refresh()
     {
 	crtc_info = XRRGetCrtcInfo (dpy, res, p_crtc->crtc_id);
 
-	p_crtc->output = (psb_xrandr_output_p)calloc(p_crtc->noutput, sizeof(psb_xrandr_output_s));
+	p_crtc->output = (struct _psb_xrandr_output_s**)calloc(p_crtc->noutput, sizeof(psb_xrandr_output_s));
 
 	for (j = 0; j < crtc_info->noutput; j++)
 	{
@@ -350,51 +346,6 @@ void psb_xrandr_refresh()
     pthread_mutex_unlock(&psb_extvideo_mutex);
 }
 
-static void psb_xrandr_exit_thread()
-{
-    pthread_mutex_lock(&psb_extvideo_mutex);
-    
-    //free crtc
-    if (crtc_head)
-    {
-	while (crtc_head)
-	{
-	    crtc_tail = crtc_head->next;
-
-	    free(crtc_head);
-	
-	    crtc_head = crtc_tail;
-	}
-	crtc_head = crtc_tail = NULL;
-    }
-
-    //free output
-    if (output_head)
-    {
-	while (output_head)
-	{
-	    output_tail = output_head->next;
-
-	    free(output_head);
-	
-	    output_head = output_tail;
-	}
-	output_head = output_tail = NULL;
-    }
-
-    if (psb_xrandr_info->hdmi_extvideo_prop)
-	free(psb_xrandr_info->hdmi_extvideo_prop);
-
-    if (psb_xrandr_info)
-	free(psb_xrandr_info);
-
-    pthread_mutex_unlock(&psb_extvideo_mutex);
-    pthread_mutex_destroy(&psb_extvideo_mutex);
-
-    psb__information_message("xrandr thread exit safely\n");
-    pthread_exit(NULL);
-}
-
 void psb_xrandr_thread()
 {
     int event_base, error_base;
@@ -402,22 +353,24 @@ void psb_xrandr_thread()
     XRRQueryExtension(dpy, &event_base, &error_base);
     XRRSelectInput(dpy, root, RRScreenChangeNotifyMask | RRCrtcChangeNotifyMask | RROutputChangeNotifyMask | RROutputPropertyNotifyMask);
 
-    psb__information_message("psb xrandr thread start\n");
+    psb__information_message("Xrandr: psb xrandr thread start\n");
 
     while (1)
     {
 	XNextEvent(dpy, (XEvent *)&event);
 	if (event.type == ClientMessage) {
-	    psb__information_message("receive ClientMessage event, thread should exit\n");
+	    psb__information_message("Xrandr: receive ClientMessage event, thread should exit\n");
 	    XClientMessageEvent *evt;
 	    evt = (XClientMessageEvent*)&event;
-	    if (evt->message_type == psb_exit_atom)
-		psb_xrandr_exit_thread();
+	    if (evt->message_type == psb_exit_atom) {
+                psb__information_message("Xrandr: xrandr thread exit safely\n");
+                pthread_exit(NULL);
+            }
 	}
 	switch (event.type - event_base) {
 	    case RRNotify_OutputChange:
 		XRRUpdateConfiguration (&event);
-		psb__information_message("receive RRNotify_OutputChange event, refresh output/crtc info\n");
+		psb__information_message("Xrandr: receive RRNotify_OutputChange event, refresh output/crtc info\n");
 		psb_xrandr_refresh();
 		break;
 	    default:
@@ -652,8 +605,8 @@ VAStatus psb_xrandr_primary_crtc_coordinate(int *x, int *y, int *width, int *hei
 	*width = crtc->width - 1;
 	*height = crtc->height - 1;	
 	pthread_mutex_unlock(&psb_extvideo_mutex);
-	psb__information_message("crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d\n",
-				  psb_xrandr_info->primary_crtc->crtc_id, x, y, width, height);
+	psb__information_message("Xrandr: crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d\n",
+				  psb_xrandr_info->primary_crtc->crtc_id, *x, *y, *width + 1, *height + 1);
 	return VA_STATUS_SUCCESS;
     }
     pthread_mutex_unlock(&psb_extvideo_mutex);
@@ -676,14 +629,13 @@ VAStatus psb_xrandr_extend_crtc_coordinate(int *x, int *y, int *width, int *heig
     *location = psb_xrandr_info->extend_crtc->location;
 	
     pthread_mutex_unlock(&psb_extvideo_mutex);
-    psb__information_message("crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d, location = %s\n",
-			     psb_xrandr_info->extend_crtc->crtc_id, x, y, width, height, location2string(psb_xrandr_info->extend_crtc->location));
+    psb__information_message("Xrandr: crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d, location = %s\n",
+			     psb_xrandr_info->extend_crtc->crtc_id, *x, *y, *width + 1, *height + 1, location2string(psb_xrandr_info->extend_crtc->location));
     return VA_STATUS_SUCCESS;
 }
 
-VAStatus psb_xrandr_deinit(Drawable draw)
+VAStatus psb_xrandr_thread_exit(Drawable draw)
 {
-#ifdef USE_XRANDR_THREAD
     int ret;
     XSelectInput(dpy, draw, StructureNotifyMask);
     XClientMessageEvent xevent;
@@ -693,15 +645,29 @@ VAStatus psb_xrandr_deinit(Drawable draw)
     xevent.format = 32;
     ret = XSendEvent(dpy, draw, 0, 0, (XEvent*)&xevent);
     XFlush(dpy);
-    if (ret == 0) {
-	psb__information_message("send thread exit event to drawable: %08x\n success", draw);
-	return VA_STATUS_SUCCESS;
-    }
-    else {
-	psb__information_message("send thread exit event to drawable: %08x failed\n", draw);
+    if (!ret) {
+	psb__information_message("Xrandr: send thread exit event to drawable: %08x failed\n", draw);
 	return VA_STATUS_ERROR_UNKNOWN;
     }
-#else
+    else {
+	psb__information_message("Xrandr: send thread exit event to drawable: %08x success\n", draw);
+	return VA_STATUS_SUCCESS;
+    }
+}
+
+VAStatus psb_xrandr_thread_create(VADriverContextP ctx)
+{
+    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
+    pthread_t id;
+
+    pthread_create(&id, NULL, (void*)psb_xrandr_thread, NULL);
+    driver_data->xrandr_thread_id = id;
+    return VA_STATUS_SUCCESS;
+}
+
+VAStatus psb_xrandr_deinit()
+{
+    pthread_mutex_lock(&psb_extvideo_mutex);
     //free crtc
     if (crtc_head)
     {
@@ -736,21 +702,23 @@ VAStatus psb_xrandr_deinit(Drawable draw)
     if (psb_xrandr_info)
 	free(psb_xrandr_info);
 
+    pthread_mutex_unlock(&psb_extvideo_mutex);
     pthread_mutex_destroy(&psb_extvideo_mutex);
-#endif
+
+    return VA_STATUS_SUCCESS;
 }
 
 VAStatus psb_xrandr_init (VADriverContextP ctx)
 {
     int	major, minor;
-    pthread_t id;
+    int screen;
 
     dpy = (Display *)ctx->native_dpy;
     screen = DefaultScreen (dpy);
     psb_exit_atom = XInternAtom(dpy, "psb_exit_atom", 0);
 
     if (screen >= ScreenCount (dpy)) {
-	psb__error_message("Invalid screen number %d (display has %d)\n",
+	psb__error_message("Xrandr: Invalid screen number %d (display has %d)\n",
 			    screen, ScreenCount (dpy));
 	return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -759,20 +727,18 @@ VAStatus psb_xrandr_init (VADriverContextP ctx)
 
     if (!XRRQueryVersion (dpy, &major, &minor))
     {
-	psb__error_message("RandR extension missing\n");
+	psb__error_message("Xrandr: RandR extension missing\n");
 	return VA_STATUS_ERROR_UNKNOWN;
     }
 
     res = XRRGetScreenResources (dpy, root);
     if (!res)
-	psb__error_message("failed to get screen resources\n");
+	psb__error_message("Xrandr: failed to get screen resources\n");
 
     pthread_mutex_init(&psb_extvideo_mutex, NULL);
 
     psb_xrandr_refresh();
-#ifdef USE_XRANDR_THREAD
-    pthread_create(&id, NULL, (void*)psb_xrandr_thread, NULL);
-#endif
+
     /*while(1) { sleep(1);
 	show_current();
     }*/

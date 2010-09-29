@@ -404,7 +404,7 @@ VAStatus psb_GetConfigAttributes(
         switch (attrib_list[i].type)
         {
           case VAConfigAttribRTFormat:
-              attrib_list[i].value = VA_RT_FORMAT_YUV420;
+              attrib_list[i].value = VA_RT_FORMAT_YUV420 | VA_RT_FORMAT_YUV422;
               break;
               
           default:
@@ -451,7 +451,9 @@ static VAStatus psb__validate_config(object_config_p obj_config)
         switch (obj_config->attrib_list[i].type)
         {
           case VAConfigAttribRTFormat:
-                  if (obj_config->attrib_list[i].value != VA_RT_FORMAT_YUV420)
+                  if (obj_config->attrib_list[i].value != VA_RT_FORMAT_YUV420 
+			  && (obj_config->attrib_list[i].value == VA_RT_FORMAT_YUV422 &&
+				obj_config->entrypoint != VAEntrypointEncPicture))
                   {
                       return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
                   }
@@ -681,6 +683,7 @@ VAStatus psb_CreateSurfaces(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i, height_origin;
+    unsigned long fourcc;
 
     if (num_surfaces <= 0)
     {
@@ -696,7 +699,7 @@ VAStatus psb_CreateSurfaces(
     }
 
     /* We only support one format */
-    if ((VA_RT_FORMAT_YUV420 & format) == 0)
+    if (((VA_RT_FORMAT_YUV420 | VA_RT_FORMAT_YUV422) & format) == 0)
     {
         vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
         DEBUG_FAILURE;
@@ -750,7 +753,18 @@ VAStatus psb_CreateSurfaces(
             break;
         }
         
-        vaStatus = psb_surface_create( driver_data, width, height, VA_FOURCC_NV12, 
+	switch (format)
+	{
+	    case VA_RT_FORMAT_YUV422:
+		fourcc = VA_FOURCC_YV16;
+		break;
+	    case VA_RT_FORMAT_YUV420:
+	    default:
+		fourcc = VA_FOURCC_NV12;
+		break;
+	}	
+
+        vaStatus = psb_surface_create( driver_data, width, height, fourcc, 
                                        (VA_RT_FORMAT_PROTECTED & format), psb_surface
                                        );
         
@@ -766,7 +780,7 @@ VAStatus psb_CreateSurfaces(
         
 	/* by default, surface fourcc is NV12 */
         memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
-        psb_surface->extra_info[4] = VA_FOURCC_NV12;
+        psb_surface->extra_info[4] = fourcc;
 
         obj_surface->psb_surface = psb_surface;
 
@@ -1702,6 +1716,7 @@ VAStatus psb__CreateBuffer(
       case VAEncPictureParameterBufferType:
       case VAEncSliceParameterBufferType:
       case VAQMatrixBufferType:
+      case VAEncMiscParameterBufferType:
             psb__information_message("Allocate new malloc buffers for vaCreateBuffer:type=%s,size=%d, buffer_data=%p.\n",
                                      buffer_type_to_string(type), size, obj_buffer->buffer_data);
             vaStatus = psb__allocate_malloc_buffer(obj_buffer, size * num_elements);
@@ -1779,6 +1794,7 @@ VAStatus psb_CreateBuffer(
       case VAEncPictureParameterBufferType:
       case VAEncSliceParameterBufferType:
       case VAQMatrixBufferType:
+      case VAEncMiscParameterBufferType:
             break;
 
       default:
@@ -2970,6 +2986,9 @@ EXPORT VAStatus __vaDriverInit_0_31(  VADriverContextP ctx )
         ctx->str_vendor = PSB_STR_VENDOR_MFLD;
     else 
         ctx->str_vendor = PSB_STR_VENDOR_MRST;
+    
+    driver_data->use_xrandr_thread = 0; 
+    driver_data->xrandr_thread_id = 0;
     
     psb__information_message("vaInitilize: succeeded!\n\n");
     

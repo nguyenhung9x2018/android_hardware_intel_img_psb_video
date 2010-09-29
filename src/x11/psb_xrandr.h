@@ -120,7 +120,9 @@ VAStatus psb_xrandr_extend_crtc_coordinate(int *x, int *y, int *width, int *heig
 
 void psb_xrandr_refresh();
 void psb_xrandr_thread();
+VAStatus psb_xrandr_thread_create(VADriverContextP ctx);
+VAStatus psb_xrandr_thread_exit(Drawable draw);
 VAStatus psb_xrandr_init (VADriverContextP ctx);
-VAStatus psb_xrandr_deinit(Drawable draw);
+VAStatus psb_xrandr_deinit();
 
 #endif /* _PSB_XRANDR_H_ */

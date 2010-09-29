@@ -1,4 +1,4 @@
-ifeq ($(strip $(ENABLE_IMG_GRAPHICS)),true)
+ifeq ($(ENABLE_IMG_GRAPHICS),true)
 # INTEL CONFIDENTIAL
 # Copyright 2007 Intel Corporation. All Rights Reserved.
 #
@@ -102,5 +102,5 @@ LOCAL_SHARED_LIBRARIES += liblog
 endif
 
 include $(BUILD_SHARED_LIBRARY)
-
 endif
+

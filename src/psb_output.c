@@ -64,7 +64,8 @@ static VAImageFormat psb__CreateImageFormat[] = {
     psb__ImageNV12,
     psb__ImageRGBA,
     psb__ImageAYUV,
-    psb__ImageAI44
+    psb__ImageAI44,
+    psb__ImageYV16
 };
 
 void *psb_x11_output_init(VADriverContextP ctx);
@@ -90,6 +91,11 @@ VAStatus psb_initOutput(VADriverContextP ctx)
         return VA_STATUS_SUCCESS;
     }
 
+    if (getenv("PSB_VIDEO_XTHREAD")) {
+        psb__information_message("Warning: Use psb xrandr thread.\n");
+        driver_data->use_xrandr_thread = 1;
+    }
+
     fps = getenv("PSB_VIDEO_FPS");
     if (fps != NULL) {
         driver_data->fixed_fps = atoi(fps);
@@ -112,9 +118,8 @@ VAStatus psb_initOutput(VADriverContextP ctx)
         psb_coverlay_init(ctx);
 
     //use client textureblit
-    if (driver_data->ctexture == 1) {
+    if (driver_data->ctexture == 1)
 	psb_ctexture_init(ctx);
-    }
 
     /*
     //use texture streaming
@@ -130,7 +135,14 @@ VAStatus psb_deinitOutput(
 )
 {
     INIT_DRIVER_DATA;
+	
+    if (driver_data->coverlay == 1)
+        psb_coverlay_deinit(ctx);
 
+    //use client textureblit
+    if (driver_data->ctexture == 1)
+	psb_ctexture_deinit(ctx);
+	
 #ifdef ANDROID
     psb_android_output_deinit(ctx);
 #else
@@ -138,14 +150,7 @@ VAStatus psb_deinitOutput(
 #endif
 
     /* free here, but allocate in window system specific */
-    free(driver_data->ws_priv);
-    if (driver_data->coverlay == 1)
-        psb_coverlay_deinit(ctx);
-
-    /* use client textureblit */
-    if (driver_data->ctexture == 1)
-	psb_ctexture_deinit(ctx);
-
+    free(driver_data->ws_priv); 
     /*
     //use texture streaming
     if (driver_data->ctexstreaming == 1)
@@ -488,6 +493,24 @@ VAStatus psb_DeriveImage(
         obj_image->image.component_order[0] = 'Y';
         obj_image->image.component_order[1] = 'U';/* fixed me: packed UV packed here! */
         obj_image->image.component_order[2] = 'V';
+        obj_image->image.component_order[3] = '\0';
+        break;
+    }
+    case VA_FOURCC_YV16:
+    {
+	obj_image->image.num_planes = 3;
+        obj_image->image.pitches[0] = obj_surface->psb_surface->stride;
+        obj_image->image.pitches[1] = obj_surface->psb_surface->stride / 2;
+        obj_image->image.pitches[2] = obj_surface->psb_surface->stride / 2;
+            
+        obj_image->image.offsets[0] = srf_buf_ofs;
+        obj_image->image.offsets[1] = srf_buf_ofs + obj_surface->height * obj_surface->psb_surface->stride;
+        obj_image->image.offsets[2] = srf_buf_ofs + obj_surface->height * obj_surface->psb_surface->stride * 3 / 2;
+        obj_image->image.num_palette_entries = 0;
+        obj_image->image.entry_bytes = 0;
+        obj_image->image.component_order[0] = 'Y';
+        obj_image->image.component_order[1] = 'V';/* fixed me: packed UV packed here! */
+        obj_image->image.component_order[2] = 'U';
         obj_image->image.component_order[3] = '\0';
         break;
     }
@@ -1137,6 +1160,7 @@ static VAStatus psb__LinkSubpictIntoSurface(
     
     surface_subpic->subpic_id = obj_subpic->subpic_id;
     surface_subpic->fourcc = image->format.fourcc;
+    surface_subpic->size = image->data_size;
     surface_subpic->bo = obj_buffer->psb_buffer->drm_buf;
     surface_subpic->bufid = wsbmKBufHandle(wsbmKBuf(obj_buffer->psb_buffer->drm_buf));
     surface_subpic->pl_flags = obj_buffer->psb_buffer->pl_flags;

@@ -275,8 +275,6 @@ void *psb_x11_output_init(VADriverContextP ctx)
         psb__information_message("Use client overlay mode for post-processing\n");
         
         driver_data->coverlay = 1;
-	driver_data->ctexture = 1;
-
         driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
     }
 
@@ -324,8 +322,13 @@ static int pnw_check_output_method(VADriverContextP ctx, int width, int height)
     }
 
     if (width >= 2048 || height >= 2048) {
+
        psb__information_message("Clip resolution %dx%d, Putsurface fall back to use Client Texture\n", width, height);
-       driver_data->output_method = PSB_PUTSURFACE_CTEXTURE;
+
+       driver_data->ctexture = 1;
+       driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
+
+       psb_ctexture_init(ctx);
     }
 
     return 0;
@@ -382,9 +385,10 @@ VAStatus psb_PutSurface(
        pnw_check_output_method(ctx, srcw, srch);
 
     pthread_mutex_lock(&driver_data->output_mutex);
-
+    
     if ((driver_data->output_method == PSB_PUTSURFACE_CTEXTURE) ||
 	(driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE)) {
+        psb__information_message("Using client Texture for PutSurface\n");
 	psb_putsurface_ctexture(ctx, surface, draw, 
 				srcx, srcy, srcw, srch,
 				destx, desty, destw, desth,

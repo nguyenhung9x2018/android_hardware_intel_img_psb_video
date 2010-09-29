@@ -29,6 +29,7 @@
 #include "H264Firmware_bin.h"
 #include "H264FirmwareCBR_bin.h"
 #include "H264FirmwareVBR_bin.h"
+#include "H264FirmwareVCM_bin.h"
 #include "MPG4Firmware_bin.h"
 #include "MPG4FirmwareCBR_bin.h"
 #include "MPG4FirmwareVBR_bin.h"
@@ -52,6 +53,7 @@ enum topaz_fw_codec_e {
     FW_H264_NO_RC,
     FW_H264_VBR,
     FW_H264_CBR,
+    FW_H264_VCM,
     FW_H263_NO_RC,
     FW_H263_VBR,
     FW_H263_CBR,
@@ -112,6 +114,17 @@ int main ()
           },
           aui32H264CBR_MTXTOPAZFWText,
           aui32H264CBR_MTXTOPAZFWData
+        },
+
+        { FW_H264_VCM,
+          { FW_VER,
+            FW_H264_VCM,
+            ui32H264VCM_MTXTOPAZFWTextSize,
+            ui32H264VCM_MTXTOPAZFWDataSize,
+            ui32H264VCM_MTXTOPAZFWDataLocation
+          },
+          aui32H264VCM_MTXTOPAZFWText,
+          aui32H264VCM_MTXTOPAZFWData
         },
 
         { FW_H263_NO_RC,

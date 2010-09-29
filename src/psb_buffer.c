@@ -33,6 +33,8 @@
 #include <pnw_cmdbuf.h>
 
 #include "pnw_jpeg.h"
+#include "lnc_H264ES.h"
+
 /*
  * Create buffer
  */
@@ -342,7 +344,14 @@ int psb_codedbuf_map_mangle(
     if (IS_MRST(driver_data)) {
         /* one segment */
         p->size = *((unsigned long *) raw_codedbuf); /* 1st DW is the size */
+	p->status = *((unsigned long *) raw_codedbuf + 1); /* 2nd DW
+							* is rc status */
+	p->reserved = 0;
         p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+	lnc_H264_append_aux_info(obj_context,
+		obj_buffer,
+		(unsigned char *)p->buf,
+		&(p->size));
     } else { /* MFLD */
         object_config_p obj_config = CONFIG(obj_context->config_id);
 
@@ -436,4 +445,20 @@ int psb_codedbuf_map_mangle(
     }
     
     return 0;
+}
+
+int psb_buffer_sync( psb_buffer_p buf )
+{
+	int ret;
+
+	ASSERT(buf);
+	ASSERT(buf->driver_data);
+
+	ret = wsbmBOSyncForCpu(buf->drm_buf, buf->wsbm_synccpu_flag);
+	if (ret) {
+		psb__error_message("faild to sync bo for cpu\n");
+		return VA_STATUS_ERROR_UNKNOWN;
+	}
+
+	return VA_STATUS_SUCCESS;
 }

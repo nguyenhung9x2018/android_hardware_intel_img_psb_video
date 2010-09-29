@@ -246,6 +246,10 @@ typedef struct _ov_psb_fixed32 {
 typedef struct _PsbPortPrivRec {
     int curBuf;
     int is_mfld;
+    int subpicture_enabled;
+    unsigned int subpicture_enable_mask;
+    int overlayA_enabled;
+    int overlayC_enabled;
 
     /* used to check downscale*/
     short width_save;
@@ -272,14 +276,14 @@ typedef struct _PsbPortPrivRec {
     int scaleRatio;
     int rotation;
 
-    struct _WsbmBufferObject *wsbo;
+    struct _WsbmBufferObject *wsbo[2];
     uint32_t YBuf0offset;
     uint32_t UBuf0offset;
     uint32_t VBuf0offset;
     uint32_t YBuf1offset;
     uint32_t UBuf1offset;
     uint32_t VBuf1offset;
-    unsigned char *regmap;
+    unsigned char *regmap[2];
 } PsbPortPrivRec, *PsbPortPrivPtr;
 
 
@@ -289,18 +293,29 @@ int psb_coverlay_exit(VADriverContextP ctx);
 
 VAStatus psb_putsurface_overlay(
     VADriverContextP ctx,
-    VASurfaceID surface,
+    VASurfaceID surface,    
     short srcx,
     short srcy,
     unsigned short srcw,
     unsigned short srch,
     short destx,
-    short desty,
+    short desty,    
     unsigned short destw,
     unsigned short desth,
-    unsigned int flags /* de-interlacing flags */
+    unsigned int flags, /* de-interlacing flags */
+    int overlayId, 
+    int pipeId
 );
 
+enum pipe_id_t{
+   PIPEA = 0,
+   PIPEB,
+   PIPEC,
+};
 
+enum overlay_id_t{
+   OVERLAY_A = 0,
+   OVERLAY_C,
+};
 
 #endif /* _PSB_OVERLAY_H_ */

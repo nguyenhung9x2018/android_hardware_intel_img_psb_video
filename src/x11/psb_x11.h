@@ -46,6 +46,8 @@ typedef struct _psb_x11_output_s {
     PsbXvVAPutSurfaceRec        imgdata_vasrf;
     GC                          gc;
     Drawable                    output_drawable;
+    GC                          extend_gc;
+    Drawable                    extend_drawable;
     unsigned short              output_width;
     unsigned short              output_height;
     int                         using_port;
