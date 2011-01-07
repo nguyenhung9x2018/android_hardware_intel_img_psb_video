@@ -63,6 +63,9 @@ typedef struct
 extern const FIRMWARE sFrameSwitchingFirmware;
 extern const FIRMWARE sSliceSwitchingFirmware;
 extern const FIRMWARE sFirmware1100_SS;
+extern const FIRMWARE sFirmware1133_SS;
+extern const FIRMWARE sFirmware1133_FS;
+extern const FIRMWARE sFirmware1163_SS; 
 #define FIRMWARE_VERSION_DEFINED 
 #define FIRMWARE_BUILDDATE_DEFINED 
 //#endif /* SLICE_SWITCHING_VARIANT */

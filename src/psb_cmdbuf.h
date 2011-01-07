@@ -160,6 +160,20 @@ int psb_context_submit_oold( object_context_p obj_context,
                                uint32_t frame_height_in_mb,
                                uint32_t field_type,
                                uint32_t chroma_offset );
+
+int psb_context_submit_hw_deblock(object_context_p obj_context,
+                                  psb_buffer_p buf_a,
+                                  psb_buffer_p buf_b,
+                                  psb_buffer_p colocate_buffer,
+                                  uint32_t picture_widht_mb,
+                                  uint32_t frame_height_mb,
+                                  uint32_t rotation_flags,
+				  uint32_t field_type,
+				  uint32_t ext_stride_a,
+                                  uint32_t chroma_offset_a,
+                                  uint32_t chroma_offset_b,
+                                  uint32_t is_oold);
+
 /*
  * Submits the current cmdbuf
  *
@@ -216,6 +230,11 @@ uint32_t psb_cmdbuf_lldma_create( psb_cmdbuf_p cmdbuf,
  */
 void psb_cmdbuf_reg_start_block( psb_cmdbuf_p cmdbuf );
 
+/*
+ * Create a command to set registers
+ */
+void psb_cmdbuf_reg_start_block_flag( psb_cmdbuf_p cmdbuf, uint32_t flags );
+
 #define psb_cmdbuf_reg_set( cmdbuf, reg, val ) \
     do { *cmdbuf->cmd_idx++ = reg; *cmdbuf->cmd_idx++ = val; } while (0)
 
@@ -237,6 +256,10 @@ void psb_cmdbuf_reg_end_block( psb_cmdbuf_p cmdbuf );
  */
 void psb_cmdbuf_rendec_start_block( psb_cmdbuf_p cmdbuf );
 
+/*
+ * Create a RENDEC command block
+ */
+void psb_cmdbuf_rendec_start( psb_cmdbuf_p cmdbuf, uint32_t dest_address );
 /*
  * Start a new chunk in a RENDEC command block
  */
@@ -288,6 +311,10 @@ void psb_cmdbuf_skip_start_block( psb_cmdbuf_p cmdbuf, uint32_t skip_condition )
  */
 void psb_cmdbuf_skip_end_block( psb_cmdbuf_p cmdbuf );
 
+/*
+ * Terminate a conditional SKIP block
+ */
+void psb_cmdbuf_rendec_end( psb_cmdbuf_p cmdbuf );
 /*
  * Write RegIO record into buffer
  */

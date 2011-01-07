@@ -27,5 +27,6 @@
 #include "psb_drv_video.h"
 
 extern struct format_vtable_s pnw_H264ES_vtable;
-
+extern VAStatus pnw_set_frame_skip_flag(
+	    object_context_p obj_context);
 #endif /* _PNW_H264ES_H_ */

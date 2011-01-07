@@ -325,7 +325,11 @@ struct context_MPEG4_s {
     int colocated_buffers_size;
     int colocated_buffers_idx;
 
+    uint32_t *p_range_mapping_base0;
+    uint32_t *p_range_mapping_base1;
     uint32_t *p_slice_params; /* pointer to ui32SliceParams in CMD_HEADER */
+    uint32_t *slice_first_pic_last;
+    uint32_t *alt_output_flags;
 };
 
 typedef struct context_MPEG4_s *context_MPEG4_p;
@@ -868,8 +872,8 @@ static void psb__MPEG4_write_qmatrices(context_MPEG4_p ctx)
     /* Since we only decode 4:2:0 We only need to the Intra tables. 
     Chroma quant tables are only used in Mpeg 4:2:2 and 4:4:4.
     The hardware wants non-intra followed by intra */
-    psb_cmdbuf_rendec_start_block( cmdbuf );
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, REG_MSVDX_VEC_IQRAM_OFFSET );
+    /* psb_cmdbuf_rendec_start_block( cmdbuf ); */
+    psb_cmdbuf_rendec_start( cmdbuf, REG_MSVDX_VEC_IQRAM_OFFSET );
 
     /* todo : optimisation here is to only load the need table */
     if (ctx->load_non_intra_quant_mat)
@@ -903,8 +907,8 @@ static void psb__MPEG4_write_qmatrices(context_MPEG4_p ctx)
         }
     }
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
+    /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
 }
 
 
@@ -985,6 +989,44 @@ static void psb__MPEG4_write_kick(context_MPEG4_p ctx, VASliceParameterBufferMPE
     *cmdbuf->cmd_idx++ = CMD_COMPLETION;
 }
 
+/* Programme the Alt output if there is a rotation*/
+static void psb__MPEG4_setup_alternative_frame( context_MPEG4_p ctx )
+{
+    uint32_t cmd;
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    object_context_p obj_context = ctx->obj_context;
+
+    if(rotate_surface->extra_info[5] != obj_context->rotate)
+        psb__error_message("Display rotate mode does not match surface rotate mode!\n");
+
+
+    /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS)  );
+
+    psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
+    psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
+
+    psb_cmdbuf_rendec_end( cmdbuf );
+
+    /* Set the rotation registers */
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION)  );
+    cmd = 0;
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ALT_PICTURE_ENABLE,1 );
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_MODE, rotate_surface->extra_info[5]);
+
+    psb_cmdbuf_rendec_write( cmdbuf, cmd );
+
+    psb_cmdbuf_rendec_end( cmdbuf );
+
+    *ctx->alt_output_flags = cmd;
+    RELOC(*ctx->p_range_mapping_base0, rotate_surface->buf.buffer_ofs, &rotate_surface->buf);
+    RELOC(*ctx->p_range_mapping_base1, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset, &rotate_surface->buf);
+}
+
+
 static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterBufferMPEG4 *slice_param)
 {
     uint32_t cmd;
@@ -992,14 +1034,14 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
 
     psb_buffer_p colocated_target_buffer = psb__MPEG4_lookup_colocated_buffer(ctx, target_surface);
-    psb_buffer_p colocated_ref_buffer = psb__MPEG4_lookup_colocated_buffer(ctx, ctx->forward_ref_surface->psb_surface);
+    psb_buffer_p colocated_ref_buffer = psb__MPEG4_lookup_colocated_buffer(ctx, ctx->forward_ref_surface->psb_surface); /* FIXME DE2.0 use backward ref surface */
     ASSERT(colocated_target_buffer);
     ASSERT(colocated_ref_buffer);
     
-    psb_cmdbuf_rendec_start_block( cmdbuf );
+    /* psb_cmdbuf_rendec_start_block( cmdbuf ); */
 
     /* BE_PARAM_BASE_ADDR                                                            */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_PARAM_BASE_ADDR)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_PARAM_BASE_ADDR)  );
     if (colocated_target_buffer)
     {
         psb_cmdbuf_rendec_write_address( cmdbuf, colocated_target_buffer, 0);
@@ -1009,10 +1051,10 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
         /* This is an error */
         psb_cmdbuf_rendec_write( cmdbuf, 0 );
     }
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     /* PARAM_BASE_ADDRESS                                                            */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_COLPARAM_BASE_ADDR)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_COLPARAM_BASE_ADDR)  );
     if (colocated_ref_buffer)
     {
         psb_cmdbuf_rendec_write_address( cmdbuf, colocated_ref_buffer, 0 );
@@ -1022,10 +1064,13 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
         /* This is an error */
         psb_cmdbuf_rendec_write( cmdbuf, 0 );
     }
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
+
+    if(ctx->obj_context->rotate != VA_ROTATION_NONE)
+        psb__MPEG4_setup_alternative_frame( ctx );
 
     /* Send VDMC and VDEB commands                                                    */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE)  );
 
     /* Display picture size cmd                                                        */
     cmd = 0;
@@ -1059,10 +1104,10 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
     /* CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                    */
     psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     /* Reference pictures base addresses                                            */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES)  );
 
 //psb__information_message("Target surface = %08x\n", target_surface);
 //psb__information_message("Forward ref = %08x\n", ctx->forward_ref_surface->psb_surface);
@@ -1080,8 +1125,8 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
     /* CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                    */
     psb_cmdbuf_rendec_write_address( cmdbuf, &ctx->backward_ref_surface->psb_surface->buf, ctx->backward_ref_surface->psb_surface->buf.buffer_ofs + ctx->backward_ref_surface->psb_surface->chroma_offset);
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
+    /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
 }
 
 static void psb__MPEG4_set_backend_registers(context_MPEG4_p ctx, VASliceParameterBufferMPEG4 *slice_param)
@@ -1090,19 +1135,19 @@ static void psb__MPEG4_set_backend_registers(context_MPEG4_p ctx, VASliceParamet
     uint32_t cmd;
     unsigned short width_mb = PIXELS_TO_MB(ctx->pic_params->vop_width);
 
-    psb_cmdbuf_rendec_start_block( cmdbuf );
+    /* psb_cmdbuf_rendec_start_block( cmdbuf ); */
 
     /* Write Back-End EntDec registers                                                */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_SPS0)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_SPS0)  );
     /* BE_SPS0                                                                        */
     /* Common for VOPs and pictures with short header                                */
     psb_cmdbuf_rendec_write( cmdbuf, ctx->BE_SPS0 );
     /* BE_SPS1                                                                        */
     /* Common for VOPs and pictures with short header                                */
     psb_cmdbuf_rendec_write( cmdbuf, ctx->BE_SPS1 );
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_VOP_SPS0)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_VOP_SPS0)  );
     if (0 == ctx->pic_params->vol_fields.bits.short_video_header)
     {
         /* BE_VOP_SPS0                                                                */
@@ -1123,13 +1168,13 @@ static void psb__MPEG4_set_backend_registers(context_MPEG4_p ctx, VASliceParamet
         /* BE_PICSH_PPS0                                                            */
         psb_cmdbuf_rendec_write( cmdbuf, ctx->BE_PICSH_PPS0 );
     }
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     if (0 == ctx->pic_params->vol_fields.bits.short_video_header) {
         if ((GMC == ctx->pic_params->vol_fields.bits.sprite_enable) &&
             (PICTURE_CODING_S == ctx->pic_params->vop_fields.bits.vop_coding_type))
         {
-            psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_GMC_X)  );
+            psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_GMC_X)  );
 
             /* TODO: GMC Motion Vectors */
             /* It is still needed to specify the precision of the motion vectors (should they be in        */
@@ -1149,11 +1194,11 @@ static void psb__MPEG4_set_backend_registers(context_MPEG4_p ctx, VASliceParamet
             REGIO_WRITE_FIELD_LITE (cmd, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_GMC_Y, GMC_Y, ctx->pic_params->sprite_trajectory_dv[sprite_index] & 0x3FFF);
             psb_cmdbuf_rendec_write( cmdbuf, cmd );
 
-            psb_cmdbuf_rendec_end_chunk( cmdbuf );
+            psb_cmdbuf_rendec_end( cmdbuf );
         }
     }
 
-       psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_SLICE0)  );
+       psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_SLICE0)  );
     
     /* BE_SLICE0                                                                    */
     cmd = 0;
@@ -1170,12 +1215,12 @@ static void psb__MPEG4_set_backend_registers(context_MPEG4_p ctx, VASliceParamet
     REGIO_WRITE_FIELD_LITE (cmd, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_VOP_TRD, BE_TRD, ctx->pic_params->TRD);
     psb_cmdbuf_rendec_write( cmdbuf, cmd );
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
 
     /* Send Slice Data for every slice */
     /* MUST be the last slice sent */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS)  );
 
     /* Slice params command                                                            */
     cmd = 0;
@@ -1193,20 +1238,20 @@ static void psb__MPEG4_set_backend_registers(context_MPEG4_p ctx, VASliceParamet
     REGIO_WRITE_FIELD_LITE (cmd, MSVDX_CMDS, SLICE_PARAMS, SLICE_CODE_TYPE,    ctx->pic_params->vop_fields.bits.vop_coding_type);
     psb_cmdbuf_rendec_write( cmdbuf, cmd );
     
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     *ctx->p_slice_params = cmd;
 
     /* CHUNK: Entdec back-end profile and level                                        */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL)  );
     
     cmd = 0;
     REGIO_WRITE_FIELD_LITE (cmd, MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL, ENTDEC_BE_PROFILE, ctx->profile);    /* MPEG4 SP / ASP profile*/
     REGIO_WRITE_FIELD_LITE (cmd, MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL, ENTDEC_BE_MODE,    4);            /* 4 - MPEG4             */
     psb_cmdbuf_rendec_write( cmdbuf, cmd );
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
+    /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
 
     /* Send IQ matrices to Rendec */
     psb__MPEG4_write_qmatrices(ctx);
@@ -1250,16 +1295,18 @@ static void psb__MPEG4_set_frontend_registers(context_MPEG4_p ctx, VASliceParame
     psb_cmdbuf_reg_end_block( cmdbuf );
 }
 
+/*
 static void psb__MPEG4_FE_state(context_MPEG4_p ctx)
 {
     uint32_t lldma_record_offset;
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     
-    /* See RENDER_BUFFER_HEADER */
-    *cmdbuf->cmd_idx++ = CMD_HEADER;
+    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
     
+    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
+    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
     ctx->p_slice_params = cmdbuf->cmd_idx;
-    *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
+    *cmdbuf->cmd_idx++ = 0;
 
     lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &(ctx->FE_state_buffer), 0,
                                 FE_STATE_SAVE_SIZE, 0, LLDMA_TYPE_MPEG4_FESTATE_SAVE );
@@ -1270,6 +1317,37 @@ static void psb__MPEG4_FE_state(context_MPEG4_p ctx)
                                 FE_STATE_SAVE_SIZE, 0, LLDMA_TYPE_MPEG4_FESTATE_RESTORE );
     RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
     cmdbuf->cmd_idx++;
+
+    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
+}
+*/
+static void psb__MPEG4_FE_state(context_MPEG4_p ctx)
+{
+    uint32_t lldma_record_offset;
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+
+    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
+    ctx->p_slice_params = cmdbuf->cmd_idx;
+    *cmdbuf->cmd_idx++ = 0;
+
+
+    lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &(ctx->FE_state_buffer), 0,
+                                FE_STATE_SAVE_SIZE, 0, LLDMA_TYPE_MPEG4_FESTATE_SAVE );
+    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
+    cmdbuf->cmd_idx++;
+
+    lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &(ctx->FE_state_buffer), 0,
+                                FE_STATE_SAVE_SIZE, 0, LLDMA_TYPE_MPEG4_FESTATE_RESTORE );
+    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
+    cmdbuf->cmd_idx++;
+
+    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
+
+    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
+    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
+
+    ctx->alt_output_flags = cmdbuf->cmd_idx++;
+    *ctx->alt_output_flags = 0;
 }
 
 static VAStatus psb__MPEG4_process_slice(context_MPEG4_p ctx,
@@ -1352,6 +1430,9 @@ static VAStatus psb__MPEG4_process_slice(context_MPEG4_p ctx,
         ctx->obj_context->flags = 0;
         ctx->obj_context->first_mb = 0;
         ctx->obj_context->last_mb =  ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
+
+        *ctx->slice_first_pic_last = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
+
         if (psb_context_submit_cmdbuf(ctx->obj_context))
         {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;

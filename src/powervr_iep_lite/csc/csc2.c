@@ -402,7 +402,7 @@ img_result	CSC_GenerateMatrix	(	CSC_eColourSpace		eInputColourSpace,
 				IMG_ASSERT ( psThisColourSpaceConversion->bIsSupported == IMG_TRUE );
 				if ( psThisColourSpaceConversion->bIsIdentityMatrix == IMG_FALSE )
 				{
-					psLatestResult = &(psThisColourSpaceConversion->sMatrix);					
+					psLatestResult = &(psThisColourSpaceConversion->sMatrix);
 				}
 
 				/* Apply scaling */
@@ -451,7 +451,7 @@ img_result	CSC_GenerateMatrix	(	CSC_eColourSpace		eInputColourSpace,
 					psLatestResult = &sHSCMatrix;
 				}
 
-				/* We must convert to RGB prior to performing primary calculations */				
+				/* We must convert to RGB prior to performing primary calculations */
 				psThisColourSpaceConversion = &(asCSC_ColourSpaceConversionMatrices[eInputColourSpace][CSC_COLOURSPACE_RGB]);
 				IMG_ASSERT ( psThisColourSpaceConversion->bIsSupported == IMG_TRUE );
 				if (( psThisColourSpaceConversion->bIsIdentityMatrix == IMG_FALSE ) ||
@@ -496,7 +496,7 @@ img_result	CSC_GenerateMatrix	(	CSC_eColourSpace		eInputColourSpace,
 				{
 					psLatestResult = (&(psThisColourPrimaryConversion->sMatrix));
 				}
-		
+ 
 				/* Should definitely have an intermediate matrix by now */
 				IMG_ASSERT ( psLatestResult != IMG_NULL );
 
@@ -610,7 +610,7 @@ img_result	CSC_GenerateMatrix	(	CSC_eColourSpace		eInputColourSpace,
 			if ( psThisColourPrimaryConversion->bIsIdentityMatrix == IMG_FALSE )
 			{
 				psLatestResult = (&(psThisColourPrimaryConversion->sMatrix));
-			}			
+			}
 
 			/* Now perform colour space conversion */
 			psThisColourSpaceConversion = &(asCSC_ColourSpaceConversionMatrices[eInputColourSpace][eOutputColourSpace]);
@@ -659,7 +659,7 @@ img_result	CSC_GenerateMatrix	(	CSC_eColourSpace		eInputColourSpace,
 				{
 					psLatestResult = &sHSCMatrix;
 				}
-			}		
+			} 
 		}
 		else
 		{
@@ -669,7 +669,7 @@ img_result	CSC_GenerateMatrix	(	CSC_eColourSpace		eInputColourSpace,
 			/****************************/
 
 			/* If no HSBC modification, then the equation can be simplified */
-			if ( psHSBCSettings == IMG_NULL )	
+			if ( psHSBCSettings == IMG_NULL ) 
 			{
 				/* Optimised case 4 */
 				/* As no HSBC information has been provided, the equation can be simplified */
@@ -719,7 +719,7 @@ img_result	CSC_GenerateMatrix	(	CSC_eColourSpace		eInputColourSpace,
 					psLatestResult = &(psThisColourPrimaryConversion->sMatrix);
 				}
 
-				/* We must convert to YUV prior to performing con/sat/hue calculations */							
+				/* We must convert to YUV prior to performing con/sat/hue calculations */
 				psThisColourSpaceConversion = &(asCSC_ColourSpaceConversionMatrices[eInputColourSpace][CSC_COLOURSPACE_YCC_BT709]);
 				IMG_ASSERT ( psThisColourSpaceConversion->bIsSupported == IMG_TRUE );
 				if (( psThisColourSpaceConversion->bIsIdentityMatrix == IMG_FALSE ) ||
@@ -810,7 +810,7 @@ img_result	CSC_GenerateMatrix	(	CSC_eColourSpace		eInputColourSpace,
 			}
 		}
 	}
-	
+
 	/* Entire calculation resulted in no result - use identity matrix */
 	if ( psLatestResult == IMG_NULL )
 	{

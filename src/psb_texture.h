@@ -101,12 +101,16 @@ struct psb_texture_s {
     struct dri_drawable *extend_dri_drawable;
     struct dri_drawable *dri_drawable;
     uint32_t dri_init_flag;
+    uint32_t extend_dri_init_flag;
+    uint32_t adjust_window_flag;
     uint32_t current_blt_buffer;
 
     uint32_t extend_current_blt_buffer;
-    uint32_t rootwin_width;
-    uint32_t rootwin_height;
+    uint32_t destw_save;
+    uint32_t desth_save;
+    uint32_t drawable_update_flag; /* drawable resize or switch between window <==> pixmap */
 
+    PVR2DMEMINFO *blt_meminfo_pixmap;
     PVR2DMEMINFO *blt_meminfo[DRI2_BLIT_BUFFERS_NUM];
     PVR2DMEMINFO *flip_meminfo[DRI2_FLIP_BUFFERS_NUM];
     PVR2DMEMINFO *extend_blt_meminfo[DRI2_BLIT_BUFFERS_NUM];
@@ -117,6 +121,7 @@ struct psb_texture_s {
 void psb_ctexture_init(VADriverContextP ctx);
 
 void psb_ctexture_deinit(VADriverContextP ctx);
+void psb_extend_ctexture_deinit(VADriverContextP ctx);
 
 void blit_texture_to_buf(VADriverContextP ctx, unsigned char * data, int src_x, int src_y, int src_w,
 			 int src_h, int dst_x, int dst_y, int dst_w, int dst_h,
@@ -125,7 +130,7 @@ void blit_texture_to_buf(VADriverContextP ctx, unsigned char * data, int src_x, 
 #ifndef ANDROID
 void psb_putsurface_textureblit(
     VADriverContextP ctx, PPVR2DMEMINFO pDstMeminfo, VASurfaceID surface, int src_x, int src_y, int src_w,
-    int src_h, int dst_x, int dst_y, int dst_w, int dst_h,
+    int src_h, int dst_x, int dst_y, int dst_w, int dst_h, unsigned int subtitle,
     int width, int height,
     int src_pitch, struct _WsbmBufferObject * src_buf,
     unsigned int placement);

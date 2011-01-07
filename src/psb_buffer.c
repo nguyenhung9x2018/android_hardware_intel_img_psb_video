@@ -33,6 +33,7 @@
 #include <pnw_cmdbuf.h>
 
 #include "pnw_jpeg.h"
+#include "pnw_H264ES.h"
 #include "lnc_H264ES.h"
 
 /*
@@ -365,6 +366,11 @@ int psb_codedbuf_map_mangle(
             return vaStatus;
         }
         
+	if ( VAProfileJPEGBaseline != obj_config->profile && *((unsigned long *) raw_codedbuf + 1) != 0)
+	{
+	    /*Set frame skip flag*/
+	    pnw_set_frame_skip_flag(obj_context); 
+	}
         switch (obj_config->profile) {
         case VAProfileMPEG4Simple:
         case VAProfileMPEG4AdvancedSimple:

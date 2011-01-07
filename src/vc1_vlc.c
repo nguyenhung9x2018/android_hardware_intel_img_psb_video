@@ -7158,7 +7158,5 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 28,
 };
 
-IMG_UINT32    gaui32vc1VlcPackedTableData[7045];
+//IMG_UINT32    gaui32vc1VlcPackedTableData[7045];
 const IMG_UINT16    gui16vc1VlcTableSize = 7045;
-
-/* EOF */

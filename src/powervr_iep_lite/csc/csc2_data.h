@@ -27,7 +27,7 @@
  ********************************************************************/
 
 #if !defined (__CSC_DATA_H__)
-#define __CSC_DATA_H__
+#define __CSC_DATA_H__
 #if (__cplusplus)
 extern "C" {
 #endif
@@ -104,5 +104,5 @@ img_result	csc_StaticDataSafetyCheck	(	img_void	);
 
 #if (__cplusplus)
 }
-#endif
+#endif
 #endif	/* __CSC_DATA_H__ */

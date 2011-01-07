@@ -96,19 +96,11 @@ VAStatus pnw_cmdbuf_create(
         cmdbuf->buffer_refs_allocated = 0;
         return vaStatus;
     }
-
-    if (IMG_CODEC_JPEG != ctx->eCodec)
-    {
-	/* create topaz parameter buffer */
-	vaStatus = psb_buffer_create(driver_data, ctx->in_params_size * MAX_SLICES_PER_PICTURE, psb_bt_cpu_vpu, &cmdbuf->topaz_in_params);
-	if(VA_STATUS_SUCCESS != vaStatus)
-	    goto error_out5;
-
-    }
+    
     /* create topaz parameter buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->pic_params_size * MAX_TOPAZ_CORES, psb_bt_cpu_vpu, &cmdbuf->pic_params);
     if(VA_STATUS_SUCCESS != vaStatus)
-        goto error_out4;
+        goto error_out5;
 
     /* create header buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->header_buffer_size, psb_bt_cpu_vpu, &cmdbuf->header_mem);
@@ -123,11 +115,10 @@ VAStatus pnw_cmdbuf_create(
     /* all cmdbuf share one MTX_CURRENT_IN_PARAMS since every MB has a MTX_CURRENT_IN_PARAMS structure
      * and filling this structure for all MB is very time-consuming
      */
-    /*
+    
     cmdbuf->topaz_in_params_I = &ctx->topaz_in_params_I;
     cmdbuf->topaz_in_params_P = &ctx->topaz_in_params_P;
-    cmdbuf->topaz_above_bellow_params = &ctx->topaz_above_bellow_params;
-    */
+   
     cmdbuf->topaz_below_params = &ctx->topaz_below_params;
     cmdbuf->topaz_above_params = &ctx->topaz_above_params;
 
@@ -137,8 +128,6 @@ VAStatus pnw_cmdbuf_create(
     psb_buffer_destroy(&cmdbuf->header_mem);
   error_out2:
     psb_buffer_destroy(&cmdbuf->pic_params);
-  error_out4:
-    psb_buffer_destroy(&cmdbuf->topaz_in_params);
   error_out5:
     pnw_cmdbuf_destroy(cmdbuf);
     
@@ -575,13 +564,10 @@ int pnw_context_submit_cmdbuf( object_context_p obj_context )
  * vaQuerySurfaceStatus is supposed only to be called after vaEndPicture/vaSyncSurface,
  * The caller should ensure the surface pertains to an encode context
  */
-int pnw_surface_get_frameskip( object_context_p obj_context, psb_surface_p surface, int *frame_skip)
+int pnw_surface_get_frameskip( psb_driver_data_p driver_data,
+                               psb_surface_p surface,
+                               int *frame_skip)
 {
-    context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
-
-    if (ctx->sRCParams.RCEnable == 0)
-	return 0;
-
     /* bit31 indicate if frameskip is already settled, it is used to record the frame skip flag for old surfaces
      * bit31 is cleared when the surface is used as encode render target or reference/reconstrucure target
      */

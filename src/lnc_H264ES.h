@@ -31,6 +31,6 @@ extern struct format_vtable_s lnc_H264ES_vtable;
 extern VAStatus lnc_H264_append_aux_info(object_context_p obj_context,
 	object_buffer_p obj_buffer,
 	unsigned char *buf,
-	unsigned long *p_size);
+	unsigned int *p_size);
 
 #endif /* _LNC_H264_H_ */

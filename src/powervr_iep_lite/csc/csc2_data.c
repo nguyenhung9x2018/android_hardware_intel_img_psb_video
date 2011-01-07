@@ -23,8 +23,8 @@
 	been ported from other projects and has not been tested with
 	real hardware. It is not provided in a state that can be run
 	with real hardware - this is not intended as the basis for a
-	production driver. This code should only be used as an example 
-	of the algorithms to be used for setting up the IEP lite 
+	production driver. This code should only be used as an example
+	of the algorithms to be used for setting up the IEP lite
 	hardware.
  ********************************************************************/
 
@@ -38,7 +38,7 @@ img_result	csc_StaticDataSafetyCheck	(	img_void	)
 	img_uint32	ui32i, ui32j;
 
 	for ( ui32i=0; ui32i<CSC_NO_OF_COLOURSPACES; ui32i++ )
-	{		
+	{
 		IMG_ASSERT ( asColourspaceInfo [ui32i].eColourspace == (CSC_eColourSpace) ui32i );
 	}
 
@@ -95,7 +95,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 	/**************/
 	{
 		/* BT601 -> BT601 */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_BT601,			/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_BT601,			/* Output colour space	*/
 
@@ -113,7 +113,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* BT601 -> BT709 */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_BT601,			/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_BT709,			/* Output colour space	*/
 
@@ -131,7 +131,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* BT601 -> SMPTE240 */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_BT601,			/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_SMPTE_240,		/* Output colour space	*/
 
@@ -149,7 +149,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* BT601 -> RGB */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_BT601,			/* Input colour space	*/
 			CSC_COLOURSPACE_RGB,				/* Output colour space	*/
 
@@ -172,7 +172,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 	/**************/
 	{
 		/* BT709 -> BT601 */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_BT709,			/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_BT601,			/* Output colour space	*/
 
@@ -190,7 +190,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* BT709 -> BT709 */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_BT709,			/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_BT709,			/* Output colour space	*/
 
@@ -208,7 +208,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* BT709 -> SMPTE240 */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_BT709,			/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_SMPTE_240,		/* Output colour space	*/
 
@@ -226,7 +226,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* BT709 -> RGB */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_BT709,			/* Input colour space	*/
 			CSC_COLOURSPACE_RGB,				/* Output colour space	*/
 
@@ -249,7 +249,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 	/*****************/
 	{
 		/* SMPTE240 -> BT601 */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_SMPTE_240,		/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_BT601,			/* Output colour space	*/
 
@@ -267,7 +267,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* SMPTE240 -> BT709 */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_SMPTE_240,		/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_BT709,			/* Output colour space	*/
 
@@ -285,7 +285,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* SMPTE240 -> SMPTE240 */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_SMPTE_240,		/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_SMPTE_240,		/* Output colour space	*/
 
@@ -303,7 +303,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* SMPTE240 -> RGB */
-		{					
+		{
 			CSC_COLOURSPACE_YCC_SMPTE_240,		/* Input colour space	*/
 			CSC_COLOURSPACE_RGB,				/* Output colour space	*/
 
@@ -326,7 +326,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 	/************/
 	{
 		/* RGB -> BT601 */
-		{					
+		{
 			CSC_COLOURSPACE_RGB,				/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_BT601,			/* Output colour space	*/
 
@@ -344,7 +344,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* RGB -> BT709 */
-		{					
+		{
 			CSC_COLOURSPACE_RGB,				/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_BT709,			/* Output colour space	*/
 
@@ -362,7 +362,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* RGB -> SMPTE240 */
-		{					
+		{
 			CSC_COLOURSPACE_RGB,				/* Input colour space	*/
 			CSC_COLOURSPACE_YCC_SMPTE_240,		/* Output colour space	*/
 
@@ -380,7 +380,7 @@ CSC_sColourSpaceConversionMatrix	asCSC_ColourSpaceConversionMatrices [CSC_NO_OF_
 		},
 
 		/* RGB -> RGB */
-		{					
+		{
 			CSC_COLOURSPACE_RGB,				/* Input colour space	*/
 			CSC_COLOURSPACE_RGB,				/* Output colour space	*/
 
@@ -521,7 +521,7 @@ CSC_sColourPrimaryConversionMatrix	asCSCColourPrimaryConversionMatrices [CSC_NO_
 			}
 		}
 	},
-	
+
 	/**************/
 	/* BT601 -> ? */
 	/**************/

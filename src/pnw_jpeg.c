@@ -144,12 +144,9 @@ static VAStatus pnw_jpeg_CreateContext(
    
     if (NULL == jpeg_ctx_p->sScan_Encode_Info.aBufferTable)
 	return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    memset(jpeg_ctx_p->sScan_Encode_Info.aBufferTable, 0, 
-	sizeof(TOPAZSC_JPEG_BUFFER_INFO) * jpeg_ctx_p->sScan_Encode_Info.ui8NumberOfCodedBuffers);
-
     jpeg_ctx_p->ui32OutputWidth = ctx->Width;
     jpeg_ctx_p->ui32OutputHeight = ctx->Height;
- 
+
     /*It will be figured out when known the size of whole coded buffer.*/
     jpeg_ctx_p->ui32SizePerCodedBuffer = 0;
 
@@ -192,7 +189,7 @@ static VAStatus pnw_jpeg_BeginPicture(
     int ret;
     pnw_cmdbuf_p cmdbuf;
 
-    psb__information_message("pnw_jpeg_BeginPicture\n");
+    psb__information_message("pnw_jpeg_BeginPicture: Frame %d\n", ctx->obj_context->frame_count);
 
     ctx->src_surface = ctx->obj_context->current_render_target;
 
@@ -215,12 +212,9 @@ static VAStatus pnw_jpeg_BeginPicture(
         psb_buffer_unmap(&cmdbuf->pic_params);
         return vaStatus;
     }
-    /*vaStatus = psb_buffer_map(&cmdbuf->slice_params, &cmdbuf->slice_params_p);
-    if (vaStatus) {
-        psb_buffer_unmap(&cmdbuf->pic_params);
-        psb_buffer_unmap(&cmdbuf->header_mem);
-        return vaStatus;
-    }*/
+
+    memset(ctx->jpeg_ctx->sScan_Encode_Info.aBufferTable, 0,
+	    sizeof(TOPAZSC_JPEG_BUFFER_INFO) * ctx->jpeg_ctx->sScan_Encode_Info.ui8NumberOfCodedBuffers);
 
     /*Store the QMatrix data*/
     ctx->jpeg_ctx->pMemInfoTableBlock = cmdbuf->pic_params_p; 
@@ -489,6 +483,7 @@ static VAStatus pnw_jpeg_EndPicture(
 	return vaStatus;
     }
 
+    ctx->obj_context->frame_count++;
   return VA_STATUS_SUCCESS;
 }
 

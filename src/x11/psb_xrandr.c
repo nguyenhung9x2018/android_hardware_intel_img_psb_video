@@ -1,13 +1,10 @@
 #include "psb_xrandr.h"
 #include "psb_x11.h"
 
+/* Global variable for xrandr */
 psb_xrandr_info_p psb_xrandr_info;
-static psb_xrandr_crtc_p crtc_head, crtc_tail;
-static psb_xrandr_output_p output_head, output_tail;
-static pthread_mutex_t psb_extvideo_mutex;
-static XRRScreenResources *res;
-Display *dpy;
-Window root;
+
+#define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 
 #define MWM_HINTS_DECORATIONS (1L << 1)
 typedef struct
@@ -41,165 +38,289 @@ char* location2string(psb_xrandr_location location)
     }
 }
 
-static psb_xrandr_output_p get_output_by_id(RROutput output_id)
+static int RRrotation2VArotation(Rotation rotation)
 {
-    psb_xrandr_output_p p_output;
-    for (p_output = output_head; p_output; p_output = p_output->next) {
-	if (p_output->output_id == output_id)
-	    return p_output;
+    switch (rotation) {
+        case RR_Rotate_0:
+            return VA_ROTATION_NONE;
+        case RR_Rotate_90:
+            return VA_ROTATION_270;
+        case RR_Rotate_180:
+            return VA_ROTATION_180;
+        case RR_Rotate_270:
+            return VA_ROTATION_90;
     }
-    return NULL;
 }
-
 static psb_xrandr_crtc_p get_crtc_by_id(RRCrtc crtc_id)
 {
     psb_xrandr_crtc_p p_crtc;
-    for (p_crtc = crtc_head; p_crtc; p_crtc = p_crtc->next)
+    for (p_crtc = psb_xrandr_info->crtc_head; p_crtc; p_crtc = p_crtc->next)
 	if (p_crtc->crtc_id == crtc_id)
 	    return p_crtc;
     return NULL;
 }
 
-static void psb_extvideo_prop()
+static void psb_xrandr_hdmi_property()
 {
-    psb_xrandr_crtc_p p_crtc;
-    psb_xrandr_output_p p_output;
-#if 0
-    int i, j, nprop, actual_format;
-    unsigned long nitems, bytes_after;
     Atom *props;
     Atom actual_type;
+    XRRPropertyInfo *propinfo;
+    int i, nprop, actual_format;
+    unsigned long nitems, bytes_after;
+    char* prop_name;
     unsigned char* prop;
-    unsigned char* prop_name;
-#endif
-    psb_xrandr_info->output_changed = 1;
-    if (psb_xrandr_info->nconnected_output == 1)
-    {
-	for (p_output = output_head; p_output; p_output = p_output->next)
-	    if (p_output->connection == RR_Connected)
-		psb_xrandr_info->primary_output = p_output;
 
-	for (p_crtc = crtc_head; p_crtc; p_crtc = p_crtc->next)
-	{
-	    if (p_crtc->noutput == 0)
-		continue;
-	    else
-		psb_xrandr_info->primary_crtc = p_crtc;
-	}
-
-	psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode = SINGLE;
-    }
-    else if (psb_xrandr_info->nconnected_output >= 2)
-    {
-	for (p_output = output_head; p_output; p_output = p_output->next)
-	{
-	    if (p_output->connection != RR_Connected)
-		continue;
-
-	    if (!strcmp(p_output->name, "MIPI0"))
-	    {
-		psb_xrandr_info->primary_output = p_output;
-		psb_xrandr_info->primary_crtc = p_output->crtc;
-	    }
-	    else if (!strcmp(p_output->name, "MIPI1"))
-	    {
-                psb_xrandr_info->mipi1_connected = 1;
-		psb_xrandr_info->extend_output = p_output;
-		psb_xrandr_info->extend_crtc = p_output->crtc;
-	    }
-	    else if (!strcmp(p_output->name, "TMDS0-1"))
-	    {	    
-	        psb_xrandr_info->hdmi_connected = 1;
-		psb_xrandr_info->extend_output = p_output;
-		psb_xrandr_info->extend_crtc = p_output->crtc;
-	    }
-	}
-
-	if (!psb_xrandr_info->primary_crtc || !psb_xrandr_info->extend_crtc || !psb_xrandr_info->primary_output || !psb_xrandr_info->extend_output)
-	{
-	    psb__error_message("Xrandr: failed to get primary/extend crtc/output\n");
+	/* Check HDMI properties */
+	props = XRRListOutputProperties(psb_xrandr_info->dpy, psb_xrandr_info->extend_output->output_id, &nprop);
+	if (!props) {
+	    psb__error_message("Xrandr: XRRListOutputProperties failed\n", psb_xrandr_info->extend_output->output_id);
 	    return;
 	}
 
-	if (psb_xrandr_info->primary_crtc->x == 0 && psb_xrandr_info->primary_crtc->y == 0 \
-	    && psb_xrandr_info->extend_crtc->x == 0 && psb_xrandr_info->extend_crtc->y == 0)
-	    psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode = CLONE;
-	else {
-	    psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode = EXTENDED;
+	psb__information_message("Xrandr: extend output %08x has %d properties\n", psb_xrandr_info->extend_output->output_id, nprop);
 
-	    if (psb_xrandr_info->primary_crtc->y == psb_xrandr_info->extend_crtc->height)
-		psb_xrandr_info->extend_crtc->location = ABOVE;
-	    else if (psb_xrandr_info->extend_crtc->y == psb_xrandr_info->primary_crtc->height)
-		psb_xrandr_info->extend_crtc->location = BELOW;
-	    else if (psb_xrandr_info->primary_crtc->x == psb_xrandr_info->extend_crtc->width)
-		psb_xrandr_info->extend_crtc->location = LEFT_OF;
-	    else if (psb_xrandr_info->extend_crtc->x == psb_xrandr_info->primary_crtc->width)
-		psb_xrandr_info->extend_crtc->location = RIGHT_OF;
-	}
-#if 0
-	props = XRRListOutputProperties(dpy, psb_xrandr_info->extend_output->output_id, &nprop);
 	for (i = 0; i < nprop; i++) {
-	    XRRGetOutputProperty(dpy, psb_xrandr_info->extend_output->output_id, props[i], 
+	    XRRGetOutputProperty(psb_xrandr_info->dpy, psb_xrandr_info->extend_output->output_id, props[i], 
 				 0, 100, False, False, AnyPropertyType, &actual_type, &actual_format,
 				 &nitems, &bytes_after, &prop);
 
-	    XRRQueryOutputProperty(dpy, psb_xrandr_info->extend_output->output_id, props[i]);
-	    prop_name = XGetAtomName(dpy, props[i]);
+	    propinfo = XRRQueryOutputProperty(psb_xrandr_info->dpy, psb_xrandr_info->extend_output->output_id, props[i]);
+	    if (!propinfo) {
+		psb__error_message("Xrandr: get output %08x prop %08x failed\n", psb_xrandr_info->extend_output->output_id, props[i]);
+		return;
+	    }
 
-	    if (!strcmp(prop_name, "ExtVideoMode"))
-		for (j = 0; j < nitems; j++)
-		    psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode = (int)((INT32*)prop)[j];
-	    else if (!strcmp(prop_name, "ExtVideoMode_XRes"))
-		for (j = 0; j < nitems; j++)
-		    psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_XRes = (int)((INT32*)prop)[j];
-	    else if (!strcmp(prop_name, "ExtVideoMode_YRes"))
-		for (j = 0; j < nitems; j++)
-		    psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_YRes = (int)((INT32*)prop)[j];
-	    else if (!strcmp(prop_name, "ExtVideoMode_X_Offset"))
-		for (j = 0; j < nitems; j++)
-		    psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_X_Offset = (int)((INT32*)prop)[j];
-	    else if (!strcmp(prop_name, "ExtVideoMode_Y_Offset"))
-		for (j = 0; j < nitems; j++)
-		    psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Y_Offset = (int)((INT32*)prop)[j];
-	    else if (!strcmp(prop_name, "ExtVideoMode_Center"))
-		for (j = 0; j < nitems; j++)
-		    psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Center = (int)((INT32*)prop)[j];
-	    else if (!strcmp(prop_name, "ExtVideoMode_SubTitle"))
-		for (j = 0; j < nitems; j++)
-		    psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_SubTitle = (int)((INT32*)prop)[j];
-	}
+	    prop_name = XGetAtomName(psb_xrandr_info->dpy, props[i]);
 
-	if (psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode == CLONE)
-	    psb_xrandr_info->extend_crtc->location = NORMAL;
-	else if (psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode == EXTENDED) {
-	    if (psb_xrandr_info->primary_crtc->y == psb_xrandr_info->extend_crtc->height)
-		psb_xrandr_info->extend_crtc->location = ABOVE;
-	    else if (psb_xrandr_info->extend_crtc->y == psb_xrandr_info->primary_crtc->height)
-		psb_xrandr_info->extend_crtc->location = BELOW;
-	    else if (psb_xrandr_info->primary_crtc->x == psb_xrandr_info->extend_crtc->width)
-		psb_xrandr_info->extend_crtc->location = LEFT_OF;
-	    else if (psb_xrandr_info->extend_crtc->x == psb_xrandr_info->primary_crtc->width)
-		psb_xrandr_info->extend_crtc->location = RIGHT_OF;
+	    /* Currently all properties are XA_INTEGER, 32 */
+	    if (!strcmp(prop_name, "ExtVideoMode")) {
+		psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: ExtVideoMode (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode);
+	    } else if (!strcmp(prop_name, "ExtVideoMode_Xres")) {
+		psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_XRes = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: ExtVideoMode_XRes (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_XRes);
+	    } else if (!strcmp(prop_name, "ExtVideoMode_Yres")) {
+		psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_YRes = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: ExtVideoMode_YRes (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_YRes);
+	    } else if (!strcmp(prop_name, "ExtVideoMode_X_Offset")) {
+		psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_X_Offset = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: ExtVideoMode_X_Offset (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_X_Offset);
+	    } else if (!strcmp(prop_name, "ExtVideoMode_Y_Offset")) {
+		psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Y_Offset = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: ExtVideoMode_Y_Offset (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Y_Offset);
+	    } else if (!strcmp(prop_name, "ExtVideoMode_Center")) {
+		psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Center = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: ExtVideoMode_Center (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Center);
+	    } else if (!strcmp(prop_name, "ExtVideoMode_SubTitle")) {
+		psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_SubTitle = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: ExtVideoMode_SubTitle (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_SubTitle);
+	    } else if (!strcmp(prop_name, "ExtDesktopMode")) {
+		psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: ExtDesktopMode (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode);
+	    } else if (!strcmp(prop_name, "OverscanMode")) {
+		psb_xrandr_info->hdmi_extvideo_prop->OverscanMode = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: OverscanMode (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->OverscanMode);
+	    } else if (!strcmp(prop_name, "PANELFITTING")) {
+		psb_xrandr_info->hdmi_extvideo_prop->PANELFITTING = (int)((INT32*)prop)[0];
+		psb__information_message("Xrandr: PANELFITTING (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->PANELFITTING);
+	    }
 	}
-#if 0
-	else if (psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode == EXTENDEDVIDEO) {
-	    if (psb_xrandr_info->primary_crtc->y == psb_xrandr_info->extend_crtc->height)
-		psb_xrandr_info->extend_crtc->location = ABOVE;
-	    else if (psb_xrandr_info->extend_crtc->y == psb_xrandr_info->primary_crtc->height)
-		psb_xrandr_info->extend_crtc->location = BELOW;
-	    else if (psb_xrandr_info->primary_crtc->x == psb_xrandr_info->extend_crtc->width)
-		psb_xrandr_info->extend_crtc->location = LEFT_OF;
-	    else if (psb_xrandr_info->extend_crtc->x == psb_xrandr_info->primary_crtc->width)
-		psb_xrandr_info->extend_crtc->location = RIGHT_OF;
-	}
-#endif
-#endif
+}
+
+static void psb_xrandr_mipi_location_init(psb_output_device_mode output_device_mode)
+{
+    psb_xrandr_crtc_p local_crtc, extend_crtc;
+
+    switch (output_device_mode) {
+	case SINGLE_MIPI0:
+	    psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = SINGLE;
+	    psb_xrandr_info->local_crtc[0]->location = NORMAL;
+	    return;
+	case SINGLE_MIPI1:
+	    psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = SINGLE;
+	    psb_xrandr_info->local_crtc[1]->location = NORMAL;
+	    return;
+	case MIPI0_MIPI1:
+	    local_crtc = psb_xrandr_info->local_crtc[0];
+	    extend_crtc = psb_xrandr_info->local_crtc[1];
+	    break;
+	default:
+	    break;
+    }
+
+    if (!local_crtc || !extend_crtc) {
+	psb__error_message("Failed to get crtc info\n");
+	return;
+    }
+
+    /* MIPI1 clone MIPI0 */
+    if (local_crtc->x == 0 && local_crtc->y == 0 &&
+	extend_crtc->x == 0 && extend_crtc->y == 0) {
+	psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = CLONE;
+	extend_crtc->location = NORMAL;
+    } else {
+	/* MIPI1 entend MIPI0 */
+	psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = EXTENDED;
+	if (local_crtc->y == extend_crtc->height)
+	    extend_crtc->location = ABOVE;
+        else if (extend_crtc->y == local_crtc->height)
+	    extend_crtc->location = BELOW;
+        else if (local_crtc->x == extend_crtc->width)
+	    extend_crtc->location = LEFT_OF;
+        else if (extend_crtc->x == local_crtc->width)
+	    extend_crtc->location = RIGHT_OF;
     }
 }
 
-void psb_xrandr_refresh()
+static void psb_xrandr_hdmi_location_init(psb_output_device_mode output_device_mode)
 {
-    int i, j;
+    psb_xrandr_crtc_p local_crtc, extend_crtc;
+
+    switch (output_device_mode) {
+	case SINGLE_HDMI:
+	    psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = SINGLE;
+	    psb_xrandr_info->extend_crtc->location = NORMAL;
+	    return;
+	case MIPI0_HDMI:
+	case MIPI0_MIPI1_HDMI:
+	    local_crtc = psb_xrandr_info->local_crtc[0];
+	    extend_crtc = psb_xrandr_info->extend_crtc;
+	    break;
+	case MIPI1_HDMI:
+	    local_crtc = psb_xrandr_info->local_crtc[1];
+	    extend_crtc = psb_xrandr_info->extend_crtc;
+	    break;
+	default:
+	    break;
+    }
+
+    if (!local_crtc || !extend_crtc) {
+	psb__error_message("Failed to get crtc info\n");
+	return;
+    }
+
+    if (psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == CLONE)
+	psb_xrandr_info->extend_crtc->location = NORMAL;
+
+    if (psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == EXTENDED
+	|| psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == EXTENDEDVIDEO) {
+	if (local_crtc->y == extend_crtc->height)
+	    psb_xrandr_info->extend_crtc->location = ABOVE;
+	else if (extend_crtc->y == local_crtc->height)
+	    psb_xrandr_info->extend_crtc->location = BELOW;
+	else if (local_crtc->x == extend_crtc->width)
+	    psb_xrandr_info->extend_crtc->location = LEFT_OF;
+	else if (extend_crtc->x == local_crtc->width)
+	    psb_xrandr_info->extend_crtc->location = RIGHT_OF;
+    }
+}
+
+static void psb_xrandr_coordinate_init(VADriverContextP ctx)
+{
+    INIT_DRIVER_DATA;
+    psb_xrandr_output_p p_output;
+
+    psb_xrandr_info->output_changed = 1;
+
+    for (p_output = psb_xrandr_info->output_head; p_output; p_output = p_output->next) {
+	if (p_output->connection == RR_Connected) {
+	    if (!strcmp(p_output->name, "MIPI0")) {
+		if (p_output->crtc) {
+		    psb_xrandr_info->mipi0_enabled = 1;
+		    psb_xrandr_info->local_output[0] = p_output;
+		    psb_xrandr_info->local_crtc[0] = p_output->crtc;
+                    psb_xrandr_info->mipi0_rotation = p_output->crtc->rotation;
+		} else {
+		    psb_xrandr_info->mipi0_enabled = 0;
+		    psb_xrandr_info->local_output[0] = NULL;
+		    psb_xrandr_info->local_crtc[0] = NULL;
+		}
+	    } else if (!strcmp(p_output->name, "MIPI1")) {
+		if (p_output->crtc) {
+		    psb_xrandr_info->mipi1_enabled = 1;
+		    psb_xrandr_info->local_output[1] = p_output;
+		    psb_xrandr_info->local_crtc[1] = p_output->crtc;
+                    psb_xrandr_info->mipi1_rotation = p_output->crtc->rotation;
+		} else {
+		    psb_xrandr_info->mipi1_enabled = 0;
+		    psb_xrandr_info->local_output[1] = NULL;
+		    psb_xrandr_info->local_crtc[1] = NULL;
+		}
+	    } else if (!strcmp(p_output->name, "TMDS0-1")) {
+		if (p_output->crtc) {
+		    psb_xrandr_info->hdmi_enabled = 1;
+		    psb_xrandr_info->extend_output = p_output;
+		    psb_xrandr_info->extend_crtc = p_output->crtc;
+                    psb_xrandr_info->hdmi_rotation = p_output->crtc->rotation;
+		} else {
+		    psb_xrandr_info->hdmi_enabled = 0;
+		    psb_xrandr_info->extend_output = NULL; 
+		    psb_xrandr_info->extend_crtc = NULL;
+		}
+	    } else if (!strcmp(p_output->name, "LVDS0") && IS_MRST(driver_data)) {
+		if (p_output->crtc) {
+		    psb_xrandr_info->lvds0_enabled = 1;
+		    psb_xrandr_info->local_output[0] = p_output;
+		    psb_xrandr_info->local_crtc[0] = p_output->crtc;
+	        } else {
+		    psb_xrandr_info->lvds0_enabled = 0;
+		    psb_xrandr_info->local_output[0] = NULL; 
+		    psb_xrandr_info->local_crtc[0] = NULL;
+		}
+	    }
+	}
+    }
+
+    /* for MRST */
+    if (IS_MRST(driver_data) && psb_xrandr_info->lvds0_enabled) {
+	psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = SINGLE;
+	psb_xrandr_info->output_device_mode = SINGLE_LVDS0;
+	psb_xrandr_info->local_crtc[0]->location = NORMAL;
+	return;
+    }
+
+    /* HDMI + either MIPI0 or MIPI1 */
+    if (psb_xrandr_info->hdmi_enabled) {
+
+	/* Get HDMI properties if it is enabled*/
+	psb_xrandr_hdmi_property();
+
+	/* Only HDMI */
+	if (!psb_xrandr_info->mipi0_enabled && !psb_xrandr_info->mipi1_enabled)
+	    psb_xrandr_info->output_device_mode = SINGLE_HDMI;
+
+	/* HDMI + MIPI0 */
+	if (psb_xrandr_info->mipi0_enabled && !psb_xrandr_info->mipi1_enabled) 
+	    psb_xrandr_info->output_device_mode = MIPI0_HDMI;
+
+	/* HDMI + MIPI1 */
+	if (!psb_xrandr_info->mipi0_enabled && psb_xrandr_info->mipi1_enabled)
+	    psb_xrandr_info->output_device_mode = MIPI1_HDMI;
+
+	/* HDMI + MIPI0 + MIPI1 */
+	if (psb_xrandr_info->mipi0_enabled && psb_xrandr_info->mipi1_enabled)
+	    psb_xrandr_info->output_device_mode = MIPI0_MIPI1_HDMI;
+
+	psb_xrandr_hdmi_location_init(psb_xrandr_info->output_device_mode);
+    } else {
+	/* MIPI0 + MIPI1 */
+	if (psb_xrandr_info->mipi0_enabled && psb_xrandr_info->mipi1_enabled) {
+	    psb_xrandr_info->output_device_mode = MIPI0_MIPI1;
+	} else {
+	    /* MIPI0/MIPI1 */
+	    if (psb_xrandr_info->mipi0_enabled)
+		psb_xrandr_info->output_device_mode = SINGLE_MIPI0;
+	    else if (psb_xrandr_info->mipi1_enabled)
+		psb_xrandr_info->output_device_mode = SINGLE_MIPI1;
+	}
+
+	psb_xrandr_mipi_location_init(psb_xrandr_info->output_device_mode);
+    }
+}
+
+void psb_xrandr_refresh(VADriverContextP ctx)
+{
+    int i;
 
     XRROutputInfo *output_info;
     XRRCrtcInfo *crtc_info;
@@ -207,104 +328,106 @@ void psb_xrandr_refresh()
     psb_xrandr_crtc_p p_crtc;
     psb_xrandr_output_p p_output;
 
-    pthread_mutex_lock(&psb_extvideo_mutex);
-
-    if (psb_xrandr_info)
-    {
-	if (psb_xrandr_info->hdmi_extvideo_prop)
-	    free(psb_xrandr_info->hdmi_extvideo_prop);
-
- 	free(psb_xrandr_info);
-
-	psb_xrandr_info = NULL;
-    }
-
-    psb_xrandr_info = (psb_xrandr_info_p)calloc(1, sizeof(psb_xrandr_info_s));
-    memset(psb_xrandr_info, 0, sizeof(psb_xrandr_info_s));
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
 
     psb_xrandr_info->hdmi_extvideo_prop = (psb_extvideo_prop_p)calloc(1, sizeof(psb_extvideo_prop_s));
+    if (!psb_xrandr_info->hdmi_extvideo_prop) {
+        psb__error_message("output of memory\n");
+        return;
+    }
     memset(psb_xrandr_info->hdmi_extvideo_prop, 0, sizeof(psb_extvideo_prop_s));
 
     //deinit crtc
-    if (crtc_head)
+    if (psb_xrandr_info->crtc_head)
     {
-	while (crtc_head)
+	while (psb_xrandr_info->crtc_head)
 	{
-	    crtc_tail = crtc_head->next;
+	    psb_xrandr_info->crtc_tail = psb_xrandr_info->crtc_head->next;
 
-	    free(crtc_head->output);
-	    free(crtc_head);
+	    free(psb_xrandr_info->crtc_head);
 	
-	    crtc_head = crtc_tail;
+	    psb_xrandr_info->crtc_head = psb_xrandr_info->crtc_tail;
 	}
-	crtc_head = crtc_tail = NULL;
+	psb_xrandr_info->crtc_head = psb_xrandr_info->crtc_tail = NULL;
     }
 
-    for (i = 0; i < res->ncrtc; i++)
+    for (i = 0; i < psb_xrandr_info->res->ncrtc; i++)
     {
-	crtc_info = XRRGetCrtcInfo (dpy, res, res->crtcs[i]);
+	crtc_info = XRRGetCrtcInfo (psb_xrandr_info->dpy, psb_xrandr_info->res, psb_xrandr_info->res->crtcs[i]);
 	if (crtc_info)
 	{
 	    p_crtc = (psb_xrandr_crtc_p)calloc(1, sizeof(psb_xrandr_crtc_s));
-	    if (!p_crtc)
+	    if (!p_crtc) {
 		psb__error_message("output of memory\n");
+                return;
+            }
 
 	    if (i == 0)
-		crtc_head = crtc_tail = p_crtc;
+		psb_xrandr_info->crtc_head = psb_xrandr_info->crtc_tail = p_crtc;
 
-	    p_crtc->crtc_id = res->crtcs[i];
+	    p_crtc->crtc_id = psb_xrandr_info->res->crtcs[i];
 	    p_crtc->x = crtc_info->x;
 	    p_crtc->y = crtc_info->y;
 	    p_crtc->width = crtc_info->width;
 	    p_crtc->height = crtc_info->height;
 	    p_crtc->crtc_mode = crtc_info->mode;
 	    p_crtc->noutput = crtc_info->noutput;
+	    p_crtc->rotation = crtc_info->rotation;
 
-	    crtc_tail->next = p_crtc;
+	    psb_xrandr_info->crtc_tail->next = p_crtc;
 	    p_crtc->next = NULL;
-	    crtc_tail = p_crtc;
+	    psb_xrandr_info->crtc_tail = p_crtc;
 	}
 	else{
 	    psb__error_message("failed to get crtc_info\n");
-            pthread_mutex_unlock(&psb_extvideo_mutex);
+            pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
 	    return;
 	}
     }
 
     //deinit output
-    if (output_head)
+    if (psb_xrandr_info->output_head)
     {
-	while (output_head)
+	while (psb_xrandr_info->output_head)
 	{
-	    output_tail = output_head->next;
+	    psb_xrandr_info->output_tail = psb_xrandr_info->output_head->next;
 
-	    free(output_head);
+	    free(psb_xrandr_info->output_head);
 	
-	    output_head = output_tail;
+	    psb_xrandr_info->output_head = psb_xrandr_info->output_tail;
 	}
-	output_head = output_tail = NULL;
+	psb_xrandr_info->output_head = psb_xrandr_info->output_tail = NULL;
     }
-
-    for (i = 0; i < res->noutput; i++)
+#if 0
+    //destroy the full-screen window
+    //FIXME: commited out for X Error message: BadDrawable, need more investigation
+    if (va_output) {
+	if (va_output->extend_drawable) {
+	    XDestroyWindow(ctx->native_dpy, va_output->extend_drawable);
+	    va_output->extend_drawable = 0;
+	    texture_priv->extend_dri_init_flag = 0;
+	}
+    }
+#endif
+    for (i = 0; i < psb_xrandr_info->res->noutput; i++)
     {
-	output_info = XRRGetOutputInfo(dpy, res, res->outputs[i]);
+	output_info = XRRGetOutputInfo(psb_xrandr_info->dpy, psb_xrandr_info->res, psb_xrandr_info->res->outputs[i]);
 	if (output_info)
 	{
 	    p_output = (psb_xrandr_output_p)calloc(1, sizeof(psb_xrandr_output_s));
-	    if (!output_info)
+	    if (!p_output) {
 		psb__error_message("output of memory\n");
+                return;
+            }
 
 	    if (i == 0)
-		output_head = output_tail = p_output;
+		psb_xrandr_info->output_head = psb_xrandr_info->output_tail = p_output;
 
-	    p_output->output_id = res->outputs[i];
+	    p_output->output_id = psb_xrandr_info->res->outputs[i];
 
 	    p_output->connection = output_info->connection;
 	    if (p_output->connection == RR_Connected)
 		psb_xrandr_info->nconnected_output++;
-
-	    p_output->mm_width = output_info->mm_width;
-	    p_output->mm_height = output_info->mm_height;
 
 	    strcpy(p_output->name, output_info->name);
 
@@ -313,56 +436,40 @@ void psb_xrandr_refresh()
 	    else
 		p_output->crtc = NULL;
 
-
-	    output_tail->next = p_output;
+	    psb_xrandr_info->output_tail->next = p_output;
 	    p_output->next = NULL;
-	    output_tail = p_output;
+	    psb_xrandr_info->output_tail = p_output;
 	}
 	else
 	{
 	    psb__error_message("failed to get output_info\n");
-	    pthread_mutex_unlock(&psb_extvideo_mutex);
+	    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
 	    return;
 	}
     }
 
-    for (p_crtc = crtc_head; p_crtc; p_crtc = p_crtc->next)
-    {
-	crtc_info = XRRGetCrtcInfo (dpy, res, p_crtc->crtc_id);
-
-	p_crtc->output = (struct _psb_xrandr_output_s**)calloc(p_crtc->noutput, sizeof(psb_xrandr_output_s));
-
-	for (j = 0; j < crtc_info->noutput; j++)
-	{
-	    p_output = get_output_by_id(crtc_info->outputs[j]);
-	    if (p_output)
-		p_crtc->output[j] = p_output;
-	    else
-		p_crtc->output[j] = NULL;
-	}
-    }
-
-    psb_extvideo_prop();
-    pthread_mutex_unlock(&psb_extvideo_mutex);
+    psb_xrandr_coordinate_init(ctx);
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
 }
 
-void psb_xrandr_thread()
+void psb_xrandr_thread(void* arg)
 {
+    VADriverContextP ctx = (VADriverContextP)arg;
     int event_base, error_base;
     XEvent event;
-    XRRQueryExtension(dpy, &event_base, &error_base);
-    XRRSelectInput(dpy, root, RRScreenChangeNotifyMask | RRCrtcChangeNotifyMask | RROutputChangeNotifyMask | RROutputPropertyNotifyMask);
+    XRRQueryExtension(psb_xrandr_info->dpy, &event_base, &error_base);
+    XRRSelectInput(psb_xrandr_info->dpy, psb_xrandr_info->root, RRScreenChangeNotifyMask | RRCrtcChangeNotifyMask | RROutputChangeNotifyMask | RROutputPropertyNotifyMask);
 
     psb__information_message("Xrandr: psb xrandr thread start\n");
 
     while (1)
     {
-	XNextEvent(dpy, (XEvent *)&event);
+	XNextEvent(psb_xrandr_info->dpy, (XEvent *)&event);
 	if (event.type == ClientMessage) {
 	    psb__information_message("Xrandr: receive ClientMessage event, thread should exit\n");
 	    XClientMessageEvent *evt;
 	    evt = (XClientMessageEvent*)&event;
-	    if (evt->message_type == psb_exit_atom) {
+	    if (evt->message_type == psb_xrandr_info->psb_exit_atom) {
                 psb__information_message("Xrandr: xrandr thread exit safely\n");
                 pthread_exit(NULL);
             }
@@ -371,7 +478,7 @@ void psb_xrandr_thread()
 	    case RRNotify_OutputChange:
 		XRRUpdateConfiguration (&event);
 		psb__information_message("Xrandr: receive RRNotify_OutputChange event, refresh output/crtc info\n");
-		psb_xrandr_refresh();
+		psb_xrandr_refresh(ctx);
 		break;
 	    default:
 		break;
@@ -379,7 +486,7 @@ void psb_xrandr_thread()
     }
 }
 
-Window psb_xrandr_create_full_screen_window()
+Window psb_xrandr_create_full_screen_window(unsigned int destx, unsigned int desty, unsigned int destw, unsigned int desth)
 {
     int x, y, width, height;
     Window win;
@@ -389,198 +496,116 @@ Window psb_xrandr_create_full_screen_window()
     width = psb_xrandr_info->extend_crtc->width;
     height = psb_xrandr_info->extend_crtc->height;
 
-    win = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), x, y, width, height, 0, 0, 0);
+    if (destw == 0 || desth == 0) {
+        destw = width;
+        desth = height;
+    }
+    win = XCreateSimpleWindow(psb_xrandr_info->dpy, DefaultRootWindow(psb_xrandr_info->dpy), destx, desty, destw, desth, 0, 0, 0);
 
     MWMHints mwmhints;
     Atom MOTIF_WM_HINTS;
 
     mwmhints.flags = MWM_HINTS_DECORATIONS;
     mwmhints.decorations = 0; /* MWM_DECOR_BORDER */
-    MOTIF_WM_HINTS = XInternAtom(dpy, "_MOTIF_WM_HINTS", False);
-    XChangeProperty(dpy, win, MOTIF_WM_HINTS, MOTIF_WM_HINTS, sizeof(long)*8,
+    MOTIF_WM_HINTS = XInternAtom(psb_xrandr_info->dpy, "_MOTIF_WM_HINTS", False);
+    XChangeProperty(psb_xrandr_info->dpy, win, MOTIF_WM_HINTS, MOTIF_WM_HINTS, sizeof(long)*8,
 		    PropModeReplace, (unsigned char*) &mwmhints, sizeof(mwmhints)/sizeof(long));
 
     XSetWindowAttributes attributes;
     attributes.override_redirect = 1;
     unsigned long valuemask;
     valuemask = CWOverrideRedirect ;
-    XChangeWindowAttributes(dpy, win, valuemask, &attributes);
+    XChangeWindowAttributes(psb_xrandr_info->dpy, win, valuemask, &attributes);
 
-    XMapWindow(dpy, win);
-    XFlush(dpy);
+    XMapWindow(psb_xrandr_info->dpy, win);
+    XFlush(psb_xrandr_info->dpy);
     return win;
 }
 
-#if 0
-void show_current()
-{
-    int i, ret;
-    int x, y, widht, height;
-    psb_xrandr_location location;
-
-    ret = pthread_mutex_trylock(&psb_extvideo_mutex);
-    if (ret != 0)
-    {
-	printf("mutex busy, should not read\n");
-	return;
-    }
-
-    if (psb_xrandr_single_mode())
-    {
-	printf("single mode\n");
-	printf("primary crtc info:\n");
-
-	ret = psb_xrandr_primary_crtc_coordinate(&x, &y, &widht, &height);
-
-	if (!ret)
-	    printf("failed to get primary crtc info\n");
-	else
-	{
-	    printf("\tx = %d, y = %d, widht = %d, height = %d\n", x, y, widht, height);
-	    printf("\tcrtc id: %08x, crtc mode: %08x, ", psb_xrandr_info->primary_crtc->crtc_id, psb_xrandr_info->primary_crtc->crtc_mode);
-	    for (i = 0; i < psb_xrandr_info->primary_crtc->noutput; i++)
-	    printf("output: %08x\n", psb_xrandr_info->primary_crtc->output[i]->output_id);
-	}
-    }
-    else if (psb_xrandr_clone_mode())
-    {
-	printf("clone mode\n");
-
-	ret = psb_xrandr_primary_crtc_coordinate(&x, &y, &widht, &height);
-
-	if (!ret)
-	    printf("failed to get primary crtc info\n");
-	else
-	{
-	    printf("primary crtc info:\n");
-	    printf("\tx = %d, y = %d, widht = %d, height = %d\n", x, y, widht, height);
-	    printf("\tcrtc id: %08x, crtc mode: %08x, ", psb_xrandr_info->primary_crtc->crtc_id, psb_xrandr_info->primary_crtc->crtc_mode);
-	    for (i = 0; i < psb_xrandr_info->primary_crtc->noutput; i++)
-	    printf("output: %08x\n", psb_xrandr_info->primary_crtc->output[i]->output_id);
-	}
-
-	ret = psb_xrandr_extend_crtc_coordinate(&x, &y, &widht, &height, &location);
-
-	if (!ret)
-	    printf("failed to get clone crtc info\n");
-	else
-	{
-	    printf("clone crtc info:\n");
-	    printf("\tx = %d, y = %d, widht = %d, height = %d, location = %s\n", x, y, widht, height, location2string(location));
-	    printf("\tcrtc id: %08x, crtc mode: %08x, ", psb_xrandr_info->extend_crtc->crtc_id, psb_xrandr_info->extend_crtc->crtc_mode);
-	    for (i = 0; i < psb_xrandr_info->extend_crtc->noutput; i++)
-	    printf("output: %08x\n", psb_xrandr_info->extend_crtc->output[i]->output_id);
-	}
-    }
-    else if (psb_xrandr_extend_mode())
-    {
-	printf("extend mode\n");
-	ret = psb_xrandr_primary_crtc_coordinate(&x, &y, &widht, &height);
-
-	if (!ret)
-	    printf("failed to get primary crtc info\n");
-	else
-	{
-	    printf("primary crtc info:\n");
-	    printf("\tx = %d, y = %d, widht = %d, height = %d\n", x, y, widht, height);
-	    printf("\tcrtc id: %08x, crtc mode: %08x, ", psb_xrandr_info->primary_crtc->crtc_id, psb_xrandr_info->primary_crtc->crtc_mode);
-	    for (i = 0; i < psb_xrandr_info->primary_crtc->noutput; i++)
-	    printf("output: %08x\n", psb_xrandr_info->primary_crtc->output[i]->output_id);
-	}
-
-	ret = psb_xrandr_extend_crtc_coordinate(&x, &y, &widht, &height, &location);
-
-	if (!ret)
-	    printf("failed to get extend crtc info\n");
-	else
-	{
-	    printf("extend crtc info:\n");
-	    printf("\tx = %d, y = %d, widht = %d, height = %d, location = %s\n", x, y, widht, height, location2string(location));
-	    printf("\tcrtc id: %08x, crtc mode: %08x, ", psb_xrandr_info->extend_crtc->crtc_id, psb_xrandr_info->extend_crtc->crtc_mode);
-	    for (i = 0; i < psb_xrandr_info->extend_crtc->noutput; i++)
-	    printf("output: %08x\n", psb_xrandr_info->extend_crtc->output[i]->output_id);
-	}
-    }
-    else if (psb_xrandr_extvideo_mode())
-	printf("extvideo mode\n");
-
-    pthread_mutex_unlock(&psb_extvideo_mutex);
-}
-#endif
-int psb_xrandr_hdmi_connected()
+int psb_xrandr_hdmi_enabled()
 {
     int ret;
-    pthread_mutex_lock(&psb_extvideo_mutex);
-    ret = psb_xrandr_info->hdmi_connected;
-    pthread_mutex_unlock(&psb_extvideo_mutex);
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+    ret = psb_xrandr_info->hdmi_enabled;
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
     return ret;
 }
 
-int psb_xrandr_mipi1_connected()
+int psb_xrandr_mipi0_enabled()
 {
     int ret;
-    pthread_mutex_lock(&psb_extvideo_mutex);
-    ret = psb_xrandr_info->mipi1_connected;
-    pthread_mutex_unlock(&psb_extvideo_mutex);
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+    ret = psb_xrandr_info->mipi0_enabled;
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
+    return ret;
+}
+
+int psb_xrandr_mipi1_enabled()
+{
+    int ret;
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+    ret = psb_xrandr_info->mipi1_enabled;
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
     return ret;
 }
 
 int psb_xrandr_single_mode()
 {
     int ret;
-    pthread_mutex_lock(&psb_extvideo_mutex);
-    ret = (psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode == SINGLE) ? 1 : 0;
-    pthread_mutex_unlock(&psb_extvideo_mutex);
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+    ret = (psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == SINGLE) ? 1 : 0;
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
     return ret;
 }
 
 int psb_xrandr_clone_mode()
 {
     int ret;
-    pthread_mutex_lock(&psb_extvideo_mutex);
-    ret = (psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode == CLONE) ? 1 : 0;
-    pthread_mutex_unlock(&psb_extvideo_mutex);
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+    ret = (psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == CLONE) ? 1 : 0;
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
     return ret;
 }
 
 int psb_xrandr_extend_mode()
 {
     int ret;
-    pthread_mutex_lock(&psb_extvideo_mutex);
-    ret = (psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode == EXTENDED) ? 1 : 0;
-    pthread_mutex_unlock(&psb_extvideo_mutex);
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+    ret = (psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == EXTENDED) ? 1 : 0;
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
     return ret;
 }
 
 int psb_xrandr_extvideo_mode()
 {
     int ret;
-    pthread_mutex_lock(&psb_extvideo_mutex);
-    ret = (psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode == EXTENDEDVIDEO) ? 1 : 0;
-    pthread_mutex_unlock(&psb_extvideo_mutex);
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+    ret = (psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == EXTENDEDVIDEO) ? 1 : 0;
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
     return ret;
 }
 
 int psb_xrandr_outputchanged()
 {
     int ret;
-    pthread_mutex_lock(&psb_extvideo_mutex);
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
     if (psb_xrandr_info->output_changed){
         psb_xrandr_info->output_changed = 0;
         ret = 1;
     } else 
         ret = 0;
-    pthread_mutex_unlock(&psb_extvideo_mutex);
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
     return ret;
 }
 
-VAStatus psb_xrandr_extvideo_mode_prop(unsigned int *xres, unsigned int *yres, unsigned int *xoffset, 
-			      unsigned int *yoffset, psb_extvideo_center *center, psb_extvideo_subtitle *subtitle)
+VAStatus psb_xrandr_extvideo_prop(unsigned int *xres, unsigned int *yres, unsigned int *xoffset, 
+				  unsigned int *yoffset, psb_extvideo_center *center, psb_extvideo_subtitle *subtitle,
+				  unsigned int *overscanmode, unsigned int *pannelfitting)
 {
-    pthread_mutex_lock(&psb_extvideo_mutex);
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
 
-    if (psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode != EXTENDEDVIDEO){
-        pthread_mutex_unlock(&psb_extvideo_mutex);
+    if (psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode != EXTENDEDVIDEO){
+        pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
 	return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -590,61 +615,133 @@ VAStatus psb_xrandr_extvideo_mode_prop(unsigned int *xres, unsigned int *yres, u
     *yoffset = psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Y_Offset;
     *center = psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Center;
     *subtitle = psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_SubTitle;
+    *pannelfitting = psb_xrandr_info->hdmi_extvideo_prop->PANELFITTING;
+    *overscanmode = psb_xrandr_info->hdmi_extvideo_prop->OverscanMode;
 
-    pthread_mutex_unlock(&psb_extvideo_mutex);
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
     return VA_STATUS_SUCCESS;
 }
 
-VAStatus psb_xrandr_primary_crtc_coordinate(int *x, int *y, int *width, int *height)
+VAStatus psb_xrandr_local_crtc_coordinate(psb_output_device *local_device_enabled, int *x, int *y, int *width, int *height, Rotation *rotation)
 {
-    pthread_mutex_lock(&psb_extvideo_mutex);
-    psb_xrandr_crtc_p crtc = psb_xrandr_info->primary_crtc;;
-    if (crtc) {
-	*x = crtc->x;
-	*y = crtc->y;
-	*width = crtc->width - 1;
-	*height = crtc->height - 1;	
-	pthread_mutex_unlock(&psb_extvideo_mutex);
-	psb__information_message("Xrandr: crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d\n",
-				  psb_xrandr_info->primary_crtc->crtc_id, *x, *y, *width + 1, *height + 1);
-	return VA_STATUS_SUCCESS;
+    psb_xrandr_crtc_p p_crtc;
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+
+    switch (psb_xrandr_info->output_device_mode) {
+	case SINGLE_LVDS0:
+	    *local_device_enabled = LVDS0;
+	    p_crtc = psb_xrandr_info->local_crtc[0];
+	    break;
+	case SINGLE_MIPI0:
+	case MIPI0_MIPI1:
+	case MIPI0_HDMI:
+	case MIPI0_MIPI1_HDMI:
+	    *local_device_enabled = MIPI0;
+	    p_crtc = psb_xrandr_info->local_crtc[0];
+	    break;
+	case SINGLE_MIPI1:
+	case MIPI1_HDMI:
+	    *local_device_enabled = MIPI1;
+	    p_crtc = psb_xrandr_info->local_crtc[1];
+	    break;
+	case SINGLE_HDMI:
+	    *local_device_enabled = HDMI;
+	    p_crtc = psb_xrandr_info->extend_crtc;
+	    break;
+	default:
+	    psb__error_message("Xrandr: Unknown statue\n");
+	    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
+	    return VA_STATUS_ERROR_UNKNOWN;
+	    break;
     }
-    pthread_mutex_unlock(&psb_extvideo_mutex);
-    return VA_STATUS_ERROR_UNKNOWN;
-}
 
-VAStatus psb_xrandr_extend_crtc_coordinate(int *x, int *y, int *width, int *height, psb_xrandr_location *location)
-{
-    pthread_mutex_lock(&psb_extvideo_mutex);
-
-    if (psb_xrandr_info->nconnected_output == 1 || !psb_xrandr_info->extend_crtc){	
-	pthread_mutex_unlock(&psb_extvideo_mutex);
+    if (p_crtc) {
+	*x = p_crtc->x;
+	*y = p_crtc->y;
+	*width = p_crtc->width;
+	*height = p_crtc->height;	
+	*rotation = p_crtc->rotation;
+	pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
+	psb__information_message("Xrandr: device %08x enabled, crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d, rotate = %08x\n",
+				  *local_device_enabled, p_crtc->crtc_id, *x, *y, *width + 1, *height + 1, *rotation);
+	return VA_STATUS_SUCCESS;
+    } else {
+	psb__error_message("Xrandr: local device is not available\n");
+	pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
 	return VA_STATUS_ERROR_UNKNOWN;
     }
+}
 
-    *x = psb_xrandr_info->extend_crtc->x;
-    *y = psb_xrandr_info->extend_crtc->y;
-    *width = psb_xrandr_info->extend_crtc->width - 1;
-    *height = psb_xrandr_info->extend_crtc->height - 1;
-    *location = psb_xrandr_info->extend_crtc->location;
+VAStatus psb_xrandr_extend_crtc_coordinate(psb_output_device *extend_device_enabled, int *x, int *y, int *width, int *height, psb_xrandr_location *location, Rotation *rotation)
+{
+    psb_xrandr_crtc_p p_crtc;
+
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+
+    switch (psb_xrandr_info->output_device_mode) {
+	case MIPI0_MIPI1:
+	    *extend_device_enabled = MIPI1;
+	    p_crtc = psb_xrandr_info->local_crtc[1];
+	    break;
+	case MIPI0_HDMI:
+	case MIPI0_MIPI1_HDMI:
+	case MIPI1_HDMI:
+	    *extend_device_enabled = HDMI;
+	    p_crtc = psb_xrandr_info->extend_crtc;
+	    break;
+	default:
+	    psb__error_message("Xrandr: Unknown status, may be extend device is not available\n");
+	    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
+	    return VA_STATUS_ERROR_UNKNOWN;
+	    break;
+    }
+
+    if (p_crtc) {
+        *x = p_crtc->x;
+        *y = p_crtc->y;
+        *width = p_crtc->width;
+        *height = p_crtc->height;
+        *location = p_crtc->location;
+        *rotation = p_crtc->rotation;
+	pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
+        psb__information_message("Xrandr: extend device %08x enabled, crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d, location = %s, rotation = %08x\n",
+  			         *extend_device_enabled, p_crtc->crtc_id, *x, *y, *width + 1, *height + 1, location2string(p_crtc->location), *rotation);
+    } else {
+	psb__error_message("Xrandr: extend device is not available\n");
+	pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
+	return VA_STATUS_ERROR_UNKNOWN;
+    }
 	
-    pthread_mutex_unlock(&psb_extvideo_mutex);
-    psb__information_message("Xrandr: crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d, location = %s\n",
-			     psb_xrandr_info->extend_crtc->crtc_id, *x, *y, *width + 1, *height + 1, location2string(psb_xrandr_info->extend_crtc->location));
+    return VA_STATUS_SUCCESS;
+}
+
+VAStatus psb_xrandr_get_output_rotation(int *mipi0_rotation, int *mipi1_rotation, int *hdmi_rotation)
+{
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
+    if (psb_xrandr_info) {
+        *mipi0_rotation = RRrotation2VArotation(psb_xrandr_info->mipi0_rotation);
+        *mipi1_rotation = RRrotation2VArotation(psb_xrandr_info->mipi1_rotation);
+        *hdmi_rotation = RRrotation2VArotation(psb_xrandr_info->hdmi_rotation);
+    } else {
+        psb__error_message("Xrandr: can't get output rotation.\n");
+	pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
     return VA_STATUS_SUCCESS;
 }
 
 VAStatus psb_xrandr_thread_exit(Drawable draw)
 {
     int ret;
-    XSelectInput(dpy, draw, StructureNotifyMask);
+    XSelectInput(psb_xrandr_info->dpy, draw, StructureNotifyMask);
     XClientMessageEvent xevent;
     xevent.type = ClientMessage;
-    xevent.message_type = psb_exit_atom;
+    xevent.message_type = psb_xrandr_info->psb_exit_atom;
     xevent.window = draw;
     xevent.format = 32;
-    ret = XSendEvent(dpy, draw, 0, 0, (XEvent*)&xevent);
-    XFlush(dpy);
+    ret = XSendEvent(psb_xrandr_info->dpy, draw, 0, 0, (XEvent*)&xevent);
+    XFlush(psb_xrandr_info->dpy);
     if (!ret) {
 	psb__information_message("Xrandr: send thread exit event to drawable: %08x failed\n", draw);
 	return VA_STATUS_ERROR_UNKNOWN;
@@ -657,53 +754,53 @@ VAStatus psb_xrandr_thread_exit(Drawable draw)
 
 VAStatus psb_xrandr_thread_create(VADriverContextP ctx)
 {
-    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
     pthread_t id;
+    INIT_DRIVER_DATA;
 
-    pthread_create(&id, NULL, (void*)psb_xrandr_thread, NULL);
+    psb_xrandr_info->psb_exit_atom = XInternAtom(psb_xrandr_info->dpy, "psb_exit_atom", 0);
+    pthread_create(&id, NULL, (void*)psb_xrandr_thread, ctx);
     driver_data->xrandr_thread_id = id;
     return VA_STATUS_SUCCESS;
 }
 
 VAStatus psb_xrandr_deinit()
 {
-    pthread_mutex_lock(&psb_extvideo_mutex);
+    pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
     //free crtc
-    if (crtc_head)
+    if (psb_xrandr_info->crtc_head)
     {
-	while (crtc_head)
+	while (psb_xrandr_info->crtc_head)
 	{
-	    crtc_tail = crtc_head->next;
+	    psb_xrandr_info->crtc_tail = psb_xrandr_info->crtc_head->next;
 
-	    free(crtc_head);
+	    free(psb_xrandr_info->crtc_head);
 	
-	    crtc_head = crtc_tail;
+	    psb_xrandr_info->crtc_head = psb_xrandr_info->crtc_tail;
 	}
-	crtc_head = crtc_tail = NULL;
+	psb_xrandr_info->crtc_head = psb_xrandr_info->crtc_tail = NULL;
     }
 
     //free output
-    if (output_head)
+    if (psb_xrandr_info->output_head)
     {
-	while (output_head)
+	while (psb_xrandr_info->output_head)
 	{
-	    output_tail = output_head->next;
+	    psb_xrandr_info->output_tail = psb_xrandr_info->output_head->next;
 
-	    free(output_head);
+	    free(psb_xrandr_info->output_head);
 	
-	    output_head = output_tail;
+	    psb_xrandr_info->output_head = psb_xrandr_info->output_tail;
 	}
-	output_head = output_tail = NULL;
+	psb_xrandr_info->output_head = psb_xrandr_info->output_tail = NULL;
     }
 
-    if (psb_xrandr_info->hdmi_extvideo_prop)
+    if (psb_xrandr_info->hdmi_extvideo_prop) {
 	free(psb_xrandr_info->hdmi_extvideo_prop);
-
-    if (psb_xrandr_info)
 	free(psb_xrandr_info);
+    }
 
-    pthread_mutex_unlock(&psb_extvideo_mutex);
-    pthread_mutex_destroy(&psb_extvideo_mutex);
+    pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
+    pthread_mutex_destroy(&psb_xrandr_info->psb_extvideo_mutex);
 
     return VA_STATUS_SUCCESS;
 }
@@ -713,35 +810,37 @@ VAStatus psb_xrandr_init (VADriverContextP ctx)
     int	major, minor;
     int screen;
 
-    dpy = (Display *)ctx->native_dpy;
-    screen = DefaultScreen (dpy);
-    psb_exit_atom = XInternAtom(dpy, "psb_exit_atom", 0);
+    psb_xrandr_info = (psb_xrandr_info_p)calloc(1, sizeof(psb_xrandr_info_s));
+    if (!psb_xrandr_info) {
+        psb__error_message("output of memory\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+    memset(psb_xrandr_info, 0, sizeof(psb_xrandr_info_s));
 
-    if (screen >= ScreenCount (dpy)) {
+    psb_xrandr_info->dpy = (Display *)ctx->native_dpy;
+    screen = DefaultScreen (psb_xrandr_info->dpy);
+
+    if (screen >= ScreenCount (psb_xrandr_info->dpy)) {
 	psb__error_message("Xrandr: Invalid screen number %d (display has %d)\n",
-			    screen, ScreenCount (dpy));
+			    screen, ScreenCount (psb_xrandr_info->dpy));
 	return VA_STATUS_ERROR_UNKNOWN;
     }
 
-    root = RootWindow (dpy, screen);
+    psb_xrandr_info->root = RootWindow (psb_xrandr_info->dpy, screen);
 
-    if (!XRRQueryVersion (dpy, &major, &minor))
+    if (!XRRQueryVersion (psb_xrandr_info->dpy, &major, &minor))
     {
 	psb__error_message("Xrandr: RandR extension missing\n");
 	return VA_STATUS_ERROR_UNKNOWN;
     }
 
-    res = XRRGetScreenResources (dpy, root);
-    if (!res)
+    psb_xrandr_info->res = XRRGetScreenResources (psb_xrandr_info->dpy, psb_xrandr_info->root);
+    if (!psb_xrandr_info->res)
 	psb__error_message("Xrandr: failed to get screen resources\n");
 
-    pthread_mutex_init(&psb_extvideo_mutex, NULL);
+    pthread_mutex_init(&psb_xrandr_info->psb_extvideo_mutex, NULL);
 
-    psb_xrandr_refresh();
+    psb_xrandr_refresh(ctx);
 
-    /*while(1) { sleep(1);
-	show_current();
-    }*/
-
-    return 0;
+    return VA_STATUS_SUCCESS;
 }

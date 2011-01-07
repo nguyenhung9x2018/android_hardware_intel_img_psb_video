@@ -117,6 +117,10 @@ unsigned int lnc__get_ipe_control(enum drm_lnc_topaz_codec  eEncodingFormat)
 
 void lnc_DestroyContext(object_context_p obj_context)
 {
+    context_ENC_p ctx;
+    ctx = (context_ENC_p)obj_context->format_data; 
+    if (NULL != ctx->slice_param_cache)
+	free(ctx->slice_param_cache);
     free(obj_context->format_data);
     obj_context->format_data = NULL;
 }
@@ -153,6 +157,11 @@ VAStatus lnc_CreateContext(
     ctx->HeightMinusLRBSearchHeight = ctx->Height - MVEA_LRB_SEARCH_HEIGHT;
     
     ctx->FCode = 0;
+
+    ctx->sRCParams.VCMBitrateMargin = 0;
+    ctx->sRCParams.BufferSize = 0;
+    ctx->sRCParams.InitialQp = 0;
+    ctx->sRCParams.MinQP = 0;
     
     vaStatus = lnc__alloc_context_buffer(ctx);
 
@@ -455,8 +464,6 @@ static VAStatus lnc__PatchBitsConsumedInRCParam(context_ENC_p ctx)
 {
     lnc_cmdbuf_p cmdbuf = ctx->obj_context->lnc_cmdbuf;
     PIC_PARAMS  *psPicParams = cmdbuf->pic_params_p;
-    void *pBuffer;
-    IMG_UINT32 BitsPerFrame; 
     VAStatus vaStatus;
     
     /* it will wait until last encode session is done */
@@ -468,11 +475,6 @@ static VAStatus lnc__PatchBitsConsumedInRCParam(context_ENC_p ctx)
 	    if (vaStatus) 
 		    return vaStatus;
     }
-    
-    BitsPerFrame = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
-    
-    /* patch IN_RC_PARAMS here */
-    psPicParams->sInParams.BitsTransmitted = BitsPerFrame;
 
     return VA_STATUS_SUCCESS;
 }
@@ -561,7 +563,6 @@ static VAStatus lnc_SetupRCParam(context_ENC_p ctx)
     
     psPicParams->Flags |= ISRC_FLAGS;
     lnc__setup_rcdata(ctx, psPicParams, &ctx->sRCParams);
-    psPicParams->sInParams.BitsTransmitted = 0;
     
     /* restore it, just keep same with DDK */
     ctx->sRCParams.InitialQp = origin_qp;
@@ -579,7 +580,7 @@ static VAStatus lnc_UpdateRCParam(context_ENC_p ctx)
     
     psb__information_message("will update rc data\n");
     lnc__update_rcdata(ctx, psPicParams, &ctx->sRCParams);
-    
+
     /* save IN_RC_PARAMS into the cache */
     memcpy(&ctx->in_params_cache, (void *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
 
@@ -595,7 +596,7 @@ static VAStatus lnc_PatchRCMode(context_ENC_p ctx)
     lnc__PatchBitsConsumedInRCParam(ctx);
 
     /* get frameskip flag */
-    lnc_surface_get_frameskip(ctx->obj_context, ctx->src_surface->psb_surface, &frame_skip);
+    lnc_surface_get_frameskip(ctx->obj_context->driver_data, ctx->src_surface->psb_surface, &frame_skip);
     /* current frame is skipped
      * redo RenderPicture with FrameSkip set
      */
@@ -770,10 +771,8 @@ void lnc__setup_rcdata(
     PIC_PARAMS *psPicParams, 
     IMG_RC_PARAMS *psRCParams)
 {
-    IMG_INT32	FrameRate;
-    double	L1, L2, L3,L4, L5, flBpp;
-    int	tmp_qp = 0; 
     IMG_INT32   max_bitrate = psContext->Width * psContext->Height * 1.5 * 8 *60;
+    IMG_UINT8 InitialSeInitQP = 0;
    
     /* frameskip is always cleared, specially handled at vaEndPicture */
     psRCParams->FrameSkip = 0;
@@ -786,278 +785,37 @@ void lnc__setup_rcdata(
     if (!psRCParams->FrameRate)
         psRCParams->FrameRate = 30;
 
-    if (psRCParams->BitsPerSecond < 256000)
-        psRCParams->BufferSize = (9 * psRCParams->BitsPerSecond) >> 1;
-    else
-        psRCParams->BufferSize = (5 * psRCParams->BitsPerSecond) >> 1;
+    if (psRCParams->BufferSize == 0) {
+	    if (psRCParams->BitsPerSecond < 256000)
+		    psRCParams->BufferSize = (9 * psRCParams->BitsPerSecond) >> 1;
+	    else
+		    psRCParams->BufferSize = (5 * psRCParams->BitsPerSecond) >> 1;
+    }
     psRCParams->InitialLevel = (3 * psRCParams->BufferSize) >> 4;
     psRCParams->InitialDelay = (13 * psRCParams->BufferSize) >> 4;
    
     lnc__setup_busize(psContext); /* calculate BasicUnitSize */
     
-    /* Calculate Bits Per Pixel */
-    FrameRate = psRCParams->FrameRate;
-    flBpp = 1.0 * psRCParams->BitsPerSecond / (FrameRate * psContext->Width * psContext->Height);
-
     psPicParams->sInParams.SeInitQP = psRCParams->InitialQp;
 
     psPicParams->sInParams.MBPerRow = (psContext->Width>>4);
     psPicParams->sInParams.MBPerBU = psRCParams->BUSize;
     psPicParams->sInParams.MBPerFrm	= (psContext->Width>>4) * (psContext->Height>>4);
     psPicParams->sInParams.BUPerFrm	= (psPicParams->sInParams.MBPerFrm) / psRCParams->BUSize;
-    psPicParams->sInParams.BUPerSlice = (psPicParams->sInParams.BUPerFrm) / psRCParams->Slices;
 
-    psPicParams->sInParams.IntraPeriod = psRCParams->IntraFreq;
-    psPicParams->sInParams.BitRate = psRCParams->BitsPerSecond;
+    InitialSeInitQP = psPicParams->sInParams.SeInitQP;
 
-    psPicParams->sInParams.BitsPerFrm = (psRCParams->BitsPerSecond + psRCParams->FrameRate/2) / psRCParams->FrameRate;
-    psPicParams->sInParams.BitsPerGOP = (psRCParams->BitsPerSecond / psRCParams->FrameRate) * psRCParams->IntraFreq;
-    psPicParams->sInParams.BitsPerBU	= psPicParams->sInParams.BitsPerFrm / (4 * psPicParams->sInParams.BUPerFrm);
-    psPicParams->sInParams.BitsPerMB	= psPicParams->sInParams.BitsPerBU / psRCParams->BUSize;	
+    lnc__update_rcdata(psContext, psPicParams, psRCParams);
+    /* set minQP if hosts set minQP */
+    if (psRCParams->MinQP)
+	    psPicParams->sInParams.MinQPVal = psRCParams->MinQP;
 
-    psPicParams->sInParams.AvQPVal = psRCParams->InitialQp;
-    psPicParams->sInParams.MyInitQP	= psRCParams->InitialQp;
-
-    /* select thresholds and initial Qps etc that are codec dependent */
-    switch (psContext->eCodec)
-    {
-    case IMG_CODEC_H264_CBR:
-    case IMG_CODEC_H264_VBR:
-    case IMG_CODEC_H264_VCM:
-        L1 = 0.1;	L2 = 0.15;	L3 = 0.2;
-        psPicParams->sInParams.MaxQPVal = 51;
-
-        /* Set THSkip Values */
-        if(flBpp <= 0.07)
-            psPicParams->THSkip = TH_SKIP_24;
-        else if(flBpp <= 0.14)
-            psPicParams->THSkip = TH_SKIP_12;
-        else
-            psPicParams->THSkip = TH_SKIP_0;
-
-        if(flBpp <= 0.3)
-            psPicParams->Flags |= ISRC_I16BIAS;
-
-        /* Setup MAX and MIN Quant Values */
-        if(psRCParams->MinQP == 0)
-        {
-            if(flBpp >= 0.50)
-                tmp_qp = 4;
-            else if(flBpp > 0.133)
-                tmp_qp = (INT16)(24 - (40*flBpp));
-            else
-                tmp_qp = (INT16)(32 - (100 * flBpp));
-        }
-        else
-            psPicParams->sInParams.MinQPVal = (IMG_UINT8)psRCParams->MinQP;
-        psPicParams->sInParams.MinQPVal = (max(min(psPicParams->sInParams.MaxQPVal,
-                                                   tmp_qp), 7));
-
-        /* Calculate Initial QP if it has not been specified */
-        if(psPicParams->sInParams.SeInitQP==0)
-        {
-            L1 = 0.050568;	L2 = 0.202272;	L3 = 0.40454321; L4 = 0.80908642; L5 = 1.011358025;
-            if(flBpp < L1)
-                tmp_qp = (INT16)(47 - 78.10*flBpp);
-
-            else if(flBpp>=L1 && flBpp<L2)
-                tmp_qp = (INT16) (46 - 72.51*flBpp);
-
-            else if(flBpp>=L2 && flBpp<L3)
-                tmp_qp = (INT16) (36 - 24.72*flBpp);
-
-            else if(flBpp>=L3 && flBpp<L4)
-                tmp_qp = (INT16) (34 - 19.78*flBpp);
-
-            else if(flBpp>=L4 && flBpp<L5)
-                tmp_qp = (INT16) (27 - 9.89*flBpp);
-
-            else if(flBpp>=L5)
-                tmp_qp = (INT16) (20 - 4.95*flBpp);
-            psPicParams->sInParams.SeInitQP = (IMG_UINT8)(max(min(psPicParams->sInParams.MaxQPVal,
-                                                                  tmp_qp), psPicParams->sInParams.MinQPVal));
-        }
-	break;
-
-    case IMG_CODEC_MPEG4_CBR:
-    case IMG_CODEC_MPEG4_VBR:
-        psPicParams->sInParams.MaxQPVal	 = 31;
-
-        if(psContext->Width == 176)
-        {
-            L1 = 0.1;	L2 = 0.3;	L3 = 0.6;
-        }
-        else if(psContext->Width == 352)
-        {	
-            L1 = 0.2;	L2 = 0.6;	L3 = 1.2;
-        }
-        else
-        {
-            L1 = 0.25;	L2 = 1.4;	L3 = 2.4;
-        }
-
-        /* Calculate Initial QP if it has not been specified */
-        if(psPicParams->sInParams.SeInitQP==0)
-        {
-            if(flBpp <= L1)
-                psPicParams->sInParams.SeInitQP = 31;
-            else
-            {
-                if(flBpp <= L2)
-                    psPicParams->sInParams.SeInitQP = 25;
-                else
-                    psPicParams->sInParams.SeInitQP = (flBpp <= L3) ? 20 : 10;
-            }
-        }
-        if(flBpp >= 0.25)
-        {
-            psPicParams->sInParams.MinQPVal = 1;
-        }
-        else
-        {
-            psPicParams->sInParams.MinQPVal = 2;
-        }
-	break;
-
-    case IMG_CODEC_H263_CBR: 
-    case IMG_CODEC_H263_VBR:
-        psPicParams->sInParams.MaxQPVal	 = 31;
-
-        if(psContext->Width == 176)
-        {
-            L1 = 0.1;	L2 = 0.3;	L3 = 0.6;
-        }
-        else if(psContext->Width == 352)
-        {	
-            L1 = 0.2;	L2 = 0.6;	L3 = 1.2;
-        }
-        else
-        {
-            L1 = 0.25;	L2 = 1.4;	L3 = 2.4;
-        }
-
-        /* Calculate Initial QP if it has not been specified */
-        if(psPicParams->sInParams.SeInitQP==0)
-        {
-            if(flBpp <= L1)
-                psPicParams->sInParams.SeInitQP = 31;
-            else
-            {
-                if(flBpp <= L2)
-                    psPicParams->sInParams.SeInitQP = 25;
-                else
-                    psPicParams->sInParams.SeInitQP = (flBpp <= L3) ? 20 : 10;
-            }
-        }
-
-	psPicParams->sInParams.MinQPVal = 2;
-
-	break;
-
-    default:
-        /* the NO RC cases will fall here */
-        break;
+    /* if seinitqp is set, restore the value hosts want */
+    if (InitialSeInitQP) {
+	    psPicParams->sInParams.SeInitQP = InitialSeInitQP;
+	    psPicParams->sInParams.MyInitQP = InitialSeInitQP;
+	    psRCParams->InitialQp = InitialSeInitQP;
     }
-
-    /* Set up Input Parameters that are mode dependent */
-    switch (psContext->eCodec)
-    {
-    case IMG_CODEC_H264_NO_RC:
-    case IMG_CODEC_H263_NO_RC:
-    case IMG_CODEC_MPEG4_NO_RC:
-        return ;
-
-    case IMG_CODEC_H264_VCM:
-	    psPicParams->Flags |= ISVCM_FLAGS;
-	    /* drop throught to CBR case */
-    case IMG_CODEC_H264_CBR:
-        psPicParams->Flags |= ISCBR_FLAGS;
-        /* ------------------- H264 CBR RC ------------------- */	
-        /* Initialize the parameters of fluid flow traffic model. */
-        psPicParams->sInParams.BufferSize = psRCParams->BufferSize;
-
-        /* HRD consideration - These values are used by H.264 reference code. */
-        if(psRCParams->BitsPerSecond < 1000000)         /* 1 Mbits/s */
-        {
-            psPicParams->sInParams.ScaleFactor = 0;
-        }
-        else if(psRCParams->BitsPerSecond < 2000000)    /* 2 Mbits/s */
-        {
-            psPicParams->sInParams.ScaleFactor = 1;
-        }
-        else if(psRCParams->BitsPerSecond < 4000000)    /* 4 Mbits/s */
-        {
-            psPicParams->sInParams.ScaleFactor = 2;
-        }
-        else if(psRCParams->BitsPerSecond < 8000000)    /* 8 Mbits/s */
-        {
-            psPicParams->sInParams.ScaleFactor = 3;
-        }
-        else 
-        {
-            psPicParams->sInParams.ScaleFactor = 4; 
-        }
-        break;
-
-    case IMG_CODEC_MPEG4_CBR:
-    case IMG_CODEC_H263_CBR: 
-        psPicParams->Flags |= ISCBR_FLAGS;
-
-        flBpp  = 256 * (psRCParams->BitsPerSecond/psContext->Width);
-        flBpp /= (psContext->Height * psRCParams->FrameRate);
-
-        if((psPicParams->sInParams.MBPerFrm > 1024 && flBpp < 16) || (psPicParams->sInParams.MBPerFrm <= 1024 && flBpp < 24))
-            psPicParams->sInParams.HalfFrameRate = 1;
-        else
-            psPicParams->sInParams.HalfFrameRate = 0;
-
-        if(psPicParams->sInParams.HalfFrameRate >= 1)
-        {
-            psPicParams->sInParams.SeInitQP = 31;
-            psPicParams->sInParams.AvQPVal = 31;
-            psPicParams->sInParams.MyInitQP = 31;
-        }
-
-        if (psRCParams->BitsPerSecond <= 384000) 
-            psPicParams->sInParams.BufferSize = ((psRCParams->BitsPerSecond * 5) >> 1);
-        else 
-            psPicParams->sInParams.BufferSize = psRCParams->BitsPerSecond * 4;
-        break;
-
-    case IMG_CODEC_MPEG4_VBR:
-    case IMG_CODEC_H263_VBR:
-    case IMG_CODEC_H264_VBR:
-        psPicParams->Flags |= ISVBR_FLAGS;
-
-        psPicParams->sInParams.MBPerBU	= psPicParams->sInParams.MBPerFrm;
-        psPicParams->sInParams.BUPerFrm	= 1;
-
-        /* Initialize the parameters of fluid flow traffic model. */
-        psPicParams->sInParams.BufferSize = ((5 * psRCParams->BitsPerSecond) >> 1);
-
-        /* These scale factor are used only for rate control to avoid overflow */
-        /* in fixed-point calculation these scale factors are decided by bit rate */
-        if(psRCParams->BitsPerSecond < 640000)
-        {
-            psPicParams->sInParams.ScaleFactor  = 2;						/* related to complexity */
-        }
-        else if(psRCParams->BitsPerSecond < 2000000)
-        {
-            psPicParams->sInParams.ScaleFactor  = 4;
-        }
-        else
-        {
-            psPicParams->sInParams.ScaleFactor  = 6;
-        }
-        break;
-    default:
-        break;
-    }
-
-    psPicParams->sInParams.MyInitQP	= psPicParams->sInParams.SeInitQP;
-    psPicParams->sInParams.InitialDelay = psRCParams->InitialDelay;
-    psPicParams->sInParams.InitialLevel = psRCParams->InitialLevel;
-    psRCParams->InitialQp = psPicParams->sInParams.SeInitQP;
 }
 
 void lnc__update_rcdata(context_ENC_p psContext,
@@ -1066,20 +824,24 @@ void lnc__update_rcdata(context_ENC_p psContext,
 {
 	double		L1, L2, L3,L4, L5, flBpp;
 	INT16		i16TempQP;
+	IMG_INT32   i32BufferSizeInFrames;
 
 	flBpp									= 1.0 * psRCParams->BitsPerSecond / (psRCParams->FrameRate * psContext->Width * psContext->Height);
+
+	/* recalculate for small frames */
+	if (psContext->Width <= 176)
+		flBpp = flBpp / 2.0;
 
 	psPicParams->sInParams.IntraPeriod	= psRCParams->IntraFreq;
 	psPicParams->sInParams.BitRate		= psRCParams->BitsPerSecond;
 	psPicParams->sInParams.IntraPeriod	= psRCParams->IntraFreq;
 
-	psPicParams->sInParams.BitsPerFrm	= (psRCParams->BitsPerSecond + psRCParams->FrameRate/2)/ psRCParams->FrameRate;
-	psPicParams->sInParams.BitsTransmitted = psPicParams->sInParams.BitsPerFrm;
-
+	psPicParams->sInParams.BitsPerFrm	= psRCParams->BitsPerSecond / psRCParams->FrameRate;
 	psPicParams->sInParams.BitsPerGOP	= psPicParams->sInParams.BitsPerFrm * psRCParams->IntraFreq;
 	psPicParams->sInParams.BitsPerBU		= psPicParams->sInParams.BitsPerFrm / (4 * psPicParams->sInParams.BUPerFrm);
 	psPicParams->sInParams.BitsPerMB		= psPicParams->sInParams.BitsPerBU / psRCParams->BUSize;
 
+	i32BufferSizeInFrames = psRCParams->BufferSize/psPicParams->sInParams.BitsPerFrm;
 
 	// select thresholds and initial Qps etc that are codec dependent 
 	switch (psContext->eCodec)
@@ -1113,23 +875,23 @@ void lnc__update_rcdata(context_ENC_p psContext,
 			// Calculate Initial QP if it has not been specified
 
 			L1 = 0.050568;	L2 = 0.202272;	L3 = 0.40454321; L4 = 0.80908642; L5 = 1.011358025;
-            if(flBpp < L1)
-                i16TempQP = (IMG_INT16)(47 - 78.10*flBpp);
+			if(flBpp < L1)
+				i16TempQP = (IMG_INT16)(47 - 78.10*flBpp);
             
-            else if(flBpp>=L1 && flBpp<L2)
-                i16TempQP = (IMG_INT16)(46 - 72.51*flBpp);
+			else if(flBpp>=L1 && flBpp<L2)
+				i16TempQP = (IMG_INT16)(46 - 72.51*flBpp);
 
-            else if(flBpp>=L2 && flBpp<L3)
-                i16TempQP = (IMG_INT16)(36 - 24.72*flBpp);
+			else if(flBpp>=L2 && flBpp<L3)
+				i16TempQP = (IMG_INT16)(36 - 24.72*flBpp);
 
-            else if(flBpp>=L3 && flBpp<L4)
-                i16TempQP = (IMG_INT16)(34 - 19.78*flBpp);
+			else if(flBpp>=L3 && flBpp<L4)
+				i16TempQP = (IMG_INT16)(34 - 19.78*flBpp);
 
-                else if(flBpp>=L4 && flBpp<L5)
-                i16TempQP = (IMG_INT16)(27 - 9.89*flBpp);
+			else if(flBpp>=L4 && flBpp<L5)
+				i16TempQP = (IMG_INT16)(27 - 9.89*flBpp);
 
-            else if(flBpp>=L5)
-                i16TempQP = (IMG_INT16)(20 - 4.95*flBpp);
+			else if(flBpp>=L5)
+				i16TempQP = (IMG_INT16)(20 - 4.95*flBpp);
 		
 			psPicParams->sInParams.SeInitQP = (IMG_UINT8)(max(min(psPicParams->sInParams.MaxQPVal,i16TempQP),0));
 			break;
@@ -1200,7 +962,7 @@ void lnc__update_rcdata(context_ENC_p psContext,
 					psPicParams->sInParams.SeInitQP = (flBpp <= L3) ? 20 : 10;
 			}
 
-			psPicParams->sInParams.MinQPVal = 2;
+			psPicParams->sInParams.MinQPVal = 3;
 
 			break;
 
@@ -1218,8 +980,46 @@ void lnc__update_rcdata(context_ENC_p psContext,
 			return ;
 
 		case IMG_CODEC_H264_VCM:
-			psPicParams->Flags				|= ISVCM_FLAGS;
+			psPicParams->Flags				|= ISVCM_FLAGS | ISCBR_FLAGS;
 			/* drop through to CBR case */
+			/* for SD and above we can target 95% (122/128) of maximum bitrate */
+			if (psRCParams->VCMBitrateMargin) {
+				psPicParams->sInParams.VCMBitrateMargin = psRCParams->VCMBitrateMargin;
+			} else {
+				if (psContext->Height >= 480)
+					psPicParams->sInParams.VCMBitrateMargin = 122;
+				else
+					psPicParams->sInParams.VCMBitrateMargin = 115; /* for less and SD we target 90% (115/128) of maximum bitrate */
+				if (i32BufferSizeInFrames < 15)
+					psPicParams->sInParams.VCMBitrateMargin -= 5;/* when we have a very small window size we reduce the target further to avoid too much skipping */
+			}
+			psPicParams->sInParams.ForceSkipMargin = 500;/* start skipping MBs when within 500 bits of slice or frame limit */
+			
+			// Set a scale factor to avoid overflows in maths
+			if(psRCParams->BitsPerSecond < 1000000)         // 1 Mbits/s 
+			{
+				psPicParams->sInParams.ScaleFactor = 0;
+			}
+			else if(psRCParams->BitsPerSecond < 2000000)    // 2 Mbits/s
+			{
+				psPicParams->sInParams.ScaleFactor = 1;
+			}
+			else if(psRCParams->BitsPerSecond < 4000000)    // 4 Mbits/s 
+			{
+				psPicParams->sInParams.ScaleFactor = 2;
+			}
+			else if(psRCParams->BitsPerSecond < 8000000)    // 8 Mbits/s
+			{
+				psPicParams->sInParams.ScaleFactor = 3;
+			}
+			else 
+			{
+				psPicParams->sInParams.ScaleFactor = 4; 
+			}
+
+			psPicParams->sInParams.BufferSize = i32BufferSizeInFrames;
+			break;
+
 		case IMG_CODEC_H264_CBR:
 			psPicParams->Flags				|= ISCBR_FLAGS;
 			// ------------------- H264 CBR RC ------------------- //	

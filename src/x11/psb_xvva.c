@@ -108,7 +108,7 @@ static int GetPortId(VADriverContextP ctx, psb_x11_output_p output)
 VAStatus psb_init_xvideo(VADriverContextP ctx, psb_x11_output_p output)
 {
     INIT_DRIVER_DATA;
-    int dummy;
+    int dummy, ret;
 
     output->textured_portID = output->overlay_portID = 0;
     if (GetPortId(ctx, output)) {
@@ -150,6 +150,28 @@ VAStatus psb_init_xvideo(VADriverContextP ctx, psb_x11_output_p output)
         driver_data->output_method = PSB_PUTSURFACE_TEXTURE;
     if (output->overlay_portID)
         driver_data->output_method = PSB_PUTSURFACE_OVERLAY;
+
+    ret = psb_xrandr_init(ctx);
+    if ( ret != 0) {
+	psb__error_message("%s: Failed to initialize psb xrandr error # %d\n", __func__, ret);
+	return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    ret = psb_xrandr_get_output_rotation(&driver_data->mipi0_rotation, &driver_data->mipi1_rotation, &driver_data->hdmi_rotation);
+    driver_data->local_rotation = driver_data->mipi0_rotation;
+    driver_data->extend_rotation = driver_data->hdmi_rotation;
+    if ( ret != 0) {
+	psb__error_message("%s: Failed to get xrandr output rotation info error # %d\n", __func__, ret);
+	return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    if (driver_data->use_xrandr_thread && !driver_data->xrandr_thread_id) {
+        ret = psb_xrandr_thread_create(ctx);
+	if ( ret != 0) {
+	    psb__error_message("%s: Failed to create psb xrandr thread error # %d\n", __func__, ret);
+	    return VA_STATUS_ERROR_UNKNOWN;
+	}
+    }
 
     return VA_STATUS_SUCCESS;
 }
@@ -206,14 +228,13 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
 	output->overlay_portID = 0;
     }
 
-    if (output->output_drawable) {
-        if (driver_data->use_xrandr_thread && driver_data->xrandr_thread_id) {
-            psb_xrandr_thread_exit(output->output_drawable);
-            pthread_join(driver_data->xrandr_thread_id, NULL);
-	    driver_data->xrandr_thread_id = 0;
-        }
-        psb_xrandr_deinit();
+    if (driver_data->use_xrandr_thread && driver_data->xrandr_thread_id) {
+        psb_xrandr_thread_exit(output->output_drawable);
+        pthread_join(driver_data->xrandr_thread_id, NULL);
+	driver_data->xrandr_thread_id = 0;
     }
+    psb_xrandr_deinit();
+
     output->using_port = 0;
     output->output_drawable = 0;
     output->extend_drawable = 0;

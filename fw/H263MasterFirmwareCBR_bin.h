@@ -21,7 +21,6 @@
  * express and approved by Intel in writing.
  */
 
-
 // This file was automatically generated from ../release/H263MasterFirmwareCBR.dnl using dnl2c.
 
 extern unsigned long aui32H263CBR_MasterMTXTOPAZFWText[];

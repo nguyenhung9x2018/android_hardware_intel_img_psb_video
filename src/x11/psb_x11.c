@@ -46,34 +46,37 @@
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
 
 
-static struct timeval tftarget = {0};
+//X error trap
+static int x11_error_code = 0;
+static int (*old_error_handler)(Display *, XErrorEvent *);
+
+static struct timeval inter_period = {0};
 static void psb_doframerate(int fps)
 {
-    struct timeval tfdiff;
+    struct timeval time_deta;
 
-    tftarget.tv_usec += 1000000 / fps;
-    /* this is where we should be */
-    if (tftarget.tv_usec >= 1000000) {
-        tftarget.tv_usec -= 1000000;
-        tftarget.tv_sec++;
+    inter_period.tv_usec += 1000000 / fps;
+
+    /*recording how long it passed*/
+    if (inter_period.tv_usec >= 1000000) {
+        inter_period.tv_usec -= 1000000;
+        inter_period.tv_sec++;
     }
 
-    /* this is where we are */
-    gettimeofday(&tfdiff,(struct timezone *)NULL);
+    gettimeofday(&time_deta,(struct timezone *)NULL);
 
-    tfdiff.tv_usec = tftarget.tv_usec - tfdiff.tv_usec;
-    tfdiff.tv_sec  = tftarget.tv_sec  - tfdiff.tv_sec;
-    if (tfdiff.tv_usec < 0) {
-        tfdiff.tv_usec += 1000000;
-        tfdiff.tv_sec--;
+    time_deta.tv_usec = inter_period.tv_usec - time_deta.tv_usec;
+    time_deta.tv_sec  = inter_period.tv_sec  - time_deta.tv_sec;
+
+    if (time_deta.tv_usec < 0) {
+        time_deta.tv_usec += 1000000;
+        time_deta.tv_sec--;
     }
 
-    /* See if we are already lagging behind */
-    if (tfdiff.tv_sec < 0 || (tfdiff.tv_sec == 0 && tfdiff.tv_usec <= 0))
+    if (time_deta.tv_sec < 0 || (time_deta.tv_sec == 0 && time_deta.tv_usec <= 0))
         return;
 
-    /* Spin for awhile */
-    select(0,NULL,NULL,NULL,&tfdiff);
+    select(0,NULL,NULL,NULL,&time_deta);
 }
 
 static uint32_t mask2shift(uint32_t mask)
@@ -250,8 +253,6 @@ void yuv2pixel(uint32_t *pixel, int y, int u, int v)
     return vaStatus;
 }
 
-
-
 void *psb_x11_output_init(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
@@ -271,6 +272,7 @@ void *psb_x11_output_init(VADriverContextP ctx)
     
     psb_init_xvideo(ctx, output);
 
+    driver_data->color_key = 0x11;
     if (IS_MFLD(driver_data)) { /* force MFLD to use COVERLAY */
         psb__information_message("Use client overlay mode for post-processing\n");
         
@@ -288,12 +290,24 @@ void *psb_x11_output_init(VADriverContextP ctx)
         driver_data->output_method = PSB_PUTSURFACE_FORCE_OVERLAY;
     }
 
-    if (getenv("PSB_VIDEO_CTEXTURE")) {
+    if (getenv("PSB_VIDEO_CTEXTURE") ||
+        (driver_data->mipi1_rotation != VA_ROTATION_NONE) ||
+        ((driver_data->mipi0_rotation != VA_ROTATION_NONE) && 
+         (driver_data->hdmi_rotation != VA_ROTATION_NONE) && 
+         (driver_data->mipi0_rotation != driver_data->hdmi_rotation))
+        ) {
         psb__information_message("Putsurface force to use Client Texture\n");
         
         driver_data->ctexture = 1;
         driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
+    } else if (driver_data->mipi0_rotation != VA_ROTATION_NONE) {
+        driver_data->rotate = driver_data->mipi0_rotation;
+    } else if (driver_data->hdmi_rotation != VA_ROTATION_NONE) {
+        driver_data->rotate = driver_data->hdmi_rotation;
     }
+
+    if (driver_data->rotate == 4)
+        driver_data->rotate = 3;
 
     if (getenv("PSB_VIDEO_COVERLAY")) {
         psb__information_message("Putsurface force to use Client Overlay\n");
@@ -305,14 +319,46 @@ void *psb_x11_output_init(VADriverContextP ctx)
     return output;
 }
 
+static int
+error_handler(Display *dpy, XErrorEvent *error)
+{
+    x11_error_code = error->error_code;
+    return 0;
+}
+
 void psb_x11_output_deinit(VADriverContextP ctx)
 {
     psb_deinit_xvideo(ctx);
 }
 
-static int pnw_check_output_method(VADriverContextP ctx, int width, int height)
+static void
+x11_trap_errors(void)
+{
+    x11_error_code = 0;
+    old_error_handler = XSetErrorHandler(error_handler);
+}
+
+static int
+x11_untrap_errors(void)
+{
+    XSetErrorHandler(old_error_handler);
+    return x11_error_code;
+}
+
+static int
+is_window(Display *dpy, Drawable drawable)
+{
+    XWindowAttributes wattr;
+
+    x11_trap_errors();
+    XGetWindowAttributes(dpy, drawable, &wattr);
+    return x11_untrap_errors() == 0;
+}
+
+static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_surface, int width, int height, int destw, int desth, Drawable draw)
 {
     INIT_DRIVER_DATA;
+
     if (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXTURE ||
        driver_data->output_method == PSB_PUTSURFACE_FORCE_OVERLAY ||
        driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE ||
@@ -321,14 +367,15 @@ static int pnw_check_output_method(VADriverContextP ctx, int width, int height)
        return 0;
     }
 
-    if (width >= 2048 || height >= 2048) {
+    if (!is_window(ctx->native_dpy, draw) || (IS_MRST(driver_data) && obj_surface->subpic_count > 0) || width >= 2048 || height >= 2048 ||
+        /*FIXME: overlay path can't handle subpicture scaling. when surface size > dest box, fallback to texblit.*/
+        (IS_MFLD(driver_data) && obj_surface->subpic_count && ((width > destw) || (height > desth)))) {
+	psb__information_message("Putsurface fall back to use Client Texture\n");
 
-       psb__information_message("Clip resolution %dx%d, Putsurface fall back to use Client Texture\n", width, height);
+	driver_data->ctexture = 1;
+	driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
 
-       driver_data->ctexture = 1;
-       driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
-
-       psb_ctexture_init(ctx);
+	psb_ctexture_init(ctx);
     }
 
     return 0;
@@ -375,14 +422,13 @@ VAStatus psb_PutSurface(
     }
 
     if (driver_data->fixed_fps > 0) {
-        if ((tftarget.tv_sec == 0) && (tftarget.tv_usec == 0))
-            gettimeofday(&tftarget,(struct timezone *)NULL);
+        if ((inter_period.tv_sec == 0) && (inter_period.tv_usec == 0))
+            gettimeofday(&inter_period,(struct timezone *)NULL);
         
         psb_doframerate(driver_data->fixed_fps);
     }
 
-    if (IS_MFLD(driver_data))
-       pnw_check_output_method(ctx, srcw, srch);
+    pnw_check_output_method(ctx, obj_surface, srcw, srch, destw, desth, draw);
 
     pthread_mutex_lock(&driver_data->output_mutex);
     

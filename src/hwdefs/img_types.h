@@ -52,6 +52,8 @@ typedef unsigned short	IMG_UINT16,	*IMG_PUINT16;
 typedef signed short	IMG_INT16,	*IMG_PINT16;
 typedef unsigned long	IMG_UINT32,	*IMG_PUINT32;
 typedef signed long		IMG_INT32,	*IMG_PINT32;
+typedef unsigned long long IMG_UINT64,	*IMG_PUINT64;
+typedef signed long long IMG_INT64, 	*IMG_PINT64;
 
 #if defined(_WIN32)
 

@@ -167,7 +167,7 @@ int lnc_context_submit_cmdbuf( object_context_p obj_context );
  *
  * Returns 0 on success
  */
-int lnc_surface_get_frameskip( object_context_p obj_context, psb_surface_p surface, int *frame_skip);
+int lnc_surface_get_frameskip( psb_driver_data_p driver_data, psb_surface_p psb_surface, int *frame_skip);
 
 /*
  * Flushes the pending cmdbuf

@@ -515,7 +515,10 @@ struct context_MPEG2_s {
     /* Misc */
     unsigned int previous_slice_vertical_position;
 
+    uint32_t *p_range_mapping_base0;
+    uint32_t *p_range_mapping_base1;
     uint32_t *p_slice_params; /* pointer to ui32SliceParams in CMD_HEADER */
+    uint32_t *slice_first_pic_last;
 };
 
 typedef struct context_MPEG2_s *context_MPEG2_p;
@@ -801,7 +804,7 @@ static VAStatus psb__MPEG2_process_picture_param(context_MPEG2_p ctx, object_buf
     REGIO_WRITE_FIELD_LITE (ctx->BE_SPS0,MSVDX_VEC_MPEG2,CR_VEC_MPEG2_BE_SPS0,BE_HORIZONTAL_SIZE_MINUS1, ctx->picture_width_mb - 1);
 
     ctx->BE_SPS1 = 0;
-    REGIO_WRITE_FIELD_LITE (ctx->BE_SPS1,MSVDX_VEC_MPEG2,CR_VEC_MPEG2_BE_SPS1,BE_VERTICAL_SIZE_MINUS1, ctx->picture_height_mb - 1);
+    REGIO_WRITE_FIELD_LITE (ctx->BE_SPS1,MSVDX_VEC_MPEG2,CR_VEC_MPEG2_BE_SPS1,BE_VERTICAL_SIZE_MINUS1, ctx->picture_height_mb);
 
     ctx->FE_PPS0 = 0;
     REGIO_WRITE_FIELD_LITE (ctx->FE_PPS0, MSVDX_VEC_MPEG2, CR_VEC_MPEG2_FE_PPS0, FE_ALTERNATE_SCAN,                 !!(ctx->pic_params->picture_coding_extension.bits.alternate_scan));
@@ -926,6 +929,13 @@ static void psb__MPEG2_write_VLC_tables(context_MPEG2_p ctx)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
+    psb_cmdbuf_skip_start_block( cmdbuf, SKIP_ON_CONTEXT_SWITCH );
+    /* VLC Table */
+    /* Write a LLDMA Cmd to transfer VLD Table data */
+    psb_cmdbuf_lldma_write_cmdbuf( cmdbuf, &ctx->vlc_packed_table, 0,
+                                sizeof(gaui16mpeg2VlcTableDataPacked),
+                                0, LLDMA_TYPE_VLC_TABLE );
+
     /* Write the vec registers with the index data for each of the tables and then write    */
     /* the actual table data.                                                                */
     psb_cmdbuf_reg_start_block( cmdbuf );
@@ -937,11 +947,45 @@ static void psb__MPEG2_write_VLC_tables(context_MPEG2_p ctx)
     psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET (MSVDX_VEC, CR_VEC_VLC_TABLE_INITIAL_OPCODE0),OPCODE0    );
     psb_cmdbuf_reg_end_block( cmdbuf );
 
-    /* VLC Table */
-    /* Write a LLDMA Cmd to transfer VLD Table data */
-    psb_cmdbuf_lldma_write_cmdbuf( cmdbuf, &ctx->vlc_packed_table, 0,
-                                sizeof(gaui16mpeg2VlcTableDataPacked),
-                                0, LLDMA_TYPE_VLC_TABLE );
+    psb_cmdbuf_skip_end_block( cmdbuf );
+}
+
+/* Programme the Alt output if there is a rotation*/
+static void psb__MPEG2_setup_alternative_frame( context_MPEG2_p ctx, IMG_BOOL write_reg )
+{
+    uint32_t cmd;
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    object_context_p obj_context = ctx->obj_context;
+
+    if(rotate_surface->extra_info[5] != obj_context->rotate)
+        psb__error_message("Display rotate mode does not match surface rotate mode!\n");
+
+
+    /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS)  );
+
+    psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
+    psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
+
+    RELOC(*ctx->p_range_mapping_base0, rotate_surface->buf.buffer_ofs, &rotate_surface->buf);
+    RELOC(*ctx->p_range_mapping_base1, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset, &rotate_surface->buf);
+
+    psb_cmdbuf_rendec_end( cmdbuf );
+
+    if(write_reg) {
+        /* Set the rotation registers */
+        psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION)  );
+        cmd = 0;
+        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ALT_PICTURE_ENABLE,1 );
+        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
+        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,RECON_WRITE_DISABLE, 0); /* FIXME Always has Rec */
+        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_MODE, rotate_surface->extra_info[5]);
+
+        psb_cmdbuf_rendec_write( cmdbuf, cmd );
+
+        psb_cmdbuf_rendec_end( cmdbuf );
+    }
 }
 
 static void psb__MPEG2_set_operating_mode(context_MPEG2_p ctx)
@@ -949,8 +993,10 @@ static void psb__MPEG2_set_operating_mode(context_MPEG2_p ctx)
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
 
-    psb_cmdbuf_rendec_start_block( cmdbuf );
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE) );
+    if(ctx->obj_context->rotate != VA_ROTATION_NONE)
+        psb__MPEG2_setup_alternative_frame( ctx, ctx->pic_params->picture_coding_extension.bits.progressive_frame);
+
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE) );
     psb_cmdbuf_rendec_write( cmdbuf, ctx->display_picture_size );
     psb_cmdbuf_rendec_write( cmdbuf, ctx->coded_picture_size );
     psb_cmdbuf_rendec_write( cmdbuf, ctx->obj_context->operating_mode );
@@ -961,8 +1007,7 @@ static void psb__MPEG2_set_operating_mode(context_MPEG2_p ctx)
     /* CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                    */
     psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 }
 
 static void psb__MPEG2_set_reference_pictures(context_MPEG2_p ctx)
@@ -970,8 +1015,7 @@ static void psb__MPEG2_set_reference_pictures(context_MPEG2_p ctx)
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
 
-    psb_cmdbuf_rendec_start_block( cmdbuf );
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) );
 
     /* In MPEG2, the registers at N=0 are always used to store the base address of the luma and chroma buffers 
         of the most recently decoded reference picture. The registers at N=1 are used to store the base address 
@@ -1044,8 +1088,7 @@ static void psb__MPEG2_set_reference_pictures(context_MPEG2_p ctx)
           break; 
     }
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 }
 
 static void psb__MPEG2_set_picture_header(context_MPEG2_p ctx, VASliceParameterBufferMPEG2 *slice_param)
@@ -1089,8 +1132,7 @@ static void psb__MPEG2_set_picture_header(context_MPEG2_p ctx, VASliceParameterB
 
 
     /* BE Section */
-    psb_cmdbuf_rendec_start_block( cmdbuf );
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG2_CR_VEC_MPEG2_BE_SPS0) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG2_CR_VEC_MPEG2_BE_SPS0) );
 
     psb_cmdbuf_rendec_write( cmdbuf, ctx->BE_SPS0 );
     psb_cmdbuf_rendec_write( cmdbuf, ctx->BE_SPS1 );
@@ -1156,8 +1198,7 @@ psb__information_message("BE_slice = %08x first_field = %d\n", BE_slice, ctx->pi
 
     psb_cmdbuf_rendec_write( cmdbuf, BE_slice );
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
     
     ctx->previous_slice_vertical_position = slice_param->slice_vertical_position;
 }
@@ -1168,8 +1209,7 @@ static void psb__MPEG2_set_slice_params(context_MPEG2_p ctx)
 
     uint32_t cmd_data;
 
-    psb_cmdbuf_rendec_start_block( cmdbuf );
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS)  );
 
     cmd_data = 0;    /* Build slice parameters */
     REGIO_WRITE_FIELD (cmd_data,
@@ -1188,8 +1228,7 @@ static void psb__MPEG2_set_slice_params(context_MPEG2_p ctx)
 
     *ctx->p_slice_params = cmd_data;
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 }
 
 static void psb__MPEG2_write_qmatrices(context_MPEG2_p ctx)
@@ -1200,8 +1239,7 @@ static void psb__MPEG2_write_qmatrices(context_MPEG2_p ctx)
     /* Since we only decode 4:2:0 We only need to the Intra tables. 
     Chroma quant tables are only used in Mpeg 4:2:2 and 4:4:4.
     The hardware wants non-intra followed by intra */
-    psb_cmdbuf_rendec_start_block( cmdbuf );
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, REG_MSVDX_VEC_IQRAM_OFFSET );
+    psb_cmdbuf_rendec_start( cmdbuf, REG_MSVDX_VEC_IQRAM_OFFSET );
 
     /* todo : optimisation here is to only load the need table */
 
@@ -1218,8 +1256,7 @@ static void psb__MPEG2_write_qmatrices(context_MPEG2_p ctx)
 // psb__information_message("INTRA_LUMA_Q[i] = %08x\n", ctx->qmatrix_data[INTRA_LUMA_Q][i]);
     }
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 }
 
 static void psb__MPEG2_set_ent_dec(context_MPEG2_p ctx)
@@ -1238,8 +1275,7 @@ static void psb__MPEG2_set_ent_dec(context_MPEG2_p ctx)
 
     psb_cmdbuf_reg_end_block( cmdbuf );
 
-    psb_cmdbuf_rendec_start_block( cmdbuf );
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL) );
     
     cmd_data = 0;     /* Entdec Back-End controls    */
     REGIO_WRITE_FIELD (cmd_data,                         
@@ -1256,8 +1292,7 @@ static void psb__MPEG2_set_ent_dec(context_MPEG2_p ctx)
          
     psb_cmdbuf_rendec_write( cmdbuf, cmd_data );
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 }
 
 static void psb__MPEG2_write_kick(context_MPEG2_p ctx, VASliceParameterBufferMPEG2 *slice_param)
@@ -1274,14 +1309,21 @@ static void psb__MPEG2_FE_state(context_MPEG2_p ctx)
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     
     /* See RENDER_BUFFER_HEADER */
-    *cmdbuf->cmd_idx++ = CMD_HEADER;
-    
+    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
+
+    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
+    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
+
+    *ctx->p_range_mapping_base0 = 0;
+    *ctx->p_range_mapping_base1 = 0;
+
     ctx->p_slice_params = cmdbuf->cmd_idx;
     *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
 
-    cmdbuf->cmd_idx++; /* skip two lldma addr field */
+    *cmdbuf->cmd_idx++ = 0; /* skip two lldma addr field */
 
-    cmdbuf->cmd_idx++;
+    *cmdbuf->cmd_idx++  = 0;
+    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
 }
 
 static VAStatus psb__MPEG2_process_slice(context_MPEG2_p ctx,
@@ -1365,9 +1407,16 @@ static VAStatus psb__MPEG2_process_slice(context_MPEG2_p ctx,
 
         ctx->split_buffer_pending = FALSE;
         ctx->obj_context->video_op = psb_video_vld;
-        ctx->obj_context->flags = 0;
+        ctx->obj_context->flags = FW_DXVA_RENDER_IS_VLD_NOT_MC;
         ctx->obj_context->first_mb = 0;
-        ctx->obj_context->last_mb =  ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
+
+        if(ctx->pic_params->picture_coding_extension.bits.progressive_frame)
+            ctx->obj_context->last_mb =  ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
+        else
+            ctx->obj_context->last_mb =  ((ctx->picture_height_mb/2 - 1 ) << 8) | (ctx->picture_width_mb - 1);
+
+        *ctx->slice_first_pic_last = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
+
         if (psb_context_submit_cmdbuf(ctx->obj_context))
         {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
@@ -1424,6 +1473,120 @@ static VAStatus psb__MPEG2_process_slice_data(context_MPEG2_p ctx, object_buffer
     ctx->slice_param_list_idx = 0;
     
     return vaStatus;
+}
+
+static void psb__MEPG2_send_highlevel_cmd(context_MPEG2_p ctx)
+{
+    uint32_t cmd;
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    object_context_p obj_context = ctx->obj_context;
+
+    psb_cmdbuf_reg_start_block( cmdbuf );
+    psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE), ctx->display_picture_size);
+    psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, CODED_PICTURE_SIZE), ctx->coded_picture_size);
+
+    cmd = 0;
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, CHROMA_FORMAT, 1);
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE, 1); // 0 = VDMC and VDEB active.  1 = VDEB pass-thru.
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, CODEC_MODE, 3);        // MPEG2
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, CODEC_PROFILE, 1); // MAIN
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, OPERATING_MODE, ROW_STRIDE, target_surface->stride_mode );
+    psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, OPERATING_MODE), cmd);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES), 
+                             &target_surface->buf, target_surface->buf.buffer_ofs);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES),
+                              &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + (0 * 8), 
+                             &target_surface->buf, target_surface->buf.buffer_ofs);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + 4 + (0 * 8),
+                              &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + (1 * 8), 
+                             &target_surface->buf, target_surface->buf.buffer_ofs);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + 4 + (1 * 8),
+                              &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+
+    cmd = 0;
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, SLICE_PARAMS, SLICE_FIELD_TYPE,   2); /* FRAME PICTURE -- ui8SliceFldType */
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, SLICE_PARAMS, SLICE_CODE_TYPE,    1); /* P PICTURE -- (ui8PicType == WMF_PTYPE_BI) ? WMF_PTYPE_I : (ui8PicType & 0x3) */
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, SLICE_PARAMS), cmd );
+    *ctx->p_slice_params = cmd;
+    psb_cmdbuf_reg_end_block( cmdbuf );
+
+
+    psb_cmdbuf_reg_start_block( cmdbuf );
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS), 
+                             &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
+
+    psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, VC1_CHROMA_RANGE_MAPPING_BASE_ADDRESS),
+                              &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
+    psb_cmdbuf_reg_end_block( cmdbuf );
+
+    RELOC(*ctx->p_range_mapping_base0, rotate_surface->buf.buffer_ofs, &rotate_surface->buf);
+    RELOC(*ctx->p_range_mapping_base1, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset, &rotate_surface->buf);
+}
+
+static void psb__MEPG2_send_blit_cmd(context_MPEG2_p ctx)
+{
+    uint32_t cmd;
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    object_context_p obj_context = ctx->obj_context;
+
+    psb_cmdbuf_reg_start_block( cmdbuf );
+    cmd = 0;
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ALT_PICTURE_ENABLE,1 );
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,RECON_WRITE_DISABLE, 0);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_MODE, rotate_surface->extra_info[5]);
+    psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION), cmd);
+    psb_cmdbuf_reg_end_block( cmdbuf );
+
+    *cmdbuf->cmd_idx++ = 0x40000000; /* CMD_BLIT_CMD */
+    *cmdbuf->cmd_idx++ = ctx->picture_width_mb;
+    *cmdbuf->cmd_idx++ = ctx->picture_height_mb; /* FIXME */
+    *cmdbuf->cmd_idx++ = CMD_COMPLETION;
+}
+
+static void psb__MPEG2_insert_blit_cmd_to_rotate( context_MPEG2_p ctx )
+{
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+
+    /* See RENDER_BUFFER_HEADER */
+    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
+
+    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
+    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
+
+    *ctx->p_range_mapping_base0 = 0;
+    *ctx->p_range_mapping_base1 = 0;
+
+    ctx->p_slice_params = cmdbuf->cmd_idx;
+    *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
+
+    *cmdbuf->cmd_idx++ = 0; /* skip two lldma addr field */
+    *cmdbuf->cmd_idx++ = 0;
+
+    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
+    *ctx->slice_first_pic_last = 0;
+
+    psb__MEPG2_send_highlevel_cmd(ctx);
+    psb__MEPG2_send_blit_cmd(ctx);
+
+    ctx->obj_context->video_op = psb_video_mc;
+    ctx->obj_context->flags = FW_DXVA_RENDER_IS_LAST_SLICE;
+
+    if (psb_context_submit_cmdbuf(ctx->obj_context))
+    {
+       ASSERT(0);
+    }
 }
 
 static VAStatus pnw_MPEG2_BeginPicture(
@@ -1503,6 +1666,13 @@ static VAStatus pnw_MPEG2_EndPicture(
     INIT_CONTEXT_MPEG2
 
     psb__information_message("pnw_MPEG2_EndPicture\n");
+
+    if(ctx->obj_context->rotate != VA_ROTATION_NONE)
+    {
+        if( !(ctx->pic_params->picture_coding_extension.bits.progressive_frame) && 
+            !(ctx->pic_params->picture_coding_extension.bits.is_first_field))
+            psb__MPEG2_insert_blit_cmd_to_rotate(ctx);
+    }
 
     if (psb_context_flush_cmdbuf(ctx->obj_context))
     {

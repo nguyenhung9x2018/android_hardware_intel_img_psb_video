@@ -1105,7 +1105,7 @@ static void psb__H264_setup_alternative_frame( context_H264_p ctx )
 
     if(rotate_surface->extra_info[5] != obj_context->rotate)
         psb__error_message("Display rotate mode does not match surface rotate mode!\n");
-        
+
 
     /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
     psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS)  );
@@ -1416,7 +1416,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /* 		If this a two pass mode deblock, then we will perform the rotation as part of the 
      * 		2nd pass deblock procedure
      */
-    if(!ctx->two_pass_mode && ctx->obj_context->rotate != VA_ROTATION_NONE) /* FIXME field coded should not */
+    if(/*!ctx->two_pass_mode &&*/ ctx->obj_context->rotate != VA_ROTATION_NONE) /* FIXME field coded should not issue */
         psb__H264_setup_alternative_frame(ctx);
 
     /* CHUNK: SEQ Commands 1 */
@@ -1921,7 +1921,7 @@ static VAStatus psb_H264_EndPicture(
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
-    if (ctx->two_pass_mode)
+    if (ctx->two_pass_mode && (ctx->obj_context->rotate == VA_ROTATION_NONE))
     {
         void *pMbData = NULL;
 

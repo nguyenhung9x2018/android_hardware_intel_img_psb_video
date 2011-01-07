@@ -38,7 +38,7 @@
 #define ALIGN_TO(value, align) ((value + align - 1) & ~(align - 1))
 #define PAGE_ALIGN(value) ALIGN_TO(value, 4096)
 
-static VAStatus pnw_DetectFrameSkip(context_ENC_p ctx);
+/*static VAStatus pnw_DetectFrameSkip(context_ENC_p ctx);*/
 
 IMG_UINT32 MVEARegBase[4] = {0x13000, 0x23000, 0x33000, 0x43000}; /* From TopazSC TRM */
 
@@ -391,13 +391,16 @@ static VAStatus pnw__alloc_context_buffer(context_ENC_p ctx, unsigned char is_JP
     {
 	ctx->pic_params_size  = 256;
 
-	ctx->header_buffer_size = 4 * HEADER_SIZE + MAX_SLICES_PER_PICTURE * HEADER_SIZE;
+	ctx->header_buffer_size = 7 * HEADER_SIZE + MAX_SLICES_PER_PICTURE * HEADER_SIZE;
 
 	ctx->seq_header_ofs = 0;
 	ctx->pic_header_ofs = HEADER_SIZE;
 	ctx->eoseq_header_ofs = 2 * HEADER_SIZE;
 	ctx->eostream_header_ofs = 3 * HEADER_SIZE;
-	ctx->slice_header_ofs = 4 * HEADER_SIZE;
+	ctx->aud_header_ofs = 4 * HEADER_SIZE;
+	ctx->sei_buf_prd_ofs = 5 * HEADER_SIZE;
+	ctx->sei_pic_tm_ofs = 6 * HEADER_SIZE;
+	ctx->slice_header_ofs = 7 * HEADER_SIZE;
 	ctx->in_params_ofs = 0;
 
 	ctx->sliceparam_buffer_size = ((sizeof(SLICE_PARAMS) + 15) & 0xfff0)* MAX_SLICES_PER_PICTURE;
@@ -406,29 +409,36 @@ static VAStatus pnw__alloc_context_buffer(context_ENC_p ctx, unsigned char is_JP
 	 * every MB has one MTX_CURRENT_IN_PARAMS structure, and the (N+1) frame can
 	 * reuse (N) frame's structure
 	 */
-	ctx->in_params_size = ((~0xf) & (15 + width * height / (16*16))) * sizeof(MTX_CURRENT_IN_PARAMS);
+	ctx->in_params_size = ((~0xf) & (15 + 1 + (width + 15) * (height + 15) / (16*16))) * sizeof(MTX_CURRENT_IN_PARAMS);
 	ctx->below_params_size = ((BELOW_PARAMS_SIZE * width * height / (16*16)) + 0xf) & (~0xf);
 	ctx->above_params_size = ((width / 16) * 128 + 15) & (~0xf) ;
 
-	//    ctx->topaz_buffer_size = ctx->in_params_size + /* MTX_CURRENT_IN_PARAMS size */
-	//        ctx->below_params_size + /* above_params */
-	//        ctx->above_params_size; /* above_params */
-	/*    
-	      vaStatus = psb_buffer_create(ctx->obj_context->driver_data, ctx->in_params_size, psb_bt_cpu_vpu, &ctx->topaz_in_params_I);
-	      vaStatus |= psb_buffer_create(ctx->obj_context->driver_data, ctx->in_params_size, psb_bt_cpu_vpu, &ctx->topaz_in_params_P);
-	      vaStatus |= psb_buffer_create(ctx->obj_context->driver_data, ctx->above_params_size + ctx->bellow_params_size, psb_bt_cpu_vpu, &ctx->topaz_above_bellow_params);
-	      */
-	vaStatus = psb_buffer_create(ctx->obj_context->driver_data, ctx->below_params_size * 4, psb_bt_cpu_vpu, &ctx->topaz_below_params);
-	
+	vaStatus = psb_buffer_create(ctx->obj_context->driver_data, ctx->in_params_size, psb_bt_cpu_vpu, &ctx->topaz_in_params_I);
 	if(VA_STATUS_SUCCESS != vaStatus)
 	{
 	    return vaStatus;
 	}
 
-	vaStatus = psb_buffer_create(ctx->obj_context->driver_data, ctx->above_params_size * 4, psb_bt_cpu_vpu, &ctx->topaz_above_params);
-		
+	vaStatus = psb_buffer_create(ctx->obj_context->driver_data, ctx->in_params_size, psb_bt_cpu_vpu, &ctx->topaz_in_params_P);
 	if(VA_STATUS_SUCCESS != vaStatus)
 	{
+	    psb_buffer_destroy(&ctx->topaz_in_params_I);
+	    return vaStatus;
+	}
+
+	vaStatus = psb_buffer_create(ctx->obj_context->driver_data, ctx->below_params_size * 4, psb_bt_cpu_vpu, &ctx->topaz_below_params);
+	if(VA_STATUS_SUCCESS != vaStatus)
+	{
+	    psb_buffer_destroy(&ctx->topaz_in_params_P);
+	    psb_buffer_destroy(&ctx->topaz_in_params_I);
+	    return vaStatus;
+	}
+
+	vaStatus = psb_buffer_create(ctx->obj_context->driver_data, ctx->above_params_size * 4, psb_bt_cpu_vpu, &ctx->topaz_above_params);
+	if(VA_STATUS_SUCCESS != vaStatus)
+	{
+	    psb_buffer_destroy(&ctx->topaz_in_params_P);
+	    psb_buffer_destroy(&ctx->topaz_in_params_I);
 	    psb_buffer_destroy(&ctx->topaz_below_params);
 	    return vaStatus;
 	}
@@ -480,6 +490,10 @@ unsigned int pnw__get_ipe_control(enum drm_pnw_topaz_codec  eEncodingFormat)
 
 void pnw_DestroyContext(object_context_p obj_context)
 {
+    context_ENC_p ctx;
+    ctx = (context_ENC_p)obj_context->format_data;
+    if (NULL != ctx->slice_param_cache)
+	free(ctx->slice_param_cache);
     free(obj_context->format_data);
     obj_context->format_data = NULL;
 }
@@ -593,7 +607,7 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
     /* clear frameskip flag to 0 */
     CLEAR_SURFACE_INFO_skipped_flag(ctx->src_surface->psb_surface);
 
-    if (ctx->sRCParams.RCEnable == IMG_TRUE)
+   /*if (ctx->sRCParams.RCEnable == IMG_TRUE)
     {
 	pnw_DetectFrameSkip(ctx);
 	if (0 != (GET_SURFACE_INFO_skipped_flag(ctx->src_surface->psb_surface)  
@@ -601,7 +615,7 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
 	    ctx->sRCParams.FrameSkip = IMG_TRUE;
 	else
 	    ctx->sRCParams.FrameSkip = IMG_FALSE;
-    }
+    }*/
 
     /* Initialise the command buffer */
     ret = pnw_context_get_next_cmdbuf(ctx->obj_context);
@@ -633,14 +647,10 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
     }
 
     /* only map topaz param when necessary */ 
-    cmdbuf->topaz_in_params_P = NULL;
     cmdbuf->topaz_above_params_p = NULL;
     cmdbuf->topaz_below_params_p = NULL;
-    /*
     cmdbuf->topaz_in_params_I_p = NULL;
     cmdbuf->topaz_in_params_P_p = NULL;
-    cmdbuf->topaz_below_params_p = NULL; 
-    */
 
     if ( ctx->obj_context->frame_count==0) { /* first picture */
 
@@ -666,7 +676,7 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
 
     /*If ParallelCores > 1(H264) and encode one slice per frame, the unnecessary start picture 
     *commands will be replaced with MTX_CMDID_PAD and ignored by kernel*/
-    cmdbuf->cmd_idx_saved = cmdbuf->cmd_idx;
+    cmdbuf->cmd_idx_saved[PNW_CMDBUF_START_PIC_IDX] = cmdbuf->cmd_idx;
 
     /* insert START_PIC command for each core */
     /* ensure that the master (core #0) will be last to complete this batch */
@@ -957,24 +967,11 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
 	break;
     }
 
-    /*
-     * Do not forget this! But this is not needed in DDKv186
-     * MTXWriteMem(MTXData.ui32CCBCtrlAddr + MTX_CCBCTRL_QP, sRCParams.ui32InitialQp);
-     */
-    /* following START_PIC, insert initial QP */
-    /* *ctx->initial_qp_in_cmdbuf = ctx->sRCParams.InitialQp; */
-
-
     RELOC_PIC_PARAMS_PNW(&psPicParams->DstYBase, 0, &rec_surface->psb_surface->buf);
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->DstUVBase, 
                      rec_surface->psb_surface->stride * rec_surface->height, 
                      &rec_surface->psb_surface->buf);
-
-    /* MTX_CURRENT_IN_PARAMS buffer is seperate buffer now */
-    /*The type of frame will decide psPicParams->InParamsBase should 
-     * use cmdbuf->topaz_in_params_P or cmdbuf->topaz_in_params_I*/
-    /*RELOC_PIC_PARAMS(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_P);*/
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->BelowParamsInBase, 
            ctx->below_params_ofs + ctx->below_params_size * ( ((ctx->AccessUnitNum)&0x1)),
@@ -991,7 +988,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
     RELOC_PIC_PARAMS_PNW(&psPicParams->CodedBase, ctx->coded_buf_per_slice * core, ctx->coded_buf->psb_buffer); 
     psb__information_message("For core %d, above_parmas_off %x\n", core, ctx->above_params_ofs + ctx->above_params_size * (core * 2 + ((ctx->AccessUnitNum) & 0x1)));
     
-#if TOPAZ_PIC_PARAMS_VERBOS 
+#if TOPAZ_PIC_PARAMS_VERBOSE 
     psb__information_message("PicParams->SrcYBase  0x%08x\n",psPicParams->SrcYBase);
     psb__information_message("PicParams->SrcUBase 0x%08x\n",psPicParams->SrcUBase);
     psb__information_message("PicParams->SrcVBase 0x%08x\n",psPicParams->SrcVBase);
@@ -1060,6 +1057,7 @@ static VAStatus pnw_SetupRCParam(context_ENC_p ctx)
     return VA_STATUS_SUCCESS;
 }
 
+#if 0
 static VAStatus pnw_DetectFrameSkip(context_ENC_p ctx)
 {
     int frame_skip = 0;
@@ -1092,6 +1090,7 @@ static VAStatus pnw_DetectFrameSkip(context_ENC_p ctx)
 
     return VA_STATUS_SUCCESS;
 }
+#endif
 
 VAStatus pnw_EndPicture(context_ENC_p ctx)
 {
@@ -1110,6 +1109,10 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
 
 #if TOPAZ_PIC_PARAMS_VERBOSE 
     psb__information_message("End Picture for frame %d\n", ctx->obj_context->frame_count); 
+    psb__information_message("psPicParams->bInsertHRDparams %d\n", psPicParams->InsertHRDparams); 
+    psb__information_message("psPicParams->ClockDivBitrate %lld\n", psPicParams->ClockDivBitrate); 
+    psb__information_message("psPicParams->MaxBufferMultClockDivBitrate %d\n",
+	    psPicParams->MaxBufferMultClockDivBitrate);
     psb__information_message("psPicParams->sInParams.SeInitQP %d\n",psPicParams->sInParams.SeInitQP);
     psb__information_message("psPicParams->sInParams.MinQPVal %d\n",psPicParams->sInParams.MinQPVal);
     psb__information_message("psPicParams->sInParams.MaxQPVal %d\n",psPicParams->sInParams.MaxQPVal);
@@ -1159,7 +1162,6 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     psb_buffer_unmap(&cmdbuf->slice_params);
 
     /* unmap MTX_CURRENT_IN_PARAMS buffer only when it is mapped */
-    /*
     if (cmdbuf->topaz_in_params_I_p != NULL) {
         psb_buffer_unmap(cmdbuf->topaz_in_params_I);
         cmdbuf->topaz_in_params_I_p= NULL;
@@ -1168,12 +1170,6 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     if (cmdbuf->topaz_in_params_P_p != NULL) {
 	psb_buffer_unmap(cmdbuf->topaz_in_params_P);
 	cmdbuf->topaz_in_params_P_p= NULL;
-    }
-    */
-
-    if (cmdbuf->topaz_in_params_P != NULL) {
-	psb_buffer_unmap(&cmdbuf->topaz_in_params);
-	cmdbuf->topaz_in_params_P= NULL;
     }
 
     if (cmdbuf->topaz_above_params_p != NULL) {
@@ -1328,7 +1324,10 @@ void pnw__setup_rcdata(
     pnw__setup_busize(psContext); /* calculate BasicUnitSize */
     
     /* Calculate Bits Per Pixel */
-    FrameRate = psRCParams->FrameRate;
+    if (psContext->Width <= 176)
+	FrameRate = 30;
+    else
+	FrameRate = psRCParams->FrameRate;
     flBpp = 1.0 * psRCParams->BitsPerSecond / (FrameRate * psContext->Width * psContext->Height);
 
     psPicParams->sInParams.SeInitQP = psRCParams->InitialQp;
@@ -1542,7 +1541,7 @@ void pnw__setup_rcdata(
             psPicParams->sInParams.MyInitQP = 31;
         }
 
-        psPicParams->sInParams.BufferSize = (psRCParams->BitsPerSecond * 5)>>1;
+	psPicParams->sInParams.BufferSize = psRCParams->BufferSize;
         if(psPicParams->sInParams.BufferSize > 112*16384)  // Simple Profile L5 Constraints
            psPicParams->sInParams.BufferSize = 112*16384;
         break;
@@ -1556,7 +1555,7 @@ void pnw__setup_rcdata(
         psPicParams->sInParams.BUPerFrm	= 1;
 
         /* Initialize the parameters of fluid flow traffic model. */
-        psPicParams->sInParams.BufferSize = ((5 * psRCParams->BitsPerSecond) >> 1);
+	psPicParams->sInParams.BufferSize = psRCParams->BufferSize;
 
         if(psContext->eCodec==IMG_CODEC_H264_VBR)
         {
@@ -1589,6 +1588,21 @@ void pnw__setup_rcdata(
     }
 
     psPicParams->sInParams.MyInitQP	= psPicParams->sInParams.SeInitQP;
+
+    if (psContext->bInserHRDParams && (psRCParams->BitsPerSecond != 0))
+    {
+	/*HRD parameters are meaningless without a bitrate */
+	psPicParams->InsertHRDparams = IMG_FALSE;
+    }
+    else
+    {
+	psPicParams->InsertHRDparams = IMG_TRUE;
+	psPicParams->ClockDivBitrate = (90000 * 0x100000000LL);
+	psPicParams->ClockDivBitrate /= psRCParams->BitsPerSecond;
+	psPicParams->MaxBufferMultClockDivBitrate = (IMG_UINT32) 
+	    (((IMG_UINT64)(psRCParams->BufferSize) * (IMG_UINT64) 90000)
+	     /(IMG_UINT64) psRCParams->BitsPerSecond);
+    }
 
     if(psContext->SyncSequencer)
         psPicParams->Flags |= SYNC_SEQUENCER;
@@ -1646,7 +1660,7 @@ static void pnw__setup_slice_row_params(
 	IMG_INT16	iPos,iYPos,srcY;
 	IMG_UINT16	ui16tmp;
 	IMG_UINT16 ui16SearchWidth,ui16SearchHeight,ui16SearchLeftOffset,ui16SearchTopOffset,ui16CurBlockX;
-    /*
+    
     if (IsIntra && cmdbuf->topaz_in_params_I_p == NULL) {
         VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_in_params_I, &cmdbuf->topaz_in_params_I_p);
         if (vaStatus != VA_STATUS_SUCCESS) {
@@ -1662,217 +1676,208 @@ static void pnw__setup_slice_row_params(
             return;
         }
     }
-    */
-    if ( cmdbuf->topaz_in_params_P == NULL) {
-        VAStatus vaStatus = psb_buffer_map(&cmdbuf->topaz_in_params, &cmdbuf->topaz_in_params_P);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("map topaz MTX_CURRENT_IN_PARAMS failed\n");
-            return;
-        }
-    }
-    /*
+    
     if (IsIntra)
 	psCurrent = (MTX_CURRENT_IN_PARAMS* ) (cmdbuf->topaz_in_params_I_p + ctx->in_params_ofs);
     else
 	psCurrent = (MTX_CURRENT_IN_PARAMS* ) (cmdbuf->topaz_in_params_P_p + ctx->in_params_ofs);
-    */
-    psCurrent = (MTX_CURRENT_IN_PARAMS* ) (cmdbuf->topaz_in_params_P + 
-                                           ctx->in_params_ofs + 
-                                           ctx->obj_context->slice_count * ctx->in_params_size);
+    
+    psCurrent += (CurrentRowY  * (ctx->Width)/256);
 
-    psCurrent += (CurrentRowY  * (ctx->Width)/256 );
+    // Note: CurrentRowY and iSliceStartRowY are now in pixels (not MacroBlocks) - saves needless multiplications and divisions
 
-	// Note: CurrentRowY and iSliceStartRowY are now in pixels (not MacroBlocks) - saves needless multiplications and divisions
+    ui16SearchHeight = min(MVEA_LRB_SEARCH_HEIGHT,ctx->Height);
+    ui16SearchWidth = min (MVEA_LRB_SEARCH_WIDTH,ctx->Width);
+    ui16SearchLeftOffset = (((ui16SearchWidth /2) / 16)*16); // this is the amount of data that gets preloaded
+    ui16SearchTopOffset = (((ui16SearchHeight /2) / 16)*16);
+    ui16CurBlockX = MVEA_LRB_SEARCH_WIDTH - (ui16SearchLeftOffset+16); // this is our block position relative to the start of the LRB
 
-	ui16SearchHeight = min(MVEA_LRB_SEARCH_HEIGHT,ctx->Height);
-	ui16SearchWidth = min (MVEA_LRB_SEARCH_WIDTH,ctx->Width);
-	ui16SearchLeftOffset = (((ui16SearchWidth /2) / 16)*16); // this is the amount of data that gets preloaded
-	ui16SearchTopOffset = (((ui16SearchHeight /2) / 16)*16);
-	ui16CurBlockX = MVEA_LRB_SEARCH_WIDTH - (ui16SearchLeftOffset+16); // this is our block position relative to the start of the LRB
-
-	if ((iYPos=srcY=CurrentRowY-ui16SearchTopOffset)<0)
-		srcY = 0;
-	else if ( iYPos > ctx->HeightMinusLRB_TopAndBottom_OffsetsPlus16)
-		srcY = ctx->HeightMinusLRBSearchHeight;
+    if ((iYPos=srcY=CurrentRowY-ui16SearchTopOffset)<0)
+	srcY = 0;
+    else if ( iYPos > ctx->HeightMinusLRB_TopAndBottom_OffsetsPlus16)
+	srcY = ctx->HeightMinusLRBSearchHeight;
 
 
-	/*DDK 243 removed this block of code.*/
-	/*if((ctx->eCodec==IMG_CODEC_H263_NO_RC)||(ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
-	      ui16tmp = CurrentRowY;
-	else*/
-	ui16tmp = (CurrentRowY!=SliceStartRowY);
+    /*DDK 243 removed this block of code.*/
+    /*if((ctx->eCodec==IMG_CODEC_H263_NO_RC)||(ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
+      ui16tmp = CurrentRowY;
+      else*/
+    ui16tmp = (CurrentRowY!=SliceStartRowY);
 
-	for(iPos=0;iPos<ctx->Width;iPos+=16,psCurrent++)
+    for(iPos=0;iPos<ctx->Width;iPos+=16,psCurrent++)
+    {
+	memset(psCurrent,0,sizeof(MTX_CURRENT_IN_PARAMS));
+	psCurrent->MVValid =0;
+	psCurrent->ParamsValid = 0;
+
+	if(SliceStartRowY)
 	{
-		memset(psCurrent,0,sizeof(MTX_CURRENT_IN_PARAMS));
-		psCurrent->MVValid =0;
-		psCurrent->ParamsValid = 0;
+	    psCurrent->MVValid = VECTORS_ABOVE_VALID;
+	}
+	/* Setup the parameters and motion vectors*/
+	if(ui16tmp)
+	{
+	    psCurrent->MVValid = VECTORS_ABOVE_VALID|DO_INTRA_PRED;
+	    psCurrent->ParamsValid |= PARAMS_ABOVE_VALID; 
 
-		if(SliceStartRowY)
+	    if(iPos+16 < ctx->Width)
+	    {
+		psCurrent->ParamsValid |= PARAMS_ABOVER_VALID; 
+		psCurrent->MVValid|= /*VECTORS_LEFT_VALID; //*/(1<<2); /* Vectors left valid define looks wrong*/
+	    }
+
+	    if(iPos>0 && (iPos<ctx->Width))
+	    {
+		psCurrent->ParamsValid |= PARAMS_ABOVEL_VALID; 
+		psCurrent->MVValid|= VECTORS_ABOVE_LEFT_VALID; //(1<<0)
+	    }
+	}
+	else
+	{
+	    // are we the first MB in a new slice?
+	    if(iPos==0)
+	    {
+		if((ctx->eCodec==IMG_CODEC_H263_NO_RC) || (ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
 		{
-			psCurrent->MVValid = VECTORS_ABOVE_VALID;
-		}
-		/* Setup the parameters and motion vectors*/
-		if(ui16tmp)
-		{
-			psCurrent->MVValid = VECTORS_ABOVE_VALID|DO_INTRA_PRED;
-			psCurrent->ParamsValid |= PARAMS_ABOVE_VALID; 
-
-			if(iPos+16 < ctx->Width)
-			{
-				psCurrent->ParamsValid |= PARAMS_ABOVER_VALID; 
-				psCurrent->MVValid|= /*VECTORS_LEFT_VALID; //*/(1<<2); /* Vectors left valid define looks wrong*/
-			}
-
-			if(iPos>0 && (iPos<ctx->Width))
-			{
-				psCurrent->ParamsValid |= PARAMS_ABOVEL_VALID; 
-				psCurrent->MVValid|= VECTORS_ABOVE_LEFT_VALID; //(1<<0)
-			}
+		    if(iYPos==-ui16SearchTopOffset)
+			psCurrent->ParamsValid|=MB_START_OF_SLICE;// OPTI?
 		}
 		else
 		{
-			// are we the first MB in a new slice?
-			if(iPos==0)
-			{
-				if((ctx->eCodec==IMG_CODEC_H263_NO_RC) || (ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
-				{
-					if(iYPos==-ui16SearchTopOffset)
-						psCurrent->ParamsValid|=MB_START_OF_SLICE;// OPTI?
-				}
-				else
-				{
-					psCurrent->ParamsValid|=MB_START_OF_SLICE;// OPTI?
-				}
-			}
+		    psCurrent->ParamsValid|=MB_START_OF_SLICE;// OPTI?
 		}
-		/*DDK 243 removed this block of code.*/
-		/*if((ctx->eCodec==IMG_CODEC_H263_NO_RC) || (ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
+	    }
+	}
+	/*DDK 243 removed this block of code.*/
+	/*if((ctx->eCodec==IMG_CODEC_H263_NO_RC) || (ctx->eCodec==IMG_CODEC_H263_CBR)||(ctx->eCodec==IMG_CODEC_H263_VBR))
+	  {
+	// clear the above params valid bits
+	psCurrent->ParamsValid &=~(PARAMS_ABOVEL_VALID|PARAMS_ABOVER_VALID|PARAMS_ABOVE_VALID); // OPTI
+	}*/
+	// Have to fill in the right hand row of 4x4 vectors into the the left block
+	if(iPos)
+	{
+	    psCurrent->MVValid|= DO_INTRA_PRED| (1<<3); /*MV_VALID define looks wrong?! so use hard coded value for now*/
+	    psCurrent->ParamsValid |= 8; //(1<<3)		
+	}
+	if(iPos==ctx->Width-16)
+	{
+	    // indicate the last MB in a row
+	    psCurrent->ParamsValid|=MB_END_OF_ROW;		
+	    // are we the last mb in the slice?
+	    if(iYPos==(SliceStartRowY+SliceHeight - (ui16SearchTopOffset + 16)))
+	    {
+		psCurrent->ParamsValid|=MB_END_OF_SLICE;
+		if(iYPos==ctx->HeightMinus16MinusLRBTopOffset)
 		{
-			// clear the above params valid bits
-			psCurrent->ParamsValid &=~(PARAMS_ABOVEL_VALID|PARAMS_ABOVER_VALID|PARAMS_ABOVE_VALID); // OPTI
-		}*/
-		// Have to fill in the right hand row of 4x4 vectors into the the left block
-		if(iPos)
-		{
-			psCurrent->MVValid|= DO_INTRA_PRED| (1<<3); /*MV_VALID define looks wrong?! so use hard coded value for now*/
-			psCurrent->ParamsValid |= 8; //(1<<3)		
+		    psCurrent->ParamsValid|=MB_END_OF_PICTURE;		
 		}
-		if(iPos==ctx->Width-16)
-		{
-			// indicate the last MB in a row
-			psCurrent->ParamsValid|=MB_END_OF_ROW;		
-			// are we the last mb in the slice?
-			if(iYPos==(SliceStartRowY+SliceHeight - (ui16SearchTopOffset + 16)))
-			{
-				psCurrent->ParamsValid|=MB_END_OF_SLICE;
-				if(iYPos==ctx->HeightMinus16MinusLRBTopOffset)
-				{
-					psCurrent->ParamsValid|=MB_END_OF_PICTURE;		
-				}
-			}
-		}
-		// And now the below block
-		// should do some kind of check to see if we are the first inter block, as otherwise the vectors will be invalid!
-		if(VectorsValid)
-		{
-			if(iYPos < ctx->HeightMinus16MinusLRBTopOffset)
-			{
-				psCurrent->MVValid|=VECTORS_BELOW_VALID; //(1<<4)
+	    }
+	}
+	// And now the below block
+	// should do some kind of check to see if we are the first inter block, as otherwise the vectors will be invalid!
+	if(VectorsValid)
+	{
+	    if(iYPos < ctx->HeightMinus16MinusLRBTopOffset)
+	    {
+		psCurrent->MVValid|=VECTORS_BELOW_VALID; //(1<<4)
 
-				if(iYPos < ctx->HeightMinus32MinusLRBTopOffset)
-				{
-					psCurrent->MVValid|=VECTORS_2BELOW_VALID; //(1<<5)
-				}
-			}
-		}
-
-		/*Set up IPEMin and Max for coordinate X in the search reference region*/
-		/*And set up flags in SPEMax when needed*/
-		if(iPos<=ui16SearchLeftOffset)
+		if(iYPos < ctx->HeightMinus32MinusLRBTopOffset)
 		{
-			psCurrent->IPEMin[0] = ui16CurBlockX - iPos;
-			psCurrent->RealEdge |= SPE_EDGE_LEFT;
+		    psCurrent->MVValid|=VECTORS_2BELOW_VALID; //(1<<5)
 		}
-		else
-		{
-			psCurrent->IPEMin[0] = ui16CurBlockX/16;
-		}
-
-		if((iPos + ui16SearchLeftOffset + 16)>ctx->Width )
-		{
-			psCurrent->IPEMax[0]=(ui16CurBlockX-1 + ctx->Width) - iPos; //(112 - 1) - ((iPos + 48+16) - ctx->psVideo->ui16Width); 
-			psCurrent->RealEdge |=SPE_EDGE_RIGHT;
-		}
-		else
-		{
-			psCurrent->IPEMax[0] = (ui16CurBlockX + 16 + ui16SearchLeftOffset) - 1 - 3; //(112 - 1) - 3;
-		}
-		
-		/*Set up IPEMin and Max for Y coordinate in the search reference region*/
-		/*And set up flags in SPEMax when needed*/		
-		if(iYPos <= 0)
-		{
-			psCurrent->IPEMin[1] = 0;
-			psCurrent->RealEdge |= SPE_EDGE_TOP;
-		}
-		else
-		{
-			psCurrent->IPEMin[1] = 3;
-		}
-
-		//Max Y
-		if(iYPos > ctx->HeightMinusLRB_TopAndBottom_OffsetsPlus16)
-		{
-			psCurrent->IPEMax[1]= ui16SearchHeight - 1;
-			psCurrent->RealEdge |= ui16SearchHeight - 4;
-		}
-		else
-		{
-			psCurrent->IPEMax[1] = ui16SearchHeight - 4;
-		}
-
-		psCurrent->CurBlockAddr = ((ui16CurBlockX)/16);
-		psCurrent->CurBlockAddr	|=((IMG_UINT8)(( (iYPos + ui16SearchTopOffset) - srcY )/16)<<4); 
-	
-		/* Setup the control register values
-			These will get setup and transferred to a different location within the macroblock parameter structure.
-			They are then read out of the esb by the mtx and used to control the hardware units
-		*/
-		psCurrent->IPEControl = ctx->IPEControl;
-
-		switch(ctx->eCodec)
-		{
-			case IMG_CODEC_H263_NO_RC:
-			case IMG_CODEC_H263_VBR:
-			case IMG_CODEC_H263_CBR:
-                                pnw__setup_qpvalues_mpeg4(psCurrent,bySliceQP);
-				psCurrent->JMCompControl = F_ENCODE(2,MVEA_CR_JMCOMP_MODE);    
-				psCurrent->VLCControl = F_ENCODE(3,TOPAZ_VLC_CR_CODEC) | F_ENCODE(IsIntra? 0:1,TOPAZ_VLC_CR_SLICE_CODING_TYPE);
-			break;
-			case IMG_CODEC_MPEG4_NO_RC:
-			case IMG_CODEC_MPEG4_VBR:
-			case IMG_CODEC_MPEG4_CBR:
-                                pnw__setup_qpvalues_mpeg4(psCurrent,bySliceQP);
-				psCurrent->JMCompControl = F_ENCODE(1,MVEA_CR_JMCOMP_MODE) | F_ENCODE(1,MVEA_CR_JMCOMP_AC_ENABLE);    
-				psCurrent->VLCControl = F_ENCODE(2,TOPAZ_VLC_CR_CODEC) | F_ENCODE(IsIntra? 0:1,TOPAZ_VLC_CR_SLICE_CODING_TYPE);
-			break;
-			default:
-			case IMG_CODEC_H264_NO_RC:
-			case IMG_CODEC_H264_VBR:
-			case IMG_CODEC_H264_CBR:
-                                pnw__setup_qpvalue_h264(psCurrent,bySliceQP);
-				psCurrent->JMCompControl = F_ENCODE(0,MVEA_CR_JMCOMP_MODE);    
-				psCurrent->VLCControl = F_ENCODE(1,TOPAZ_VLC_CR_CODEC) | F_ENCODE(IsIntra? 0:1,TOPAZ_VLC_CR_SLICE_CODING_TYPE);
-			break;				
-		}
+	    }
 	}
 
-	// now setup the dummy end of frame macroblock.
+	/*Set up IPEMin and Max for coordinate X in the search reference region*/
+	/*And set up flags in SPEMax when needed*/
+	if(iPos<=ui16SearchLeftOffset)
+	{
+	    psCurrent->IPEMin[0] = ui16CurBlockX - iPos;
+	    psCurrent->RealEdge |= SPE_EDGE_LEFT;
+	}
+	else
+	{
+	    psCurrent->IPEMin[0] = ui16CurBlockX/16;
+	}
+
+	if((iPos + ui16SearchLeftOffset + 16)>ctx->Width )
+	{
+	    psCurrent->IPEMax[0]=(ui16CurBlockX-1 + ctx->Width) - iPos; //(112 - 1) - ((iPos + 48+16) - ctx->psVideo->ui16Width); 
+	    psCurrent->RealEdge |=SPE_EDGE_RIGHT;
+	}
+	else
+	{
+	    psCurrent->IPEMax[0] = (ui16CurBlockX + 16 + ui16SearchLeftOffset) - 1 - 3; //(112 - 1) - 3;
+	}
+
+	/*Set up IPEMin and Max for Y coordinate in the search reference region*/
+	/*And set up flags in SPEMax when needed*/		
+	if(iYPos <= 0)
+	{
+	    psCurrent->IPEMin[1] = 0;
+	    psCurrent->RealEdge |= SPE_EDGE_TOP;
+	}
+	else
+	{
+	    psCurrent->IPEMin[1] = 3;
+	}
+
+	//Max Y
+	if(iYPos > ctx->HeightMinusLRB_TopAndBottom_OffsetsPlus16)
+	{
+	    psCurrent->IPEMax[1]= ui16SearchHeight - 1;
+	    psCurrent->RealEdge |= ui16SearchHeight - 4;
+	}
+	else
+	{
+	    psCurrent->IPEMax[1] = ui16SearchHeight - 4;
+	}
+
+	psCurrent->CurBlockAddr = ((ui16CurBlockX)/16);
+	psCurrent->CurBlockAddr	|=((IMG_UINT8)(( (iYPos + ui16SearchTopOffset) - srcY )/16)<<4); 
+
+	/* Setup the control register values
+	   These will get setup and transferred to a different location within the macroblock parameter structure.
+	   They are then read out of the esb by the mtx and used to control the hardware units
+	   */
+	psCurrent->IPEControl = ctx->IPEControl;
+
+	switch(ctx->eCodec)
+	{
+	    case IMG_CODEC_H263_NO_RC:
+	    case IMG_CODEC_H263_VBR:
+	    case IMG_CODEC_H263_CBR:
+		pnw__setup_qpvalues_mpeg4(psCurrent,bySliceQP);
+		psCurrent->JMCompControl = F_ENCODE(2,MVEA_CR_JMCOMP_MODE);    
+		psCurrent->VLCControl = F_ENCODE(3,TOPAZ_VLC_CR_CODEC) | F_ENCODE(IsIntra? 0:1,TOPAZ_VLC_CR_SLICE_CODING_TYPE);
+		break;
+	    case IMG_CODEC_MPEG4_NO_RC:
+	    case IMG_CODEC_MPEG4_VBR:
+	    case IMG_CODEC_MPEG4_CBR:
+		pnw__setup_qpvalues_mpeg4(psCurrent,bySliceQP);
+		psCurrent->JMCompControl = F_ENCODE(1,MVEA_CR_JMCOMP_MODE) | F_ENCODE(1,MVEA_CR_JMCOMP_AC_ENABLE);    
+		psCurrent->VLCControl = F_ENCODE(2,TOPAZ_VLC_CR_CODEC) | F_ENCODE(IsIntra? 0:1,TOPAZ_VLC_CR_SLICE_CODING_TYPE);
+		break;
+	    default:
+	    case IMG_CODEC_H264_NO_RC:
+	    case IMG_CODEC_H264_VBR:
+	    case IMG_CODEC_H264_CBR:
+		pnw__setup_qpvalue_h264(psCurrent,bySliceQP);
+		psCurrent->JMCompControl = F_ENCODE(0,MVEA_CR_JMCOMP_MODE);    
+		psCurrent->VLCControl = F_ENCODE(1,TOPAZ_VLC_CR_CODEC) | F_ENCODE(IsIntra? 0:1,TOPAZ_VLC_CR_SLICE_CODING_TYPE);
+		break;				
+	}
+    }
+
+    // now setup the dummy end of frame macroblock.
+    if ((CurrentRowY + 16) >= ctx->Height)
+    {
 	memset(psCurrent,0,sizeof(MTX_CURRENT_IN_PARAMS));
 	psCurrent->MVValid =DO_INTRA_PRED;
 	psCurrent->ParamsValid = 0;
 	psCurrent->RealEdge =0;
+    }
 }
 
 void pnw_setup_slice_params(
@@ -1925,6 +1930,10 @@ IMG_UINT32 pnw__send_encode_slice_params(
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
 
     
+    psb__information_message("Send encode slice parmas, Is Intra:%d, CurrentRow:%d" \
+	    "DeblockIDC:%d, FrameNum:%d, SliceHeight:%d, CurrentSlice:%d\n",
+	    IsIntra, CurrentRow, DeblockIDC, FrameNum, SliceHeight, CurrentSlice);
+
     ref_surface = ctx->ref_surface;
     psRef = &ctx->ref_surface->psb_surface->buf;
     psCoded = ctx->coded_buf->psb_buffer;
@@ -1936,10 +1945,10 @@ IMG_UINT32 pnw__send_encode_slice_params(
     psSliceParams->SliceStartRowNum = CurrentRow/16;
 
     /* We want multiple ones of these so we can submit multiple slices without having to wait for the next */
-    psSliceParams->CodedDataPos=0;
     psSliceParams->CodedData=0;
     psSliceParams->TotalCoded=0;
     psSliceParams->Flags=0;
+    psSliceParams->HostCtx = 0xdafed123;
 
 #ifdef VA_EMULATOR
     psSliceParams->RefYStride = ref_surface->psb_surface->stride;
@@ -2016,12 +2025,18 @@ IMG_UINT32 pnw__send_encode_slice_params(
     RELOC_SLICE_PARAMS_PNW(&(psSliceParams->RefUVBase),
                        ref_surface->psb_surface->stride * ref_surface->height + (RowOffset * 128 / 16),
                        psRef);
-    /* RELOC_SLICE_PARAMS_PNW(&(psSliceParams->CodedData),0,psCoded); */ //unused
-    RELOC_SLICE_PARAMS_PNW(&(psSliceParams->InParamsBase),
-                           ctx->in_params_ofs + CurrentSlice * ctx->in_params_size,
-                           &cmdbuf->topaz_in_params); 
+    if (IsIntra)
+	RELOC_SLICE_PARAMS_PNW(&(psSliceParams->InParamsBase),
+		ctx->in_params_ofs, 
+		//((CurrentRow * (ctx->Width)) / 256 + ctx->obj_context->slice_count) * sizeof(MTX_CURRENT_IN_PARAMS),
+		cmdbuf->topaz_in_params_I); 
+    else
+	RELOC_SLICE_PARAMS_PNW(&(psSliceParams->InParamsBase),
+		ctx->in_params_ofs, 
+		//((CurrentRow * (ctx->Width)) / 256 + ctx->obj_context->slice_count) * sizeof(MTX_CURRENT_IN_PARAMS),
+		cmdbuf->topaz_in_params_P); 
 
-#if 0 
+#if  TOPAZ_PIC_PARAMS_VERBOSE
     psb__information_message("psSliceParams->SliceStartRowNum %d\n", psSliceParams->SliceStartRowNum);
     psb__information_message("psSliceParams->SliceHeight %d\n", psSliceParams->SliceHeight);
     psb__information_message("psSliceParams->RefYBase %x\n", psSliceParams->RefYBase );
@@ -2030,9 +2045,9 @@ IMG_UINT32 pnw__send_encode_slice_params(
     psb__information_message("psSliceParams->RefUVStride %d\n", psSliceParams->RefUVStride);
     psb__information_message("psSliceParams->RefYRowStride %d\n", psSliceParams->RefYRowStride);
     psb__information_message("psSliceParams->RefUVRowStride %d\n", psSliceParams->RefUVRowStride);
-    psb__information_message("psSliceParams->CodedData %x\n", psSliceParams->CodedData); 
+    psb__information_message("psSliceParams->HostCtx %d\n", psSliceParams->HostCtx); 
     psb__information_message("psSliceParams->Flags %x\n", psSliceParams->Flags);
-    psb__information_message("psSliceParams->CodedDataPos %d\n", psSliceParams->CodedDataPos); 
+    psb__information_message("psSliceParams->CodedData %x\n", psSliceParams->CodedData); 
     psb__information_message("psSliceParams->TotalCoded %d\n",  psSliceParams->TotalCoded);
     psb__information_message("psSliceParams->FCode %x\n", psSliceParams->FCode);
     psb__information_message("psSliceParams->InParamsBase %x\n", psSliceParams->InParamsBase);

@@ -90,7 +90,7 @@ typedef struct _RC_PARAMS_
     IMG_BOOL	FrameSkip;
 
     IMG_UINT8	Slices;
-    IMG_UINT32	BitsTransmitted;
+    IMG_UINT8   VCMBitrateMargin;
     IMG_INT32	InitialLevel;
     IMG_INT32	InitialDelay;
 } IMG_RC_PARAMS;
@@ -126,7 +126,10 @@ typedef struct
     IMG_INT32	InitialDelay;	/* Initial Delay of Buffer */
 
     IMG_UINT8	ScaleFactor;		/* Scale Factor (H264 only) */
-    IMG_UINT8	BUPerSlice;		/* Number of Slices per Picture */
+    IMG_UINT8	VCMBitrateMargin; /* Bitrate that should be
+					targetted as a fraction of
+					128 relative to maximum bitrate
+					i32BitRate (VCM mode only) */
     IMG_UINT8	HalfFrameRate;	/* Half Frame Rate (MP4 only) */
     IMG_UINT8	FCode;			/* F Code (MP4 only) */
 
@@ -135,7 +138,9 @@ typedef struct
     IMG_UINT16	AvQPVal;		/* Average QP in Current Picture */
     IMG_UINT16	MyInitQP;		/* Initial Quantizer */
 
-    IMG_UINT32	BitsTransmitted;/* The number of bits taken from the encode buffer during the last frame period */
+    IMG_INT32	ForceSkipMargin; /* The number of bits of margin
+					to leave before forcing skipped
+					macroblocks (VCM mode only) */
     IMG_UINT32  RCScaleFactor;  /* A constant used in rate control = (GopSize/(BufferSize-InitialLevel))*256 */
 } IN_RC_PARAMS;
 
@@ -213,7 +218,8 @@ struct context_ENC_s {
 
     IN_RC_PARAMS in_params_cache; /* following frames reuse the first frame's IN_RC_PARAMS, cache it */
     
-    VAEncSliceParameterBuffer slice_param_cache[2];
+    VAEncSliceParameterBuffer *slice_param_cache;
+    uint16_t slice_param_num;
 
     IMG_UINT16 MPEG4_vop_time_increment_resolution;
     

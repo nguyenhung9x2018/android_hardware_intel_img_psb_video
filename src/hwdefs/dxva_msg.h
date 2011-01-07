@@ -46,6 +46,9 @@ extern "C" {
 #define	FWRK_MSGID_START_PSR_MTXHOST_MSG	(0xC0)	//!< Start of parser specific MTX->Host messages.
 #define FWRK_MSGID_PADDING					( 0 )
 
+#define FWRK_MSGID_HOST_EMULATED                (0x40)
+
+
 /*!
 ******************************************************************************
  This type defines the framework specified message ids
@@ -71,6 +74,9 @@ enum
 	/*! Sent by the mtx firmware to itself.
 	 */
 	DXVA_MSGID_RENDER_MC_INTERRUPT, 
+
+	VA_MSGID_DEBLOCK_MFLD = FWRK_MSGID_HOST_EMULATED,
+	VA_MSGID_OOLD_MFLD,
 
 	/*! Sent by the DXVA firmware on the MTX to the host.
 	 */

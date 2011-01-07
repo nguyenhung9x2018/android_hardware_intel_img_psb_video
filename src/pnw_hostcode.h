@@ -28,7 +28,7 @@
 #include "pnw_cmdbuf.h"
 #include "pnw_hostjpeg.h"
 
-#define TOPAZ_PIC_PARAMS_VERBOS 0
+#define TOPAZ_PIC_PARAMS_VERBOSE 0 
 
 #define MAX_SLICES_PER_PICTURE 72
 #define MAX_TOPAZ_CORES        4
@@ -94,6 +94,7 @@ typedef struct _RC_PARAMS_
     IMG_UINT32	BufferSize;
     IMG_UINT32	BitsConsumed;
     IMG_UINT32	IntraFreq;
+    IMG_UINT16  IDRFreq;
     IMG_INT16	MinQP;
     IMG_BOOL	RCEnable;
     IMG_BOOL	FrameSkip;
@@ -216,10 +217,8 @@ struct context_ENC_s {
      */
     /* 0 and 1 are for in_parms, 2 is for bellow and above params*/
     
-    /*
     struct psb_buffer_s topaz_in_params_I;
     struct psb_buffer_s topaz_in_params_P;
-    */
 
     struct psb_buffer_s topaz_below_params; /* MB MVs read & written by HW */
     struct psb_buffer_s topaz_above_params; /* MB MVs read & written by HW */
@@ -244,6 +243,10 @@ struct context_ENC_s {
     uint32_t eoseq_header_ofs;
     uint32_t eostream_header_ofs;
     uint32_t slice_header_ofs;
+    /*HRD SEI header*/
+    uint32_t aud_header_ofs;
+    uint32_t sei_buf_prd_ofs;
+    uint32_t sei_pic_tm_ofs;
 
     uint32_t sliceparam_buffer_size;
 
@@ -251,7 +254,8 @@ struct context_ENC_s {
     TH_SKIP_SCALE THSkip;
     uint32_t pic_params_flags; 
     
-    VAEncSliceParameterBuffer slice_param_cache[2];
+    VAEncSliceParameterBuffer *slice_param_cache;
+    uint16_t slice_param_num;
 
     IMG_UINT16 MPEG4_vop_time_increment_resolution;
     
@@ -260,12 +264,16 @@ struct context_ENC_s {
     uint32_t MPEG4_picture_type_frameskip;
     uint8_t profile_idc;
 
+    uint8_t force_idr_h264;
+
     /*If only one slice, it's zero. Otherwise it indicates size of parted coded_buf per slice*/
     uint32_t coded_buf_per_slice;
 
     /*JPEG context*/
     TOPAZSC_JPEG_ENCODER_CONTEXT *jpeg_ctx;
 
+    /*H264 SEI_INSERTION*/
+    IMG_BOOL bInserHRDParams;
 };
 
 typedef struct context_ENC_s *context_ENC_p;
@@ -299,6 +307,10 @@ typedef struct context_ENC_s *context_ENC_p;
 #define SPE_EDGE_RIGHT	2	/* ->bMaxXRealEdge*/
 #define SPE_EDGE_TOP	4   /* ->bMinYRealEdge*/
 #define SPE_EDGE_BOTTOM 8	/* ->bMaxYRealEdge*/
+
+#define BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE 23
+#define	PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE 23
+#define PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE 7
 
 typedef struct
 {
@@ -393,6 +405,13 @@ typedef struct _PIC_PARAMS_
     IMG_UINT16		SearchHeight;
 
     IMG_UINT16		NumSlices;			//!< Number of slices in the picture
+
+    // SEI_INSERTION
+    IMG_UINT32 		InitialCPBremovaldelayoffset;
+    IMG_UINT64	 	ClockDivBitrate;
+    IMG_UINT32 		MaxBufferMultClockDivBitrate;
+    IMG_BOOL 		InsertHRDparams;
+
 }PIC_PARAMS;
 
 
@@ -411,9 +430,9 @@ typedef struct _SLICE_PARAMS_
     IMG_UINT16	RefYRowStride;
     IMG_UINT16	RefUVRowStride;
 
-    IMG_UINT32  CodedData;
+    IMG_UINT32	HostCtx;   
     IMG_UINT32  Flags;
-    IMG_UINT32	CodedDataPos;
+    IMG_UINT32  CodedData;
     IMG_UINT32	TotalCoded;
     IMG_UINT32	FCode;
 

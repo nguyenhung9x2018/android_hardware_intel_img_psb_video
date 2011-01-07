@@ -73,7 +73,7 @@ img_void iep_lite_RenderCompleteCallback (void * p_iep_lite_context)
 	DEBUG_PRINT ( "Entering iep_lite_RenderCompleteCallback\n" );
     if (NULL == sIEP_LITE_Context) 
     {
-        return IMG_FAILED;
+        return;
     }
 
 	if (( sIEP_LITE_Context->eBLEBlackMode != IEP_LITE_BLE_OFF ) ||

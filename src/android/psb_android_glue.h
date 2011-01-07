@@ -27,7 +27,7 @@ extern "C" {
 
 
 /* add for texture streaming */
-#define DRM_BUFFER_CLASS_VIDEO          0x2C
+#define DRM_BUFFER_CLASS_VIDEO          0x32
 
 #define BC_FOURCC(a,b,c,d) \
     ((unsigned long) ((a) | (b)<<8 | (c)<<16 | (d)<<24))
@@ -92,6 +92,20 @@ void psb_android_postBuffer(int offset);
 void psb_android_clearHeap();
 
 void psb_android_texture_streaming_display(int buffer_index);
+
+void psb_android_texture_streaming_set_crop( short srcx,
+                                                        short srcy,
+                                                        unsigned short srcw,
+                                                        unsigned short srch);
+
+void psb_android_texture_streaming_set_blend( short destx,
+                                                        short desty,
+                                                        unsigned short destw,
+                                                        unsigned short desth,
+                                                        unsigned int blend_enabled,
+                                                        unsigned int border_color,
+                                                        unsigned int blend_color,
+                                                        unsigned short blend_mode);
 
 void psb_android_texture_streaming_destroy();
 

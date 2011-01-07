@@ -28,7 +28,7 @@
 
 
 #if !defined (__CSC2_H__)
-#define __CSC2_H__
+#define __CSC2_H__
 #if (__cplusplus)
 extern "C" {
 #endif
@@ -114,5 +114,5 @@ img_result	CSC_GenerateMatrix	(	CSC_eColourSpace		eInputColourSpace,
 
 #if (__cplusplus)
 }
-#endif
+#endif
 #endif	/* __CSC2_H__ */

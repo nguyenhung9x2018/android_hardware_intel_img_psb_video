@@ -296,13 +296,43 @@ struct context_VC1_s {
     /* Aux MSB buffer */
     struct psb_buffer_s aux_msb_buffer;
     psb_buffer_p bitplane_buffer;
+    struct psb_buffer_s bitplane_hw_buffer; /* For hw parase */
 
     uint32_t *p_range_mapping_base; /* pointer to ui32RangeMappingBase in CMD_HEADER_VC1 */
+    uint32_t *p_range_mapping_base1;
     uint32_t *p_slice_params; /* pointer to ui32SliceParams in CMD_HEADER_VC1 */
+    uint32_t *slice_first_pic_last;
+    uint32_t *alt_output_flags;
 };
 
 typedef struct context_VC1_s *context_VC1_p;
 
+/* VC1 Sequence Header Data Bit Positions Within 32 bit Command Word */
+#define VC1_SEQHDR_EXTENDED_DMV         0
+#define VC1_SEQHDR_PSF                          1
+#define VC1_SEQHDR_SECONDFIELD          2
+#define VC1_SEQHDR_FINTERPFLAG          3
+#define VC1_SEQHDR_TFCNTRFLAG           4
+#define VC1_SEQHDR_INTERLACE            5
+#define VC1_SEQHDR_PULLDOWN                     6
+#define VC1_SEQHDR_POSTPROCFLAG         7
+#define VC1_SEQHDR_VSTRANSFORM          8
+#define VC1_SEQHDR_DQUANT                       9
+#define VC1_SEQHDR_EXTENDED_MV          11
+#define VC1_SEQHDR_FASTUVMC                     12
+#define VC1_SEQHDR_LOOPFILTER           13
+#define VC1_SEQHDR_REFDIST_FLAG         14
+#define VC1_SEQHDR_PANSCAN_FLAG         15
+#define VC1_SEQHDR_MAXBFRAMES           16
+#define VC1_SEQHDR_RANGERED                     19
+#define VC1_SEQHDR_SYNCMARKER           20
+#define VC1_SEQHDR_MULTIRES                     21
+#define VC1_SEQHDR_QUANTIZER            22
+#define VC1_SEQHDR_OVERLAP                      24
+#define VC1_SEQHDR_PROFILE                      25
+#define VC1_SEQHDR_PICTYPE                      27
+#define VC1_SEQHDR_ICFLAG                       29
+#define VC1_SEQHDR_FCM_CURRPIC          30
 
 
 #if 0

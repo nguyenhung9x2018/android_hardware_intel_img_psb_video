@@ -50,6 +50,47 @@ typedef struct {
 	uint32_t pad[3];
 } DEBLOCKPARAMS;
 
+typedef struct {
+	union {
+		struct {
+			uint32_t msg_size	: 8;
+			uint32_t msg_type	: 8;
+			uint32_t msg_fence	: 16;
+		} bits;
+		uint32_t value;
+	} header;
+	union {
+		struct {
+			uint32_t flags		: 16;
+			uint32_t slice_type	: 8;
+			uint32_t padding	: 8;
+		} bits;
+		uint32_t value;
+	} flags;
+	uint32_t operating_mode;
+ 	union {
+		struct {
+			uint32_t context	: 8;
+			uint32_t mmu_ptd	: 24;
+		} bits;
+		uint32_t value;
+	} mmu_context;
+ 	union {
+		struct {
+			uint32_t frame_height_mb	: 16;
+			uint32_t pic_width_mb	: 16;
+		} bits;
+		uint32_t value;
+	} pic_size;
+	uint32_t address_a0;
+	uint32_t address_a1;
+	uint32_t mb_param_address;
+	uint32_t ext_stride_a;
+	uint32_t address_b0;
+	uint32_t address_b1;
+	uint32_t rotation_flags;
+} FW_VA_DEBLOCK_MSG;
+
 /* OOLD message */
 typedef struct {
 	uint32_t pad[5];
@@ -152,7 +193,83 @@ typedef struct {
 #define FW_DXVA_RENDER_FLAGS_OFFSET		(0x001C)
 #define FW_DXVA_RENDER_FLAGS_SHIFT		(0)
 
+#define FW_DEVA_DECODE_SIZE             (20)
+
+// FW_DEVA_DECODE     MSG_ID
+#define FW_DEVA_DECODE_MSG_ID_ALIGNMENT         (2)
+#define FW_DEVA_DECODE_MSG_ID_TYPE              IMG_UINT16
+#define FW_DEVA_DECODE_MSG_ID_MASK              (0xFFFF)
+#define FW_DEVA_DECODE_MSG_ID_LSBMASK           (0xFFFF)
+#define FW_DEVA_DECODE_MSG_ID_OFFSET            (0x0002)
+#define FW_DEVA_DECODE_MSG_ID_SHIFT             (0)
+
+// FW_DEVA_DECODE     ID
+#define FW_DEVA_DECODE_ID_ALIGNMENT             (1)
+#define FW_DEVA_DECODE_ID_TYPE          IMG_UINT8
+#define FW_DEVA_DECODE_ID_MASK          (0xFF)
+#define FW_DEVA_DECODE_ID_LSBMASK               (0xFF)
+#define FW_DEVA_DECODE_ID_OFFSET                (0x0001)
+#define FW_DEVA_DECODE_ID_SHIFT         (0)
+
+// FW_DEVA_DECODE     MSG_SIZE
+#define FW_DEVA_DECODE_MSG_SIZE_ALIGNMENT               (1)
+#define FW_DEVA_DECODE_MSG_SIZE_TYPE            IMG_UINT8
+#define FW_DEVA_DECODE_MSG_SIZE_MASK            (0xFF)
+#define FW_DEVA_DECODE_MSG_SIZE_LSBMASK         (0xFF)
+#define FW_DEVA_DECODE_MSG_SIZE_OFFSET          (0x0000)
+#define FW_DEVA_DECODE_MSG_SIZE_SHIFT           (0)
+
+// FW_DEVA_DECODE     FLAGS
+#define FW_DEVA_DECODE_FLAGS_ALIGNMENT          (2)
+#define FW_DEVA_DECODE_FLAGS_TYPE               IMG_UINT16
+#define FW_DEVA_DECODE_FLAGS_MASK               (0xFFFF)
+#define FW_DEVA_DECODE_FLAGS_LSBMASK            (0xFFFF)
+#define FW_DEVA_DECODE_FLAGS_OFFSET             (0x0004)
+#define FW_DEVA_DECODE_FLAGS_SHIFT              (0)
+
+// FW_DEVA_DECODE     BUFFER_SIZE
+#define FW_DEVA_DECODE_BUFFER_SIZE_ALIGNMENT            (2)
+#define FW_DEVA_DECODE_BUFFER_SIZE_TYPE         IMG_UINT16
+#define FW_DEVA_DECODE_BUFFER_SIZE_MASK         (0xFFFF)
+#define FW_DEVA_DECODE_BUFFER_SIZE_LSBMASK              (0xFFFF)
+#define FW_DEVA_DECODE_BUFFER_SIZE_OFFSET               (0x0006)
+#define FW_DEVA_DECODE_BUFFER_SIZE_SHIFT                (0)
+
+// FW_DEVA_DECODE     LLDMA_ADDRESS
+#define FW_DEVA_DECODE_LLDMA_ADDRESS_ALIGNMENT          (4)
+#define FW_DEVA_DECODE_LLDMA_ADDRESS_TYPE               IMG_UINT32
+#define FW_DEVA_DECODE_LLDMA_ADDRESS_MASK               (0xFFFFFFFF)
+#define FW_DEVA_DECODE_LLDMA_ADDRESS_LSBMASK            (0xFFFFFFFF)
+#define FW_DEVA_DECODE_LLDMA_ADDRESS_OFFSET             (0x0008)
+#define FW_DEVA_DECODE_LLDMA_ADDRESS_SHIFT              (0)
+
+// FW_DEVA_DECODE     MMUPTD
+#define FW_DEVA_DECODE_MMUPTD_ALIGNMENT         (4)
+#define FW_DEVA_DECODE_MMUPTD_TYPE              IMG_UINT32
+#define FW_DEVA_DECODE_MMUPTD_MASK              (0xFFFFFF00)
+#define FW_DEVA_DECODE_MMUPTD_LSBMASK           (0x00FFFFFF)
+#define FW_DEVA_DECODE_MMUPTD_OFFSET            (0x000C)
+#define FW_DEVA_DECODE_MMUPTD_SHIFT             (8)
+
+// FW_DEVA_DECODE     CONTEXT
+#define FW_DEVA_DECODE_CONTEXT_ALIGNMENT                (1)
+#define FW_DEVA_DECODE_CONTEXT_TYPE             IMG_UINT8
+#define FW_DEVA_DECODE_CONTEXT_MASK             (0xFF)
+#define FW_DEVA_DECODE_CONTEXT_LSBMASK          (0xFF)
+#define FW_DEVA_DECODE_CONTEXT_OFFSET           (0x000C)
+
 #define FW_DXVA_DEBLOCK_SIZE		(16 + 32) /* 32 bytes for DEBLOCKPARAMS */
+#define FW_DEVA_DEBLOCK_SIZE		(48)
+
+#define FW_DEVA_DECODE_CONTEXT_SHIFT            (0)
+
+// FW_DEVA_DECODE     OPERATING_MODE
+#define FW_DEVA_DECODE_OPERATING_MODE_ALIGNMENT         (4)
+#define FW_DEVA_DECODE_OPERATING_MODE_TYPE              IMG_UINT32
+#define FW_DEVA_DECODE_OPERATING_MODE_MASK              (0xFFFFFFFF)
+#define FW_DEVA_DECODE_OPERATING_MODE_LSBMASK           (0xFFFFFFFF)
+#define FW_DEVA_DECODE_OPERATING_MODE_OFFSET            (0x0010)
+#define FW_DEVA_DECODE_OPERATING_MODE_SHIFT             (0)
 
 // FW_DXVA_DEBLOCK     MSG_SIZE
 #define FW_DXVA_DEBLOCK_MSG_SIZE_ALIGNMENT		(1)

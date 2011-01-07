@@ -79,7 +79,7 @@ VAStatus psb_surface_create( psb_driver_data_p driver_data,
             psb_surface->stride_mode = STRIDE_NA;
             psb_surface->stride = (width + 0x1f) & ~0x1f;
         }
-	    
+
         psb_surface->luma_offset = 0;
         psb_surface->chroma_offset = psb_surface->stride * height;
         psb_surface->size = (psb_surface->stride * height * 3) / 2;

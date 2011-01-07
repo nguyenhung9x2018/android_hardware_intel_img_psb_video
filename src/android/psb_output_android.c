@@ -120,6 +120,7 @@ void *psb_android_output_init(VADriverContextP ctx)
 
     /* TS by default */
     driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
+    driver_data->color_key = 0x0; /*black*/
 
     if (psb_parse_config("PSB_VIDEO_COVERLAY", &put_surface[0]) == 0) {
         psb__information_message("Putsurface use client overlay\n");
@@ -291,6 +292,15 @@ VAStatus psb_PutSurface(
             psb_android_register_isurface(android_isurface, buffer_device_id, srcw, srch);
             output->register_flag = 1;
         }
+
+		psb_android_texture_streaming_set_blend(destx, desty, destw, desth,
+                                                flags & VA_ENABLE_BLEND,
+                                                driver_data->clear_color,
+                                                driver_data->blend_color,
+                                                driver_data->blend_mode);
+
+        if ((srcx != 0) || (srcy != 0) || (obj_surface->width != srcw) || (obj_surface->height_origin != srch))
+		    psb_android_texture_streaming_set_crop(srcx, srcy, srcw, srch);
 
         BC_Video_ioctl_package ioctl_package;
         psb_surface_p psb_surface;

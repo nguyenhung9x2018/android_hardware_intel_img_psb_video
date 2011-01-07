@@ -54,7 +54,13 @@ typedef enum
     ELEMENT_FRAMEQSCALE,	/* Insert the H263/MPEG4 Frame Q_scale parameter (vob_quant field) (no rawdata) */
     ELEMENT_SLICEQSCALE,	/* Insert the H263/MPEG4 Slice Q_scale parameter (quant_scale field) (no rawdata) */
     ELEMENT_INSERTBYTEALIGN_H264,/* Insert the byte align field (no rawdata) */
-    ELEMENT_INSERTBYTEALIGN_MPG4 /* Insert the byte align field  (no rawdata) */
+    ELEMENT_INSERTBYTEALIGN_MPG4, /* Insert the byte align field  (no rawdata) */
+
+    /*SEI_INSERTION*/
+    BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY,
+    BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_OFFSET,
+    PTH_SEI_NAL_CPB_REMOVAL_DELAY,
+    PTH_SEI_NAL_DPB_OUTPUT_DELAY
 } HEADER_ELEMENT_TYPE;
 
 
@@ -81,7 +87,8 @@ typedef struct _MTX_HEADER_PARAMS_
 typedef enum _SHPROFILES
 {
     SH_PROFILE_BP=0,
-    SH_PROFILE_MP=1
+    SH_PROFILE_MP=1,
+    SH_PROFILE_HP=2,
 } SH_PROFILE_TYPE;
 
 /* Level number definitions (integer level numbers, non-intermediary only.. except level 1b) */
@@ -91,7 +98,10 @@ typedef enum _SHLEVELS
     SH_LEVEL_1B=111,
     SH_LEVEL_11=11,
     SH_LEVEL_12=12,
+    SH_LEVEL_13=13,
     SH_LEVEL_2=20,
+    SH_LEVEL_21=21,
+    SH_LEVEL_22=22,
     SH_LEVEL_3=30,
     SH_LEVEL_31=31,
     SH_LEVEL_32=32,
@@ -147,6 +157,8 @@ typedef struct _H264_SEQUENCE_HEADER_PARAMS_STRUC
     SH_LEVEL_TYPE ucLevel;
     IMG_UINT8 ucWidth_in_mbs_minus1;
     IMG_UINT8 ucHeight_in_maps_units_minus1;
+    IMG_UINT8 gaps_in_frame_num_value;
+    IMG_UINT8 ucFrame_mbs_only_flag;
     IMG_UINT8 VUI_Params_Present;
     H264_VUI_PARAMS VUI_Params;
 } H264_SEQUENCE_HEADER_PARAMS;
@@ -160,6 +172,8 @@ typedef struct _H264_SLICE_HEADER_PARAMS_STRUC
     IMG_UINT8 Frame_Num_DO;
     IMG_UINT8 Picture_Num_DO;
     IMG_UINT8 Disable_Deblocking_Filter_Idc;
+    IMG_INT8 iDebAlphaOffsetDiv2;
+    IMG_INT8 iDebBetaOffsetDiv2;
 } H264_SLICE_HEADER_PARAMS;
 
 
@@ -237,7 +251,8 @@ void pnw__H264_prepare_slice_header(
     IMG_UINT32 uiFrameNumber,
     IMG_UINT32 uiFirst_MB_Address,
     IMG_UINT32 uiMBSkipRun,
-    IMG_BOOL bCabacEnabled);
+    IMG_BOOL bCabacEnabled,
+    IMG_BOOL bForceIDR);
 
 void pnw__H264_prepare_eodofstream_header(IMG_UINT32 *pHeaderMemory);
 void pnw__H264_prepare_endofpicture_header(IMG_UINT32 *pHeaderMemory);

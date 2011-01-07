@@ -113,12 +113,19 @@ int main()
 	}
 	fclose (ptr);
 #endif
-	
+
 	/* Create msvdx firmware for mfld DE2.0 */
+
+	FIRMWARE fw_DE2;
+
+	/* fw_DE2 = sFirmware1133_SS; */
+        fw_DE2 = sFirmware1163_SS;
+	/* fw_DE2 = sFirmware1133_FS; */
+
 	fw.ver = 0x2;
-	fw.text_size = sFirmware1100_SS.uiTextSize / 4;
-	fw.data_size = sFirmware1100_SS.uiDataSize / 4;;
-	fw.data_location = sFirmware1100_SS.DataOffset + 0x82880000;
+	fw.text_size = fw_DE2.uiTextSize / 4;
+	fw.data_size = fw_DE2.uiDataSize / 4;;
+	fw.data_location = fw_DE2.DataOffset + 0x82880000;
 
 	ptr = fopen("msvdx_fw_mfld_DE2.0.bin", "w");
 	if (ptr == NULL) {
@@ -129,11 +136,11 @@ int main()
 	
 	for (i = 0; i < fw.text_size; i++)
 	{
-		fwrite( &sFirmware1100_SS.pui8Text[i*4],4, 1, ptr);
+		fwrite( &fw_DE2.pui8Text[i*4],4, 1, ptr);
 	}
 	for (i = 0; i < fw.data_size; i++)
 	{
-		fwrite( &sFirmware1100_SS.pui8Data[i*4],4, 1, ptr);
+		fwrite( &fw_DE2.pui8Data[i*4],4, 1, ptr);
 	}
 	fclose (ptr);
 

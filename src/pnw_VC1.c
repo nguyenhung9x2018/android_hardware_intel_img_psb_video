@@ -1,28 +1,30 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
- * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
+ * Copyright (c) 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK 
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
  * 
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 
-#include "psb_VC1.h"
+#include "pnw_VC1.h"
 #include "psb_def.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
@@ -41,6 +43,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+
+static int VC1_Header_Parser_HW = 1;
 
 #define GET_SURFACE_INFO_is_defined(psb_surface) ((int) (psb_surface->extra_info[0]))
 #define SET_SURFACE_INFO_is_defined(psb_surface, val) psb_surface->extra_info[0] = (uint32_t) val;
@@ -65,6 +69,8 @@ typedef struct
        IMG_UINT32              ui32SliceParams;
        IMG_UINT32              ui32MacroblockNumber;
 } VC1PRELOAD;
+
+#define FWPARSER_VC1PRELOAD_SIZE (0x60)
 
 /*!
 ******************************************************************************
@@ -277,7 +283,7 @@ static IMG_BYTE		gBFRACTION_NumRemapTable[] = {1,1,2,1,3,1,2,3,4,1,5,1,2,3,4,5,6
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 
 
-static void psb_VC1_QueryConfigAttributes(
+static void pnw_VC1_QueryConfigAttributes(
             VAProfile profile,
             VAEntrypoint entrypoint,
             VAConfigAttrib *attrib_list,
@@ -286,7 +292,7 @@ static void psb_VC1_QueryConfigAttributes(
     /* No VC1 specific attributes */
 }
 
-static VAStatus psb_VC1_ValidateConfig(
+static VAStatus pnw_VC1_ValidateConfig(
             object_config_p obj_config )
 {
     int i;
@@ -319,7 +325,7 @@ static void psb__VC1_pack_vlc_tables(uint16_t *vlc_packed_data,
     for (i = 0; i < gui16vc1VlcTableSize; i++)
     {
         j = i * 3;
-
+        vlc_packed_data[i] = 0;
         /* opcode 14:12 *//* width 11:9 *//* symbol 8:0 */
         vlc_packed_data[i] = ((gaui16vc1VlcTableData[j + 0]) << 12) |
                              ((gaui16vc1VlcTableData[j + 1]) << 9)  |
@@ -419,9 +425,9 @@ static VAStatus psb__VC1_check_legal_picture(object_context_p obj_context, objec
     return vaStatus;
 }
 
-static void psb_VC1_DestroyContext(object_context_p obj_context);
+static void pnw_VC1_DestroyContext(object_context_p obj_context);
 
-static VAStatus psb_VC1_CreateContext(
+static VAStatus pnw_VC1_CreateContext(
             object_context_p obj_context,
             object_config_p obj_config )
 {
@@ -436,14 +442,14 @@ static VAStatus psb_VC1_CreateContext(
         return vaStatus;
     }
         
-    ctx = (context_VC1_p) calloc(1, sizeof(struct context_VC1_s));
+    ctx = (context_VC1_p) malloc(sizeof(struct context_VC1_s));
     if (NULL == ctx)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
         return vaStatus;
     }
-
+    memset(ctx, 0, sizeof(struct context_VC1_s));
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
     ctx->pic_params = NULL;
@@ -451,7 +457,7 @@ static VAStatus psb_VC1_CreateContext(
     ctx->split_buffer_pending = FALSE;
 
     ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p*) calloc(1, sizeof(object_buffer_p)*ctx->slice_param_list_size);
+    ctx->slice_param_list = (object_buffer_p*) malloc(sizeof(object_buffer_p)*ctx->slice_param_list_size);
     ctx->slice_param_list_idx = 0;
     
     if (NULL == ctx->slice_param_list)
@@ -462,7 +468,7 @@ static VAStatus psb_VC1_CreateContext(
     
     ctx->colocated_buffers_size = obj_context->num_render_targets;
     ctx->colocated_buffers_idx = 0;
-    ctx->colocated_buffers = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s)*ctx->colocated_buffers_size);
+    ctx->colocated_buffers = (psb_buffer_p) malloc(sizeof(struct psb_buffer_s)*ctx->colocated_buffers_size);
     if (NULL == ctx->colocated_buffers)
     {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -501,6 +507,21 @@ static VAStatus psb_VC1_CreateContext(
 
     if (vaStatus == VA_STATUS_SUCCESS)
     {
+        void *preload;
+        if (0 ==  psb_buffer_map( &ctx->preload_buffer, &preload ))
+        {
+            memset(preload, 0, PRELOAD_BUFFER_SIZE);
+            psb_buffer_unmap( &ctx->preload_buffer );
+        }
+        else
+        {
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            DEBUG_FAILURE;
+        }
+    }
+
+    if (vaStatus == VA_STATUS_SUCCESS)
+    {
         vaStatus = psb_buffer_create( obj_context->driver_data,
                            AUXMSB_BUFFER_SIZE,
                            psb_bt_vpu_only,
@@ -510,8 +531,29 @@ static VAStatus psb_VC1_CreateContext(
 
     if (vaStatus == VA_STATUS_SUCCESS)
     {
+        if(VC1_Header_Parser_HW)
+        {
+            vaStatus = psb_buffer_create( obj_context->driver_data,
+                               0xa000*3,  //0x8800 
+                               psb_bt_vpu_only,
+                               &ctx->bitplane_hw_buffer );
+            DEBUG_FAILURE;
+        }
+        else
+        {
+            vaStatus = psb_buffer_create( obj_context->driver_data,
+                               0x8000, 
+                               psb_bt_vpu_only,
+                               &ctx->bitplane_hw_buffer );
+            DEBUG_FAILURE;
+        }
+ 
+    }
+
+    if (vaStatus == VA_STATUS_SUCCESS)
+    {
         vaStatus = psb_buffer_create( obj_context->driver_data,
-                           gui16vc1VlcTableSize * sizeof(IMG_UINT16),
+                           (gui16vc1VlcTableSize * sizeof(IMG_UINT16) + 0xfff) & ~0xfff,
                            psb_bt_cpu_vpu,
                            &ctx->vlc_packed_table );
         DEBUG_FAILURE;
@@ -534,13 +576,13 @@ static VAStatus psb_VC1_CreateContext(
 
     if (vaStatus != VA_STATUS_SUCCESS)
     {
-        psb_VC1_DestroyContext(obj_context);
+        pnw_VC1_DestroyContext(obj_context);
     }
 
     return vaStatus;
 }
 
-static void psb_VC1_DestroyContext(
+static void pnw_VC1_DestroyContext(
             object_context_p obj_context)
 {
     INIT_CONTEXT_VC1
@@ -549,6 +591,7 @@ static void psb_VC1_DestroyContext(
     psb_buffer_destroy( &ctx->vlc_packed_table );
     psb_buffer_destroy( &ctx->aux_msb_buffer );
     psb_buffer_destroy( &ctx->preload_buffer );
+    psb_buffer_destroy( &ctx->bitplane_hw_buffer );
 
     if (ctx->pic_params)
     {
@@ -578,7 +621,7 @@ static void psb_VC1_DestroyContext(
 static VAStatus psb__VC1_allocate_colocated_buffer(context_VC1_p ctx, object_surface_p obj_surface, uint32_t size){
     psb_surface_p surface = obj_surface->psb_surface;
 
-    psb__information_message("psb_VC1: Allocationg colocated buffer for surface %08x\n", surface);
+    psb__information_message("pnw_VC1: Allocationg colocated buffer for surface %08x\n", surface);
 
     if (!GET_SURFACE_INFO_colocated_index(surface))
     {
@@ -603,7 +646,7 @@ static VAStatus psb__VC1_allocate_colocated_buffer(context_VC1_p ctx, object_sur
 
 static psb_buffer_p psb__VC1_lookup_colocated_buffer(context_VC1_p ctx, psb_surface_p surface)
 {
-    psb__information_message("psb_VC1: Looking up colocated buffer for surface %08x\n", surface);
+    psb__information_message("pnw_VC1: Looking up colocated buffer for surface %08x\n", surface);
     int index = GET_SURFACE_INFO_colocated_index(surface);
     if (!index)
     {
@@ -788,7 +831,7 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     }
 
     /*
-     * We decode to ctx->decoded_surface
+     * We decode to ctx->decoded_surface This is inloop target
      * the out of loop decoded picture is stored in ctx->obj_context->current_render_target
      */
     if (pic_params->inloop_decoded_picture == VA_INVALID_SURFACE)
@@ -852,7 +895,8 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     
     ctx->size_mb = ctx->picture_width_mb * ctx->picture_height_mb;
     
-    uint32_t colocated_size = (ctx->size_mb + 1) * 2 * VC1_MB_PARAM_STRIDE + 0x2000;
+    uint32_t colocated_size = ((ctx->size_mb + 1) * 2 + 128) * VC1_MB_PARAM_STRIDE;
+    //uint32_t colocated_size = (ctx->size_mb + 1) * 2 * VC1_MB_PARAM_STRIDE + 0x2000;
 
     vaStatus = psb__VC1_allocate_colocated_buffer(ctx, ctx->decoded_surface, colocated_size);
     vaStatus = psb__VC1_allocate_colocated_buffer(ctx, ctx->obj_context->current_render_target, colocated_size);
@@ -1371,6 +1415,11 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     /************************************************************************************/
 
     /************************* FCM for the reference pictures ***************************/
+    ctx->ui8FCM_Ref0Pic = ctx->pic_params->picture_fields.bits.frame_coding_mode; 
+    ctx->ui8FCM_Ref1Pic = ctx->pic_params->picture_fields.bits.frame_coding_mode; 
+    if(ctx->obj_context->frame_count == 0)
+        ctx->ui8FCM_Ref2Pic = ctx->pic_params->picture_fields.bits.frame_coding_mode; 
+
     if(PIC_TYPE_IS_REF(pic_params->picture_fields.bits.picture_type) || 
         ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) &&	/* The second B field picture in an		*/
          (ctx->pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI) &&	/* interlaced field coded frame shall	*/
@@ -1397,6 +1446,11 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     /************************************************************************************/
 
     /************************* TFF for the reference pictures ***************************/
+    if(ctx->obj_context->frame_count == 0)
+    {
+        ctx->bTFF_FwRefFrm = pic_params->picture_fields.bits.top_field_first;
+        ctx->bTFF_BwRefFrm = pic_params->picture_fields.bits.top_field_first;
+    }
     if(PIC_TYPE_IS_REF(pic_params->picture_fields.bits.picture_type) &&	
 		((ctx->pic_params->picture_fields.bits.frame_coding_mode != VC1_FCM_FLDI) ||			
 		pic_params->picture_fields.bits.is_first_field))
@@ -1880,7 +1934,7 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
 static void psb__VC1_build_VLC_tables(context_VC1_p ctx)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    unsigned int i;
+    int i;
     uint16_t RAM_location = 0;
     uint32_t reg_value;
 
@@ -1997,15 +2051,15 @@ static void psb__VC1_setup_alternative_frame( context_VC1_p ctx )
         
 
     /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS)  );
 
     psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
     psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     /* Set the rotation registers */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION)  );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION)  );
     cmd = 0;
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ALT_PICTURE_ENABLE,1 );
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
@@ -2014,7 +2068,43 @@ static void psb__VC1_setup_alternative_frame( context_VC1_p ctx )
 
     psb_cmdbuf_rendec_write( cmdbuf, cmd );
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
+}
+
+static void psb__VC1_program_output_register(context_VC1_p ctx, IMG_BOOL first_two_pass)
+{
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    object_context_p obj_context = ctx->obj_context;
+    uint32_t alt_output_flags = 0;
+    uint32_t cmd;
+    *ctx->p_range_mapping_base = 0;
+    *ctx->p_range_mapping_base1 = 0;
+    //rotate_surface = ctx->decoded_surface->psb_surface_rotate;
+
+    if((first_two_pass == 0) && (obj_context->rotate != VA_ROTATION_NONE) )
+    {
+        psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) );
+        psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
+        psb_cmdbuf_rendec_write_address( cmdbuf, &rotate_surface->buf, rotate_surface->chroma_offset + rotate_surface->buf.buffer_ofs);
+        psb_cmdbuf_rendec_end( cmdbuf );
+
+        //target_surface = rotate_surface;
+
+        REGIO_WRITE_FIELD_LITE(alt_output_flags, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ALT_PICTURE_ENABLE,1 );
+        REGIO_WRITE_FIELD_LITE(alt_output_flags, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
+        REGIO_WRITE_FIELD_LITE(alt_output_flags, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
+        REGIO_WRITE_FIELD_LITE(alt_output_flags, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION ,ROTATION_MODE, rotate_surface->extra_info[5]);
+    }
+
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION) );
+    psb_cmdbuf_rendec_write(cmdbuf, alt_output_flags);
+    cmd = 0;
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64 );
+    psb_cmdbuf_rendec_write(cmdbuf, cmd);
+    psb_cmdbuf_rendec_end(cmdbuf);
+    *ctx->alt_output_flags = alt_output_flags;
 }
 
 static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBufferVC1 *slice_param)
@@ -2023,7 +2113,6 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p deblock_surface = ctx->decoded_surface->psb_surface;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
-
     uint32_t cmd;
     IMG_UINT32    ui32MBParamMemOffset;
     IMG_UINT8     ui8PrevLumaScale = 0, ui8PrevLumaShift = 0;
@@ -2157,13 +2246,14 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     }
     /************************************************************************************/
 
-    psb_cmdbuf_rendec_start_block( cmdbuf );
+    /* psb_cmdbuf_rendec_start_block( cmdbuf ); */
 
-    if(ctx->obj_context->rotate != VA_ROTATION_NONE) /* FIXME field coded should not issue */
-        psb__VC1_setup_alternative_frame(ctx);
+//    if(ctx->obj_context->rotate != VA_ROTATION_NONE) /* FIXME field coded should not issue */
+//        psb__VC1_setup_alternative_frame(ctx);
 
     /* CHUNK: 1 - VC1SEQUENCE00 */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE) );
+    *cmdbuf->rendec_chunk_start |= CMD_RENDEC_BLOCK_FLAG_VC1_CMD_PATCH;
 
     /* VC1SEQUENCE00	Command: Display Picture Size (sequence) */
     cmd = 0;
@@ -2188,24 +2278,29 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE01, CHROMA_FORMAT,        1);
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE01, INTERLACED,           ((pic_params->picture_fields.bits.frame_coding_mode & 0x02) >> 1)); /* if progressive, INTERLACE is always 0 */
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE01, VC1_OVERLAP,          pic_params->sequence_fields.bits.overlap);
-    REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE01, PIC_CONDOVER,         ctx->condover);
-    REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE01, PIC_QUANT,            pic_params->pic_quantizer_fields.bits.pic_quantizer_scale);
+    if(!VC1_Header_Parser_HW)
+    {
+        REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE01, PIC_CONDOVER,         ctx->condover);
+        REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE01, PIC_QUANT,            pic_params->pic_quantizer_fields.bits.pic_quantizer_scale);
+    }
     ctx->obj_context->operating_mode = cmd;
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
     /* LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                    */
     psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
+    //psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs);
 
     /* CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                  */
     psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+    //psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset);
 
     /* Aux MSB buffer */
     psb_cmdbuf_rendec_write_address( cmdbuf, &ctx->aux_msb_buffer, 0);
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     /* CHUNK: 2 - VC1SLICE00 */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, MC_CACHE_CONFIGURATION) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, MC_CACHE_CONFIGURATION) );
 
     /* VC1SLICE00	    Command: Cache Configuration (picture?) */
     cmd = 0;
@@ -2221,15 +2316,23 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE01, VC1_LUMSCALE1,  ctx->ui8CurrLumaScale1);
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
+
+    psb__VC1_program_output_register(ctx, ctx->pic_params->picture_fields.bits.frame_coding_mode != VC1_FCM_P);
+
+    if( ctx->pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_P && ctx->obj_context->rotate != VA_ROTATION_NONE)
+        //deblock_surface = ctx->decoded_surface->psb_surface_rotate;
+        deblock_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
 
     /* CHUNK: 3 */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) );
 
     /* VC1 Luma Range Mapping Base Address */
+    //psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
     psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs);
 
     /* VC1 Chroma Range Mapping Base Address */
+    //psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->chroma_offset + target_surface->buf.buffer_ofs);
     psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->chroma_offset + deblock_surface->buf.buffer_ofs);
 
     /* VC1SLICE03       Range Map Control (current picture) */
@@ -2242,7 +2345,11 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     /* Store VC1SLICE03 bits in lower bits of Range Mapping Base Address */
     /* VC1 Luma Range Mapping Base Address */
-    RELOC(*ctx->p_range_mapping_base, cmd + deblock_surface->buf.buffer_ofs, &deblock_surface->buf);
+    RELOC(*ctx->p_range_mapping_base, /*cmd + */deblock_surface->buf.buffer_ofs, &deblock_surface->buf);
+    RELOC(*ctx->p_range_mapping_base1, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset, &deblock_surface->buf);
+    //RELOC(*ctx->p_range_mapping_base, /*cmd + */target_surface->buf.buffer_ofs, &target_surface->buf);
+    //RELOC(*ctx->p_range_mapping_base1, target_surface->buf.buffer_ofs + target_surface->chroma_offset, &target_surface->buf);
+    *ctx->p_range_mapping_base = (*ctx->p_range_mapping_base) | cmd; /* FIXME If kernel apply reloc, this value may be override */
 
     /* VC1 Intensity Compensation Backward/Previous	*/
     /*
@@ -2284,7 +2391,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 	pcmdBuffer[i++] = cmd;
     }
 #endif
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     /* 
         Reference Picture Base Addresses
@@ -2296,11 +2403,13 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     if((pic_params->picture_fields.bits.picture_type != WMF_PTYPE_I) && (pic_params->picture_fields.bits.picture_type != WMF_PTYPE_BI))
     {
         /* CHUNK: 4 */
-        psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) );
+        psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) );
   
         /********************** CURRENT PICTURE **********************/
         psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
         psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
+        //psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs);
+        //psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset);
 
         /*************** FORWARD REFERENCE *****************/
         if(ctx->forward_ref_surface)
@@ -2324,11 +2433,12 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
             psb_cmdbuf_rendec_write_address( cmdbuf, &ctx->backward_ref_surface->psb_surface->buf, ctx->backward_ref_surface->psb_surface\
                                              ->buf.buffer_ofs + ctx->backward_ref_surface->psb_surface->chroma_offset);
 	}
-        psb_cmdbuf_rendec_end_chunk( cmdbuf );
+        psb_cmdbuf_rendec_end( cmdbuf );
     }
 
     /* CHUNK: 5 - VC1SLICE02 */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS) );
+    *cmdbuf->rendec_chunk_start |= CMD_RENDEC_BLOCK_FLAG_VC1_SP_PATCH;
 
     /* VC1SLICE02	    Command: Slice Params (picture or slice) */
     cmd = 0;
@@ -2338,21 +2448,26 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, VC1_BACK_INT_COMP,  ui8BackIC);
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, RND_CTRL_BIT,       pic_params->rounding_control);
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, MODE_CONFIG,        ctx->mode_config);
-    REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, SUBPEL_FILTER_MODE, ((ctx->mv_mode == WMF_MVMODE_1MV_HALF_PEL_BILINEAR) && !(pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FRMI)) ? 0:1);
+    if(!VC1_Header_Parser_HW)
+    {
+        REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, SUBPEL_FILTER_MODE, ((ctx->mv_mode == WMF_MVMODE_1MV_HALF_PEL_BILINEAR) && !(pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FRMI)) ? 0:1);
+        REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, SLICE_CODE_TYPE,    (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_BI) ? 0 : (pic_params->picture_fields.bits.picture_type & 0x3)); /* BI is sent as I */
+    }
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, VC1_FASTUVMC,       pic_params->fast_uvmc_flag);
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, VC1_LOOPFILTER,     pic_params->entrypoint_fields.bits.loopfilter);
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, SLICE_FIELD_TYPE,   ctx->slice_field_type);
-    REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, SLICE_CODE_TYPE,    (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_BI) ? 0 : (pic_params->picture_fields.bits.picture_type & 0x3)); /* BI is sent as I */
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    
+    psb_cmdbuf_rendec_end( cmdbuf );
+    if(VC1_Header_Parser_HW)
+        REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, SLICE_CODE_TYPE,    (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_BI) ? 0 : (pic_params->picture_fields.bits.picture_type & 0x3));
+
     *ctx->p_slice_params = cmd;
 
     /* ------------------------------- Back-End Registers --------------------------------- */
 
     /* CHUNK: 6 (Back-end registers) */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, VC1_CR_VEC_VC1_BE_SPS0) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, VC1_CR_VEC_VC1_BE_SPS0) );
 
     /* CR_VEC_VC1_BE_SPS0 */
     cmd = 0;
@@ -2373,10 +2488,11 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_SPS2, VC1_BE_PIC_WIDTH_IN_MBS_LESS1, ctx->picture_width_mb - 1);
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     /* CHUNK: 6b (Back-end registers) */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, VC1_CR_VEC_VC1_BE_PPS2) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, VC1_CR_VEC_VC1_BE_PPS2) );
+    *cmdbuf->rendec_chunk_start |= CMD_RENDEC_BLOCK_FLAG_VC1_BE_PATCH;
 
     /* CR_VEC_VC1_BE_PPS2 */
     cmd = 0; 
@@ -2388,38 +2504,48 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     /* CR_VEC_VC1_BE_PPS0 */
     cmd = 0;
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_IQ_OVERLAP,        ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) || (ctx->condover == 0)) ? 0 : 1);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_UNIFORM_QUANTIZER, pic_params->pic_quantizer_fields.bits.pic_quantizer_type);
+    if(!VC1_Header_Parser_HW)
+    {
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_IQ_OVERLAP,        ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) || (ctx->condover == 0)) ? 0 : 1);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_UNIFORM_QUANTIZER, pic_params->pic_quantizer_fields.bits.pic_quantizer_type);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_HALFQP,            pic_params->pic_quantizer_fields.bits.half_qp);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_BFRACTION,         pic_params->b_picture_fraction);
+    }
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_TFF_FWD,           ctx->bTFF_FwRefFrm);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_TFF_BWD,           ctx->bTFF_BwRefFrm);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_TFF,               pic_params->picture_fields.bits.top_field_first);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_SECOND_FIELD,      !pic_params->picture_fields.bits.is_first_field);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_HALFQP,            pic_params->pic_quantizer_fields.bits.half_qp);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_BFRACTION,         pic_params->b_picture_fraction);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_FCM,               pic_params->picture_fields.bits.frame_coding_mode);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_RNDCTRL,		pic_params->rounding_control);
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
     
     /* CR_VEC_VC1_BE_PPS1 */
     cmd = 0;
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_EXTEND_Y,       ctx->extend_y);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_EXTEND_X,       ctx->extend_x);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_QUANTIZER,      (pic_params->pic_quantizer_fields.bits.pic_quantizer_type ? 0x03 /* uniform */ : 0x02 /* non-uniform */));
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_PQUANT,         pic_params->pic_quantizer_fields.bits.pic_quantizer_scale);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_MVMODE,         pic_params->mv_fields.bits.mv_mode);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_MVMODE2,        pic_params->mv_fields.bits.mv_mode2);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_PTYPE,          pic_params->picture_fields.bits.picture_type);
+    if(!VC1_Header_Parser_HW)
+    {
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_EXTEND_Y,       ctx->extend_y);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_EXTEND_X,       ctx->extend_x);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_QUANTIZER,      (pic_params->pic_quantizer_fields.bits.pic_quantizer_type ? 0x03 /* uniform */ : 0x02 /* non-uniform */));
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_PQUANT,         pic_params->pic_quantizer_fields.bits.pic_quantizer_scale);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_MVMODE,         pic_params->mv_fields.bits.mv_mode);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_MVMODE2,        pic_params->mv_fields.bits.mv_mode2);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS1, VC1_BE_PTYPE,          pic_params->picture_fields.bits.picture_type);
+    }
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
     /* CR_VEC_VC1_BE_MVD0 */
     cmd = 0;
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD0, VC1_BE_BRPD,  ctx->i8BckwrdRefFrmDist);     /* 10.4.6.2 */
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD0, VC1_BE_FRPD,  ctx->i8FwrdRefFrmDist);
+    if(!VC1_Header_Parser_HW)
+    {
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD0, VC1_BE_BRPD,  ctx->i8BckwrdRefFrmDist);     /* 10.4.6.2 */
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD0, VC1_BE_FRPD,  ctx->i8FwrdRefFrmDist);
+    }
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
     /* CR_VEC_VC1_BE_MVD1 */
     cmd = 0;
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD1, VC1_BE_SCALEFACTOR, ctx->ui32ScaleFactor);  /* figure 66 */
+    if(!VC1_Header_Parser_HW)
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD1, VC1_BE_SCALEFACTOR, ctx->ui32ScaleFactor);  /* figure 66 */
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
     /* CR_VEC_VC1_BE_MVD2 */
@@ -2439,23 +2565,26 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     /* CR_VEC_VC1_BE_MVD5 */
     cmd = 0;
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_REFDIST,		pic_params->reference_fields.bits.reference_distance);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_NUMREF,		pic_params->reference_fields.bits.num_reference_pictures);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_REFFIELD,		pic_params->reference_fields.bits.reference_field_pic_indicator);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_MVRANGE,		pic_params->mv_fields.bits.extended_mv_range);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_HALFPEL_FLAG,	ctx->half_pel);
+    if(!VC1_Header_Parser_HW)
+    {
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_REFDIST,		pic_params->reference_fields.bits.reference_distance);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_NUMREF,		pic_params->reference_fields.bits.num_reference_pictures);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_REFFIELD,		pic_params->reference_fields.bits.reference_field_pic_indicator);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_MVRANGE,		pic_params->mv_fields.bits.extended_mv_range);
+        REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_HALFPEL_FLAG,	ctx->half_pel);
+    }
     //REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_FRAME_CODING_MODE,	pic_params->picture_fields.bits.frame_coding_mode);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_BOTTOM_FIELD_FLAG, ctx->bottom_field);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_ADVANCED_PROFILE,	(ctx->profile == WMF_PROFILE_ADVANCED) ? 1:0);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_SCAN_INDEX,	ctx->scan_index);
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     /* CHUNK: 6c (Back-end registers) */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, VC1_CR_VEC_VC1_BE_PARAM_BASE_ADDR) );
+    psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, VC1_CR_VEC_VC1_BE_PARAM_BASE_ADDR) );
 
-    psb__information_message("psb_VC1: picture_type = %d\n", pic_params->picture_fields.bits.picture_type);
+    psb__information_message("pnw_VC1: picture_type = %d\n", pic_params->picture_fields.bits.picture_type);
 
     if(PIC_TYPE_IS_INTRA(pic_params->picture_fields.bits.picture_type) || (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P))
     {
@@ -2486,12 +2615,12 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
             psb_cmdbuf_rendec_write(cmdbuf, 0);
         }
     }
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
+    psb_cmdbuf_rendec_end( cmdbuf );
 
     if(!PIC_TYPE_IS_INTRA(pic_params->picture_fields.bits.picture_type))
     {
         /* CHUNK: 6d (Back-end registers) */
-        psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, VC1_CR_VEC_VC1_BE_COLPARAM_BASE_ADDR) );
+        psb_cmdbuf_rendec_start( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, VC1_CR_VEC_VC1_BE_COLPARAM_BASE_ADDR) );
 
         if(pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P)
         {
@@ -2534,10 +2663,10 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
             }
         }
 
-        psb_cmdbuf_rendec_end_chunk( cmdbuf );
+        psb_cmdbuf_rendec_end( cmdbuf );
     }
 
-    psb_cmdbuf_rendec_end_block( cmdbuf );
+    /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
 }
 
 
@@ -2563,17 +2692,6 @@ static void psb__VC1_load_sequence_registers(context_VC1_p ctx)
 
     psb_cmdbuf_reg_end_block( cmdbuf );
 
-    psb_cmdbuf_rendec_start_block( cmdbuf );
-    /* CHUNK: Entdec back-end profile and level */
-    psb_cmdbuf_rendec_start_chunk( cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL) );
-
-    reg_value = 0;
-    REGIO_WRITE_FIELD( reg_value, MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL, ENTDEC_BE_PROFILE, ctx->profile);
-    REGIO_WRITE_FIELD( reg_value, MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL, ENTDEC_BE_MODE, 2); /* 2 - VC1 */
-
-    psb_cmdbuf_rendec_write(cmdbuf, reg_value);
-    psb_cmdbuf_rendec_end_chunk( cmdbuf );
-    psb_cmdbuf_rendec_end_block( cmdbuf );
 }
 
 static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterBufferVC1 *slice_param)
@@ -2582,7 +2700,15 @@ static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterB
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
     int bEnableMVDLite = FALSE;
-    psb_cmdbuf_reg_start_block( cmdbuf );
+
+    psb_cmdbuf_rendec_start( cmdbuf, REG_MSVDX_VEC_OFFSET + MSVDX_VEC_CR_VEC_ENTDEC_BE_CONTROL_OFFSET );
+    reg_value = 0;
+    REGIO_WRITE_FIELD( reg_value, MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL, ENTDEC_BE_PROFILE, ctx->profile);
+    REGIO_WRITE_FIELD( reg_value, MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL, ENTDEC_BE_MODE, 2); /* 2 - VC1 */
+    psb_cmdbuf_rendec_write( cmdbuf, reg_value );
+    psb_cmdbuf_rendec_end( cmdbuf );
+
+    psb_cmdbuf_reg_start_block_flag( cmdbuf, (VC1_Header_Parser_HW) ? CMD_REGVALPAIR_FLAG_VC1PATCH : 0);
 
     /* Enable MVD lite for Progressive or FLDI P */
     if(
@@ -2602,59 +2728,61 @@ static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterB
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_PIC_WIDTH_IN_MBS_LESS1,  ctx->picture_width_mb - 1);    
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_PIC_HEIGHT_IN_MBS_LESS1, ctx->picture_height_mb - 1);
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_FIRST_MB_IN_SLICE_Y,	    slice_param->slice_vertical_position);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_PTYPE,                   pic_params->picture_fields.bits.picture_type);
+    if(!VC1_Header_Parser_HW)
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_PTYPE,                   pic_params->picture_fields.bits.picture_type);
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_FCM,                     pic_params->picture_fields.bits.frame_coding_mode);
     psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0), reg_value );
 
     /* FE_PPS1 */
     reg_value = 0;
-#if VC1_INTERLEAVED_BITPLANE
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BP_FORMAT,     IMG_FALSE); // interleaved format
-#else
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BP_FORMAT,     IMG_TRUE); // non-interleaved format
-#endif
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BP_PRESENT,	ctx->bitplane_present);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_RAWCODINGFLAG, (pic_params->raw_coding.value & 0x7F)); /* 7-bits */
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_MVMODE,      pic_params->mv_fields.bits.mv_mode);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_MVMODE2,     pic_params->mv_fields.bits.mv_mode2);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_TTMBF,       pic_params->transform_fields.bits.mb_level_transform_type_flag);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_TTFRM,       pic_params->transform_fields.bits.frame_level_transform_type);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BFRACTION,   pic_params->b_picture_fraction);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_CONDOVER,    ctx->condover);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_EXTEND_X,    ctx->extend_x);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_EXTEND_Y,    ctx->extend_y);
+    if(!VC1_Header_Parser_HW)
+    {
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BP_FORMAT,     IMG_FALSE); // interleaved format
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BP_PRESENT,	ctx->bitplane_present);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_RAWCODINGFLAG, (pic_params->raw_coding.value & 0x7F)); // 7-bits 
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_MVMODE,      pic_params->mv_fields.bits.mv_mode);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_MVMODE2,     pic_params->mv_fields.bits.mv_mode2);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_TTMBF,       pic_params->transform_fields.bits.mb_level_transform_type_flag);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_TTFRM,       pic_params->transform_fields.bits.frame_level_transform_type);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BFRACTION,   pic_params->b_picture_fraction);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_CONDOVER,    ctx->condover);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_EXTEND_X,    ctx->extend_x);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_EXTEND_Y,    ctx->extend_y);
+    }
     psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1), reg_value );
 
     /* FE_PPS2 */
     reg_value = 0;
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQXBEDGE,          (pic_params->pic_quantizer_fields.bits.dq_profile == 1) ? pic_params->pic_quantizer_fields.bits.dq_db_edge : pic_params->pic_quantizer_fields.bits.dq_sb_edge);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQUANT,            pic_params->pic_quantizer_fields.bits.dquant);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_PQUANT,            pic_params->pic_quantizer_fields.bits.pic_quantizer_scale);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_HALFQP,            pic_params->pic_quantizer_fields.bits.half_qp);
-    /* Is this correct? */
-    // Write to the VC1_FE_VOPDQUANT_PRESENT register according to PowerVR decoder's implementation.
-    if (((ctx->profile == WMF_PROFILE_ADVANCED) && (pic_params->pic_quantizer_fields.bits.dquant != 0)) 
-	|| (((ctx->profile != WMF_PROFILE_ADVANCED) && ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) || (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P))) && (pic_params->pic_quantizer_fields.bits.dquant != 0)))
+    if(!VC1_Header_Parser_HW)
     {
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_VOPDQUANT_PRESENT, 1);
-    }
-    else
-    {
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_VOPDQUANT_PRESENT, 0);
-    }
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQUANTFRM,         pic_params->pic_quantizer_fields.bits.dq_frame);
-    {
-       IMG_BOOL DQUANT_INFRAME = (pic_params->pic_quantizer_fields.bits.dquant == 2) || 
-                                 ((pic_params->pic_quantizer_fields.bits.dquant == 1) && pic_params->pic_quantizer_fields.bits.dq_frame) ||
-                                 ((pic_params->pic_quantizer_fields.bits.dquant == 3) && pic_params->pic_quantizer_fields.bits.dq_frame);
-       REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQUANT_INFRAME, DQUANT_INFRAME);
-    }
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_ALTPQUANT,         pic_params->pic_quantizer_fields.bits.alt_pic_quantizer);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQPROFILE,         pic_params->pic_quantizer_fields.bits.dq_profile);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQBILEVEL,         pic_params->pic_quantizer_fields.bits.dq_binary_level);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_PQINDEX_GT8,       ctx->pqindex_gt8 );
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_TRANSACFRM,        pic_params->transform_fields.bits.transform_ac_codingset_idx1);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_TRANSACFRM2,       pic_params->transform_fields.bits.transform_ac_codingset_idx2);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQXBEDGE,          (pic_params->pic_quantizer_fields.bits.dq_profile == 1) ? pic_params->pic_quantizer_fields.bits.dq_db_edge : pic_params->pic_quantizer_fields.bits.dq_sb_edge);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQUANT,            pic_params->pic_quantizer_fields.bits.dquant);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_PQUANT,            pic_params->pic_quantizer_fields.bits.pic_quantizer_scale);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_HALFQP,            pic_params->pic_quantizer_fields.bits.half_qp); 
+        if (((ctx->profile == WMF_PROFILE_ADVANCED) && (pic_params->pic_quantizer_fields.bits.dquant != 0)) 
+	    || ((ctx->profile != WMF_PROFILE_ADVANCED) && ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) || (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P))) && (pic_params->pic_quantizer_fields.bits.dquant != 0))
+        {
+            REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_VOPDQUANT_PRESENT, 1);
+        }
+        else
+        {
+            REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_VOPDQUANT_PRESENT, 0);
+        }
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQUANTFRM,         pic_params->pic_quantizer_fields.bits.dq_frame);
+        {
+           IMG_BOOL DQUANT_INFRAME = (pic_params->pic_quantizer_fields.bits.dquant == 2) || 
+                                     ((pic_params->pic_quantizer_fields.bits.dquant == 1) && pic_params->pic_quantizer_fields.bits.dq_frame) ||
+                                     ((pic_params->pic_quantizer_fields.bits.dquant == 3) && pic_params->pic_quantizer_fields.bits.dq_frame);
+           REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQUANT_INFRAME, DQUANT_INFRAME);
+        }
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_ALTPQUANT,         pic_params->pic_quantizer_fields.bits.alt_pic_quantizer);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQPROFILE,         pic_params->pic_quantizer_fields.bits.dq_profile);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQBILEVEL,         pic_params->pic_quantizer_fields.bits.dq_binary_level);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_PQINDEX_GT8,       ctx->pqindex_gt8 );
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_TRANSACFRM,        pic_params->transform_fields.bits.transform_ac_codingset_idx1);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_TRANSACFRM2,       pic_params->transform_fields.bits.transform_ac_codingset_idx2);
+    } 
+    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_DQUANT, pic_params->pic_quantizer_fields.bits.dquant);
     psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2), reg_value );
 
     /* MVD_LITE0 */
@@ -2667,12 +2795,15 @@ static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterB
     /* MVD_LITE1 */
     reg_value = 0;
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_TFF,              pic_params->picture_fields.bits.top_field_first);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_REFDIST,          pic_params->reference_fields.bits.reference_distance);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_NUMREF,           pic_params->reference_fields.bits.num_reference_pictures);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_REFFIELD,         pic_params->reference_fields.bits.reference_field_pic_indicator);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_MVRANGE,          pic_params->mv_fields.bits.extended_mv_range);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_HALFPEL_FLAG,     ctx->half_pel);
-    //REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_FRAME_CODING_MODE,    pic_params->picture_fields.bits.frame_coding_mode);
+    if(!VC1_Header_Parser_HW)
+    {
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_REFDIST,          pic_params->reference_fields.bits.reference_distance);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_NUMREF,           pic_params->reference_fields.bits.num_reference_pictures);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_REFFIELD,         pic_params->reference_fields.bits.reference_field_pic_indicator);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_MVRANGE,          pic_params->mv_fields.bits.extended_mv_range);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_HALFPEL_FLAG,     ctx->half_pel);
+        //REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_FRAME_CODING_MODE,    pic_params->picture_fields.bits.frame_coding_mode);
+    }
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_BOTTOM_FIELD_FLAG,      ctx->bottom_field);
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1, VC1_FE_ADVANCED_PROFILE,       (ctx->profile == WMF_PROFILE_ADVANCED) ? 1:0);
     psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_MVD_LITE1), reg_value );
@@ -2686,51 +2817,220 @@ static void psb__VC1_setup_bitplane(context_VC1_p ctx)
 
     psb_cmdbuf_reg_start_block( cmdbuf );
 
-    /* Bitplanes Data Buffer Base Address */
-    if (ctx->bitplane_present)
+    if(VC1_Header_Parser_HW)
     {
-        ASSERT(ctx->has_bitplane);
-        psb_cmdbuf_reg_set_address( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR0),
-                          ctx->bitplane_buffer, 0);
-#ifdef DEBUG_TRACE
-        //psb__debug_schedule_hexdump("Bitplane buffer", ctx->bitplane_buffer, 0, (ctx->size_mb + 1) / 2);
-#endif
-                          
+        psb_cmdbuf_reg_set_address( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR0), 
+                                &ctx->bitplane_hw_buffer, 0);
+        psb_cmdbuf_reg_set_address( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR1), 
+                                &ctx->bitplane_hw_buffer, 0xa000);
+        psb_cmdbuf_reg_set_address( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR2), 
+                                &ctx->bitplane_hw_buffer, 0xa000 * 2);
     }
     else
     {
-        psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR0), 0);
+        if (ctx->bitplane_present)
+            psb_cmdbuf_reg_set_address( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR0), 
+                                ctx->bitplane_buffer, 0);
+        else
+            psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR0), 0);
     }
-
     psb_cmdbuf_reg_end_block( cmdbuf );
 }
 
+//static void psb__VC1_FE_state(context_VC1_p ctx)
+//{
+//    uint32_t lldma_record_offset;
+//    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+//    psb_surface_p deblock_surface = ctx->decoded_surface->psb_surface;
+     
+    /* See RENDER_BUFFER_HEADER */
+//    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
+
+//    ctx->p_range_mapping_base = cmdbuf->cmd_idx++; /* Fill Luma Range Mapping Base later */
+
+    /* VC1 Chroma Range Mapping Base Address */
+//    RELOC(*cmdbuf->cmd_idx++, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset, &deblock_surface->buf);
+
+//    ctx->p_slice_params = cmdbuf->cmd_idx;
+//    *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
+
+//    lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &ctx->preload_buffer, 0,
+//                                sizeof( VC1PRELOAD ), 0, LLDMA_TYPE_VC1_PRELOAD_SAVE );
+//    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
+//    cmdbuf->cmd_idx++;
+
+//    lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &ctx->preload_buffer, 0,
+//                                sizeof( VC1PRELOAD ), 0, LLDMA_TYPE_VC1_PRELOAD_RESTORE );
+//    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
+//    cmdbuf->cmd_idx++;
+
+//    ctx->slice_first_pic_last = cmdbuf->cmd_idx++; 
+//}
 static void psb__VC1_FE_state(context_VC1_p ctx)
 {
     uint32_t lldma_record_offset;
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p deblock_surface = ctx->decoded_surface->psb_surface;
-     
-    /* See RENDER_BUFFER_HEADER */
+    uint32_t preload_size;
+    
+    if(VC1_Header_Parser_HW)
+        preload_size = FWPARSER_VC1PRELOAD_SIZE;
+    else
+        preload_size =  sizeof( VC1PRELOAD ); 
+    //psb_surface_p deblock_surface = ctx->decoded_surface->psb_surface;
+    
     *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
-
-    ctx->p_range_mapping_base = cmdbuf->cmd_idx++; /* Fill Luma Range Mapping Base later */
-
-    /* VC1 Chroma Range Mapping Base Address */
-    RELOC(*cmdbuf->cmd_idx++, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset, &deblock_surface->buf);
-
     ctx->p_slice_params = cmdbuf->cmd_idx;
-    *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
-
+    *cmdbuf->cmd_idx++ = 0;
+    
     lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &ctx->preload_buffer, 0,
-                                sizeof( VC1PRELOAD ), 0, LLDMA_TYPE_VC1_PRELOAD_SAVE );
+                                preload_size, 0, LLDMA_TYPE_VC1_PRELOAD_SAVE );
     RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
     cmdbuf->cmd_idx++;
 
     lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &ctx->preload_buffer, 0,
-                                sizeof( VC1PRELOAD ), 0, LLDMA_TYPE_VC1_PRELOAD_RESTORE );
+                                preload_size, 0, LLDMA_TYPE_VC1_PRELOAD_RESTORE );
     RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
     cmdbuf->cmd_idx++;
+
+    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
+
+    ctx->p_range_mapping_base = cmdbuf->cmd_idx++;
+    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
+    //RELOC(*cmdbuf->cmd_idx++, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset, &deblock_surface->buf);
+    
+    ctx->alt_output_flags = cmdbuf->cmd_idx++;
+    *ctx->alt_output_flags = 0;
+}
+
+static void psb__VC1_Send_Parse_Header_Cmd(context_VC1_p ctx, IMG_BOOL new_pic)
+{
+        PARSE_HEADER_CMD*       pParseHeaderCMD;
+        VAPictureParameterBufferVC1 *pic_params = ctx->pic_params;
+	psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+
+        //pParseHeaderCMD                                  = (PARSE_HEADER_CMD*)mCtrlAlloc.AllocateSpace(sizeof(PARSE_HEADER_CMD));
+	pParseHeaderCMD = (void *)cmdbuf->cmd_idx;
+	cmdbuf->cmd_idx += sizeof(PARSE_HEADER_CMD)/sizeof(uint32_t);
+
+        pParseHeaderCMD->ui32Cmd                 = CMD_PARSE_HEADER;
+        if(!new_pic)
+        {
+                pParseHeaderCMD->ui32Cmd        |= CMD_PARSE_HEADER_NEWSLICE;
+        }
+
+//        pParseHeaderCMD->ui32SeqHdrData  = (sVC1HeaderParser.sSeqHdr.EXTENDED_DMV&0x1)  << VC1_SEQHDR_EXTENDED_DMV;
+        pParseHeaderCMD->ui32SeqHdrData  = (pic_params->mv_fields.bits.extended_dmv_flag) << VC1_SEQHDR_EXTENDED_DMV;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.PSF&0x1)                   << VC1_SEQHDR_PSF;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.psf)               << VC1_SEQHDR_PSF;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.FINTERPFLAG&0x1)   << VC1_SEQHDR_FINTERPFLAG;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.finterpflag) << VC1_SEQHDR_FINTERPFLAG;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.TFCNTRFLAG&0x1)    << VC1_SEQHDR_TFCNTRFLAG;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.tfcntrflag) << VC1_SEQHDR_TFCNTRFLAG;;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.INTERLACE&0x1)             << VC1_SEQHDR_INTERLACE;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.interlace)         << VC1_SEQHDR_INTERLACE;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.PULLDOWN&0x1)              << VC1_SEQHDR_PULLDOWN;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.pulldown)          << VC1_SEQHDR_PULLDOWN;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.POSTPROCFLAG&0x1)  << VC1_SEQHDR_POSTPROCFLAG;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->post_processing & 0x1)          << VC1_SEQHDR_POSTPROCFLAG;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.VSTRANSFORM&0x1)   << VC1_SEQHDR_VSTRANSFORM;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->transform_fields.bits.variable_sized_transform_flag) << VC1_SEQHDR_VSTRANSFORM;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (rser.sSeqHdr.DQUANT&0x3)                << VC1_SEQHDR_DQUANT;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->pic_quantizer_fields.bits.dquant) << VC1_SEQHDR_DQUANT;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.EXTENDED_MV&0x1)   << VC1_SEQHDR_EXTENDED_MV;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->mv_fields.bits.extended_mv_flag)<< VC1_SEQHDR_EXTENDED_MV;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.FASTUVMC&0x1)              << VC1_SEQHDR_FASTUVMC;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->fast_uvmc_flag & 0x1)		        << VC1_SEQHDR_FASTUVMC;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.LOOPFILTER&0x1)    << VC1_SEQHDR_LOOPFILTER;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->entrypoint_fields.bits.loopfilter) << VC1_SEQHDR_LOOPFILTER;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.REFDIST_FLAG&0x1)  << VC1_SEQHDR_REFDIST_FLAG;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->reference_fields.bits.reference_distance_flag) << VC1_SEQHDR_REFDIST_FLAG;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.PANSCAN_FLAG&0x1)  << VC1_SEQHDR_PANSCAN_FLAG;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->entrypoint_fields.bits.panscan_flag) << VC1_SEQHDR_PANSCAN_FLAG;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.MAXBFRAMES&0x7)    << VC1_SEQHDR_MAXBFRAMES;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.max_b_frames) << VC1_SEQHDR_MAXBFRAMES;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.RANGERED&0x1)              << VC1_SEQHDR_RANGERED;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.rangered) << VC1_SEQHDR_RANGERED;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.SYNCMARKER&0x1)    << VC1_SEQHDR_SYNCMARKER;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.syncmarker) << VC1_SEQHDR_SYNCMARKER;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.MULTIRES&0x1)              << VC1_SEQHDR_MULTIRES;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.multires) << VC1_SEQHDR_MULTIRES;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.QUANTIZER&0x3)             << VC1_SEQHDR_QUANTIZER;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->pic_quantizer_fields.bits.quantizer) << VC1_SEQHDR_QUANTIZER;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.OVERLAP&0x1)               << VC1_SEQHDR_OVERLAP;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->sequence_fields.bits.overlap) << VC1_SEQHDR_OVERLAP;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (sVC1HeaderParser.sSeqHdr.PROFILE&0x3)               << VC1_SEQHDR_PROFILE;
+        pParseHeaderCMD->ui32SeqHdrData |= (ctx->profile) << VC1_SEQHDR_PROFILE;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (msPicParam.bSecondField&0x1)                                << VC1_SEQHDR_SECONDFIELD;
+        pParseHeaderCMD->ui32SeqHdrData |= (!pic_params->picture_fields.bits.is_first_field) << VC1_SEQHDR_SECONDFIELD;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (mpDestFrame->FrameCodingMode()&0x3)                 << VC1_SEQHDR_FCM_CURRPIC;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->picture_fields.bits.frame_coding_mode & 0x3) << VC1_SEQHDR_FCM_CURRPIC;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= (mui8PicType&0x3)                                              << VC1_SEQHDR_PICTYPE;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->picture_fields.bits.picture_type & 0x3) << VC1_SEQHDR_PICTYPE;
+
+//        pParseHeaderCMD->ui32SeqHdrData |= ((msPicParam.bBidirectionalAveragingMode>>4)&0x1) << VC1_SEQHDR_ICFLAG;
+        pParseHeaderCMD->ui32SeqHdrData |= (pic_params->picture_fields.bits.intensity_compensation) <<  VC1_SEQHDR_ICFLAG;
+
+        pParseHeaderCMD->ui32PicDimensions              = ctx->picture_width_mb;
+        pParseHeaderCMD->ui32PicDimensions         |= (ctx->picture_height_mb << 16);
+
+//        pParseHeaderCMD->ui32BitplaneAddr[0]    = (psBitplaneHWBuffer[0]->GetTopDeviceMemAlloc())->GetDeviceVirtAddress();
+//        pParseHeaderCMD->ui32BitplaneAddr[1]    = (psBitplaneHWBuffer[1]->GetTopDeviceMemAlloc())->GetDeviceVirtAddress();
+//        pParseHeaderCMD->ui32BitplaneAddr[2]    = (psBitplaneHWBuffer[2]->GetTopDeviceMemAlloc())->GetDeviceVirtAddress();
+        RELOC(pParseHeaderCMD->ui32BitplaneAddr[0], ctx->bitplane_hw_buffer.buffer_ofs, &ctx->bitplane_hw_buffer);
+        RELOC(pParseHeaderCMD->ui32BitplaneAddr[1], ctx->bitplane_hw_buffer.buffer_ofs + 0xa000, &ctx->bitplane_hw_buffer);
+        RELOC(pParseHeaderCMD->ui32BitplaneAddr[2], ctx->bitplane_hw_buffer.buffer_ofs + 0xa000*2, &ctx->bitplane_hw_buffer);
+
+//        pParseHeaderCMD->ui32VLCTableAddr       =       psVlcPackedTableData->GetTopDeviceMemAlloc()->GetDeviceVirtAddress();
+        RELOC(pParseHeaderCMD->ui32VLCTableAddr, ctx->vlc_packed_table.buffer_ofs, &ctx->vlc_packed_table);
+	/*
+        pParseHeaderCMD->ui32ICParamData[0]      = ((msPicParam.wBitstreamFcodes >> 8) & 0xFF);
+        pParseHeaderCMD->ui32ICParamData[0] |= ((msPicParam.wBitstreamPCEelements >> 8) & 0xFF) << 8;
+        if( mpForwardRefFrame->TopFieldFirst() )
+                pParseHeaderCMD->ui32ICParamData[0] |= (1 << 16);
+	*/
+        pParseHeaderCMD->ui32ICParamData[0]      = ((pic_params->luma_scale >> 8) & 0xFF);
+        pParseHeaderCMD->ui32ICParamData[0] |= ((pic_params->luma_shift >> 8) & 0xFF) << 8;
+        if( ctx->bTFF_FwRefFrm )
+                pParseHeaderCMD->ui32ICParamData[0] |= (1 << 16);
+	/*
+        pParseHeaderCMD->ui32ICParamData[1]      = (msPicParam.wBitstreamFcodes & 0xFF);
+        pParseHeaderCMD->ui32ICParamData[1]     |= (msPicParam.wBitstreamPCEelements & 0xFF) << 8;
+        if( mpDestFrame->TopFieldFirst() )
+                pParseHeaderCMD->ui32ICParamData[1] |= (1 << 16);
+	*/
+        pParseHeaderCMD->ui32ICParamData[1]      = (pic_params->luma_scale & 0xFF);
+        pParseHeaderCMD->ui32ICParamData[1]     |= (pic_params->luma_shift & 0xFF) << 8;
+        if( pic_params->picture_fields.bits.top_field_first )
+                pParseHeaderCMD->ui32ICParamData[1] |= (1 << 16);
+
+        pParseHeaderCMD->ui32ICParamData[0] = 0x00010000;
+        pParseHeaderCMD->ui32ICParamData[1] = 0x00010020;
+        PARSE_HEADER_CMD tmp = *pParseHeaderCMD;
+	tmp;
+
 }
 
 static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
@@ -2762,16 +3062,13 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
         psb_context_get_next_cmdbuf(ctx->obj_context);
 
         psb__VC1_FE_state(ctx);
-        
-        /* TODO: Optimize? */ 
-        psb__VC1_write_VLC_tables(ctx);
-        
-        psb__VC1_build_VLC_tables(ctx);
+//            psb__VC1_write_VLC_tables(ctx);
+//            psb__VC1_build_VLC_tables(ctx);
 
         psb_cmdbuf_lldma_write_bitstream(ctx->obj_context->cmdbuf,
                                          obj_buffer->psb_buffer,
                                          obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
+                                         (slice_param->slice_data_size),
                                          slice_param->macroblock_offset,
                                          (ctx->profile == WMF_PROFILE_ADVANCED) ? CMD_ENABLE_RBDU_EXTRACTION : 0);
 
@@ -2803,6 +3100,15 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
 
         psb__VC1_load_sequence_registers(ctx);
 
+        if(!VC1_Header_Parser_HW)
+        {
+            psb__VC1_write_VLC_tables(ctx);
+            psb__VC1_build_VLC_tables(ctx);
+        }
+        else {
+            psb__VC1_Send_Parse_Header_Cmd(ctx, ctx->is_first_slice);
+        }
+
         psb__VC1_load_picture_registers(ctx, slice_param);
         
         psb__VC1_setup_bitplane(ctx);
@@ -2819,12 +3125,13 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
         {
             ctx->obj_context->flags |= FW_DXVA_RENDER_IS_FIRST_SLICE;
         }
-        if (ctx->bitplane_present)
+        //if (ctx->bitplane_present)
         {
             ctx->obj_context->flags |= FW_DXVA_RENDER_VC1_BITPLANE_PRESENT;
         }
         ctx->obj_context->last_mb =  ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
 
+        *ctx->slice_first_pic_last = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
 #ifdef DEBUG_TRACE_VERBOSE
         psb__debug_schedule_hexdump("Preload buffer", &ctx->preload_buffer, 0, PRELOAD_BUFFER_SIZE);
         psb__debug_schedule_hexdump("AUXMSB buffer", &ctx->aux_msb_buffer, 0, 0x8000 /* AUXMSB_BUFFER_SIZE */);
@@ -2895,7 +3202,7 @@ static VAStatus psb__VC1_process_slice_data(context_VC1_p ctx, object_buffer_p o
     return vaStatus;
 }
 
-static VAStatus psb_VC1_BeginPicture(
+static VAStatus pnw_VC1_BeginPicture(
             object_context_p obj_context)
 {
     INIT_CONTEXT_VC1
@@ -2910,7 +3217,7 @@ static VAStatus psb_VC1_BeginPicture(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus psb_VC1_RenderPicture(
+static VAStatus pnw_VC1_RenderPicture(
             object_context_p obj_context,
             object_buffer_p *buffers,
             int num_buffers)
@@ -2926,19 +3233,19 @@ static VAStatus psb_VC1_RenderPicture(
         switch( obj_buffer->type)
         {
           case VAPictureParameterBufferType:
-              psb__information_message("psb_VC1_RenderPicture got VAPictureParameterBuffer\n");
+              psb__information_message("pnw_VC1_RenderPicture got VAPictureParameterBuffer\n");
               vaStatus = psb__VC1_process_picture_param(ctx, obj_buffer);
               DEBUG_FAILURE;
               break;
               
           case VABitPlaneBufferType:
-              psb__information_message("psb_VC1_RenderPicture got VABitPlaneBuffer\n");
+              psb__information_message("pnw_VC1_RenderPicture got VABitPlaneBuffer\n");
               vaStatus = psb__VC1_process_bitplane(ctx, obj_buffer);
               DEBUG_FAILURE;
               break;
               
           case VASliceParameterBufferType:
-              psb__information_message("psb_VC1_RenderPicture got VASliceParameterBufferType\n");
+              psb__information_message("pnw_VC1_RenderPicture got VASliceParameterBufferType\n");
               vaStatus = psb__VC1_add_slice_param(ctx, obj_buffer);
               DEBUG_FAILURE;
               break;
@@ -2946,7 +3253,7 @@ static VAStatus psb_VC1_RenderPicture(
           case VASliceDataBufferType:
           case VAProtectedSliceDataBufferType:
               
-              psb__information_message("psb_VC1_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
+              psb__information_message("pnw_VC1_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
               vaStatus = psb__VC1_process_slice_data(ctx, obj_buffer);
               DEBUG_FAILURE;
               break;
@@ -2964,7 +3271,7 @@ static VAStatus psb_VC1_RenderPicture(
     return vaStatus;
 }
 
-static VAStatus psb_VC1_EndPicture(
+static VAStatus pnw_VC1_EndPicture(
             object_context_p obj_context)
 {
     INIT_CONTEXT_VC1
@@ -3008,12 +3315,12 @@ static VAStatus psb_VC1_EndPicture(
     return VA_STATUS_SUCCESS;
 }
 
-struct format_vtable_s psb_VC1_vtable = {
-    queryConfigAttributes: psb_VC1_QueryConfigAttributes,
-    validateConfig: psb_VC1_ValidateConfig,
-    createContext: psb_VC1_CreateContext,
-    destroyContext: psb_VC1_DestroyContext,
-    beginPicture: psb_VC1_BeginPicture,
-    renderPicture: psb_VC1_RenderPicture,
-    endPicture: psb_VC1_EndPicture
+struct format_vtable_s pnw_VC1_vtable = {
+    queryConfigAttributes: pnw_VC1_QueryConfigAttributes,
+    validateConfig: pnw_VC1_ValidateConfig,
+    createContext: pnw_VC1_CreateContext,
+    destroyContext: pnw_VC1_DestroyContext,
+    beginPicture: pnw_VC1_BeginPicture,
+    renderPicture: pnw_VC1_RenderPicture,
+    endPicture: pnw_VC1_EndPicture
 };

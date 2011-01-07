@@ -88,6 +88,48 @@ void psb_android_register_isurface(void** android_isurface, int bcd_id, int srcw
         isurface->setTextureStreamDim(srcw, srch-1);
 }
 
+void psb_android_texture_streaming_set_crop( short srcx,
+                                                short srcy,
+                                                unsigned short srcw,
+                                                unsigned short srch )
+{
+    if (isurface.get()) {
+            isurface->setTextureStreamClipRect(srcx, srcy, srcw, srch);
+    }
+}
+
+void psb_android_texture_streaming_set_blend( short destx,
+                                                            short desty,
+                                                            unsigned short destw,
+                                                            unsigned short desth,
+                                                            unsigned int blend_enabled,
+                                                            unsigned int background_color,
+                                                            unsigned int blend_color,
+                                                            unsigned short blend_mode )
+{
+    unsigned short bg_red, bg_green, bg_blue, bg_alpha;
+    unsigned short blend_red, blend_green, blend_blue, blend_alpha;
+    bg_alpha = (background_color & 0xff000000) >> 24;
+    bg_red = (background_color & 0xff0000) >> 16;
+    bg_green = (background_color & 0xff00) >> 8;
+    bg_blue = background_color & 0xff;
+
+    blend_alpha = (blend_color & 0xff000000) >> 24;
+    blend_red = (blend_color & 0xff0000) >> 16;
+    blend_green = (blend_color & 0xff00) >> 8;
+    blend_blue = blend_color & 0xff;
+
+    if (isurface.get()) {
+        if (blend_enabled) {
+            isurface->setTextureStreamPosRect(destx, desty, destw, desth);
+            isurface->setTextureStreamBorderColor(bg_red, bg_green, bg_blue, bg_alpha);
+            isurface->setTextureStreamVideoColor(blend_red, blend_green, blend_blue, blend_alpha);
+            isurface->setTextureStreamBlendMode(blend_mode);
+        } else
+            isurface->resetTextureStreamParams();
+    }
+}
+
 void psb_android_texture_streaming_display(int buffer_index)
 {
     if (isurface.get())

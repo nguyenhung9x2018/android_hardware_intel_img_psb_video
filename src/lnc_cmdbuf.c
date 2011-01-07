@@ -503,16 +503,11 @@ int lnc_context_submit_cmdbuf( object_context_p obj_context )
  * vaQuerySurfaceStatus is supposed only to be called after vaEndPicture/vaSyncSurface,
  * The caller should ensure the surface pertains to an encode context
  */
-int lnc_surface_get_frameskip(object_context_p obj_context, psb_surface_p surface, int *frame_skip)
+int lnc_surface_get_frameskip(psb_driver_data_p driver_data, psb_surface_p surface, int *frame_skip)
 {
     struct drm_lnc_video_getparam_arg arg;
     unsigned long temp;
     int ret = 0;
-    psb_driver_data_p driver_data = obj_context->driver_data;
-    context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
-
-    if (ctx->sRCParams.RCEnable == 0)
-	return 0;
 
     /* bit31 indicate if frameskip is already settled, it is used to record the frame skip flag for old surfaces
      * because current FRAMESKIP in hardware can't be applied to the old surfaces

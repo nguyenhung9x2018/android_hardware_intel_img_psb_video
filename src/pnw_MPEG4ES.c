@@ -353,32 +353,44 @@ static VAStatus pnw__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
     int i;
+    int slice_param_idx;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
 
     pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
 
-    /*In DDK186, firmware handles the frame skip*/
-    /* do nothing for skip frame if RC enabled */
-    /*if ((ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip)) {
-	free(obj_buffer->buffer_data);   
-	obj_buffer->buffer_data = NULL;
-	psb__information_message("MPEG4 : will skip current frame.\n");
-	return VA_STATUS_SUCCESS;
-    }*/
-    /* 
     if (0 == pBuffer->start_row_number)
     {
 	if (pBuffer->slice_flags.bits.is_intra) 
-	    RELOC_PIC_PARAMS(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_I);
+	    RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_I);
 	else
-	    RELOC_PIC_PARAMS(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_P);
+	    RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_P);
     }
-    */
-    /*
-    if (0 == pBuffer->start_row_number)
-        RELOC_PIC_PARAMS(&psPicParams->InParamsBase, ctx->in_params_ofs, &cmdbuf->topaz_in_params);
-    */
+
+    /*In case the slice number changes*/
+    if ( (ctx->slice_param_cache != NULL ) && (obj_buffer->num_elements != ctx->slice_param_num))
+    {
+	psb__information_message("Slice number changes. Previous value is %d. Now it's %d\n", 
+		ctx->slice_param_num, obj_buffer->num_elements);
+	free(ctx->slice_param_cache);
+	ctx->slice_param_cache = NULL;
+	ctx->slice_param_num = 0;
+    }	
+
+    if (NULL == ctx->slice_param_cache)
+    {
+	psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num); 
+	ctx->slice_param_num = obj_buffer->num_elements;
+	ctx->slice_param_cache = calloc( 2*ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
+	if (NULL == ctx->slice_param_cache)
+	{
+	    psb__error_message("Run out of memory!\n");
+	    free(obj_buffer->buffer_data);
+	    return VA_STATUS_ERROR_ALLOCATION_FAILED;
+	}
+    }
+
+
     for(i = 0; i < obj_buffer->num_elements; i++) {
 
         unsigned char deblock_idc;
@@ -393,29 +405,26 @@ static VAStatus pnw__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
                 ctx->BelowParamsBufIdx = (ctx->BelowParamsBufIdx + 1) & 0x1;
         }
 
-    //if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[(pBuffer->slice_flags.bits.is_intra?0:1)],pBuffer) == 0) {
-	//	/* cache current param parameters */
-//		memcpy(&ctx->slice_param_cache[(pBuffer->slice_flags.bits.is_intra ? 0:1)],
-//			pBuffer, sizeof(VAEncSliceParameterBuffer));
-//
-//		/* Setup InParams value*/
-//		pnw_setup_slice_params(ctx,
-//			pBuffer->start_row_number * 16,
-//			pBuffer->slice_height*16,
-//			pBuffer->slice_flags.bits.is_intra,
-//			ctx->obj_context->frame_count > 0,
-//			psPicParams->sInParams.SeInitQP);
-//	    }
- 	pnw_setup_slice_params(ctx,
-			pBuffer->start_row_number * 16,
-			pBuffer->slice_height*16,
-			pBuffer->slice_flags.bits.is_intra,
-			ctx->obj_context->frame_count > 0,
-			psPicParams->sInParams.SeInitQP);
-           
-        pnw__send_encode_slice_params(ctx,
-                                      pBuffer->slice_flags.bits.is_intra,
-                                      pBuffer->start_row_number * 16,
+	/*The corresponding slice buffer cache*/
+	slice_param_idx = (pBuffer->slice_flags.bits.is_intra ? 0:1) * ctx->slice_param_num + i; 
+
+	if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[slice_param_idx],pBuffer) == 0) {
+	    /* cache current param parameters */
+	    memcpy(&ctx->slice_param_cache[slice_param_idx],
+		    pBuffer, sizeof(VAEncSliceParameterBuffer));
+
+	    /* Setup InParams value*/
+	    pnw_setup_slice_params(ctx,
+		    pBuffer->start_row_number * 16,
+		    pBuffer->slice_height*16,
+		    pBuffer->slice_flags.bits.is_intra,
+		    ctx->obj_context->frame_count > 0,
+		    psPicParams->sInParams.SeInitQP);
+	}
+
+	pnw__send_encode_slice_params(ctx,
+		pBuffer->slice_flags.bits.is_intra,
+		pBuffer->start_row_number * 16,
                                       deblock_idc,
                                       ctx->obj_context->frame_count,
                                       pBuffer->slice_height*16,

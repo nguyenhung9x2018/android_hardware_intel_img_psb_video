@@ -51,11 +51,6 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-/******************************************************************************
-Modifications :-
-$Log: pvr2d.h $
-******************************************************************************/
-
 #ifndef _PVR2D_H_
 #define _PVR2D_H_
 
@@ -64,12 +59,17 @@ extern "C" {
 #endif 
 
 /* PVR2D Platform-specific definitions */
+#if defined (__linux__)
+#define PVR2D_EXPORT __attribute__((visibility("default")))
+#define PVR2D_IMPORT
+#else
 #define PVR2D_EXPORT
 #define PVR2D_IMPORT
+#endif
 
 /* PVR2D header revision */
 #define PVR2D_REV_MAJOR		3
-#define PVR2D_REV_MINOR		2
+#define PVR2D_REV_MINOR		5
 
 /* Basic types */
 typedef enum
@@ -138,17 +138,27 @@ typedef unsigned long PVR2DFORMAT;
 #define PVR2D_64BPP_RAW					0x1DUL // 64 bit raw
 #define PVR2D_128BPP_RAW				0x1EUL // 128 bit raw
 #define PVR2D_RGBA8888					0x1FUL // Common rgba 888 format 
-#define PVR2D_NV12_U8V8                 0x20UL // NV12 Plane U8V8
+#define PVR2D_NV12_U8V8					0x20UL // NV12 Plane U8V8
 
 #define	PVR2D_NO_OF_FORMATS				0x21UL
 
-/* Format modifier bit fields */
-#define PVR2D_FORMAT_MASK				0x0000FFFFUL	// Format field
-#define PVR2D_FORMAT_LAYOUT_MASK		0x00FF0000UL	// Format layout (strided / twiddled / tiled)
-#define PVR2D_FORMAT_LAYOUT_SHIFT		16UL
-#define PVR2D_FORMAT_LAYOUT_STRIDED		(0x00UL)
-#define PVR2D_FORMAT_LAYOUT_TILED		(0x01UL<<(PVR2D_FORMAT_LAYOUT_SHIFT))
-#define PVR2D_FORMAT_LAYOUT_TWIDDLED	(0x02UL<<(PVR2D_FORMAT_LAYOUT_SHIFT))
+/* Format modifier bit field (DstFormat and SrcFormat bits 16..23) */
+#define PVR2D_FORMAT_MASK				0x0000FFFFUL	// PVR2D Format bits
+#define PVR2D_FORMAT_LAYOUT_MASK		0x000F0000UL	// Format layout (strided / twiddled / tiled)
+#define PVR2D_FORMAT_FLAGS_MASK			0x0FF00000UL	// Surface Flags mask
+
+/* Layout */
+#define PVR2D_FORMAT_LAYOUT_SHIFT		16
+#define PVR2D_FORMAT_LAYOUT_STRIDED		0x00000000UL
+#define PVR2D_FORMAT_LAYOUT_TILED		0x00010000UL
+#define PVR2D_FORMAT_LAYOUT_TWIDDLED	0x00020000UL
+
+/*
+	PVR2D_SURFACE_PDUMP
+	This flag requests a surface pdump, to capture the pixel state after host writes.
+	Not needed if the surface state has resulted from previous SGX 2D/3D core writes.
+*/
+#define PVR2D_SURFACE_PDUMP				0x00100000UL	// calls PVRSRVPDumpMem to capture the surface (pdump builds only) 
 
 /*
 	Low level 3D format extension - for blts via the 3D core only.
@@ -175,22 +185,29 @@ typedef enum
 /* flags for control information of additional blits */
 typedef enum
 {
-	PVR2D_BLIT_DISABLE_ALL					= 0x0000,	/* disable all additional controls */
-	PVR2D_BLIT_CK_ENABLE					= 0x0001,	/* enable colour key */
-	PVR2D_BLIT_GLOBAL_ALPHA_ENABLE			= 0x0002,	/* enable standard global alpha */
-	PVR2D_BLIT_PERPIXEL_ALPHABLEND_ENABLE	= 0x0004,	/* enable per-pixel alpha bleding */
-	PVR2D_BLIT_PAT_SURFACE_ENABLE			= 0x0008,	/* enable pattern surf (disable fill) */
-	PVR2D_BLIT_FULLY_SPECIFIED_ALPHA_ENABLE	= 0x0010,	/* enable fully specified alpha */
-	PVR2D_BLIT_ROT_90						= 0x0020,	/* apply 90 degree rotation to the blt */
-	PVR2D_BLIT_ROT_180						= 0x0040,	/* apply 180 degree rotation to the blt */
-	PVR2D_BLIT_ROT_270						= 0x0080,	/* apply 270 degree rotation to the blt */
-	PVR2D_BLIT_COPYORDER_TL2BR				= 0x0100,	/* copy order overrides */
-	PVR2D_BLIT_COPYORDER_BR2TL				= 0x0200,
-	PVR2D_BLIT_COPYORDER_TR2BL				= 0x0400,
-	PVR2D_BLIT_COPYORDER_BL2TR				= 0x0800,
-	PVR2D_BLIT_COLKEY_SOURCE				= 0x1000,	/* Key colour is on the source surface */
-	PVR2D_BLIT_COLKEY_DEST					= 0x2000,	/* Key colour is on the destination surface */
-	PVR2D_BLIT_NO_SRC_SYNC_INFO				= 0x4000	/* Dont send a source sync info*/
+	PVR2D_BLIT_DISABLE_ALL					= 0x00000000,	/* disable all additional controls */
+	PVR2D_BLIT_CK_ENABLE					= 0x00000001,	/* enable colour key */
+	PVR2D_BLIT_GLOBAL_ALPHA_ENABLE			= 0x00000002,	/* enable standard global alpha */
+	PVR2D_BLIT_PERPIXEL_ALPHABLEND_ENABLE	= 0x00000004,	/* enable per-pixel alpha bleding */
+	PVR2D_BLIT_PAT_SURFACE_ENABLE			= 0x00000008,	/* enable pattern surf (disable fill) */
+	PVR2D_BLIT_FULLY_SPECIFIED_ALPHA_ENABLE	= 0x00000010,	/* enable fully specified alpha */
+	PVR2D_BLIT_ROT_90						= 0x00000020,	/* apply 90 degree rotation to the blt */
+	PVR2D_BLIT_ROT_180						= 0x00000040,	/* apply 180 degree rotation to the blt */
+	PVR2D_BLIT_ROT_270						= 0x00000080,	/* apply 270 degree rotation to the blt */
+	PVR2D_BLIT_COPYORDER_TL2BR				= 0x00000100,	/* copy order overrides */
+	PVR2D_BLIT_COPYORDER_BR2TL				= 0x00000200,
+	PVR2D_BLIT_COPYORDER_TR2BL				= 0x00000400,
+	PVR2D_BLIT_COPYORDER_BL2TR				= 0x00000800,
+	PVR2D_BLIT_COLKEY_SOURCE				= 0x00001000,	/* Key colour is on the source surface */
+	PVR2D_BLIT_COLKEY_DEST					= 0x00002000,	/* Key colour is on the destination surface */
+	PVR2D_BLIT_COLKEY_MASKED				= 0x00004000,	/* Mask enabled for colour key */
+	PVR2D_BLIT_COLKEY_OP_PASS				= 0x00008000,	/* Colour key op = pass */
+	PVR2D_BLIT_COLKEY_OP_REJECT				= 0x00010000,	/* Colour key op = reject */
+	PVR2D_BLIT_PATH_2DCORE					= 0x00100000,	/* Blt via dedicated 2D Core or PTLA */
+	PVR2D_BLIT_PATH_3DCORE					= 0x00200000,	/* Blt via 3D Core */
+	PVR2D_BLIT_PATH_SWBLT					= 0x00400000,	/* Blt via host software */
+	PVR2D_BLIT_NO_SRC_SYNC_INFO				= 0x00800000,	/* Dont send a source sync info*/
+	PVR2D_BLIT_ISSUE_STATUS_UPDATES			= 0x01000000,	/* Issue status updates */
 
 } PVR2DBLITFLAGS;
 
@@ -201,7 +218,7 @@ typedef enum
 	PVR2D_ALPHA_OP_SRCP_DSTINV = 2	/* premultiplied source alpha : Cdst = Csrc + Cdst*(1-Asrc) */
 } PVR2D_ALPHABLENDFUNC;
 
-/* blend ops for fully specified alpha */
+/* blend ops for fully specified alpha (SGX 2D Core only) */
 typedef enum
 {
 	PVR2D_BLEND_OP_ZERO = 0,
@@ -213,7 +230,7 @@ typedef enum
 	PVR2D_BLEND_OP_DST_PLUS_GLOBAL = 6
 }PVR2D_BLEND_OP;
 
-/* 2D Core Fully specified alpha blend :	pAlpha field of PVR2DBLTINFO structure			*/
+/* SGX 2D Core Fully specified alpha blend :	pAlpha field of PVR2DBLTINFO structure		*/
 /* a fully specified Alpha Blend operation is defined as									*/
 /* DST (ALPHA) = (ALPHA_1 * SRC (ALPHA)) + (ALPHA_3 * DST (ALPHA))							*/
 /* DST (RGB)   = (ALPHA_2 * SRC (RGB)) + (ALPHA_4 * DST (RGB))								*/
@@ -278,6 +295,7 @@ typedef struct _PVR2DISPLAYINFO
 	PVR2D_ULONG	ulMaxFlipInterval;
 
 }PVR2DDISPLAYINFO;
+
 
 typedef struct _PVR2MISCDISPLAYINFO
 {
@@ -355,11 +373,13 @@ typedef struct _PVR2DBLTINFO
 	PVR2D_ULONG		MaskSurfHeight;		/* size of mask surface in pixels */
 	
 	PPVR2D_ALPHABLT pAlpha;				/* fully specified alpha blend (2DCore only) */
-
+	
 	PVR2D_ULONG		uSrcChromaPlane1;	/* mem offset from start of source alloc to chroma plane 1 */
 	PVR2D_ULONG		uSrcChromaPlane2;	/* mem offset from start of source alloc to chroma plane 2 */
 	PVR2D_ULONG		uDstChromaPlane1;	/* mem offset from start of dest alloc to chroma plane 1 */
 	PVR2D_ULONG		uDstChromaPlane2;	/* mem offset from start of dest alloc to chroma plane 2 */
+	
+	PVR2D_ULONG		ColourKeyMask;		/* 32 bit colour key mask, only valid when PVR2D_BLIT_COLKEY_MASKED is set */
 
 }PVR2DBLTINFO, *PPVR2DBLTINFO;
 
@@ -371,14 +391,22 @@ typedef struct _PVR2DRECT
 
 typedef struct
 {
-	PVR2DMEMINFO	*pSurfMemInfo;		/* surface memory */
+	PVR2DMEMINFO		*pSurfMemInfo;			/* surface memory */
 	PVR2D_ULONG		SurfOffset;			/* byte offset from start of allocation to destination surface pixel 0,0 */
 	PVR2D_LONG		Stride;				/* signed stride */
-	PVR2DFORMAT		Format;				/* PVR2D_3DFORMAT implies a 3D-only format in Format3D field */
-	PVR2D_ULONG		SurfWidth;			/* surface size in pixels */
-	PVR2D_ULONG		SurfHeight;
+	PVR2DFORMAT		Format;				/* format */
+	PVR2D_ULONG		SurfWidth;			/* surface width in pixels */
+	PVR2D_ULONG		SurfHeight;			/* surface height in pixels */
 
 } PVR2D_SURFACE, *PPVR2D_SURFACE;
+
+typedef struct
+{
+	PVR2D_ULONG		uChromaPlane1;		/* YUV multiplane - byte offset from start of alloc to chroma plane 1 */
+	PVR2D_ULONG		uChromaPlane2;		/* YUV multiplane - byte offset from start of alloc to chroma plane 2 */
+	PVR2D_LONG		Reserved[2];		/* Reserved, must be zero */
+
+} PVR2D_SURFACE_EXT, *PPVR2D_SURFACE_EXT;
 
 typedef struct
 {
@@ -391,27 +419,30 @@ typedef struct
 {
 	PVR2D_SURFACE			sDst;				/* destination surface */
 	PVR2D_SURFACE			sSrc;				/* source surface */
-	PVR2DRECT			rcDest;				/* destination rectangle */
-	PVR2DRECT			rcSource;			/* source rectangle */
+	PVR2DRECT				rcDest;				/* destination rectangle */
+	PVR2DRECT				rcSource;			/* source rectangle */
 	PVR2D_HANDLE			hUseCode;			/* custom USE code (NULL implies source copy) */
 	PVR2D_ULONG				UseParams[2];		/* per-blt params for use code */
-    PVR2D_UCHAR             RotationValue;          /* Rotation setting */
+	PVR2D_UCHAR				RotationValue;          /* Rotation setting */
 } PVR2D_3DBLT, *PPVR2D_3DBLT;
 
 typedef struct
 {
 	PVR2D_SURFACE			sDst;						/* destination surface */
-	PVR2DRECT			rcDest;						/* destination rectangle; scaling is supported */
+	PVR2DRECT				rcDest;						/* destination rectangle; scaling is supported */
 	PVR2D_SURFACE			sSrc;						/* source surface */
-	PVR2DRECT			rcSource;					/* source rectangle; scaling is supported */
+	PVR2DRECT				rcSource;					/* source rectangle; scaling is supported */
 	PPVR2D_SURFACE			pSrc2;						/* optional second source surface (NULL if not required) */
-	PVR2DRECT*			prcSource2;					/* optional pSrc2 rectangle */
+	PVR2DRECT*				prcSource2;					/* optional pSrc2 rectangle */
 	PVR2D_HANDLE			hUseCode;					/* custom USSE shader code (NULL implies default source copy) */
 	PVR2D_ULONG				UseParams[2];				/* per-blt params for usse code */
-	PVR2D_UINT				uiNumTemporaryRegisters;	/* no. of temporary registers used in custom shader code */
-	PVR2D_BOOL			bDisableDestInput;			/* set true if the destination is output only */        
-} PVR2D_3DBLT_EXT, *PPVR2D_3DBLT_EXT;
+	PVR2D_ULONG				uiNumTemporaryRegisters;	/* no. of temporary registers used in custom shader code */
+	PVR2D_BOOL				bDisableDestInput;			/* set true if the destination is output only */
+	PPVR2D_SURFACE_EXT		pDstExt;					/* Extended format params for dest */
+	PPVR2D_SURFACE_EXT		pSrcExt[2];					/* Extended format params for source 1 and 2 */
+	PVR2D_LONG				Reserved[4];				/* Reserved, must be zero */
 
+} PVR2D_3DBLT_EXT, *PPVR2D_3DBLT_EXT;
 
 typedef struct
 {
@@ -425,7 +456,19 @@ typedef struct
     PPVR2D_YUVCOEFFS                    psYUVCoeffs;            /* YUV Coeffs needed for RGB conversion */    
     PVR2D_UINT                          uiNumLayers;            /* no. of YUV planes */
     PVR2D_UCHAR                         RotationValue;          /* Rotation setting */
+    PVR2D_SURFACE			sSrcSubpic[6];          /* subpic source surfaces */
+    PVR2DRECT                           rcSubpicSource[6];	/* source rectangle */
+    PVR2DRECT				rcSubpicDest[6];	/* subpicture destination rectangle */
+    PVR2DMEMINFO			*pPalMemInfo[6];	/* source/pattern palette memory containing argb8888 colour table */
+    PVR2D_ULONG				PalOffset[6];		/* byte offset from start of allocation to start of palette */
  } PVR2D_VPBLT, *PPVR2D_VPBLT;
+
+ typedef struct
+ {
+     PVR2D_SURFACE           sDst;           /* destination surface */
+     PVR2DRECT               rcDest;         /* destination rectangle */
+     PVR2DRECT               rcSource;       /* source rectangle */
+ } PVR2D_WIDIBLT, *PPVR2D_WIDIBLT;
 
 #define MAKE_COPY_BLIT(src,soff,dest,doff,sx,sy,dx,dy,sz)
 
@@ -504,27 +547,38 @@ typedef void* PVR2DFLIPCHAINHANDLE;
 #define PVR2D_PRESENT_PROPERTY_CLIPRECTS	(1UL << 3)
 #define PVR2D_PRESENT_PROPERTY_INTERVAL		(1UL << 4)
 
-
 #define PVR2D_CREATE_FLIPCHAIN_SHARED		(1UL << 0)
 #define PVR2D_CREATE_FLIPCHAIN_QUERY		(1UL << 1)
-#define PVR2D_CREATE_FLIPCHAIN_OEMOVERLAY   	(1UL << 2)
-#define PVR2D_CREATE_FLIPCHAIN_AS_BLITCHAIN 	(1UL << 3)
+#define PVR2D_CREATE_FLIPCHAIN_OEMOVERLAY   (1UL << 2)
+#define PVR2D_CREATE_FLIPCHAIN_AS_BLITCHAIN (1UL << 3)
 
-/* Colour-key colours must be translated into argb8888 format */
+/* Colour-key colour must be translated into argb8888 format */
 #define CKEY_8888(P)		(P)
 #define CKEY_4444(P)		(((P&0xF000UL)<<16) | ((P&0x0F00UL)<<12) | ((P&0x00F0UL)<<8) | ((P&0x000FUL)<<4))
 #define CKEY_1555(P)		(((P&0x8000UL)<<16) | ((P&0x7C00UL)<<9)  | ((P&0x3E0UL)<<6)  | ((P&0x1FUL)<<3))
 #define CKEY_565(P)			(((P&0xF800UL)<<8)  | ((P&0x7E0UL)<<5)   | ((P&0x1FUL)<<3))
 #define CKEY_MASK_8888		0x00FFFFFFUL
 #define CKEY_MASK_4444		0x00F0F0F0UL
-#define CKEY_MASK_1555		0x00F8F8F8UL
+#define CKEY_MASK_1555		0x00F8F8F8UL	/* Alpha is not normally included in the key test */
 #define CKEY_MASK_565		0x00F8FCF8UL
 
+/* Fill colours must be translated into argb8888 format */
+#define CFILL_4444(P)		(((P&0xF000UL)<<16) | ((P&0x0F00UL)<<12) | ((P&0x00F0UL)<<8) | ((P&0x000FUL)<<4))
+#define CFILL_1555(P)		(((P&0x8000UL)<<16) | ((P&0x7C00UL)<<9)  | ((P&0x3E0UL)<<6)  | ((P&0x1FUL)<<3))
+#define CFILL_565(P)		(((P&0xF800UL)<<8)  | ((P&0x7E0UL)<<5)   | ((P&0x1FUL)<<3))
+
+/* PVR2DCreateDeviceContext flags */
+#define PVR2D_XSERVER_PROC			0x00000001UL		/*!< Set for the Xserver connection */
+
+/* PVR2DMemAlloc flags */
+#define PVR2D_MEM_UNCACHED			0x00000000UL	/* Default */
+#define PVR2D_MEM_CACHED			0x00000001UL	/* Caller must flush and sync when necessary */
+#define PVR2D_MEM_WRITECOMBINE		0x00000002UL
 
 /* Functions that the library exports */
 
 PVR2D_IMPORT
-PVR2D_INT PVR2DEnumerateDevices(PVR2DDEVICEINFO *pDevInfo);
+int PVR2DEnumerateDevices(PVR2DDEVICEINFO *pDevInfo);
 
 PVR2D_IMPORT
 PVR2DERROR PVR2DCreateDeviceContext(PVR2D_ULONG ulDevID,
@@ -676,6 +730,20 @@ PVR2DERROR PVR2DBlt3DExt (const PVR2DCONTEXTHANDLE hContext, const PPVR2D_3DBLT_
 
 PVR2D_IMPORT
 PVR2DERROR PVR2DBltVideo (const PVR2DCONTEXTHANDLE hContext, const PPVR2D_VPBLT pBltVP);
+
+PVR2D_IMPORT
+PVR2DERROR PVR2DScaleBltEx (const PVR2DCONTEXTHANDLE hContext, const PPVR2D_3DBLT pBlt3D,
+    const PVR2D_ULONG color, const PVR2D_INT isFixedSize, const PVR2DRECT *pFillRect);
+
+PVR2D_EXPORT
+PVR2DERROR PVR2D_GetSrcRect(PVR2DRECT *pSrc, PVR2DRECT *pDest, 
+    PVR2D_INT tgtXOffset, PVR2D_INT tgtYOffset, 
+    PVR2D_UINT tgtWidth, PVR2D_UINT tgtHeight,
+    PVR2D_UINT winWidth, PVR2D_UINT winHeight);
+
+PVR2D_IMPORT
+PVR2DERROR PVR2DBltWidi (const PVR2DCONTEXTHANDLE hContext, const PPVR2D_WIDIBLT pBltWidi);
+
 #ifdef __cplusplus
 }
 #endif 

@@ -113,6 +113,7 @@ VAStatus psb_initOutput(VADriverContextP ctx)
 #endif
     driver_data->ws_priv = ws_priv;
 
+#ifndef ANDROID
     /* use client overlay  */
     if (driver_data->coverlay == 1)
         psb_coverlay_init(ctx);
@@ -120,6 +121,7 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     //use client textureblit
     if (driver_data->ctexture == 1)
 	psb_ctexture_init(ctx);
+#endif
 
     /*
     //use texture streaming
@@ -135,13 +137,20 @@ VAStatus psb_deinitOutput(
 )
 {
     INIT_DRIVER_DATA;
-	
+
+    struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
+
+#ifndef ANDROID
     if (driver_data->coverlay == 1)
         psb_coverlay_deinit(ctx);
 
     //use client textureblit
-    if (driver_data->ctexture == 1)
+    if (driver_data->ctexture == 1) {
 	psb_ctexture_deinit(ctx);
+	if (texture_priv->extend_dri_init_flag)	
+	    psb_extend_ctexture_deinit(ctx);
+    }
+#endif
 	
 #ifdef ANDROID
     psb_android_output_deinit(ctx);
@@ -1873,6 +1882,9 @@ VAStatus psb_GetDisplayAttributes (
         case VADisplayAttribBackgroundColor:
             p->value = driver_data->clear_color;
             break;
+        case VADisplayAttribBlendColor:
+            p->value = driver_data->blend_color;
+            break;
         default:
             break;
         }
@@ -1957,7 +1969,10 @@ VAStatus psb_SetDisplayAttributes (
             driver_data->rotate = p->value;
             if(driver_data->rotate == 4)
                 driver_data->rotate = 3; /* Match with hw definition */
-               
+            break;
+        case VADisplayAttribBlendColor:
+            driver_data->blend_color = p->value;
+            break;
         default:
             break;
         }

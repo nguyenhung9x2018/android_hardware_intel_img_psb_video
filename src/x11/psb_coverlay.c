@@ -55,6 +55,19 @@ typedef struct x11_rect_list {
     struct x11_rect_list * next;
 } psb_x11_clip_list_t;
 
+typedef struct {
+    /*src coordinate*/
+    short srcx;
+    short srcy;
+    unsigned short sWidth;
+    unsigned short sHeight;
+    /*dest coordinate*/
+    short destx;
+    short desty;
+    unsigned short dWidth;
+    unsigned short dHeight;
+} psb_overlay_rect_t, *psb_overlay_rect_p;
+
 static int 
 psb_x11_getWindowCoordinate(Display * display,
                             Window x11_window_id,
@@ -386,136 +399,6 @@ psb_x11_createWindowClipBoxList(Display *              display,
     return 0; 
 }
 
-static VAStatus psb_DisplayRGBASubpicture(
-	PsbVASurfaceRec *subpicture,  
-	VADriverContextP ctx,
-	GC gc,
-	Drawable draw, /* X Drawable */
-	int win_width,
-	int win_height,
-	int surface_x,
-	int surface_y
-)
-{
-    INIT_DRIVER_DATA;
-    XImage *ximg = NULL;
-    Visual *visual;
-    PsbPortPrivRec *pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
-    struct _WsbmBufferObject *bo = subpicture->bo;
-    int image_width, image_height, width, height, size;
-    int srcx, srcy, srcw, srch;
-    int destx, desty, destw, desth;
-    int depth;
-
-    if (subpicture->fourcc != VA_FOURCC_RGBA){
-	psb__error_message("%s: Invalid image format, ONLY support RGBA subpicture now.\n", __func__);
-       return VA_STATUS_ERROR_INVALID_IMAGE_FORMAT;
-    }
-    /*clear frame buffer*/
-    XSetForeground((Display *)ctx->native_dpy, gc, 0);
-    XFillRectangle((Display *)ctx->native_dpy, draw, gc, 0, 0, win_width, win_height);
-    XSync((Display *)ctx->native_dpy, False);
-
-    srcx = subpicture->subpic_srcx;
-    srcy = subpicture->subpic_srcy;
-    srcw = subpicture->subpic_srcw;
-    srch = subpicture->subpic_srch;
-
-    destx = subpicture->subpic_dstx + surface_x;
-    desty = subpicture->subpic_dsty + surface_y;
-    destw = subpicture->subpic_dstw;
-    desth = subpicture->subpic_dsth;
-	
-    image_width = subpicture->width;
-    image_height = subpicture->height;
-    size = subpicture->size;
-	
-    //clip in image region
-    if (srcx < 0) {
-	srcw += srcx;
-	srcx = 0;
-    }
-	
-    if (srcy < 0) {
-	srch += srcy;
-	srcy = 0;
-    }
-
-    if ((srcx + srcw) > image_width)
-        srcw = image_width - srcx;
-    if ((srcy + srch) > image_height)
-	srch = image_height -srcy;
-
-    //clip in drawable region
-    if (destx < 0) {
-	destw += destx;
-	destx = 0;
-    }
-	
-    if (desty < 0) {
-	desth += desty;
-	desty = 0;
-    }
-    /*Temporary handle for testsuite subpicture destx/desty exceeding window width/height.*/
-    if (destx > win_width)
-	destx %= win_width;
-    if (desty > win_height)
-	desty %= win_height;
-    /*****************/
-
-    if ((destx + destw) > win_width)
-	destw = win_width - destx;
-    if ((desty + desth) > win_height)
-	desth = win_height - desty;
-
-    if (srcw <= destw)
-        width = srcw;
-    else
-        width = destw;
-
-    if (srch <= desth)
-        height = srch;
-    else
-        height = desth;
-
-    visual = DefaultVisual(ctx->native_dpy, 0);
-    depth = DefaultDepth(ctx->native_dpy, 0);
-
-    ximg = XCreateImage(ctx->native_dpy, visual, depth, ZPixmap, 0, NULL, image_width, image_height, 32, 0 );
-	
-    ximg->data = wsbmBOMap( bo, WSBM_ACCESS_READ);
-    if (NULL == ximg->data) {
-	 psb__error_message("%s: Failed to map to ximg->data.\n", __func__);
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    }
-	
-    XPutImage(ctx->native_dpy, draw, gc, ximg, srcx, srcy, destx, desty, width, height);
-    XSync((Display *)ctx->native_dpy, False);
-	
-    ximg->data = NULL;
-    wsbmBOUnmap(bo);
-    if (NULL != ximg)
-        XDestroyImage(ximg);
-    
-    if ( !pPriv->subpicture_enabled ) {
-        struct drm_psb_register_rw_arg regs;
-	unsigned int subpicture_enable_mask = REGRWBITS_DSPACNTR;
-		
-	if (psb_xrandr_hdmi_connected())
-            subpicture_enable_mask |= REGRWBITS_DSPBCNTR;
-	if (psb_xrandr_mipi1_connected())
-	    subpicture_enable_mask |= REGRWBITS_DSPCCNTR;
-	
-        memset(&regs, 0, sizeof(regs));
-	regs.subpicture_enable_mask = subpicture_enable_mask;
-	pPriv->subpicture_enable_mask = subpicture_enable_mask;
-        pPriv->subpicture_enabled = 1;
-	drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
-    }
-    return VA_STATUS_SUCCESS;
-}
-
-
 static int psb_cleardrawable_stopoverlay(
     VADriverContextP ctx,
     Drawable draw, /* X Drawable */
@@ -531,397 +414,175 @@ static int psb_cleardrawable_stopoverlay(
     XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, destx, desty, destw, desth);
     XSync((Display *)ctx->native_dpy, False);
     
-    psb_coverlay_stop(ctx);
-
     driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
     driver_data->last_displaying_surface = VA_INVALID_SURFACE;
 
     return 0;
 }
 
-static int last_num_clipbox = 0;
-static VARectangle last_clipbox[16];
-static unsigned int last_x11_window_width = 0, last_x11_window_height = 0;
-static unsigned int show_extend_window = 0,show_local_window = 0;
-
-VAStatus psb_putsurface_coverlay(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    Drawable draw, /* X Drawable */
-    short srcx,
-    short srcy,
-    unsigned short srcw,
-    unsigned short srch,
-    short destx,
-    short desty,
-    unsigned short destw,
-    unsigned short desth,
-    VARectangle *cliprects, /* client supplied clip list */
-    unsigned int number_cliprects, /* number of clip rects in the clip list */
-    unsigned int flags /* de-interlacing flags */
+static VAStatus psb_DisplayRGBASubpicture(
+	PsbVASurfaceRec *subpicture,  
+	VADriverContextP ctx,
+        int win_width,
+        int win_height,
+        int surface_x,
+        int surface_y,
+        int surface_w,
+        int surface_h,
+        psb_extvideo_subtitle subtitle
 )
 {
     INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
-    int i32GrabXorgRet = 0;
-    int bIsVisible = 0;
-    psb_x11_win_t winRect;
-    int i, ret;
-    psb_x11_clip_list_t * pClipBoxList = NULL, * pClipNext = NULL;
-    unsigned int          ui32NumClipBoxList = 0;
-    VARectangle *         pVaWindowClipRects = NULL;
-    int x11_window_width = destw, x11_window_height = desth;
-    psb_xrandr_location extend_location;
-    object_surface_p obj_surface = SURFACE(surface);
+    XImage *ximg = NULL;
+    Visual *visual;
     PsbPortPrivRec *pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
-    short sWidth = (short)obj_surface->width, sHeight = (short)obj_surface->height;    
-    int display_width, display_height, extend_display_width = 0, extend_display_height = 0;
-    unsigned short local_sWidth, local_sHeight, extend_sWidth, extend_sHeight;
-    short local_srcx, local_srcy, extend_srcx, extend_srcy;
-    short local_destx, local_desty, extend_destx, extend_desty;
-    unsigned short local_window_width = 0, local_window_height = 0;
-    unsigned short extend_window_width = 0, extend_window_height = 0;
-    int primary_crtc_x, primary_crtc_y, extend_crtc_x, extend_crtc_y;
-    enum overlay_id_t local_overlay = OVERLAY_A, extend_overlay = OVERLAY_C;
-    enum pipe_id_t local_pipe = PIPEA, extend_pipe = PIPEA;
-    int surfacex = destx, surfacey = desty;
+    struct _WsbmBufferObject *bo = subpicture->bo;
+    int image_width, image_height, width, height, size;
+    int srcx, srcy, srcw, srch;
+    int destx, desty, destw, desth;
+    int depth, i;
 
-    if (flags & VA_CLEAR_DRAWABLE) {
-        psb__information_message("Clean draw with color 0x%08x\n",driver_data->clear_color);
-        psb_cleardrawable_stopoverlay(ctx, draw, destx, desty, destw, desth);
-        
-        return VA_STATUS_SUCCESS;
+    if (subpicture->fourcc != VA_FOURCC_RGBA){
+	psb__error_message("%s: Invalid image format, ONLY support RGBA subpicture now.\n", __func__);
+       return VA_STATUS_ERROR_INVALID_IMAGE_FORMAT;
     }
 
-    /* get window screen coordination */
-    i32GrabXorgRet = XGrabServer(ctx->native_dpy);
-    ret = psb_x11_getWindowCoordinate(ctx->native_dpy, draw, &winRect, &bIsVisible);
-    if (ret != 0) {
-        if (i32GrabXorgRet != 0) {
-            psb__error_message("%s: Failed to get X11 window coordinates error # %d\n", __func__, ret);
-            XUngrabServer(ctx->native_dpy);
+    for (i = 0; subpicture != NULL; subpicture = subpicture->next, i++) {
+        srcx = subpicture->subpic_srcx;
+        srcy = subpicture->subpic_srcy;
+        srcw = subpicture->subpic_srcw;
+        srch = subpicture->subpic_srch;
+
+        destx = subpicture->subpic_dstx + surface_x;
+        desty = subpicture->subpic_dsty + surface_y;
+        destw = subpicture->subpic_dstw;
+        desth = subpicture->subpic_dsth;
+
+        image_width = subpicture->width;
+        image_height = subpicture->height;
+        size = subpicture->size;
+
+        //clip in image region
+        if (srcx < 0) {
+            srcw += srcx;
+            srcx = 0;
         }
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
 
-    if (!bIsVisible) {
-        if (i32GrabXorgRet != 0)
-            XUngrabServer(ctx->native_dpy);
-        return VA_STATUS_SUCCESS;
-    }
+        if (srcy < 0) {
+            srch += srcy;
+            srcy = 0;
+        }
 
-    /* re-paint the color key if necessary */
-    if (output->output_drawable != draw) {
-	Window extend_win;
+        if ((srcx + srcw) > image_width)
+            srcw = image_width - srcx;
+        if ((srcy + srch) > image_height)
+            srch = image_height -srcy;
 
-	ret = psb_xrandr_init(ctx);
-	if ( ret != 0) {
-	    psb__error_message("%s: Failed to initialize psb xrandr error # %d\n", __func__, ret);
-	    return VA_STATUS_ERROR_UNKNOWN;
-	}
+        //clip in drawable region
+        if (destx < 0) {
+            destw += destx;
+            destx = 0;
+        }
 
-	if (driver_data->use_xrandr_thread && !driver_data->xrandr_thread_id) {
-            ret = psb_xrandr_thread_create(ctx);
-	    if ( ret != 0) {
-	        psb__error_message("%s: Failed to create psb xrandr thread error # %d\n", __func__, ret);
-	        return VA_STATUS_ERROR_UNKNOWN;
-	    }
-	}
+        if (desty < 0) {
+            desth += desty;
+            desty = 0;
+        }
 
-        output->output_drawable = draw;
+        if ((destx + destw) > surface_w)
+            destw = surface_w - destx;
+        if ((desty + desth) > surface_h)
+            desth = surface_h - desty;
 
-        if (output->gc)
-            XFreeGC((Display *)ctx->native_dpy, output->gc);
-	output->gc = XCreateGC ((Display *)ctx->native_dpy, draw, 0, NULL);
+        if (srcw <= destw)
+            width = srcw;
+        else
+            width = destw;
 
-        /* paint the color key */
-        if (!obj_surface->subpictures) {
-            XSetForeground((Display *)ctx->native_dpy, output->gc, pPriv->colorKey);
-            XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
+        if (srch <= desth)
+            height = srch;
+        else
+            height = desth;
+
+        visual = DefaultVisual(ctx->native_dpy, 0);
+        depth = DefaultDepth(ctx->native_dpy, 0);
+
+        ximg = XCreateImage(ctx->native_dpy, visual, depth, ZPixmap, 0, NULL, image_width, image_height, 32, 0 );
+
+        if (NULL == ximg)
+        {
+            psb__error_message("%s: XCreateImage failed! at L%d\n", __func__, __LINE__);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+
+        ximg->data = wsbmBOMap( bo, WSBM_ACCESS_READ);
+        if (NULL == ximg->data) {
+            psb__error_message("%s: Failed to map to ximg->data.\n", __func__);
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        }
+
+        pPriv->clear_key[i].subpic_dstx = destx;
+        pPriv->clear_key[i].subpic_dsty = desty;
+        pPriv->clear_key[i].subpic_dstw = destw;
+        pPriv->clear_key[i].subpic_dsth = desth;
+        if (psb_xrandr_extvideo_mode()) {
+            /*It is a HACK: Adjust subtitle to proper position.*/
+            float xScale, yScale;
+
+            xScale = win_width * 1.0 / surface_w;
+            yScale = win_height * 1.0 / surface_h;
+            destx = subpicture->subpic_dstx * xScale;
+            desty = subpicture->subpic_dsty * yScale;
+        }
+        XPutImage(ctx->native_dpy, output->output_drawable, output->gc, ximg, srcx, srcy, destx, desty, width, height);
+        XSync((Display *)ctx->native_dpy, False);
+
+        if (psb_xrandr_extvideo_mode() &&
+            (subtitle == ONLY_HDMI || subtitle == BOTH)) {
+            float xScale, yScale;
+
+            xScale = pPriv->extend_display_width * 1.0 / surface_w;
+            yScale = pPriv->extend_display_height * 1.0 / surface_h;
+
+            destx = subpicture->subpic_dstx * xScale;
+            desty = subpicture->subpic_dsty * yScale;
+
+            XPutImage(ctx->native_dpy, output->extend_drawable, output->extend_gc, ximg,
+                    srcx, srcy, destx, desty, destw, desth);
             XSync((Display *)ctx->native_dpy, False);
         }
 
-	if (psb_xrandr_extvideo_mode()) {
-            extend_win = psb_xrandr_create_full_screen_window();
-            if (output->extend_drawable != extend_win) {
-                output->extend_drawable = extend_win;
-                if (output->extend_gc)
-                    XFreeGC((Display *)ctx->native_dpy, output->extend_gc);
-                output->extend_gc = XCreateGC ((Display *)ctx->native_dpy, extend_win, 0, NULL);
-
-                /* paint the color key */
-                if (!obj_surface->subpictures) {
-                    XSetForeground((Display *)ctx->native_dpy, output->extend_gc, pPriv->colorKey);
-                    XFillRectangle((Display *)ctx->native_dpy, extend_win, output->extend_gc, 0, 0, extend_display_width, extend_display_height);
-                    XSync((Display *)ctx->native_dpy, False);
-                }
-            }
-        }
+        pPriv->subpic_clear_flag = 0;
+        ximg->data = NULL;
+        wsbmBOUnmap(bo);
+        if (NULL != ximg)
+            XDestroyImage(ximg);
     }
+    return VA_STATUS_SUCCESS;
+}
 
-    if (pPriv->is_mfld && psb_xrandr_outputchanged())
-        psb_coverlay_stop(ctx);
+static VAStatus psb_repaint_colorkey(
+	VADriverContextP ctx,
+        Drawable draw, /* X Drawable */
+        VASurfaceID surface,
+        int x11_window_width,
+        int x11_window_height
+)
+{
+    INIT_DRIVER_DATA;
+    INIT_OUTPUT_PRIV;
+    psb_x11_clip_list_t *pClipBoxList = NULL, *pClipNext = NULL;
+    unsigned int ui32NumClipBoxList = 0;
+    VARectangle *pVaWindowClipRects = NULL;
+    object_surface_p obj_surface = SURFACE(surface);
+    PsbPortPrivRec *pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
+    int i, ret;
 
-    ret = psb_xrandr_primary_crtc_coordinate(&primary_crtc_x, &primary_crtc_y, &display_width, &display_height);
-    if (ret != 0) {
-        psb__error_message("%s: Failed to get primary crtc coordinates error # %d\n", __func__, ret);
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-	
-    if (psb_xrandr_single_mode() == 0) {
-	if (psb_xrandr_hdmi_connected())
-            extend_pipe = PIPEB;
-	else if (psb_xrandr_mipi1_connected())
-	    extend_pipe = PIPEC;
-	
-	ret = psb_xrandr_extend_crtc_coordinate(&extend_crtc_x, &extend_crtc_y, 
-	          &extend_display_width, &extend_display_height, &extend_location);
-	if (ret != 0) {
-	    psb__error_message("%s: Failed to get extend crtc coordinates error # %d\n", __func__, ret);
-	    return VA_STATUS_ERROR_UNKNOWN;
-	}
-    } 
-
-    /*clip in the window area*/
-    if (destx < 0) {
-        x11_window_width += destx;
-        destx = 0;
-    }
-
-    if (desty < 0) {
-        x11_window_height += desty;
-        desty = 0;
-    }
-
-    if ( srcx < 0) {
-	srcw += srcx;
-	srcx = 0;
-    }
-	
-    if ( srcy < 0) {
-        srch += srcy;
-        srcy = 0;
-    }
-
-    if ((srcx + srcw) > sWidth)
-	srcw = sWidth - srcx;
-
-    if ((srcy + srch) > sHeight)
-	srch = sHeight - srcy;
-	
-    if ((destx + x11_window_width) > winRect.ui32Width)
-	x11_window_width = winRect.ui32Width - destx;
-
-    if ((desty + x11_window_height) > winRect.ui32Height)
-        x11_window_height = winRect.ui32Height - desty;
-
-    /*translate destx, desty into screen coordinate*/
-    destx += winRect.i32Left;
-    desty += winRect.i32Top;
-
-    /*clip in the screen area*/
-    if (destx < 0) {
-        x11_window_width += destx;
-        destx = 0;
-    }
-
-    if (desty < 0) {
-        x11_window_height += desty;
-        desty = 0;
-    }
-	
-    if (psb_xrandr_clone_mode()) {
-        int min_display_width, min_display_height;
-        min_display_width = (display_width > extend_display_width) ? extend_display_width : display_width;
-        min_display_height = (display_height > extend_display_height) ? extend_display_height : display_height;
-        if ((destx + x11_window_width) > min_display_width) {
-	    x11_window_width = min_display_width - destx;
-	}
-
-	if ((desty + x11_window_height) > min_display_height) {
-	    x11_window_height = min_display_height - desty;
-	}
-	local_sWidth = local_sHeight = extend_sWidth = extend_sHeight = 0;
-	local_srcx = local_srcy = extend_srcx = extend_srcy = 0;
-	local_destx = local_desty = extend_destx = extend_desty = 0;
-    }
-    else if (psb_xrandr_extend_mode()) {
-	float xScaleFactor, yScaleFactor;
-        int min_display_width, min_display_height;
-        min_display_width = (display_width > extend_display_width) ? extend_display_width : display_width;
-        min_display_height = (display_height > extend_display_height) ? extend_display_height : display_height;
-
-	switch (extend_location) {
-	case LEFT_OF:
-            if ((destx + x11_window_width) > (display_width + extend_display_width)) {
-                x11_window_width = display_width + extend_display_width - destx;
-	    }
-	    if ((desty + x11_window_height) > min_display_height) {
-		x11_window_height = min_display_height - desty;
-	    }
-			
-	    if ((destx < extend_display_width) && ((destx + x11_window_width) < extend_display_width)) {				
-		local_window_width = 0;
-		extend_window_width = x11_window_width;				
-		extend_overlay = OVERLAY_A;
-	    }
-	    else if ((destx < extend_display_width) && ((destx + x11_window_width) >= extend_display_width)) {
-		extend_window_width = extend_display_width - destx;
-		local_window_width = x11_window_width - extend_window_width;
-	    }
-	    else {
-		local_window_width = x11_window_width;
-		extend_window_width = 0;
-	    }
-	    local_window_height = extend_window_height = x11_window_height;
-			
-	    xScaleFactor = srcw * 1.0/x11_window_width;
-	    extend_sWidth =  (unsigned short)(extend_window_width * xScaleFactor);		
-	    local_sWidth = srcw - extend_sWidth;
-	    local_sHeight = extend_sHeight = srch;
-			
-	    local_srcx = srcx + extend_sWidth;
-	    extend_srcx = srcx;
-	    local_srcy = extend_srcy = srcy;
-
-	    local_destx = 0;
-	    extend_destx = destx;
-	    local_desty = extend_desty = desty;
-	    break;
-	case RIGHT_OF:			
-	    if ((destx + x11_window_width) > (display_width + extend_display_width)) {
-                x11_window_width = display_width + extend_display_width - destx;
-	    }		
-	    if ((desty + x11_window_height) > min_display_height) {
-		x11_window_height = min_display_height - desty;
-	    }
-			
-	    if ((destx < display_width) && ((destx + x11_window_width) < display_width)) {				
-		local_window_width = x11_window_width;				
-		extend_window_width = 0;
-	    }
-	    else if ((destx < display_width) && ((destx + x11_window_width) >= display_width)) {
-		local_window_width = display_width - destx;
-		extend_window_width = x11_window_width - local_window_width;
-	    }
-	    else {
-		local_window_width = 0;
-		extend_window_width = x11_window_width;				
-		extend_overlay = OVERLAY_A;
-	    }
-	    local_window_height = extend_window_height = x11_window_height;
-			
-	    xScaleFactor = srcw * 1.0/x11_window_width;
-	    local_sWidth =  (unsigned short)(local_window_width * xScaleFactor);		
-	    extend_sWidth = srcw - local_sWidth;
-	    local_sHeight = extend_sHeight = srch;
-			
-	    local_srcx = srcx;
-	    extend_srcx = srcx + local_sWidth;
-	    local_srcy = extend_srcy = srcy;
-
-	    local_destx = destx;
-	    extend_destx = 0;
-	    local_desty = extend_desty = desty;
-	    break;
-	case ABOVE:			
-	    if ((destx + x11_window_width) > min_display_width) {
-                x11_window_width = min_display_width - destx;
-	    }
-	    if ((desty + x11_window_height) > (display_height + extend_display_height)) {
-		x11_window_height = display_height + extend_display_height - desty;
-	    }
-
-	    if ((desty < extend_display_height) && ((desty + x11_window_height) < extend_display_height)) {
-		local_window_height = 0;
-		extend_window_height = x11_window_height;
-		extend_overlay = OVERLAY_A;
-	    }
-	    else if ((desty < extend_display_height) && ((desty + x11_window_height) >= extend_display_height)) {
-		extend_window_height = extend_display_height - desty;				
-		local_window_height = x11_window_height - extend_window_height;
-	    }
-	    else {
-		local_window_height = x11_window_height;
-		extend_window_height = 0;
-	    }			
-	    local_window_width = extend_window_width = x11_window_width;
-			
-	    yScaleFactor = srch * 1.0/x11_window_height;
-	    extend_sHeight = (unsigned short)(extend_window_height * yScaleFactor);		
-	    local_sHeight = srch - extend_sHeight;
-	    local_sWidth = extend_sWidth = srcw;
-			
-	    local_srcy = srcy + extend_sHeight;
-	    extend_srcy = srcy;
-	    local_srcx = extend_srcx = srcx;
-
-	    local_desty = 0;
-	    extend_desty = desty;
-	    local_destx = extend_destx = destx;
-	    break;
-	case BELOW:			
-	    if ((destx + x11_window_width) > min_display_width) {
-                x11_window_width = min_display_width - destx;
-	    }
-	    if ((desty + x11_window_height) > (display_height + extend_display_height)) {
-		x11_window_height = display_height + extend_display_height - desty;
-	    }			
-
-	    if ((desty < display_height) && ((desty + x11_window_height) < display_height)) {
-		local_window_height = x11_window_height;
-		extend_window_height = 0;
-	    }
-	    else if ((desty < display_height) && ((desty + x11_window_height) >= display_height)) {
-		local_window_height = display_height - desty;				
-		extend_window_height = x11_window_height - local_window_height;
-            }
-	    else {
-		local_window_height = 0;
-		extend_window_height = x11_window_height;
-		extend_overlay = OVERLAY_A;				
-	    }			
-	    local_window_width = extend_window_width = x11_window_width;
-			
-	    yScaleFactor = srch * 1.0/x11_window_height;
-	    local_sHeight = (unsigned short)(local_window_height * yScaleFactor);		
-	    extend_sHeight = srch - local_sHeight;
-	    local_sWidth = extend_sWidth = srcw;
-			
-	    local_srcy = srcy;
-	    extend_srcy = srcy + local_sHeight;
-	    local_srcx = extend_srcx = srcx;
-
-	    local_desty = desty;
-	    extend_desty = 0;
-	    local_destx = extend_destx = destx;
-	    break;
-	case NORMAL:
-	default:
-	    local_sWidth = local_sHeight = extend_sWidth = extend_sHeight = 0;
- 	    local_srcx = local_srcy = extend_srcx = extend_srcy = 0;
-	    local_destx = local_desty = extend_destx = extend_desty = 0;
-	    break;
-        }
-    } else {
-        if ((destx + x11_window_width) > display_width) {
-	    x11_window_width = display_width - destx;
-	}
-
-	if ((desty + x11_window_height) > display_height) {
-	    x11_window_height = display_height - desty;
-	}
-	local_sWidth = local_sHeight = extend_sWidth = extend_sHeight = 0;
-	local_srcx = local_srcy = extend_srcx = extend_srcy = 0;
-	local_destx = local_desty = extend_destx = extend_desty = 0;
-    }
     /* get window clipbox */
     ret = psb_x11_createWindowClipBoxList(ctx->native_dpy, draw, &pClipBoxList, &ui32NumClipBoxList);
     if(ret != 0) {
-        if (i32GrabXorgRet != 0) {
-            psb__error_message("%s: get window clip boxes error # %d\n", __func__, ret);
-            XUngrabServer(ctx->native_dpy);
-        }
+        psb__error_message("%s: get window clip boxes error # %d\n", __func__, ret);
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -950,19 +611,13 @@ VAStatus psb_putsurface_coverlay(
 #endif
         pClipNext = pClipNext->next;
     }
-#ifdef CLIP_DEBUG        
-    psb__error_message("%s: dst (%d, %d) (%d, %d) width %d, height %d\n", __func__, 
-                       winRect.i32Left, winRect.i32Top, 
-                       winRect.i32Right, winRect.i32Bottom, 
-                       winRect.ui32Width, winRect.ui32Height);
-#endif
         
     /* repaint the color key when window size changed*/
     if (!obj_surface->subpictures &&
-        ((last_x11_window_width != x11_window_width) ||
-         (last_x11_window_height != x11_window_height))) {
-        last_x11_window_width = x11_window_width;
-        last_x11_window_height = x11_window_height;
+        ((pPriv->x11_window_width != x11_window_width) ||
+         (pPriv->x11_window_height != x11_window_height))) {
+        pPriv->x11_window_width = x11_window_width;
+        pPriv->x11_window_height = x11_window_height;
         XSetForeground((Display *)ctx->native_dpy, output->gc, pPriv->colorKey);
         XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
         XSync((Display *)ctx->native_dpy, False);
@@ -970,102 +625,673 @@ VAStatus psb_putsurface_coverlay(
 		
 
     if ((!obj_surface->subpictures) && 
-        ((ui32NumClipBoxList != last_num_clipbox) ||
-        (memcmp(&pVaWindowClipRects[0], &last_clipbox[0], (ui32NumClipBoxList > 16 ? 16: ui32NumClipBoxList)*sizeof(VARectangle))!=0))) {
-        last_num_clipbox = ui32NumClipBoxList;
-        memcpy(&last_clipbox[0], &pVaWindowClipRects[0],(ui32NumClipBoxList > 16 ? 16 : ui32NumClipBoxList)*sizeof(VARectangle));
-
-        if (ui32NumClipBoxList <= 1) {
-            XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
-        } else {
-            for (i = 0; i < ui32NumClipBoxList; i++) {
-                psb__error_message("cliprect # %d @(%d, %d) width %d height %d\n", i, 
-                                   last_clipbox[i].x, last_clipbox[i].y,
-                                   last_clipbox[i].width, last_clipbox[i].height);
-                XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 
-                               last_clipbox[i].x - destx, last_clipbox[i].y - desty,
-                               last_clipbox[i].width, last_clipbox[i].height);
-            }
-        }
-        
+        ((ui32NumClipBoxList != pPriv->last_num_clipbox) ||
+        (memcmp(&pVaWindowClipRects[0], &(pPriv->last_clipbox[0]), (ui32NumClipBoxList > 16 ? 16: ui32NumClipBoxList)*sizeof(VARectangle))!=0))) {
+        pPriv->last_num_clipbox = ui32NumClipBoxList;
+        memcpy(&pPriv->last_clipbox[0], &pVaWindowClipRects[0],(ui32NumClipBoxList > 16 ? 16 : ui32NumClipBoxList)*sizeof(VARectangle));
+        XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
         XSync((Display *)ctx->native_dpy, False);
     }
+    
+    free(pVaWindowClipRects);
+    psb_x11_freeWindowClipBoxList(pClipBoxList);
 
+    return VA_STATUS_SUCCESS;
+}
+
+static VAStatus psb_extendMode_getCoordinate(
+        PsbPortPrivPtr pPriv,
+        psb_xrandr_location extend_location,
+        short destx,
+        short desty,
+        short srcx,
+        short srcy,
+        float xScaleFactor,
+        float yScaleFactor,
+        int *x11_window_width,
+        int *x11_window_height,
+        psb_overlay_rect_p local_rect,
+        psb_overlay_rect_p extend_rect,
+        enum overlay_id_t *extend_overlay
+)
+{
+    switch (extend_location) {
+        case LEFT_OF:
+            if ((destx + *x11_window_width) > (pPriv->display_width + pPriv->extend_display_width)) {
+                *x11_window_width = pPriv->display_width + pPriv->extend_display_width - destx;
+            }
+            if (((desty + *x11_window_height) < pPriv->display_height) && 
+                    ((desty + *x11_window_height) < pPriv->extend_display_height))
+                local_rect->dHeight = extend_rect->dHeight = *x11_window_height;
+            else if (pPriv->display_height < pPriv->extend_display_height) {
+                local_rect->dHeight = pPriv->display_height - desty;
+                if ((desty + *x11_window_height) > pPriv->extend_display_height)
+                    extend_rect->dHeight = *x11_window_height = pPriv->extend_display_height - desty;
+                else 
+                    extend_rect->dHeight = *x11_window_height;
+            } else {
+                extend_rect->dHeight = pPriv->extend_display_height - desty;
+                if ((desty + *x11_window_height) > pPriv->display_height) 
+                    local_rect->dHeight = *x11_window_height = pPriv->display_height - desty;
+                else 
+                    local_rect->dHeight = *x11_window_height;
+            }
+
+            if ((destx < pPriv->extend_display_width) && ((destx + *x11_window_width) < pPriv->extend_display_width)) {
+                local_rect->dWidth = 0;
+                extend_rect->dWidth = *x11_window_width;
+                *extend_overlay = OVERLAY_A;
+                local_rect->destx = 0;
+            }
+            else if ((destx < pPriv->extend_display_width) && ((destx + *x11_window_width) >= pPriv->extend_display_width)) {
+                extend_rect->dWidth = pPriv->extend_display_width - destx;
+                local_rect->dWidth = *x11_window_width - extend_rect->dWidth;
+                local_rect->destx = 0;
+            }
+            else {
+                local_rect->dWidth = *x11_window_width;
+                extend_rect->dWidth = 0;
+                local_rect->destx = destx - pPriv->extend_display_width;
+            }
+            local_rect->sWidth = (unsigned short)(local_rect->dWidth * xScaleFactor);
+            local_rect->sHeight =  (unsigned short)(local_rect->dHeight * yScaleFactor);
+            extend_rect->sWidth =  (unsigned short)(extend_rect->dWidth * xScaleFactor);
+            extend_rect->sHeight = (unsigned short)(extend_rect->dHeight * yScaleFactor);
+
+            local_rect->srcx = srcx + extend_rect->sWidth;
+            extend_rect->srcx = srcx;
+            local_rect->srcy = extend_rect->srcy = srcy;
+
+            extend_rect->destx = destx;
+            local_rect->desty = extend_rect->desty = desty;
+            break;
+        case RIGHT_OF:			
+            if ((destx + *x11_window_width) > (pPriv->display_width + pPriv->extend_display_width)) {
+                *x11_window_width = pPriv->display_width + pPriv->extend_display_width - destx;
+            }		
+            if (((desty + *x11_window_height) < pPriv->display_height) && 
+                    ((desty + *x11_window_height) < pPriv->extend_display_height))
+                local_rect->dHeight = extend_rect->dHeight = *x11_window_height;
+            else if (pPriv->display_height < pPriv->extend_display_height) {
+                local_rect->dHeight = pPriv->display_height - desty;
+                if ((desty + *x11_window_height) > pPriv->extend_display_height)
+                    extend_rect->dHeight = *x11_window_height = pPriv->extend_display_height - desty;
+                else 
+                    extend_rect->dHeight = *x11_window_height;
+            } else {
+                extend_rect->dHeight = pPriv->extend_display_height - desty;
+                if ((desty + *x11_window_height) > pPriv->display_height) 
+                    local_rect->dHeight = *x11_window_height = pPriv->display_height - desty;
+                else 
+                    local_rect->dHeight = *x11_window_height;
+            }
+
+            if ((destx < pPriv->display_width) && ((destx + *x11_window_width) < pPriv->display_width)) {				
+                local_rect->dWidth = *x11_window_width;				
+                extend_rect->dWidth = 0;
+                extend_rect->destx = 0;
+            }
+            else if ((destx < pPriv->display_width) && ((destx + *x11_window_width) >= pPriv->display_width)) {
+                local_rect->dWidth = pPriv->display_width - destx;
+                extend_rect->dWidth = *x11_window_width - local_rect->dWidth;
+                extend_rect->destx = 0;
+            }
+            else {
+                local_rect->dWidth = 0;
+                extend_rect->dWidth = *x11_window_width;				
+                *extend_overlay = OVERLAY_A;
+                extend_rect->destx = destx - pPriv->display_width;
+            }
+            local_rect->sWidth = (unsigned short)(local_rect->dWidth * xScaleFactor);
+            local_rect->sHeight =  (unsigned short)(local_rect->dHeight * yScaleFactor);
+            extend_rect->sWidth =  (unsigned short)(extend_rect->dWidth * xScaleFactor);
+            extend_rect->sHeight = (unsigned short)(extend_rect->dHeight * yScaleFactor);
+
+            local_rect->srcx = srcx;
+            extend_rect->srcx = srcx + local_rect->sWidth;
+            local_rect->srcy = extend_rect->srcy = srcy;
+
+            local_rect->destx = destx;
+            local_rect->desty = extend_rect->desty = desty;
+            break;
+        case ABOVE:			
+            if (((destx + *x11_window_width) < pPriv->display_width) && 
+                    ((destx + *x11_window_width) < pPriv->extend_display_width))
+                local_rect->dWidth = extend_rect->dWidth = *x11_window_width;
+            else if (pPriv->display_width < pPriv->extend_display_width) {
+                local_rect->dWidth = pPriv->display_width - destx;
+                if ((destx + *x11_window_width) > pPriv->extend_display_width)
+                    extend_rect->dWidth = *x11_window_width = pPriv->extend_display_width - destx;
+                else 
+                    extend_rect->dWidth = *x11_window_width;
+            } else {
+                extend_rect->dWidth = pPriv->extend_display_width - destx;
+                if ((destx + *x11_window_width) > pPriv->display_width)
+                    local_rect->dWidth = *x11_window_width = pPriv->display_width - destx;
+                else 
+                    local_rect->dWidth = *x11_window_width;
+            }
+
+            if ((desty + *x11_window_height) > (pPriv->display_height + pPriv->extend_display_height)) {
+                *x11_window_height = pPriv->display_height + pPriv->extend_display_height - desty;
+            }
+
+            if ((desty < pPriv->extend_display_height) && ((desty + *x11_window_height) < pPriv->extend_display_height)) {
+                local_rect->dHeight = 0;
+                extend_rect->dHeight = *x11_window_height;
+                *extend_overlay = OVERLAY_A;
+                local_rect->desty = 0;
+            }
+            else if ((desty < pPriv->extend_display_height) && ((desty + *x11_window_height) >= pPriv->extend_display_height)) {
+                extend_rect->dHeight = pPriv->extend_display_height - desty;
+                local_rect->dHeight = *x11_window_height - extend_rect->dHeight;
+                local_rect->desty = 0;
+            }
+            else {
+                local_rect->dHeight = *x11_window_height;
+                extend_rect->dHeight = 0;
+                local_rect->desty = desty - pPriv->extend_display_height;
+            }			
+            local_rect->sWidth = (unsigned short)(local_rect->dWidth * xScaleFactor);
+            local_rect->sHeight =  (unsigned short)(local_rect->dHeight * yScaleFactor);
+            extend_rect->sWidth =  (unsigned short)(extend_rect->dWidth * xScaleFactor);
+            extend_rect->sHeight = (unsigned short)(extend_rect->dHeight * yScaleFactor);
+
+            local_rect->srcy = srcy + extend_rect->sHeight;
+            extend_rect->srcy = srcy;
+            local_rect->srcx = extend_rect->srcx = srcx;
+
+            extend_rect->desty = desty;
+            local_rect->destx = extend_rect->destx = destx;
+            break;
+        case BELOW:			
+            if (((destx + *x11_window_width) < pPriv->display_width) && 
+                    ((destx + *x11_window_width) < pPriv->extend_display_width))
+                local_rect->dWidth = extend_rect->dWidth = *x11_window_width;
+            else if (pPriv->display_width < pPriv->extend_display_width) {
+                local_rect->dWidth = pPriv->display_width - destx;
+                if ((destx + *x11_window_width) > pPriv->extend_display_width)
+                    extend_rect->dWidth = *x11_window_width = pPriv->extend_display_width - destx;
+                else 
+                    extend_rect->dWidth = *x11_window_width;
+            } else {
+                extend_rect->dWidth = pPriv->extend_display_width - destx;
+                if ((destx + *x11_window_width) > pPriv->display_width)
+                    local_rect->dWidth = *x11_window_width = pPriv->display_width - destx;
+                else 
+                    local_rect->dWidth = *x11_window_width;
+            }
+
+            if ((desty + *x11_window_height) > (pPriv->display_height + pPriv->extend_display_height)) {
+                *x11_window_height = pPriv->display_height + pPriv->extend_display_height - desty;
+            }			
+
+            if ((desty < pPriv->display_height) && ((desty + *x11_window_height) < pPriv->display_height)) {
+                local_rect->dHeight = *x11_window_height;
+                extend_rect->dHeight = 0;
+                extend_rect->desty = 0;
+            }
+            else if ((desty < pPriv->display_height) && ((desty + *x11_window_height) >= pPriv->display_height)) {
+                local_rect->dHeight = pPriv->display_height - desty;				
+                extend_rect->dHeight = *x11_window_height - local_rect->dHeight;
+                extend_rect->desty = 0;
+            }
+            else {
+                local_rect->dHeight = 0;
+                extend_rect->dHeight = *x11_window_height;
+                *extend_overlay = OVERLAY_A;				
+                extend_rect->desty = desty - pPriv->display_height;
+            }			
+            local_rect->sWidth = (unsigned short)(local_rect->dWidth * xScaleFactor);
+            local_rect->sHeight =  (unsigned short)(local_rect->dHeight * yScaleFactor);
+            extend_rect->sWidth =  (unsigned short)(extend_rect->dWidth * xScaleFactor);
+            extend_rect->sHeight = (unsigned short)(extend_rect->dHeight * yScaleFactor);
+
+            local_rect->srcy = srcy;
+            extend_rect->srcy = srcy + local_rect->sHeight;
+            local_rect->srcx = extend_rect->srcx = srcx;
+
+            local_rect->desty = desty;
+            local_rect->destx = extend_rect->destx = destx;
+            break;
+        case NORMAL:
+        default:
+            break;
+    }
+    return VA_STATUS_SUCCESS;
+}
+
+static void psb_init_subpicture(VADriverContextP ctx, PsbPortPrivPtr pPriv)
+{
+    INIT_DRIVER_DATA;
+    struct drm_psb_register_rw_arg regs;
+    unsigned int subpicture_enable_mask = REGRWBITS_DSPACNTR;
+
+    if ( !pPriv->subpicture_enabled ) {
+        if (psb_xrandr_hdmi_enabled())
+            subpicture_enable_mask |= REGRWBITS_DSPBCNTR;
+        if (psb_xrandr_mipi1_enabled())
+            subpicture_enable_mask |= REGRWBITS_DSPCCNTR;
+
+        memset(&regs, 0, sizeof(regs));
+        regs.subpicture_enable_mask = subpicture_enable_mask;
+        pPriv->subpicture_enable_mask = subpicture_enable_mask;
+        pPriv->subpicture_enabled = 1;
+        drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+    }
+}
+
+static void psb_clear_subpictures(
+    VADriverContextP ctx,
+    PsbPortPrivPtr pPriv,
+    int win_width,
+    int win_height,
+    object_surface_p obj_surface
+)
+{
+    INIT_OUTPUT_PRIV;
+    PsbVASurfaceRec *subpicture = (PsbVASurfaceRec *)obj_surface->subpictures;
+    int i;
+
+    if (subpicture == NULL) {
+        psb__information_message("Surface has no subpicture to render.\n");
+        return;
+    }
+
+    for (i = 0; subpicture != NULL; subpicture = subpicture->next, i++) {
+        if ((subpicture->subpic_dstx != pPriv->clear_key[i].subpic_dstx) ||
+            (subpicture->subpic_dsty != pPriv->clear_key[i].subpic_dsty) ||
+            (subpicture->subpic_dstw != pPriv->clear_key[i].subpic_dstw) ||
+            (subpicture->subpic_dsth != pPriv->clear_key[i].subpic_dsth)) {
+            XSetForeground((Display *)ctx->native_dpy, output->gc, 0);
+            XFillRectangle((Display *)ctx->native_dpy, output->output_drawable, output->gc, 0, 0, win_width, win_height);
+            XSync((Display *)ctx->native_dpy, False);
+            if (psb_xrandr_extvideo_mode()) {
+                XSetForeground((Display *)ctx->native_dpy, output->extend_gc, 0);
+                XFillRectangle((Display *)ctx->native_dpy, output->extend_drawable, output->extend_gc,
+                        0, 0, pPriv->extend_display_width, pPriv->extend_display_height);
+                XSync((Display *)ctx->native_dpy, False);
+            }
+            pPriv->subpic_clear_flag = 1;
+        }
+    }
+    return;
+}
+
+VAStatus psb_putsurface_coverlay(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    Drawable draw, /* X Drawable */
+    short srcx,
+    short srcy,
+    unsigned short srcw,
+    unsigned short srch,
+    short destx,
+    short desty,
+    unsigned short destw,
+    unsigned short desth,
+    VARectangle *cliprects, /* client supplied clip list */
+    unsigned int number_cliprects, /* number of clip rects in the clip list */
+    unsigned int flags /* de-interlacing flags */
+)
+{
+    INIT_DRIVER_DATA;
+    INIT_OUTPUT_PRIV;
+    int bIsVisible = 0;
+    psb_x11_win_t winRect;
+    int ret;
+    int x11_window_width = destw, x11_window_height = desth;
+    psb_xrandr_location extend_location;
+    object_surface_p obj_surface = SURFACE(surface);
+    PsbPortPrivRec *pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
+    int primary_crtc_x, primary_crtc_y, extend_crtc_x, extend_crtc_y;
+    enum pipe_id_t local_pipe = PIPEA, extend_pipe = PIPEB;
+    int surfacex = destx, surfacey = desty;
+    float xScaleFactor, yScaleFactor;
+    Rotation rotation = RR_Rotate_0;
+    psb_output_device local_device, extend_device;
+    psb_extvideo_subtitle subtitle;
+
+    if (flags & VA_CLEAR_DRAWABLE) {
+        psb__information_message("Clean draw with color 0x%08x\n",driver_data->clear_color);
+        psb_cleardrawable_stopoverlay(ctx, draw, destx, desty, destw, desth);
+        
+        return VA_STATUS_SUCCESS;
+    }
+
+    /* get window screen coordination */
+    ret = psb_x11_getWindowCoordinate(ctx->native_dpy, draw, &winRect, &bIsVisible);
+    if (ret != 0) {
+        psb__error_message("%s: Failed to get X11 window coordinates error # %d\n", __func__, ret);
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    if (!bIsVisible) {
+        return VA_STATUS_SUCCESS;
+    }
+
+    if (NULL == obj_surface)
+    {
+	psb__error_message("%s: Invalid surface id 0x%08x.\n", __func__, surface);
+	return VA_STATUS_ERROR_INVALID_SURFACE;	
+    }
+
+    /* re-paint the color key if necessary */
+    if (output->output_drawable != draw) {
+        output->output_drawable = draw;
+        if (output->gc)
+            XFreeGC((Display *)ctx->native_dpy, output->gc);
+	output->gc = XCreateGC ((Display *)ctx->native_dpy, draw, 0, NULL);
+        /* paint the color key */
+        if (!obj_surface->subpictures) {
+            XSetForeground((Display *)ctx->native_dpy, output->gc, pPriv->colorKey);
+            XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
+            XSync((Display *)ctx->native_dpy, False);
+        }
+    }
+
+    ret = psb_xrandr_local_crtc_coordinate(&local_device, &primary_crtc_x, &primary_crtc_y, &pPriv->display_width, &pPriv->display_height, &rotation);
+    if (ret != VA_STATUS_SUCCESS) {
+        psb__error_message("%s: Failed to get primary crtc coordinates error # %d\n", __func__, ret);
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+    switch (local_device) {
+	case LVDS0:
+	case MIPI0:
+	    local_pipe = PIPEA;
+	    break;
+	/* single HDMI */
+	case HDMI:
+	    local_pipe = PIPEB;
+	    break;
+	case MIPI1:
+	    local_pipe = PIPEC;
+	    break;
+    }
+
+    if (!psb_xrandr_single_mode()) {
+
+	ret = psb_xrandr_extend_crtc_coordinate(&extend_device, &extend_crtc_x, &extend_crtc_y, 
+	          &pPriv->extend_display_width, &pPriv->extend_display_height, &extend_location, &rotation);
+	if (ret != VA_STATUS_SUCCESS) {
+	    psb__error_message("%s: Failed to get extend crtc coordinates error # %d\n", __func__, ret);
+	    return VA_STATUS_ERROR_UNKNOWN;
+	}
+
+	switch (extend_device) {
+	    case HDMI:
+		extend_pipe = PIPEB;
+		break;
+	    case MIPI1:
+		extend_pipe = PIPEC;
+		break;
+	    default:
+		psb__error_message("%s: Failed to get extend pipe\n", __func__);
+		break;
+	}
+    } 
+
+    /*clip in the window area*/
+    if (destx < 0) {
+        x11_window_width += destx;
+        destx = 0;
+    }
+
+    if (desty < 0) {
+        x11_window_height += desty;
+        desty = 0;
+    }
+
+    if ( srcx < 0) {
+	srcw += srcx;
+	srcx = 0;
+    }
 	
-    if (pPriv->is_mfld && obj_surface->subpictures/*place holder for psb_subtitile_enable()*/) {
-        psb_DisplayRGBASubpicture((PsbVASurfaceRec *)obj_surface->subpictures, ctx, output->gc, draw, winRect.ui32Width, winRect.ui32Height, surfacex, surfacey);
+    if ( srcy < 0) {
+        srch += srcy;
+        srcy = 0;
+    }
+
+    if ((destx + x11_window_width) > winRect.ui32Width)
+	x11_window_width = winRect.ui32Width - destx;
+
+    if ((desty + x11_window_height) > winRect.ui32Height)
+        x11_window_height = winRect.ui32Height - desty;
+
+    /*translate destx, desty into screen coordinate*/
+    destx += winRect.i32Left;
+    desty += winRect.i32Top;
+
+    /*clip in the screen area*/
+    xScaleFactor = srcw * 1.0/x11_window_width;
+    yScaleFactor = srch * 1.0/x11_window_height;
+
+    if (destx < 0) {
+        x11_window_width += destx;
+        srcx = (short)((-destx) * xScaleFactor);
+        destx = 0;
+    }
+
+    if (desty < 0) {
+        x11_window_height += desty;
+        srcy = (short)((-desty) * yScaleFactor);
+        desty = 0;
     }
 
     /* display by overlay */
     if (psb_xrandr_single_mode() || IS_MRST(driver_data)) { 
+        if ((destx + x11_window_width) > pPriv->display_width) {
+	    x11_window_width = pPriv->display_width - destx;
+	    srcw = (unsigned short)(x11_window_width * xScaleFactor);
+	}
+
+	if ((desty + x11_window_height) > pPriv->display_height) {
+	    x11_window_height = pPriv->display_height - desty;
+	    srch = (unsigned short)(x11_window_height *yScaleFactor);
+	}
+
+        ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
+        if (ret != 0) {
+            psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+
         psb_putsurface_overlay(
             ctx, surface, srcx, srcy, srcw, srch,
 	    /* screen coordinate */
-	    destx, desty,
-	    x11_window_width, x11_window_height,
-	    flags, local_overlay, local_pipe); 
+	    destx, desty, x11_window_width, x11_window_height,
+	    flags, OVERLAY_A, local_pipe); 
     } else if (psb_xrandr_clone_mode()) {
+        psb_overlay_rect_t local_rect, extend_rect;
+
+        if (output->extend_drawable) {
+            XDestroyWindow(ctx->native_dpy, output->extend_drawable);
+            output->extend_drawable = 0;
+            XFreeGC((Display *)ctx->native_dpy, output->extend_gc);
+        }
+        
+        if (((destx + x11_window_width) < pPriv->display_width) && 
+            ((destx + x11_window_width) < pPriv->extend_display_width))
+            local_rect.dWidth = extend_rect.dWidth = x11_window_width;
+        else if (pPriv->display_width < pPriv->extend_display_width) {
+            local_rect.dWidth = pPriv->display_width - destx;
+            if ((destx + x11_window_width) > pPriv->extend_display_width)
+                extend_rect.dWidth = x11_window_width = pPriv->extend_display_width - destx;
+            else 
+                extend_rect.dWidth = x11_window_width;
+        } else {
+            extend_rect.dWidth = pPriv->extend_display_width - destx;
+            if ((destx + x11_window_width) > pPriv->display_width)
+                local_rect.dWidth = x11_window_width = pPriv->display_width - destx;
+            else 
+                local_rect.dWidth = x11_window_width;
+        }
+
+        if (((desty + x11_window_height) < pPriv->display_height) && 
+            ((desty + x11_window_height) < pPriv->extend_display_height))
+            local_rect.dHeight = extend_rect.dHeight = x11_window_height;
+        else if (pPriv->display_height < pPriv->extend_display_height) {
+            local_rect.dHeight = pPriv->display_height - desty;
+            if ((desty + x11_window_height) > pPriv->extend_display_height)
+                extend_rect.dHeight = x11_window_height = pPriv->extend_display_height - desty;
+            else 
+                extend_rect.dHeight = x11_window_height;
+        } else {
+            extend_rect.dHeight = pPriv->extend_display_height - desty;
+            if ((desty + x11_window_height) > pPriv->display_height) 
+                local_rect.dHeight = x11_window_height = pPriv->display_height - desty;
+            else 
+                local_rect.dHeight = x11_window_height;
+        }
+        if ((driver_data->mipi0_rotation != VA_ROTATION_NONE) ||
+            (driver_data->hdmi_rotation != VA_ROTATION_NONE)) {
+            local_rect.sWidth = srcw;
+            local_rect.sHeight = srch;
+            extend_rect.sWidth = srcw;
+            extend_rect.sHeight = srch;
+        } else {
+            local_rect.sWidth = (unsigned short)(local_rect.dWidth * xScaleFactor);
+            local_rect.sHeight = (unsigned short)(local_rect.dHeight * yScaleFactor);
+            extend_rect.sWidth = (unsigned short)(extend_rect.dWidth * xScaleFactor);
+            extend_rect.sHeight = (unsigned short)(extend_rect.dHeight * yScaleFactor);
+        }
+        ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
+        if (ret != 0) {
+            psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
         psb_putsurface_overlay(
+	    ctx, surface, srcx, srcy, extend_rect.sWidth, extend_rect.sHeight,
+	    /* screen coordinate */
+	    destx, desty, extend_rect.dWidth, extend_rect.dHeight,
+	    flags, OVERLAY_C, extend_pipe);
+        psb_putsurface_overlay(
+	    ctx, surface,  srcx, srcy, local_rect.sWidth, local_rect.sHeight,
+	    /* screen coordinate */
+	    destx, desty, local_rect.dWidth, local_rect.dHeight,
+            flags, OVERLAY_A, local_pipe); 
+    } else if (psb_xrandr_extend_mode()) {
+        psb_overlay_rect_t local_rect, extend_rect;
+        enum overlay_id_t extend_overlay = OVERLAY_C;
+
+        if (output->extend_drawable) {
+            XDestroyWindow(ctx->native_dpy, output->extend_drawable);
+            output->extend_drawable = 0;
+            XFreeGC((Display *)ctx->native_dpy, output->extend_gc);
+        }
+        memset(&local_rect, 0, sizeof(psb_overlay_rect_t));
+        memset(&extend_rect, 0, sizeof(psb_overlay_rect_t));
+        psb_extendMode_getCoordinate(pPriv, extend_location, destx, desty, srcx, srcy,
+                xScaleFactor, yScaleFactor, &x11_window_width, &x11_window_height, 
+                &local_rect, &extend_rect, &extend_overlay);
+
+        ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
+        if (ret != 0) {
+            psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+
+        if ((extend_rect.dWidth > 0) && (extend_rect.dHeight > 0)) {
+            psb_putsurface_overlay(
+                ctx, surface, 
+		extend_rect.srcx, extend_rect.srcy, extend_rect.sWidth, extend_rect.sHeight,
+		extend_rect.destx, extend_rect.desty, extend_rect.dWidth, extend_rect.dHeight,
+		flags, extend_overlay, extend_pipe); 
+	} 
+	if ((local_rect.dWidth > 0) && (local_rect.dHeight > 0)) {
+	    psb_putsurface_overlay(
+		ctx, surface,
+		local_rect.srcx, local_rect.srcy, local_rect.sWidth, local_rect.sHeight,
+		local_rect.destx, local_rect.desty, local_rect.dWidth, local_rect.dHeight,
+		flags, OVERLAY_A, local_pipe); 
+	}
+    } else if (psb_xrandr_extvideo_mode()) {
+        unsigned int xres, yres, xoffset, yoffset, overscanmode, pannelfitting;
+        psb_extvideo_center center;
+        
+        switch(extend_location) {
+            case RIGHT_OF:
+            case BELOW:
+            case NORMAL:
+                break;
+            case LEFT_OF:
+                if (!pPriv->adjust_window_flag) {
+                    destx = pPriv->extend_display_width + 1;
+		    XMoveResizeWindow(ctx->native_dpy, output->output_drawable, destx, desty, x11_window_width, x11_window_height);
+                    XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
+	            XFlush(ctx->native_dpy);
+                    pPriv->adjust_window_flag = 1;
+                }
+                destx = destx - pPriv->extend_display_width;
+                break;
+            case ABOVE:
+                if (!pPriv->adjust_window_flag) {
+                    desty = pPriv->extend_display_height + 1;
+		    XMoveResizeWindow(ctx->native_dpy, output->output_drawable, destx, desty, x11_window_width, x11_window_height);
+                    XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
+	            XFlush(ctx->native_dpy);
+                    pPriv->adjust_window_flag = 1;
+                }
+                desty = desty - pPriv->extend_display_height;
+                break;
+        }
+        if ((destx + x11_window_width) > pPriv->display_width)
+	    x11_window_width = pPriv->display_width - destx;
+	if ((desty + x11_window_height) > pPriv->display_height) 
+	    x11_window_height = pPriv->display_height - desty;
+        
+        psb_xrandr_extvideo_prop(&xres, &yres, &xoffset, &yoffset, &center, &subtitle, &overscanmode, &pannelfitting);
+
+        if(!pPriv->create_window_flag) {
+	    Window extend_win;
+            extend_win = psb_xrandr_create_full_screen_window(xoffset, yoffset, xres, yres);
+            if (output->extend_drawable != extend_win) {
+                output->extend_drawable = extend_win;
+                if (output->extend_gc)
+                    XFreeGC((Display *)ctx->native_dpy, output->extend_gc);
+                output->extend_gc = XCreateGC ((Display *)ctx->native_dpy, extend_win, 0, NULL);
+
+                /* paint the color key */
+                if (!obj_surface->subpictures) {
+                    XSetForeground((Display *)ctx->native_dpy, output->extend_gc, pPriv->colorKey);
+                    XFillRectangle((Display *)ctx->native_dpy, extend_win, output->extend_gc, 0, 0, xres, yres);
+                    XSync((Display *)ctx->native_dpy, False);
+                }
+            }
+            pPriv->create_window_flag = 1;
+        }
+
+        ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
+        if (ret != 0) {
+            psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+
+        psb_putsurface_overlay(
+            ctx, surface, srcx, srcy, srcw, srch,
+	    /* screen coordinate */
+	    xoffset, yoffset, xres, yres,
+	    flags, OVERLAY_C, PIPEB); 
+	psb_putsurface_overlay(
 	    ctx, surface, srcx, srcy, srcw, srch,
 	    /* screen coordinate */
 	    destx, desty,
 	    x11_window_width, x11_window_height,
-	    flags, extend_overlay, extend_pipe); 
-	psb_putsurface_overlay(
-	    ctx, surface,  srcx, srcy, srcw, srch,
-	    /* screen coordinate */
-	    destx, desty,
-	    x11_window_width, x11_window_height,
-            flags, local_overlay, local_pipe); 
-    } else if (psb_xrandr_extend_mode()) {
-        if ((extend_window_width > 0) && (extend_window_height > 0)) {
-            show_extend_window = 1;
-            psb_putsurface_overlay(
-                ctx, surface, 
-		extend_srcx, extend_srcy, 
-		extend_sWidth, extend_sHeight,
-		/* screen coordinate */
-		extend_destx, extend_desty,
-		extend_window_width, extend_window_height,
-		flags, extend_overlay, extend_pipe); 
-	} else if (show_extend_window) {
-            show_extend_window = 0;
-            psb_coverlay_stop(ctx);
-        }   
-	if ((local_window_width > 0) && (local_window_height > 0)) {
-            show_local_window = 1;
-	    psb_putsurface_overlay(
-		ctx, surface,
-		local_srcx, local_srcy, 
-		local_sWidth, local_sHeight,
-		/* screen coordinate */
-		local_destx, local_desty,
-		local_window_width, local_window_height,
-		flags, local_overlay, local_pipe); 
-	} else if (show_local_window) {
-            show_local_window = 0;
-            psb_coverlay_stop(ctx);
-        }
-    } else if (psb_xrandr_extvideo_mode()) {		
-	    psb_putsurface_overlay(
-                ctx, surface, srcx, srcy, srcw, srch,
-		/* screen coordinate */
-		0, 0,
-		extend_display_width, extend_display_height,
-		flags, extend_overlay, extend_pipe); 
-	    psb_putsurface_overlay(
-		ctx, surface, srcx, srcy, srcw, srch,
-		/* screen coordinate */
-		destx, desty,
-		x11_window_width, x11_window_height,
-		flags, local_overlay, local_pipe); 
+	    flags, OVERLAY_A, local_pipe); 
     }
-	
-    if (i32GrabXorgRet != 0)
-        XUngrabServer(ctx->native_dpy);
+    
+    /*Init Overlay subpicuture blending and make proper clear.*/
+    if (pPriv->is_mfld && obj_surface->subpictures) {
+        PsbVASurfaceRec *subpicture = (PsbVASurfaceRec *)obj_surface->subpictures;
 
-    free(pVaWindowClipRects);
-    psb_x11_freeWindowClipBoxList(pClipBoxList);
+        psb_init_subpicture(ctx, pPriv);
+        /*clear changed subpicture zones in drawable.*/
+        psb_clear_subpictures(ctx, pPriv, x11_window_width, x11_window_height, obj_surface);
+        if (pPriv->subpic_clear_flag) {
+            psb_DisplayRGBASubpicture(subpicture, ctx, x11_window_width, x11_window_height,
+                    surfacex, surfacey, obj_surface->width, obj_surface->height, subtitle);
+        }
+    }
 
     return VA_STATUS_SUCCESS;
 }

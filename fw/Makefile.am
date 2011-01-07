@@ -37,7 +37,8 @@ topazsc_bin_SOURCES = topazsc_bin.c H263MasterFirmwareCBR_bin.c H263MasterFirmwa
 		    MPG4MasterFirmware_bin.c H263SlaveFirmwareCBR_bin.c H263SlaveFirmwareVBR_bin.c \
 		    H263SlaveFirmware_bin.c H264SlaveFirmwareCBR_bin.c H264SlaveFirmwareVBR_bin.c \
 		    H264SlaveFirmware_bin.c JPEGSlaveFirmware_bin.c MPG4SlaveFirmwareCBR_bin.c \
-		    MPG4SlaveFirmwareVBR_bin.c MPG4SlaveFirmware_bin.c
+		    MPG4SlaveFirmwareVBR_bin.c MPG4SlaveFirmware_bin.c \
+		    H264SlaveFirmwareVCM_bin.c H264MasterFirmwareVCM_bin.c
 
 msvdx_fw.bin: msvdx_bin
 	./msvdx_bin

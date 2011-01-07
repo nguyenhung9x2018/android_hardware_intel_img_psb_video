@@ -49,15 +49,21 @@
 #define CMD_REGVALPAIR_FLAG_MB_LAYER	(0x00100000)
 #define CMD_REGVALPAIR_FLAG_HL_LAYER	(0x00200000)
 #define CMD_REGVALPAIR_FLAG_PRELOAD		(0x00400000)
-
-
+#define CMD_REGVALPAIR_FLAG_VC1PATCH            (0x00800000)
 
 #define CMD_REGVALPAIR_FORCE_MASK		(0x08000000)
 
 /* Rendec Write Block */
 #define CMD_RENDEC_WRITE				(0x20000000)
+#define CMD_RENDEC_BLOCK				(0x50000000)
 #define CMD_RENDEC_COUNT_MASK			(0x000FFFFF)
 #define CMD_RENDEC_COUNT_SHIFT			(0)
+
+/* Rendec Block */
+#define CMD_RENDEC_BLOCK_FLAG_VC1_CMD_PATCH     (0x01000000)
+#define CMD_RENDEC_BLOCK_FLAG_VC1_BE_PATCH      (0x02000000)
+#define CMD_RENDEC_BLOCK_FLAG_VC1_SP_PATCH      (0x04000000)
+#define CMD_RENDEC_BLOCK_FLAG_VC1_IC_PATCH      (0x08000000)
 
 /* Command Allocation temination Commands */
 #define CMD_COMPLETION					(0x60000000)
@@ -69,6 +75,9 @@
 #define CMD_CONDITIONAL_SKIP		(0x80000000)
 
 #define CMD_HEADER_VC1				(0x90000000)
+
+#define CMD_PARSE_HEADER                                        (0xF0000000)
+#define CMD_PARSE_HEADER_NEWSLICE                       (0x00000001)
 
 
 typedef struct _RENDER_BUFFER_HEADER_VC1_TAG
@@ -108,6 +117,15 @@ typedef struct _RENDER_BUFFER_HEADER_TAG
 	}	ui32LLDMAPointers;			
 
 } RENDER_BUFFER_HEADER;
+
+typedef struct _PARSE_HEADER_CMD_TAG {
+         IMG_UINT32      ui32Cmd;
+         IMG_UINT32      ui32SeqHdrData;
+         IMG_UINT32      ui32PicDimensions;
+         IMG_UINT32      ui32BitplaneAddr[3];
+         IMG_UINT32      ui32VLCTableAddr;
+         IMG_UINT32      ui32ICParamData[2];
+} PARSE_HEADER_CMD;
 
 /* Linked list DMA Command */
 #define CMD_LLDMA					(0xA0000000)

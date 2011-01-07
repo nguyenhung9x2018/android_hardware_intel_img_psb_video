@@ -23,6 +23,7 @@
 #ifndef _PSB_OVERLAY_H_
 #define _PSB_OVERLAY_H_
 
+#include <va/va.h>
 #define USE_OVERLAY 1
 #define USE_DISPLAY_C_SPRITE 0
 
@@ -243,13 +244,37 @@ typedef struct _ov_psb_fixed32 {
     };
 } ov_psb_fixed32;
 
+typedef struct _psb_subpictureKeyRec {
+    struct _psb_subpictureKeyRec *next;
+    unsigned int subpic_id;
+
+    int subpic_dstx;
+    int subpic_dsty;
+    int subpic_dstw;
+    int subpic_dsth;
+} psb_subpictureKeyRec, *psb_subpictureKeyPtr;
+
 typedef struct _PsbPortPrivRec {
     int curBuf;
     int is_mfld;
+    /*subpicture*/
     int subpicture_enabled;
     unsigned int subpicture_enable_mask;
+    psb_subpictureKeyPtr subpicture_key;
+    
+    /*overlay status*/
+    int overlayA_pipeId;
+    int overlayC_pipeId;
     int overlayA_enabled;
     int overlayC_enabled;
+
+    /*window attribute*/
+    int last_num_clipbox;
+    VARectangle last_clipbox[16];
+    int x11_window_width;
+    int x11_window_height;
+    int create_window_flag;
+    int adjust_window_flag;
 
     /* used to check downscale*/
     short width_save;

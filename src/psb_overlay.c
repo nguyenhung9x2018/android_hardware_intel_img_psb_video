@@ -59,13 +59,18 @@
  * write to OVADD.
  **********************************************************************************************/
 static void
-I830ResetVideo(PsbPortPrivPtr pPriv)
+I830ResetVideo(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 {
+    INIT_DRIVER_DATA;
     I830OverlayRegPtr overlayA = (I830OverlayRegPtr)(pPriv->regmap[0]);
     I830OverlayRegPtr overlayC = (I830OverlayRegPtr)(pPriv->regmap[1]);
+    long offsetA = wsbmBOOffsetHint(pPriv->wsbo[0]) & 0x0FFFFFFF;
+    long offsetC = wsbmBOOffsetHint(pPriv->wsbo[1]) & 0x0FFFFFFF;
+    struct drm_psb_register_rw_arg regs;
 
     memset(overlayA, 0, sizeof(*overlayA));
     memset(overlayC, 0, sizeof(*overlayC));
+    memset(&regs, 0, sizeof(regs));
 
     overlayA->OCLRC0 = (pPriv->contrast.Value << 18) | (pPriv->brightness.Value & 0xff);
     overlayA->OCLRC1 = pPriv->saturation.Value;
@@ -75,11 +80,11 @@ I830ResetVideo(PsbPortPrivPtr pPriv)
 
 #if USE_DCLRK
     /* case bit depth 16 */
-    overlayA->DCLRKV = RGB16ToColorKey(pPriv->colorKey);
+    overlayA->DCLRKV = pPriv->colorKey;
     overlayA->DCLRKM |= DEST_KEY_ENABLE;
     overlayA->DCLRKM &= ~CONST_ALPHA_ENABLE;
 	
-    overlayC->DCLRKV = RGB16ToColorKey(pPriv->colorKey);
+    overlayC->DCLRKV = pPriv->colorKey;
     overlayC->DCLRKM |= DEST_KEY_ENABLE;
     overlayC->DCLRKM &= ~CONST_ALPHA_ENABLE;
 #else
@@ -91,6 +96,24 @@ I830ResetVideo(PsbPortPrivPtr pPriv)
 
     overlayC->DWINSZ = 0x00000000;
     overlayC->OCONFIG = CC_OUT_8BIT;
+    regs.overlay_read_mask = OVC_REGRWBITS_OVADD;
+    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+    regs.overlay_read_mask = 0;
+    regs.overlay_write_mask = OVC_REGRWBITS_OVADD;
+    regs.overlay.OVADD &= ~(0xffff << 16);
+    regs.overlay.OVADD |= offsetC;
+    regs.overlay.b_wait_vblank = 1;
+    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+
+    memset(&regs, 0, sizeof(regs));
+    regs.overlay_read_mask = OV_REGRWBITS_OVADD;
+    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+    regs.overlay_read_mask = 0;
+    regs.overlay_write_mask = OV_REGRWBITS_OVADD;
+    regs.overlay.OVADD &= ~(0xffff << 16);
+    regs.overlay.OVADD |= offsetA;
+    regs.overlay.b_wait_vblank = 1;
+    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
 }
 
 static uint32_t I830BoundGammaElt (uint32_t elt, uint32_t eltPrev)
@@ -149,14 +172,13 @@ static void I830StopVideo(VADriverContextP ctx)
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
     long offsetA = wsbmBOOffsetHint(pPriv->wsbo[0]) & 0x0FFFFFFF;
-    long offsetC = wsbmBOOffsetHint(pPriv->wsbo[1]) & 0x0FFFFFFF;
+    I830OverlayRegPtr overlayA = (I830OverlayRegPtr)(pPriv->regmap[0]);
+    I830OverlayRegPtr overlayC = (I830OverlayRegPtr)(pPriv->regmap[1]);
     struct drm_psb_register_rw_arg regs;
 
 #if 0
     REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
 #endif
-
-    I830ResetVideo(pPriv);
 
     memset(&regs, 0, sizeof(regs));
     if (pPriv->subpicture_enabled ) {
@@ -169,16 +191,26 @@ static void I830StopVideo(VADriverContextP ctx)
 
     if (pPriv->is_mfld && psb_xrandr_single_mode() == 0) {
         if (pPriv->overlayC_enabled) {
-            regs.overlay_write_mask = OVC_REGRWBITS_OVADD;
-	    regs.overlay.OVADD = offsetC;
-            pPriv->overlayC_enabled = 0;        
+            regs.overlay_read_mask = OVC_REGRWBITS_OVADD;
 	    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+            
+            overlayC->OCMD &= ~OVERLAY_ENABLE;
+            regs.overlay_read_mask = 0;
+            regs.overlay_write_mask = OVC_REGRWBITS_OVADD;
+	    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+
+            memset(&regs, 0, sizeof(regs));
+            pPriv->overlayC_enabled = 0;
         }
         if (pPriv->overlayA_enabled) {
-	    regs.overlay_write_mask = OV_REGRWBITS_OVADD;
-	    regs.overlay.OVADD = offsetA;
-            pPriv->overlayA_enabled = 0;
+	    regs.overlay_read_mask = OV_REGRWBITS_OVADD;
 	    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+            
+            overlayA->OCMD &= ~OVERLAY_ENABLE;
+            regs.overlay_read_mask = 0;
+            regs.overlay_write_mask = OV_REGRWBITS_OVADD;
+	    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+            pPriv->overlayA_enabled = 0;
         }
     } else {
         regs.overlay_write_mask = OV_REGRWBITS_OVADD;
@@ -186,6 +218,54 @@ static void I830StopVideo(VADriverContextP ctx)
         pPriv->overlayA_enabled = 0;
         drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
     }
+}
+
+static void I830SwitchPipe(VADriverContextP ctx , int overlayId, int pipeId)
+{
+    INIT_DRIVER_DATA;
+    PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
+    I830OverlayRegPtr overlay = (I830OverlayRegPtr)(pPriv->regmap[overlayId]);
+    struct drm_psb_register_rw_arg regs;
+    uint32_t overlay_mask;
+    
+    if ((overlayId == OVERLAY_A) && pPriv->overlayA_enabled)
+        overlay_mask = OV_REGRWBITS_OVADD;
+    else if ((overlayId == OVERLAY_C) && pPriv->overlayC_enabled)
+        overlay_mask = OVC_REGRWBITS_OVADD;
+    else
+        return;  /*No overlay enabled, do nothing.*/
+
+    printf("Overlay %d switch to pipe %d\n", overlayId, pipeId);
+    memset(&regs, 0, sizeof(regs));
+    memset(overlay, 0, sizeof(*overlay));
+    overlay->OCLRC0 = (pPriv->contrast.Value << 18) | (pPriv->brightness.Value & 0xff);
+    overlay->OCLRC1 = pPriv->saturation.Value;
+
+    /* case bit depth 16 */
+    overlay->DCLRKV = pPriv->colorKey;
+    overlay->DCLRKM |= DEST_KEY_ENABLE;
+    overlay->DCLRKM &= ~CONST_ALPHA_ENABLE;	
+    overlay->DWINSZ = 0x00000000;
+    overlay->OCONFIG = CC_OUT_8BIT;
+
+    regs.overlay_read_mask = overlay_mask;
+    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+
+    switch(pipeId) {
+    case PIPEA:
+        overlay->OCONFIG |= OVERLAY_C_PIPE_A; 
+        break;
+    case PIPEB:
+        overlay->OCONFIG |= OVERLAY_C_PIPE_B; 
+        break;
+    case PIPEC:
+        overlay->OCONFIG |= OVERLAY_C_PIPE_C;
+        break;
+    }
+    regs.overlay_read_mask = 0;
+    regs.overlay_write_mask = overlay_mask;
+    regs.overlay.b_wait_vblank = 1;
+    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
 }
 
 static int
@@ -368,8 +448,7 @@ i830_display_video(
     else
 	overlay->DCLRKM |= DEST_KEY_ENABLE;
 
-    overlay->DCLRKV = RGB16ToColorKey(pPriv->colorKey);
-
+    overlay->DCLRKV = pPriv->colorKey;
 #if USE_ROTATION_FUNC
     switch (pPriv->rotation) {
     case RR_Rotate_0:
@@ -622,7 +701,7 @@ i830_display_video(
             }
         }
     }
-
+ 
     OCMD = OVERLAY_ENABLE;
 
     switch (id) {
@@ -724,11 +803,11 @@ i830_display_video(
                                                  driver_data->ble_white_mode.value);
             iep_lite_RenderCompleteCallback (pPriv->p_iep_lite_context);
                    
-            #if 0
+#if 0
             printf("bs gain %d, scc gain %d\n",
-            driver_data->blueStretch_gain.value,
-            driver_data->skinColorCorrection_gain.value);
-            #endif
+                   driver_data->blueStretch_gain.value,
+                   driver_data->skinColorCorrection_gain.value);
+#endif
             IEP_LITE_BlueStretchConfigure(pPriv->p_iep_lite_context,
                                           driver_data->blueStretch_gain.value);
             IEP_LITE_SkinColourCorrectionConfigure(pPriv->p_iep_lite_context,
@@ -786,7 +865,6 @@ i830_display_video(
             regs.overlay.OVADD |= 0x40;
             break;
         }
-        overlay->OCONFIG |= IEP_LITE_BYPASS;    /* By pass IEP functionality */
         overlay->OCONFIG |= ZORDER_TOP;
     }
     else
@@ -855,6 +933,62 @@ static int I830PutImage(
     else
         psb_surface = obj_surface->psb_surface_rotate;
 
+    if(!psb_surface)
+        psb_surface = obj_surface->psb_surface;
+#if 0
+    if(pipeId == 5)
+    {
+        psb_buffer_p buf = &psb_surface->buf;
+        unsigned char *data, *chroma, *buffer, *header; 
+        static FILE *pf = NULL;
+        int ret, i;
+        if(pf == NULL)
+            if((pf = fopen("/home/1080p.yuv", "w+")) == NULL)
+                printf("Open yuv file fails\n");
+
+        ret = psb_buffer_map(buf, &data); 
+
+        if(ret)
+            printf("Map buffer fail\n");
+
+        for(i = 0; i < obj_surface->height_r; i++) 
+        {
+            fwrite(data, 1, obj_surface->width_r, pf);
+	    data += psb_surface->stride;
+        }
+
+        buffer = malloc(obj_surface->height_r * obj_surface->width_r);
+        if(!buffer)
+            printf("Alloc chroma buffer fail\n");
+
+        header = buffer;
+        chroma = data;
+        for(i = 0; i < obj_surface->height_r/2; i++) 
+        {
+            int j;
+            for(j = 0; j < obj_surface->width_r/2; j++)
+            {
+                *buffer++ = data[j*2];
+            }
+	    data += psb_surface->stride;
+        }
+
+        data = chroma;
+        for(i = 0; i < obj_surface->height_r/2; i++) 
+        {
+            int j;
+            for(j = 0; j < obj_surface->width_r/2; j++)
+            {
+                *buffer++ = data[j*2 + 1];
+            }
+	    data += psb_surface->stride;
+        }
+
+        fwrite(header, obj_surface->height_r/2, obj_surface->width_r, pf);
+        free(header);
+        psb_buffer_unmap(buf);
+    }
+#endif
     pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
     
     switch (fourcc) {
@@ -1038,6 +1172,8 @@ static void psbPortPrivCreate(PsbPortPrivPtr pPriv)
     pPriv->subpicture_enable_mask = 0;
     pPriv->overlayA_enabled = 0;
     pPriv->overlayC_enabled = 0;
+    pPriv->overlayA_pipeId = PIPEA;
+    pPriv->overlayC_pipeId = PIPEB;
 	
     /* FIXME: is this right? set up to current screen size */
 #if 1
@@ -1049,6 +1185,8 @@ static void psbPortPrivCreate(PsbPortPrivPtr pPriv)
 static void
 psbPortPrivDestroy(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 {
+    psb_subpictureKeyPtr head_key = pPriv->subpicture_key;
+    psb_subpictureKeyPtr tail_key = NULL;
     if (pPriv->overlayA_enabled)
         I830StopVideo(ctx);
 
@@ -1061,6 +1199,12 @@ psbPortPrivDestroy(VADriverContextP ctx, PsbPortPrivPtr pPriv)
             free(pPriv->p_iep_lite_context);
     }
     pPriv->p_iep_lite_context = NULL;
+
+    while (head_key != NULL) {
+        tail_key = head_key->next;
+        free(head_key);
+        head_key = tail_key;
+    }
 }
 
 static PsbPortPrivPtr
@@ -1074,8 +1218,7 @@ psbSetupImageVideoOverlay(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 
 
     /* use green as color key by default for android media player */
-    pPriv->colorKey = 0 /*0x0440*/;
-
+    pPriv->colorKey = driver_data->color_key/*0x0440*/;
     pPriv->brightness.Value = -19; /* (255/219) * -16 */
     pPriv->contrast.Value = 75;  /* 255/219 * 64 */
     pPriv->saturation.Value = 146; /* 128/112 * 128 */
@@ -1167,10 +1310,11 @@ int psb_coverlay_init(VADriverContextP ctx)
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = &driver_data->coverlay_priv;
 
+    memset(pPriv, 0, sizeof(PsbPortPrivRec));
     pPriv->is_mfld = IS_MFLD(driver_data);
     psbSetupImageVideoOverlay(ctx, pPriv);
 
-    I830ResetVideo(pPriv);
+    I830ResetVideo(ctx, pPriv);
     I830UpdateGamma(ctx, pPriv);
 
     return 0;
@@ -1210,7 +1354,18 @@ VAStatus psb_putsurface_overlay(
 {
     INIT_DRIVER_DATA;
     object_surface_p obj_surface = SURFACE(surface);
+    PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
     
+    if ((overlayId == OVERLAY_A) && (pPriv->overlayA_pipeId != pipeId)) {
+        pPriv->overlayA_pipeId = pipeId;
+        I830SwitchPipe(ctx, OVERLAY_A, pipeId);
+        psb__information_message("OverlayA switch pipe to %d, stop overlayA first.\n", pipeId);
+    }
+    else if ((overlayId == OVERLAY_C) && (pPriv->overlayC_pipeId != pipeId)) {
+        pPriv->overlayC_pipeId = pipeId;
+        I830SwitchPipe(ctx, OVERLAY_C, pipeId);
+        psb__information_message("OverlayC switch pipe to %d, stop overlayC first.\n", pipeId);
+    }
     I830PutImage(ctx, surface, srcx, srcy, srcw, srch,
                  destx, desty, destw, desth,
                  VA_FOURCC_NV12, flags, overlayId, pipeId);

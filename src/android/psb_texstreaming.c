@@ -63,7 +63,7 @@ VAStatus psb_register_video_bcd(
         return VA_STATUS_ERROR_UNKNOWN;
     }
     buffer_device_id = ioctl_package.outputparam;
-
+    LOGD("In psb_register_video_bcd, the allocated bc device id is %d.\n", buffer_device_id);
     LOGD("In psb_register_video_bcd, call BC_Video_ioctl_get_buffer_count to get buffer count.\n");
     ioctl_package.ioctl_cmd = BC_Video_ioctl_get_buffer_count;
     ioctl_package.device_id = buffer_device_id;
@@ -111,7 +111,7 @@ VAStatus psb_release_video_bcd( VADriverContextP ctx )
 
     if (driver_data->output_method == PSB_PUTSURFACE_TEXSTREAMING || 
 	driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING) {
-        LOGD("In psb_register_video_bcd, call BC_Video_ioctl_release_buffer_device to release video buffer device id.\n");
+        LOGD("In psb_release_video_bcd, call BC_Video_ioctl_release_buffer_device to release video buffer device id.\n");
         ioctl_package.ioctl_cmd = BC_Video_ioctl_release_buffer_device;
         ioctl_package.device_id = buffer_device_id;
         if (drmCommandWriteRead(driver_data->drm_fd, DRM_BUFFER_CLASS_VIDEO, &ioctl_package, sizeof(ioctl_package)) != 0)

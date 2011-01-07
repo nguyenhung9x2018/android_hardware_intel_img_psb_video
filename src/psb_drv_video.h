@@ -193,6 +193,10 @@ struct psb_driver_data_s {
     int dummy_putsurface;
     int fixed_fps;
     unsigned int frame_count;
+
+    uint32_t blend_mode;
+    uint32_t blend_color;
+    uint32_t color_key;
 };
 
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)
@@ -269,6 +273,7 @@ struct object_surface_s {
     VAContextID context_id;
     int width;
     int height;
+    int height_origin;
     int width_r;
     int height_r;
     struct psb_surface_s *psb_surface;

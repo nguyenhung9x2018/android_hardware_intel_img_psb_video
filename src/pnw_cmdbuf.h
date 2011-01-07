@@ -39,6 +39,10 @@
 #define MTX_CMDWORD_INT_SHIFT   (7)
 #define MTX_CMDWORD_INT_MASK    (1)
 
+#define PNW_CMDBUF_START_PIC_IDX (0)
+#define PNW_CMDBUF_SEQ_HEADER_IDX (1)
+#define PNW_CMDBUF_PIC_HEADER_IDX (2)
+
 struct pnw_cmdbuf_s {
     struct psb_buffer_s buf;
     unsigned int size;
@@ -52,27 +56,20 @@ struct pnw_cmdbuf_s {
     void *cmd_base;
     void *cmd_start;
     uint32_t *cmd_idx;
-    uint32_t *cmd_idx_saved; /* idx saved for frameskip redo */
+    uint32_t *cmd_idx_saved[3]; /* idx saved for dual-core adjustion */
 
     /* all frames share one topaz param buffer which contains InParamBase
      * AboveParam/BellowParam, and the buffer allocated when the context is created
      */
-/*
     struct psb_buffer_s *topaz_in_params_I;
+    void *topaz_in_params_I_p;
+
     struct psb_buffer_s *topaz_in_params_P;
-    struct psb_buffer_s *topaz_above_bellow_params;
-*/
+    void *topaz_in_params_P_p;
+
     struct psb_buffer_s *topaz_below_params;
     void *topaz_below_params_p;
-  
-    /*
-    void *topaz_in_params_I_p;
-    void *topaz_in_params_P_p;
-    */
-
-    struct psb_buffer_s topaz_in_params;
-    void *topaz_in_params_P;
-
+   
     /* Every frame has its own PIC_PARAMS, SLICE_PARAMS and HEADER mem
      */
     
@@ -199,7 +196,7 @@ int pnw_context_submit_cmdbuf( object_context_p obj_context );
  *
  * Returns 0 on success
  */
-int pnw_surface_get_frameskip( object_context_p obj_context, psb_surface_p surface, int *frame_skip);
+int pnw_surface_get_frameskip( psb_driver_data_p driver_data, psb_surface_p psb_surface, int *frame_skip);
 
 /*
  * Flushes the pending cmdbuf
