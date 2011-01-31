@@ -91,6 +91,7 @@ LOCAL_C_INCLUDES :=			\
     $(LOCAL_PATH)/powervr_iep_lite/iep_lite		\
     $(LOCAL_PATH)/powervr_iep_lite/fixedpointmaths
 
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := pvr_drv_video
 
 LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libmemrar libpvr2d libcutils \
