@@ -1,0 +1,10 @@
+#!/bin/bash
+file=$(find . -name *.[ch])
+for i in $file
+do 
+    echo $i 
+    astyle --style=linux -s -p -U -n $i
+done
+
+
+
