@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -29,7 +29,7 @@
 
 #define MVEA_LRB_SEARCH_HEIGHT 112
 #define MVEA_LRB_SEARCH_WIDTH  144
-#define MVEA_LRB_TOP_OFFSET    (((MVEA_LRB_SEARCH_HEIGHT/2)/16)*16) 
+#define MVEA_LRB_TOP_OFFSET    (((MVEA_LRB_SEARCH_HEIGHT/2)/16)*16)
 
 
 #define F_MASK_MVEA(basename)  (MASK_MVEA_##basename)   /*      MVEA    */

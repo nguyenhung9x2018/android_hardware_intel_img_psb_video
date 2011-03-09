@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -63,14 +63,14 @@
  * Create command buffer
  */
 VAStatus pnw_cmdbuf_create(
-    object_context_p obj_context,    
+    object_context_p obj_context,
     psb_driver_data_p driver_data,
     pnw_cmdbuf_p cmdbuf)
 {
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int size = CMD_SIZE + RELOC_SIZE;
-    
+
     cmdbuf->size = 0;
     cmdbuf->cmd_base = NULL;
     cmdbuf->cmd_idx = NULL;
@@ -79,14 +79,12 @@ VAStatus pnw_cmdbuf_create(
     cmdbuf->buffer_refs_count = 0;
     cmdbuf->buffer_refs_allocated = 10;
     cmdbuf->buffer_refs = (psb_buffer_p *) calloc(1, sizeof(psb_buffer_p) * cmdbuf->buffer_refs_allocated);
-    if (NULL == cmdbuf->buffer_refs)
-    {
+    if (NULL == cmdbuf->buffer_refs) {
         cmdbuf->buffer_refs_allocated = 0;
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
-    if (VA_STATUS_SUCCESS == vaStatus)
-    {
-        vaStatus = psb_buffer_create( driver_data, size, psb_bt_cpu_only, &cmdbuf->buf );
+    if (VA_STATUS_SUCCESS == vaStatus) {
+        vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_only, &cmdbuf->buf);
         cmdbuf->size = size;
     }
 
@@ -96,65 +94,63 @@ VAStatus pnw_cmdbuf_create(
         cmdbuf->buffer_refs_allocated = 0;
         return vaStatus;
     }
-    
+
     /* create topaz parameter buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->pic_params_size * MAX_TOPAZ_CORES, psb_bt_cpu_vpu, &cmdbuf->pic_params);
-    if(VA_STATUS_SUCCESS != vaStatus)
+    if (VA_STATUS_SUCCESS != vaStatus)
         goto error_out5;
 
     /* create header buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->header_buffer_size, psb_bt_cpu_vpu, &cmdbuf->header_mem);
-    if(VA_STATUS_SUCCESS != vaStatus) 
+    if (VA_STATUS_SUCCESS != vaStatus)
         goto error_out2;
 
     /* create slice parameter buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->sliceparam_buffer_size, psb_bt_cpu_vpu, &cmdbuf->slice_params);
-    if(VA_STATUS_SUCCESS != vaStatus)
+    if (VA_STATUS_SUCCESS != vaStatus)
         goto error_out1;
 
     /* all cmdbuf share one MTX_CURRENT_IN_PARAMS since every MB has a MTX_CURRENT_IN_PARAMS structure
      * and filling this structure for all MB is very time-consuming
      */
-    
+
     cmdbuf->topaz_in_params_I = &ctx->topaz_in_params_I;
     cmdbuf->topaz_in_params_P = &ctx->topaz_in_params_P;
-   
+
     cmdbuf->topaz_below_params = &ctx->topaz_below_params;
     cmdbuf->topaz_above_params = &ctx->topaz_above_params;
 
     return vaStatus;
-    
-  error_out1:
+
+error_out1:
     psb_buffer_destroy(&cmdbuf->header_mem);
-  error_out2:
+error_out2:
     psb_buffer_destroy(&cmdbuf->pic_params);
-  error_out5:
+error_out5:
     pnw_cmdbuf_destroy(cmdbuf);
-    
+
     return vaStatus;
 }
 
 /*
  * Destroy buffer
- */   
-void pnw_cmdbuf_destroy( pnw_cmdbuf_p cmdbuf )
+ */
+void pnw_cmdbuf_destroy(pnw_cmdbuf_p cmdbuf)
 {
-    if (cmdbuf->size)
-    {
-        psb_buffer_destroy( &cmdbuf->buf );
+    if (cmdbuf->size) {
+        psb_buffer_destroy(&cmdbuf->buf);
         cmdbuf->size = 0;
     }
-    if (cmdbuf->buffer_refs_allocated)
-    {
-        free( cmdbuf->buffer_refs );
+    if (cmdbuf->buffer_refs_allocated) {
+        free(cmdbuf->buffer_refs);
         cmdbuf->buffer_refs = NULL;
         cmdbuf->buffer_refs_allocated = 0;
     }
 
-    psb_buffer_destroy( &cmdbuf->pic_params );
-    psb_buffer_destroy( &cmdbuf->header_mem );
-    psb_buffer_destroy( &cmdbuf->slice_params );
-    
+    psb_buffer_destroy(&cmdbuf->pic_params);
+    psb_buffer_destroy(&cmdbuf->header_mem);
+    psb_buffer_destroy(&cmdbuf->slice_params);
+
 }
 
 /*
@@ -162,7 +158,7 @@ void pnw_cmdbuf_destroy( pnw_cmdbuf_p cmdbuf )
  *
  * Returns 0 on success
  */
-int pnw_cmdbuf_reset( pnw_cmdbuf_p cmdbuf )
+int pnw_cmdbuf_reset(pnw_cmdbuf_p cmdbuf)
 {
     int ret;
 
@@ -173,10 +169,9 @@ int pnw_cmdbuf_reset( pnw_cmdbuf_p cmdbuf )
 
     cmdbuf->buffer_refs_count = 0;
     cmdbuf->cmd_count = 0;
-   
-    ret = psb_buffer_map( &cmdbuf->buf, &cmdbuf->cmd_base );
-    if (ret)
-    {
+
+    ret = psb_buffer_map(&cmdbuf->buf, &cmdbuf->cmd_base);
+    if (ret) {
         return ret;
     }
 
@@ -196,7 +191,7 @@ int pnw_cmdbuf_reset( pnw_cmdbuf_p cmdbuf )
  *
  * Returns 0 on success
  */
-int pnw_cmdbuf_unmap( pnw_cmdbuf_p cmdbuf )
+int pnw_cmdbuf_unmap(pnw_cmdbuf_p cmdbuf)
 {
     cmdbuf->cmd_base = NULL;
     cmdbuf->cmd_start = NULL;
@@ -204,7 +199,7 @@ int pnw_cmdbuf_unmap( pnw_cmdbuf_p cmdbuf )
     cmdbuf->reloc_base = NULL;
     cmdbuf->reloc_idx = NULL;
     cmdbuf->cmd_count = 0;
-    psb_buffer_unmap( &cmdbuf->buf );
+    psb_buffer_unmap(&cmdbuf->buf);
     return 0;
 }
 
@@ -214,29 +209,26 @@ int pnw_cmdbuf_unmap( pnw_cmdbuf_p cmdbuf )
  * Returns a reference index that can be used to refer to "buf" in
  * relocation records, -1 on error
  */
-int pnw_cmdbuf_buffer_ref( pnw_cmdbuf_p cmdbuf, psb_buffer_p buf )
+int pnw_cmdbuf_buffer_ref(pnw_cmdbuf_p cmdbuf, psb_buffer_p buf)
 {
     int item_loc = 0;
 
     /*Reserve the same TTM BO twice will cause kernel lock up*/
-    while( (item_loc < cmdbuf->buffer_refs_count)
-                && (wsbmKBufHandle(wsbmKBuf(cmdbuf->buffer_refs[item_loc]->drm_buf))
-                    != wsbmKBufHandle(wsbmKBuf(buf->drm_buf))))
-    //while( (item_loc < cmdbuf->buffer_refs_count) && (cmdbuf->buffer_refs[item_loc] != buf) )
+    while ((item_loc < cmdbuf->buffer_refs_count)
+            && (wsbmKBufHandle(wsbmKBuf(cmdbuf->buffer_refs[item_loc]->drm_buf))
+                != wsbmKBufHandle(wsbmKBuf(buf->drm_buf))))
+        //while( (item_loc < cmdbuf->buffer_refs_count) && (cmdbuf->buffer_refs[item_loc] != buf) )
     {
         item_loc++;
     }
-    if (item_loc == cmdbuf->buffer_refs_count)
-    {
+    if (item_loc == cmdbuf->buffer_refs_count) {
         /* Add new entry */
-        if (item_loc >= cmdbuf->buffer_refs_allocated)
-        {
+        if (item_loc >= cmdbuf->buffer_refs_allocated) {
             /* Allocate more entries */
-            int new_size = cmdbuf->buffer_refs_allocated+10;
+            int new_size = cmdbuf->buffer_refs_allocated + 10;
             psb_buffer_p *new_array;
             new_array = (psb_buffer_p *) calloc(1, sizeof(psb_buffer_p) * new_size);
-            if (NULL == new_array)
-            {
+            if (NULL == new_array) {
                 return -1; /* Allocation failure */
             }
             memcpy(new_array, cmdbuf->buffer_refs, sizeof(psb_buffer_p) * cmdbuf->buffer_refs_allocated);
@@ -259,42 +251,39 @@ int pnw_cmdbuf_buffer_ref( pnw_cmdbuf_p cmdbuf, psb_buffer_p buf )
  * "mask" determines which bits of the target DWORD will be updated with the so
  * constructed address. The remaining bits will be filled with bits from "background".
  */
-void pnw_cmdbuf_add_relocation( pnw_cmdbuf_p cmdbuf,
-                                uint32_t *addr_in_dst_buffer,/*addr of dst_buffer for the DWORD*/
-                                psb_buffer_p ref_buffer,	
-                                uint32_t buf_offset,
-                                uint32_t mask,
-                                uint32_t background,
-                                uint32_t align_shift,
-                                uint32_t dst_buffer,
-                                uint32_t *start_of_dst_buffer) /*Index of the list refered by cmdbuf->buffer_refs */
+void pnw_cmdbuf_add_relocation(pnw_cmdbuf_p cmdbuf,
+                               uint32_t *addr_in_dst_buffer,/*addr of dst_buffer for the DWORD*/
+                               psb_buffer_p ref_buffer,
+                               uint32_t buf_offset,
+                               uint32_t mask,
+                               uint32_t background,
+                               uint32_t align_shift,
+                               uint32_t dst_buffer,
+                               uint32_t *start_of_dst_buffer) /*Index of the list refered by cmdbuf->buffer_refs */
 {
     struct drm_psb_reloc *reloc = cmdbuf->reloc_idx;
     uint64_t presumed_offset = wsbmBOOffsetHint(ref_buffer->drm_buf);
 
     reloc->where = addr_in_dst_buffer - start_of_dst_buffer; /* Offset in DWORDs */
 
-    reloc->buffer = pnw_cmdbuf_buffer_ref( cmdbuf, ref_buffer );
-    ASSERT( reloc->buffer != -1 );
-    
+    reloc->buffer = pnw_cmdbuf_buffer_ref(cmdbuf, ref_buffer);
+    ASSERT(reloc->buffer != -1);
+
     reloc->reloc_op = PSB_RELOC_OP_OFFSET;
 #ifndef VA_EMULATOR
-    if (presumed_offset)
-    {
+    if (presumed_offset) {
         uint32_t new_val =  presumed_offset + buf_offset;
 
         new_val = ((new_val >> align_shift) << (align_shift << PSB_RELOC_ALSHIFT_SHIFT));
         new_val = (background & ~mask) | (new_val & mask);
         *addr_in_dst_buffer = new_val;
-    } 
-    else
-    {
+    } else {
         *addr_in_dst_buffer = PSB_RELOC_MAGIC;
     }
 #else
     /* indicate subscript of relocation buffer */
     *addr_in_dst_buffer = reloc - (struct drm_psb_reloc *)cmdbuf->reloc_base;
-#endif    
+#endif
     reloc->mask = mask;
     reloc->shift = align_shift << PSB_RELOC_ALSHIFT_SHIFT;
     reloc->pre_add = buf_offset;
@@ -302,15 +291,15 @@ void pnw_cmdbuf_add_relocation( pnw_cmdbuf_p cmdbuf,
     reloc->dst_buffer = dst_buffer;
     cmdbuf->reloc_idx++;
 
-    ASSERT( ((void *) (cmdbuf->reloc_idx)) < RELOC_END(cmdbuf) );
+    ASSERT(((void *)(cmdbuf->reloc_idx)) < RELOC_END(cmdbuf));
 }
 
 /* Prepare one command package */
-void pnw_cmdbuf_insert_command_package( object_context_p obj_context,
-                                        int32_t core,
-                                        uint32_t cmd_id,
-                                        psb_buffer_p command_data,
-                                        uint32_t offset)
+void pnw_cmdbuf_insert_command_package(object_context_p obj_context,
+                                       int32_t core,
+                                       uint32_t cmd_id,
+                                       psb_buffer_p command_data,
+                                       uint32_t offset)
 {
     uint32_t cmd_word;
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
@@ -328,21 +317,18 @@ void pnw_cmdbuf_insert_command_package( object_context_p obj_context,
     core %= MAX_TOPAZ_CORES;
 
     cmd_word = ((ctx->CmdCount & MTX_CMDWORD_COUNT_MASK) << MTX_CMDWORD_COUNT_SHIFT)
-                 | ((0 & MTX_CMDWORD_INT_MASK) << MTX_CMDWORD_INT_SHIFT) /* Do not generate interrupt */
-                 | (core << MTX_CMDWORD_CORE_SHIFT)
-                 | (cmd_id << MTX_CMDWORD_ID_SHIFT);
+               | ((0 & MTX_CMDWORD_INT_MASK) << MTX_CMDWORD_INT_SHIFT) /* Do not generate interrupt */
+               | (core << MTX_CMDWORD_CORE_SHIFT)
+               | (cmd_id << MTX_CMDWORD_ID_SHIFT);
 
     /* write command word into cmdbuf */
     *cmdbuf->cmd_idx++ = cmd_word;
 
     /* Command data address */
-    if ( command_data )
-    {
+    if (command_data) {
         RELOC_CMDBUF_PNW(cmdbuf->cmd_idx, offset, command_data);
         cmdbuf->cmd_idx++;
-    }
-    else
-    {
+    } else {
         *cmdbuf->cmd_idx++ = 0;
     }
 
@@ -362,34 +348,31 @@ void pnw_cmdbuf_insert_command_package( object_context_p obj_context,
  *
  * Returns 0 on success
  */
-int pnw_context_get_next_cmdbuf( object_context_p obj_context )
+int pnw_context_get_next_cmdbuf(object_context_p obj_context)
 {
     pnw_cmdbuf_p cmdbuf;
     int ret;
-    
-    if (obj_context->pnw_cmdbuf)
-    {
+
+    if (obj_context->pnw_cmdbuf) {
         return 0;
     }
 
     obj_context->cmdbuf_current++;
-    if (obj_context->cmdbuf_current >= PNW_MAX_CMDBUFS_ENCODE)
-    {
+    if (obj_context->cmdbuf_current >= PNW_MAX_CMDBUFS_ENCODE) {
         obj_context->cmdbuf_current = 0;
     }
-    
+
     cmdbuf = obj_context->pnw_cmdbuf_list[obj_context->cmdbuf_current];
-    ret = pnw_cmdbuf_reset( cmdbuf );
-    if (!ret)
-    {
+    ret = pnw_cmdbuf_reset(cmdbuf);
+    if (!ret) {
         /* Success */
         obj_context->pnw_cmdbuf = cmdbuf;
     }
 
     /* added pic_params/slice_params into ref, so the index is 1/2 */
-    pnw_cmdbuf_buffer_ref(cmdbuf,&cmdbuf->pic_params);
-    pnw_cmdbuf_buffer_ref(cmdbuf,&cmdbuf->slice_params);
-    
+    pnw_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->pic_params);
+    pnw_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->slice_params);
+
     return ret;
 }
 
@@ -416,20 +399,19 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     int ret;
     uint64_t mask = PSB_GPU_ACCESS_MASK;
 
-    arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg)*buffer_count);
+    arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg) * buffer_count);
     if (arg_list == NULL) {
         psb__error_message("Allocate memory failed\n");
         return -ENOMEM;
     }
 
-    for( i = 0; i < buffer_count; i++)
-    {
+    for (i = 0; i < buffer_count; i++) {
         struct psb_validate_arg *arg = &(arg_list[i]);
         struct psb_validate_req *req = &arg->d.req;
 
         memset(arg, 0, sizeof(*arg));
-        req->next = (unsigned long) &(arg_list[i+1]);
-            
+        req->next = (unsigned long) & (arg_list[i+1]);
+
         req->buffer_handle = wsbmKBufHandle(wsbmKBuf(buffer_list[i]->drm_buf));
         req->group = 0;
         req->set_flags = (PSB_GPU_ACCESS_READ | PSB_GPU_ACCESS_WRITE) & mask;
@@ -437,18 +419,19 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 #if 1
         req->presumed_gpu_offset = (uint64_t)wsbmBOOffsetHint(buffer_list[i]->drm_buf);
         req->presumed_flags = PSB_USE_PRESUMED;
-	if ((req->presumed_gpu_offset >> 28) & 0x1) {
-		psb__error_message("buffer is at the address topaz can not access\n");
-		ret = -1;
-		goto out;
-	}
+        if ((req->presumed_gpu_offset >> 28) & 0x1) {
+            psb__error_message("buffer is at the address topaz can not access\n");
+            ret = -1;
+            goto out;
+        }
 #else
-	req->presumed_flags = 0;
+        req->presumed_flags = 0;
 #endif
+        req->pad64 = (uint32_t)buffer_list[i]->pl_flags;
     }
     arg_list[buffer_count-1].d.req.next = 0;
-	
-    memset(&ca,0,sizeof(ca));
+
+    memset(&ca, 0, sizeof(ca));
 
     ca.buffer_list = (uint64_t)((unsigned long)arg_list);
     ca.clip_rects = (uint64_t)((unsigned long)clipRects);
@@ -460,7 +443,7 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     ca.num_relocs = numRelocs;
     ca.engine = engine;
     ca.fence_flags = fence_flags;
-    ca.fence_arg = (uint64_t) ((unsigned long)fence_rep);
+    ca.fence_arg = (uint64_t)((unsigned long)fence_rep);
     ca.damage = damage;
 
 
@@ -471,8 +454,7 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     if (ret)
         goto out;
 
-    for( i = 0; i < buffer_count; i++)
-    {
+    for (i = 0; i < buffer_count; i++) {
         struct psb_validate_arg *arg = &(arg_list[i]);
         struct psb_validate_rep *rep = &arg->d.rep;
 
@@ -480,23 +462,20 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
             ret = -EFAULT;
             goto out;
         }
-        if (arg->ret != 0)
-        {
+        if (arg->ret != 0) {
             ret = arg->ret;
             goto out;
         }
         wsbmUpdateKBuf(wsbmKBuf(buffer_list[i]->drm_buf),
                        rep->gpu_offset, rep->placement, rep->fence_type_mask);
     }
-  out:
+out:
     free(arg_list);
-    for( i = 0; i < buffer_count; i++)
-    {
+    for (i = 0; i < buffer_count; i++) {
         /*
          * Buffer no longer queued in userspace
          */
-        switch (buffer_list[i]->status)
-        {
+        switch (buffer_list[i]->status) {
         case psb_bs_queued:
             buffer_list[i]->status = psb_bs_ready;
             break;
@@ -511,19 +490,19 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
             ASSERT(0);
         }
     }
-	
+
     return ret;
 }
 
 #if 0
 static struct _WsbmFenceObject *
-lnc_fence_wait(psb_driver_data_p driver_data,
-               struct psb_ttm_fence_rep *fence_rep, int *status)
+            lnc_fence_wait(psb_driver_data_p driver_data,
+                           struct psb_ttm_fence_rep *fence_rep, int *status)
 
 {
     struct _WsbmFenceObject *fence = NULL;
     int ret = -1;
-    
+
     /* copy fence information */
     if (fence_rep->error != 0) {
         psb__error_message("drm failed to create a fence"
@@ -536,9 +515,9 @@ lnc_fence_wait(psb_driver_data_p driver_data,
                             fence_rep->fence_type,
                             (void *)fence_rep->handle,
                             0);
-    if (fence) 
-        *status = wsbmFenceFinish(fence,fence_rep->fence_type,0);
-    
+    if (fence)
+        *status = wsbmFenceFinish(fence, fence_rep->fence_type, 0);
+
     return fence;
 }
 #endif
@@ -548,9 +527,9 @@ lnc_fence_wait(psb_driver_data_p driver_data,
  *
  * Returns 0 on success
  */
-int pnw_context_submit_cmdbuf( object_context_p obj_context )
+int pnw_context_submit_cmdbuf(object_context_p obj_context)
 {
-    
+
     return 0;
 }
 
@@ -564,18 +543,17 @@ int pnw_context_submit_cmdbuf( object_context_p obj_context )
  * vaQuerySurfaceStatus is supposed only to be called after vaEndPicture/vaSyncSurface,
  * The caller should ensure the surface pertains to an encode context
  */
-int pnw_surface_get_frameskip( psb_driver_data_p driver_data,
-                               psb_surface_p surface,
-                               int *frame_skip)
+int pnw_surface_get_frameskip(psb_driver_data_p driver_data,
+                              psb_surface_p surface,
+                              int *frame_skip)
 {
     /* bit31 indicate if frameskip is already settled, it is used to record the frame skip flag for old surfaces
      * bit31 is cleared when the surface is used as encode render target or reference/reconstrucure target
      */
     if (GET_SURFACE_INFO_skipped_flag(surface) & SURFACE_INFO_SKIP_FLAG_SETTLED) {
         *frame_skip = GET_SURFACE_INFO_skipped_flag(surface) & 1;
-    }
-    else
-	*frame_skip = 0;
+    } else
+        *frame_skip = 0;
 
     return 0;
 }
@@ -584,7 +562,7 @@ int pnw_surface_get_frameskip( psb_driver_data_p driver_data,
 /*
  * Flushes all cmdbufs
  */
-int pnw_context_flush_cmdbuf( object_context_p obj_context )
+int pnw_context_flush_cmdbuf(object_context_p obj_context)
 {
     pnw_cmdbuf_p cmdbuf = obj_context->pnw_cmdbuf;
     psb_driver_data_p driver_data = obj_context->driver_data;
@@ -599,8 +577,7 @@ int pnw_context_flush_cmdbuf( object_context_p obj_context )
     ASSERT((void *) cmdbuf->cmd_idx < CMD_END(cmdbuf));
     /* LOCK */
     ret = LOCK_HARDWARE(driver_data);
-    if (ret)
-    {
+    if (ret) {
         UNLOCK_HARDWARE(driver_data);
         DEBUG_FAILURE_RET;
         return ret;
@@ -609,33 +586,32 @@ int pnw_context_flush_cmdbuf( object_context_p obj_context )
     /* Now calculate the total number of relocations */
     reloc_offset = cmdbuf->reloc_base - cmdbuf->cmd_base;
     num_relocs = (((void *) cmdbuf->reloc_idx) - cmdbuf->reloc_base) / sizeof(struct drm_psb_reloc);
-    
-    pnw_cmdbuf_unmap( cmdbuf );
-    
-    ASSERT( NULL == cmdbuf->reloc_base );
+
+    pnw_cmdbuf_unmap(cmdbuf);
+
+    ASSERT(NULL == cmdbuf->reloc_base);
 
 #ifdef DEBUG_TRACE
     fence_flags = 0;
 #else
     fence_flags = DRM_PSB_FENCE_NO_USER;
-#endif    
-    
+#endif
+
 #ifndef LNC_ENGINE_ENCODE
 #define LNC_ENGINE_ENCODE  5
 #endif
 
     wsbmWriteLockKernelBO();
     ret = pnwDRMCmdBuf(driver_data->drm_fd, driver_data->execIoctlOffset, /* FIXME Still use ioctl cmd? */
-                       cmdbuf->buffer_refs, cmdbuf->buffer_refs_count,wsbmKBufHandle(wsbmKBuf(cmdbuf->buf.drm_buf)),
+                       cmdbuf->buffer_refs, cmdbuf->buffer_refs_count, wsbmKBufHandle(wsbmKBuf(cmdbuf->buf.drm_buf)),
                        0, cmdbuffer_size,/*unsigned cmdBufSize*/
-                       wsbmKBufHandle(wsbmKBuf(cmdbuf->buf.drm_buf)),reloc_offset, num_relocs,
+                       wsbmKBufHandle(wsbmKBuf(cmdbuf->buf.drm_buf)), reloc_offset, num_relocs,
                        0 /* clipRects */, 0, LNC_ENGINE_ENCODE, fence_flags, &fence_rep); /* FIXME use LNC_ENGINE_ENCODE */
 
-    wsbmWriteUnlockKernelBO();    
+    wsbmWriteUnlockKernelBO();
     UNLOCK_HARDWARE(driver_data);
-        
-    if (ret)
-    {
+
+    if (ret) {
         obj_context->pnw_cmdbuf = NULL;
 
         DEBUG_FAILURE_RET;
@@ -644,18 +620,18 @@ int pnw_context_flush_cmdbuf( object_context_p obj_context )
 
 #if 0 /*DEBUG_TRACE*/
     int status = -1;
-    struct _WsbmFenceObject *fence=NULL;
+    struct _WsbmFenceObject *fence = NULL;
 
     fence = lnc_fence_wait(driver_data, &fence_rep, &status);
-    psb__information_message("psb_fence_wait returns: %d (fence=0x%08x)\n",status, fence);
-    
+    psb__information_message("psb_fence_wait returns: %d (fence=0x%08x)\n", status, fence);
+
     if (fence)
-	wsbmFenceUnreference(fence);
+        wsbmFenceUnreference(fence);
 
 #endif
 
     obj_context->pnw_cmdbuf = NULL;
-    
+
     return 0;
 }
 
@@ -663,7 +639,7 @@ int pnw_context_flush_cmdbuf( object_context_p obj_context )
 int pnw_get_parallel_core_number(object_context_p obj_context)
 {
 
-    context_ENC_p ctx = (context_ENC_p) (obj_context->format_data);
-    return ctx->ParallelCores; 
+    context_ENC_p ctx = (context_ENC_p)(obj_context->format_data);
+    return ctx->ParallelCores;
 
 }

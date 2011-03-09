@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -76,16 +76,18 @@ typedef enum { MB_CODE_TYPE_I , MB_CODE_TYPE_P , MB_CODE_TYPE_B , MB_CODE_TYPE_G
 #define INTER_MB_WORST_CASE		100
 
 static	const uint32_t	pict_libva2msvdx[] = {0,/* Invalid picture type */
-                                              0,/* I picture */
-                                              1,/* P picture */
-                                              2,/* B pricture */
-                                              3};/* Invalid picture type */
+        0,/* I picture */
+        1,/* P picture */
+        2,/* B pricture */
+        3
+                                           };/* Invalid picture type */
 
 
 static	const uint32_t	ft_libva2msvdx[] = {0,/* Invalid picture type	*/
-                                            0,/* Top field */
-                                            1,/* Bottom field */
-                                            2};/* Frame picture	*/
+        0,/* Top field */
+        1,/* Bottom field */
+        2
+                                         };/* Frame picture	*/
 
 
 struct context_MPEG2MC_s {
@@ -97,16 +99,16 @@ struct context_MPEG2MC_s {
 
     uint32_t picture_coding_type;
     uint32_t picture_structure;
-    
+
     uint32_t coded_picture_width;
     uint32_t coded_picture_height;
 
     uint32_t picture_width_mb; /* in macroblocks */
     uint32_t picture_height_mb; /* in macroblocks */
     uint32_t size_mb; /* in macroblocks */
-    
+
     VAPictureParameterBufferMPEG2 *pic_params;
-    
+
     object_surface_p forward_ref_surface;
     object_surface_p backward_ref_surface;
 
@@ -146,16 +148,14 @@ static void	psb__MPEG2MC_send_interPB_prediction(
 
     /* Determine residual data's block size (16x8 or 16x16)	*/
     if	(FRAME_PICTURE == ctx->picture_structure) {
-        if ((1 == MBPARAM_MotionType (mb_param)) || /* Field MC	*/
-            (3 == MBPARAM_MotionType (mb_param))) /* Dual Prime	*/
-        {
+        if ((1 == MBPARAM_MotionType(mb_param)) ||  /* Field MC	*/
+                (3 == MBPARAM_MotionType(mb_param))) { /* Dual Prime	*/
             blk_size = 1;	/* 16 x 8 */
         } else {
             blk_size = 0;	/* 16 x 16 */
         }
     } else {
-        if (2 == MBPARAM_MotionType (mb_param)) /* Non-Frame MC	*/
-        {
+        if (2 == MBPARAM_MotionType(mb_param)) { /* Non-Frame MC	*/
             blk_size = 1;	/* 16 x 8 */
         } else {
             blk_size = 0; /* 16 x 16 */
@@ -171,126 +171,124 @@ static void	psb__MPEG2MC_send_interPB_prediction(
 
     cmd = 0;
 
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, INTER_PRED_BLOCK_SIZE,	blk_size);    
-		
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexA);
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexB);  
-			
-    if (3 == MBPARAM_MotionType (mb_param)) { /* Dual Prime */
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A_VALID, 1);
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B_VALID, 1);	
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, INTER_PRED_BLOCK_SIZE,	blk_size);
+
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexA);
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexB);
+
+    if (3 == MBPARAM_MotionType(mb_param)) {  /* Dual Prime */
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A_VALID, 1);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B_VALID, 1);
     } else {
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A_VALID,
-                           MBPARAM_MotionForward (mb_param));
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B_VALID,
-                           MBPARAM_MotionBackward (mb_param));	
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A_VALID,
+                          MBPARAM_MotionForward(mb_param));
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B_VALID,
+                          MBPARAM_MotionBackward(mb_param));
     }
 
-    if	(FRAME_PICTURE == ctx->picture_structure) {	
+    if	(FRAME_PICTURE == ctx->picture_structure) {
         /* Frame picture processing */
-        if ((1 == MBPARAM_MotionType (mb_param)) || /* Field MC	*/
-            (3 == MBPARAM_MotionType (mb_param))) /* Dual Prime	*/
-        {
-            if ((1 == MBPARAM_MotionForward (mb_param)) ||
-                (3 == MBPARAM_MotionType (mb_param))) {	/* Dual Prime */
+        if ((1 == MBPARAM_MotionType(mb_param)) ||  /* Field MC	*/
+                (3 == MBPARAM_MotionType(mb_param))) { /* Dual Prime	*/
+            if ((1 == MBPARAM_MotionForward(mb_param)) ||
+                    (3 == MBPARAM_MotionType(mb_param))) {	/* Dual Prime */
                 if (second_pred) {
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION,
-                                       REF_INDEX_FIELD_A, MBPARAM_MvertFieldSel_2 (mb_param));   
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION,
+                                      REF_INDEX_FIELD_A, MBPARAM_MvertFieldSel_2(mb_param));
                 } else {
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION,
-                                       REF_INDEX_FIELD_A, MBPARAM_MvertFieldSel_0 (mb_param));   
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION,
+                                      REF_INDEX_FIELD_A, MBPARAM_MvertFieldSel_0(mb_param));
                 }
             }
 
-            if ((1 == MBPARAM_MotionBackward (mb_param)) ||
-                (3 == MBPARAM_MotionType (mb_param)))	/* Dual Prime	*/
-            {
+            if ((1 == MBPARAM_MotionBackward(mb_param)) ||
+                    (3 == MBPARAM_MotionType(mb_param))) {	/* Dual Prime	*/
                 if (second_pred) {
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION,
-                                       REF_INDEX_FIELD_B, MBPARAM_MvertFieldSel_3 (mb_param));   
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION,
+                                      REF_INDEX_FIELD_B, MBPARAM_MvertFieldSel_3(mb_param));
                 } else {
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION,
-                                       REF_INDEX_FIELD_B, MBPARAM_MvertFieldSel_1 (mb_param));   
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION,
+                                      REF_INDEX_FIELD_B, MBPARAM_MvertFieldSel_1(mb_param));
                 }
             }
         }
-    } else {	
+    } else {
         /* Field picture processing */
-        if ((0 == MBPARAM_MotionForward (mb_param)) &&
-            (0 == MBPARAM_MotionBackward (mb_param))) {
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexA);
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexB);  
+        if ((0 == MBPARAM_MotionForward(mb_param)) &&
+                (0 == MBPARAM_MotionBackward(mb_param))) {
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexA);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexB);
         }
-	
-        if (1 == MBPARAM_MotionForward (mb_param)) {
+
+        if (1 == MBPARAM_MotionForward(mb_param)) {
             if (second_pred) {
-                if ((0 == MBPARAM_MvertFieldSel_2 (mb_param)) &&
-                    (PICTURE_CODING_P == ctx->picture_coding_type)) { /* Top field of this frame	*/
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexB);
+                if ((0 == MBPARAM_MvertFieldSel_2(mb_param)) &&
+                        (PICTURE_CODING_P == ctx->picture_coding_type)) { /* Top field of this frame	*/
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexB);
                 } else { /* Bottom field of previous frame*/
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexA);
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexA);
                 }
 
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_A,
-                                   MBPARAM_MvertFieldSel_2 (mb_param));   
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_A,
+                                  MBPARAM_MvertFieldSel_2(mb_param));
             } else {
-                if (((ctx->picture_structure==BOTTOM_FIELD) != MBPARAM_MvertFieldSel_0 (mb_param)) &&
-                    (PICTURE_CODING_P == ctx->picture_coding_type)) {	/* Top field of this frame	*/
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexB);
+                if (((ctx->picture_structure == BOTTOM_FIELD) != MBPARAM_MvertFieldSel_0(mb_param)) &&
+                        (PICTURE_CODING_P == ctx->picture_coding_type)) {	/* Top field of this frame	*/
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexB);
                 } else { /* Bottom field of previous frame*/
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexA);
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, ctx->ref_indexA);
                 }
 
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_A,
-                                   MBPARAM_MvertFieldSel_0 (mb_param));   
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_A,
+                                  MBPARAM_MvertFieldSel_0(mb_param));
             }
         }
-        
 
-        if (1 == MBPARAM_MotionBackward (mb_param)) {
+
+        if (1 == MBPARAM_MotionBackward(mb_param)) {
             if (second_pred) {
-                if ((1 == MBPARAM_MvertFieldSel_3 (mb_param)) &&
-                    (PICTURE_CODING_P == ctx->picture_coding_type)) { /* Top field of this frame	*/
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexA);
+                if ((1 == MBPARAM_MvertFieldSel_3(mb_param)) &&
+                        (PICTURE_CODING_P == ctx->picture_coding_type)) { /* Top field of this frame	*/
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexA);
                 } else {	/* Bottom field of previous frame*/
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexB);
-                }
-			
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_B,
-                                   MBPARAM_MvertFieldSel_3 (mb_param));   
-            } else {
-                if ((1 == MBPARAM_MvertFieldSel_1 (mb_param)) &&
-                    (PICTURE_CODING_P == ctx->picture_coding_type)) { /* Top field of this frame	*/
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexA);
-                } else { /* Bottom field of previous frame*/
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexB);
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexB);
                 }
 
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_B,
-                                   MBPARAM_MvertFieldSel_1 (mb_param));   
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_B,
+                                  MBPARAM_MvertFieldSel_3(mb_param));
+            } else {
+                if ((1 == MBPARAM_MvertFieldSel_1(mb_param)) &&
+                        (PICTURE_CODING_P == ctx->picture_coding_type)) { /* Top field of this frame	*/
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexA);
+                } else { /* Bottom field of previous frame*/
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_B, ctx->ref_indexB);
+                }
+
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_B,
+                                  MBPARAM_MvertFieldSel_1(mb_param));
             }
         }
     }
 
     /* Dual Prime */
-    if (3 == MBPARAM_MotionType (mb_param) && (ctx->picture_structure!=FRAME_PICTURE)) {
-        if (ctx->picture_structure==TOP_FIELD) {
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, 0);
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_A, 0); 
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_B, 1);   
+    if (3 == MBPARAM_MotionType(mb_param) && (ctx->picture_structure != FRAME_PICTURE)) {
+        if (ctx->picture_structure == TOP_FIELD) {
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, 0);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_A, 0);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_B, 1);
         } else {
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, 1);
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_A, 1);
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_B, 0); 
-        }                  
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_A, 1);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_A, 1);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTER_BLOCK_PREDICTION, REF_INDEX_FIELD_B, 0);
+        }
     }
 
-    psb_cmdbuf_reg_set(cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, INTER_BLOCK_PREDICTION) + pred_offset,cmd);
+    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, INTER_BLOCK_PREDICTION) + pred_offset, cmd);
 }
 
 typedef struct _PSB_MVvalue {
-  short  horz;
-  short  vert;
+    short  horz;
+    short  vert;
 } psb_MVvalue, *psb_MVvalue_p;
 
 #define MV_LIBVA2PSB(mb_param)                  \
@@ -314,151 +312,140 @@ static void	psb__MPEG2MC_send_motion_vectores(
     VAMacroblockParameterBufferMPEG2 * const mb_param
 )
 {
-    uint32_t		cmd=0;
+    uint32_t		cmd = 0;
     uint32_t		MV1Address = 0;
     uint32_t		MV2Address = 0;
 
     psb_MVvalue  MVector[4];
 
     MV_LIBVA2PSB(mb_param);
-    
+
     MV1Address = 0x00;
     MV2Address = 0x00;
-		
+
     if	(FRAME_PICTURE == ctx->picture_structure) {
         /* FRAME PICTURE PROCESSING */
-        if (2 == MBPARAM_MotionType (mb_param)) { /* Frame MC */
-            if ((0 == MBPARAM_MotionForward (mb_param)) &&
-                (0 == MBPARAM_MotionBackward (mb_param))) {
+        if (2 == MBPARAM_MotionType(mb_param)) {  /* Frame MC */
+            if ((0 == MBPARAM_MotionForward(mb_param)) &&
+                    (0 == MBPARAM_MotionBackward(mb_param))) {
                 cmd = 0;
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, 0);
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, 0);
-                psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR) , cmd);
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, 0);
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, 0);
+                psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR) , cmd);
             } else {
-                if (1 == MBPARAM_MotionForward (mb_param)) {
+                if (1 == MBPARAM_MotionForward(mb_param)) {
                     cmd = 0;
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[0].horz << 1);
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[0].vert << 1);
-                    psb_cmdbuf_reg_set(  cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR) , cmd );
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[0].horz << 1);
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[0].vert << 1);
+                    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR) , cmd);
                 }
-		
-                if (1 == MBPARAM_MotionBackward (mb_param)) {
+
+                if (1 == MBPARAM_MotionBackward(mb_param)) {
                     cmd = 0;
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[1].horz << 1);
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[1].vert << 1);
-                    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR) + 0x10 , cmd );
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[1].horz << 1);
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[1].vert << 1);
+                    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR) + 0x10 , cmd);
                 }
             }
         } else	{
-            if ((1 == MBPARAM_MotionType (mb_param)) || /* Field MC */
-                (3 == MBPARAM_MotionType (mb_param)))	/* Dual Prime */
-            {
+            if ((1 == MBPARAM_MotionType(mb_param)) ||  /* Field MC */
+                    (3 == MBPARAM_MotionType(mb_param))) {	/* Dual Prime */
                 /*
-                 * Vertical motion vectors for fields located in frame pictures 
+                 * Vertical motion vectors for fields located in frame pictures
                  * should be divided by 2 (MPEG-2 7.6.3.1). Thus the original value
                  * contained in the stream is equivalent to 1/4-pel	format; the
-                 * resolution required by MSVDX.	
+                 * resolution required by MSVDX.
                  */
-                if ((1 == MBPARAM_MotionForward (mb_param)) ||
-                    (3 == MBPARAM_MotionType (mb_param))) { /* Dual Prime	*/	
+                if ((1 == MBPARAM_MotionForward(mb_param)) ||
+                        (3 == MBPARAM_MotionType(mb_param))) {  /* Dual Prime	*/
                     cmd = 0;
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[0].horz << 1);
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[0].vert);
-                    psb_cmdbuf_reg_set(  cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR) , cmd );
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[0].horz << 1);
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[0].vert);
+                    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR) , cmd);
                 }
 
-                if ((1 == MBPARAM_MotionBackward (mb_param)) ||
-                    (3 == MBPARAM_MotionType (mb_param))) { /* Dual Prime */
+                if ((1 == MBPARAM_MotionBackward(mb_param)) ||
+                        (3 == MBPARAM_MotionType(mb_param))) {  /* Dual Prime */
                     cmd = 0;
 
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[1].horz << 1);
-										
-                    if (3 == MBPARAM_MotionType (mb_param)) { /* Dual Prime */
-                        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[1].vert << 1);
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[1].horz << 1);
+
+                    if (3 == MBPARAM_MotionType(mb_param)) {  /* Dual Prime */
+                        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[1].vert << 1);
                     } else {
-                        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[1].vert);
+                        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[1].vert);
                     }
-                    psb_cmdbuf_reg_set(  cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR) + 0x10 , cmd );
+                    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR) + 0x10 , cmd);
                 }
 
                 /* Fields and Dual Prime are 16x8 and need 2nd inter_block_pred cmd	*/
-                psb__MPEG2MC_send_interPB_prediction (ctx, cmdbuf, mb_param, IMG_TRUE);  	
+                psb__MPEG2MC_send_interPB_prediction(ctx, cmdbuf, mb_param, IMG_TRUE);
 
-                if ((1 == MBPARAM_MotionForward (mb_param)) ||
-                    (3 == MBPARAM_MotionType (mb_param))) { /* Dual Prime */
+                if ((1 == MBPARAM_MotionForward(mb_param)) ||
+                        (3 == MBPARAM_MotionType(mb_param))) {  /* Dual Prime */
                     cmd = 0;
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[2].horz << 1);
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[2].vert);
-                    psb_cmdbuf_reg_set(  cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR) + 0x40 , cmd );
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[2].horz << 1);
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[2].vert);
+                    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR) + 0x40 , cmd);
                 }
 
-                if ((1 == MBPARAM_MotionBackward (mb_param)) ||
-                    (3 == MBPARAM_MotionType (mb_param)))	/* Dual Prime			*/
-                {
+                if ((1 == MBPARAM_MotionBackward(mb_param)) ||
+                        (3 == MBPARAM_MotionType(mb_param))) {	/* Dual Prime			*/
                     cmd = 0;
-                    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[3].horz << 1);
-                    if (3 == MBPARAM_MotionType (mb_param))	/* Dual Prime			*/
-                    {
-                        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[3].vert << 1);
+                    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[3].horz << 1);
+                    if (3 == MBPARAM_MotionType(mb_param)) {	/* Dual Prime			*/
+                        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[3].vert << 1);
+                    } else {
+                        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[3].vert);
                     }
-                    else
-                    {
-                        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[3].vert);
-                    }
-                    psb_cmdbuf_reg_set(  cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR) + 0x50 , cmd );
+                    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR) + 0x50 , cmd);
                 }
             }
         }
     } else {
         /* FIELD PICTURE PROCESSING */
-        int MV0index=0, MV1index=1;
-   
-        if( (ctx->picture_structure==BOTTOM_FIELD) && (3 == MBPARAM_MotionType (mb_param))  )
-         {
-             MV0index=1;
-             MV1index=0;
-         }
-        
-        if ((1 == MBPARAM_MotionForward (mb_param)) ||	/* Forward MV	*/
-            (3 == MBPARAM_MotionType (mb_param))) /* Dual Prime	*/
-        {
+        int MV0index = 0, MV1index = 1;
+
+        if ((ctx->picture_structure == BOTTOM_FIELD) && (3 == MBPARAM_MotionType(mb_param))) {
+            MV0index = 1;
+            MV1index = 0;
+        }
+
+        if ((1 == MBPARAM_MotionForward(mb_param)) ||	/* Forward MV	*/
+                (3 == MBPARAM_MotionType(mb_param))) { /* Dual Prime	*/
             cmd = 0;
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[MV0index].horz << 1);
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[MV0index].vert << 1);
-            psb_cmdbuf_reg_set(  cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR) , cmd );
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[MV0index].horz << 1);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[MV0index].vert << 1);
+            psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR) , cmd);
 
         }
 
-        if ((1 == MBPARAM_MotionBackward (mb_param)) ||	/* Backward MV	*/
-            (3 == MBPARAM_MotionType (mb_param))) /* Dual Prime	*/
-        {
+        if ((1 == MBPARAM_MotionBackward(mb_param)) ||	/* Backward MV	*/
+                (3 == MBPARAM_MotionType(mb_param))) { /* Dual Prime	*/
             cmd = 0;
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[MV1index].horz << 1);
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[MV1index].vert << 1);
-            psb_cmdbuf_reg_set(  cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR)  + 0x10, cmd );
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[MV1index].horz << 1);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[MV1index].vert << 1);
+            psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR)  + 0x10, cmd);
         }
 
-        if (2 == MBPARAM_MotionType (mb_param)) /* 16x8 MC */
-        {
-            psb__MPEG2MC_send_interPB_prediction (ctx, cmdbuf, mb_param, IMG_TRUE);  	
+        if (2 == MBPARAM_MotionType(mb_param)) { /* 16x8 MC */
+            psb__MPEG2MC_send_interPB_prediction(ctx, cmdbuf, mb_param, IMG_TRUE);
 
-            if ((1 == MBPARAM_MotionForward (mb_param)) || /* Forward MV */
-                (3 == MBPARAM_MotionType (mb_param)))	/* Dual Prime */
-            {
+            if ((1 == MBPARAM_MotionForward(mb_param)) ||  /* Forward MV */
+                    (3 == MBPARAM_MotionType(mb_param))) {	/* Dual Prime */
                 cmd = 0;
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[2].horz << 1);
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[2].vert << 1);
-                psb_cmdbuf_reg_set(  cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR)  + 0x40, cmd );
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[2].horz << 1);
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[2].vert << 1);
+                psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR)  + 0x40, cmd);
             }
 
-            if ((1 == MBPARAM_MotionBackward (mb_param)) ||	/* Backward MV				*/
-                (3 == MBPARAM_MotionType (mb_param)))		/* Dual Prime				*/
-            {
+            if ((1 == MBPARAM_MotionBackward(mb_param)) ||	/* Backward MV				*/
+                    (3 == MBPARAM_MotionType(mb_param))) {	/* Dual Prime				*/
                 cmd = 0;
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[3].horz << 1);
-                REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[3].vert << 1);
-                
-                psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET (MSVDX_CMDS, MOTION_VECTOR)  + 0x50, cmd );
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_X, MVector[3].horz << 1);
+                REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MOTION_VECTOR, MV_Y, MVector[3].vert << 1);
+
+                psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, MOTION_VECTOR)  + 0x50, cmd);
             }
         }
     }
@@ -472,15 +459,15 @@ static void	psb__MPEG2MC_send_mb_number(
     const uint32_t mb_addr,
     const uint32_t motion_type,
     const eMB_CODE_TYPE MB_coding_type
- )
+)
 {
     uint32_t cmd;
     uint32_t mb_x;
-	
+
     /* 3.3.21.	Macroblock Number */
     cmd = 0;
 
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_ERROR_FLAG, 0);
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_ERROR_FLAG, 0);
 
     /*
       MB_FIELD_CODE (MC + VDEB): Indicate if the macroblock is field predicted (when = 1),
@@ -489,19 +476,19 @@ static void	psb__MPEG2MC_send_mb_number(
                  frame/filed type as SLICE_FIELD_TYPE
 
      */
-    if (FRAME_PICTURE ==ctx->picture_structure) {
-        if ((0 == motion_type)  ||	
-            (2 == motion_type)) {
+    if (FRAME_PICTURE == ctx->picture_structure) {
+        if ((0 == motion_type)  ||
+                (2 == motion_type)) {
             /* MB is frame predicted	*/
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_FIELD_CODE, 0);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_FIELD_CODE, 0);
         } else { /* MB is field predicted	*/
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_FIELD_CODE, 1);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_FIELD_CODE, 1);
         }
     } else { /* MB is field predicted	*/
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_FIELD_CODE, 1);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_FIELD_CODE, 1);
     }
 
-    ASSERT ((0 != ctx->picture_coding_type) && (4 != ctx->picture_coding_type)); 
+    ASSERT((0 != ctx->picture_coding_type) && (4 != ctx->picture_coding_type));
 
     /*
       MB_CODE_TYPE (MC + VDEB): Indicate macroblock type is I, P, B or MPEG4 S(GMC).
@@ -511,7 +498,7 @@ static void	psb__MPEG2MC_send_mb_number(
                   0x3: MPEG4 GMC
            MPEG2: Derived from ‘macroblock_type’
      */
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_CODE_TYPE,(uint32_t) MB_coding_type );
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_CODE_TYPE, (uint32_t) MB_coding_type);
 
 
     /*
@@ -520,54 +507,51 @@ static void	psb__MPEG2MC_send_mb_number(
       MB_NO_X (MC + VDEB): Horizontal offset of current Macroblock (where 0 = leftmost macroblock of picture)
                            Derived from macroblock number mod picture width in macroblocks.
      */
-    if ((FRAME_PICTURE !=ctx->picture_structure) &&
-        (mb_addr / ctx->picture_width_mb)) {
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_NO_Y, (mb_addr / ctx->picture_width_mb) * 2);
+    if ((FRAME_PICTURE != ctx->picture_structure) &&
+            (mb_addr / ctx->picture_width_mb)) {
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_NO_Y, (mb_addr / ctx->picture_width_mb) * 2);
     } else {
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_NO_Y, mb_addr / ctx->picture_width_mb);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_NO_Y, mb_addr / ctx->picture_width_mb);
     }
 
     mb_x = mb_addr % ctx->picture_width_mb;
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_NO_X,mb_x );
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER, MB_NO_X, mb_x);
     /*
       Only defined for current MB, set to 0 for above1 and above2.
               Indicate if MB is on Left Hand Side of slice or picture
               0: MB is not on left hand side of slice or picture
               1: MB is on left hand side of slice or picture
     */
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER , MB_SLICE_LHS, ctx->fstmb_slice || (mb_x==0));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_NUMBER , MB_SLICE_TOP, 1 );
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER , MB_SLICE_LHS, ctx->fstmb_slice || (mb_x == 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_NUMBER , MB_SLICE_TOP, 1);
 
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, MACROBLOCK_NUMBER) , cmd);
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, MACROBLOCK_NUMBER) , cmd);
 }
 
 static void psb__MPEG2MC_finalise_residDMA(
-    context_MPEG2MC_p	const	ctx 
+    context_MPEG2MC_p	const	ctx
 )
 {
     uint32_t *save_idx = ctx->obj_context->cmdbuf->cmd_idx;
     ctx->obj_context->cmdbuf->cmd_idx = ctx->lldma_idx;
-    if (ctx->residual_pendingDMA)
-    {
-#if 0        
+    if (ctx->residual_pendingDMA) {
+#if 0
         if (ctx->residual_pendingDMA != (ctx->blk_size * ctx->blk_in_buffer)) {
             psb__error_message("psb__MPEG2MC_finalise_residDMA:residual_pendingDMA=%d(block:%d),"
                                "actual data size=%d (block:%d)\n",
-                               ctx->residual_pendingDMA,ctx->residual_pendingDMA/ctx->blk_size,
+                               ctx->residual_pendingDMA, ctx->residual_pendingDMA / ctx->blk_size,
                                ctx->blk_size * ctx->blk_in_buffer,
                                ctx->blk_in_buffer);
         }
 #endif
-        
-        psb_cmdbuf_lldma_write_cmdbuf(ctx->obj_context->cmdbuf, 
+
+        psb_cmdbuf_lldma_write_cmdbuf(ctx->obj_context->cmdbuf,
                                       ctx->residual_buf,
                                       ctx->residual_sent,
                                       ctx->residual_pendingDMA,
-                                      0, 
+                                      0,
                                       LLDMA_TYPE_RESIDUAL);
-    }
-    else
-    {
+    } else {
         //*ctx->obj_context->cmdbuf->cmd_idx = CMD_NOP;
         *ctx->obj_context->cmdbuf->cmd_idx = 0xf000000;
     }
@@ -581,43 +565,42 @@ static void psb__MPEG2MC_check_segment_residDMA(
     uint32_t min_space
 )
 {
-    if (psb_cmdbuf_segment_space(ctx->obj_context->cmdbuf) < min_space)
-    {
+    if (psb_cmdbuf_segment_space(ctx->obj_context->cmdbuf) < min_space) {
         psb__MPEG2MC_finalise_residDMA(ctx);
 
         psb_cmdbuf_next_segment(ctx->obj_context->cmdbuf);
-        
+
         ctx->lldma_idx = ctx->obj_context->cmdbuf->cmd_idx++; /* Insert the LLDMA record here later */
     }
 }
 
 
 /* Send residual difference data to MSVDX. */
-static void	psb__MPEG2MC_send_residual (
+static void	psb__MPEG2MC_send_residual(
     context_MPEG2MC_p	ctx,
     uint32_t	pattern_code)
 {
-    uint8_t pattern_code_byte = (uint8_t)( pattern_code >> 6 );
-    uint8_t blocks =0;
+    uint8_t pattern_code_byte = (uint8_t)(pattern_code >> 6);
+    uint8_t blocks = 0;
 
     while (pattern_code_byte) {
-        blocks+= (pattern_code_byte&1);
-        pattern_code_byte>>=1;
+        blocks += (pattern_code_byte & 1);
+        pattern_code_byte >>= 1;
     }
-				
+
     if (PICTURE_CODING_I == ctx->picture_coding_type) {
-        ctx->residual_pendingDMA+= blocks*(8*8); /* 8bit */
-    } else { 
+        ctx->residual_pendingDMA += blocks * (8 * 8); /* 8bit */
+    } else {
         /* We do not suport ConfigSpatialResid8==1  */
         /* ASSERT(ConfigSpatialResid8 == 0); */
-        ctx->residual_pendingDMA+= blocks*(8*8) * 2;/*  16 bit */
+        ctx->residual_pendingDMA += blocks * (8 * 8) * 2;/*  16 bit */
     }
 }
 
 
 static void	psb__MPEG2MC_send_slice_parameters(
     context_MPEG2MC_p	const	ctx
- )
+)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t cmd;
@@ -636,14 +619,14 @@ static void	psb__MPEG2MC_send_slice_parameters(
                       0x0: I slice
                       0x1: P slice
                       0x2: B slice
-                      0x3: S(GMC) (MPEG4 only) 
+                      0x3: S(GMC) (MPEG4 only)
      */
     cmd = 0;
     REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, SLICE_PARAMS, SLICE_FIELD_TYPE,
                       ft_libva2msvdx[ctx->picture_structure]);
     REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, SLICE_PARAMS, SLICE_CODE_TYPE,
                       pict_libva2msvdx[ctx->picture_coding_type]);
-    psb_cmdbuf_reg_set(cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, SLICE_PARAMS),cmd);
+    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS), cmd);
 
     psb_cmdbuf_reg_end_block(cmdbuf);
 }
@@ -673,42 +656,42 @@ static void psb__MPEG2MC_send_slice_picture_endcommand(
      */
     psb_cmdbuf_reg_start_block(cmdbuf);
 
-    psb_cmdbuf_reg_set(cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, END_SLICE_PICTURE),0);
+    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, END_SLICE_PICTURE), 0);
 
     if (end_picture) {
         cmd = 0;
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, END_SLICE_PICTURE, PICTURE_END, end_picture );
-        psb_cmdbuf_reg_set( cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, END_SLICE_PICTURE), cmd );
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, END_SLICE_PICTURE, PICTURE_END, end_picture);
+        psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, END_SLICE_PICTURE), cmd);
     }
-    
+
     psb_cmdbuf_reg_end_block(cmdbuf);
 }
 
 static void	psb__MPEG2MC_send_highlevel_commands(
     context_MPEG2MC_p	const	ctx
- )
+)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
 
-    psb_cmdbuf_reg_start_block( cmdbuf );
+    psb_cmdbuf_reg_start_block(cmdbuf);
 
     /* 3.3.1.	Display Picture Size */
-    psb_cmdbuf_reg_set( cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, DISPLAY_PICTURE_SIZE),ctx->display_picture_size);
+    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE), ctx->display_picture_size);
 
     /* 3.3.2.	Coded Picture Size*/
-    psb_cmdbuf_reg_set( cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, CODED_PICTURE_SIZE),ctx->coded_picture_size);
+    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, CODED_PICTURE_SIZE), ctx->coded_picture_size);
 
     /* 3.3.3.	Operating Mode */
-    psb_cmdbuf_reg_set( cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, OPERATING_MODE),ctx->obj_context->operating_mode);
+    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, OPERATING_MODE), ctx->obj_context->operating_mode);
 
     /* 3.3.4.	Luma Reconstructed Picture Base Address	*/
-    psb_cmdbuf_reg_set_RELOC( cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES),
-                              &target_surface->buf,0);
+    psb_cmdbuf_reg_set_RELOC(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES),
+                             &target_surface->buf, 0);
 
     /* 3.3.5.	Chroma Reconstructed Picture Base Address */
-    psb_cmdbuf_reg_set_RELOC( cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES),
-                        &target_surface->buf,target_surface->chroma_offset);
+    psb_cmdbuf_reg_set_RELOC(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES),
+                             &target_surface->buf, target_surface->chroma_offset);
 
     /* 3.3.13.	Reference Picture Base Addresses */
     /*
@@ -733,35 +716,35 @@ static void	psb__MPEG2MC_send_highlevel_commands(
       which was decoded earlier than the backward reference – is at index 1.
      */
 
-     /* WABA: backward / forward refs are always set, even when they aren't strictly needed */
-     psb_surface_p forward_surface = ctx->forward_ref_surface->psb_surface;            
-     psb_surface_p backward_surface = ctx->backward_ref_surface->psb_surface;
+    /* WABA: backward / forward refs are always set, even when they aren't strictly needed */
+    psb_surface_p forward_surface = ctx->forward_ref_surface->psb_surface;
+    psb_surface_p backward_surface = ctx->backward_ref_surface->psb_surface;
 
-     if (backward_surface) {
-          psb_cmdbuf_reg_set_RELOC( cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + (0 * 8),
-                                    &backward_surface->buf,0);
-            
-          psb_cmdbuf_reg_set_RELOC( cmdbuf ,REGISTER_OFFSET (MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + 4 + (0 * 8),
-                                    &backward_surface->buf,backward_surface->chroma_offset);
-     }
-     if (forward_surface) {
-          psb_cmdbuf_reg_set_RELOC( cmdbuf ,REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + (1 * 8),
-                                    &forward_surface->buf,0);
+    if (backward_surface) {
+        psb_cmdbuf_reg_set_RELOC(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + (0 * 8),
+                                 &backward_surface->buf, 0);
 
-          psb_cmdbuf_reg_set_RELOC( cmdbuf ,REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + 4 + (1 * 8),
-                                    &forward_surface->buf,forward_surface->chroma_offset);
+        psb_cmdbuf_reg_set_RELOC(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + 4 + (0 * 8),
+                                 &backward_surface->buf, backward_surface->chroma_offset);
     }
-    
+    if (forward_surface) {
+        psb_cmdbuf_reg_set_RELOC(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + (1 * 8),
+                                 &forward_surface->buf, 0);
+
+        psb_cmdbuf_reg_set_RELOC(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES) + 4 + (1 * 8),
+                                 &forward_surface->buf, forward_surface->chroma_offset);
+    }
+
     /*
      * VDMC_RESIDUAL_DIRECT_INSERT_CONTROL, spec p 159
      * 0 VDMC_RESIDUAL_DIRECT_CONTROL (VDMC) residual direct insert control.
      *           Control insertion of spatial residual data. When set to 1 residual
      *           data taken from writes to VDMC_RESIDUAL_DIRECT_INSERT_DATA
      *           when set to 0, residual data taken from vEC
-     */  
-    psb_cmdbuf_reg_set(cmdbuf ,REGISTER_OFFSET (MSVDX_VDMC, CR_VDMC_RESIDUAL_DIRECT_INSERT_CONTROL), 1);
+     */
+    psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_VDMC, CR_VDMC_RESIDUAL_DIRECT_INSERT_CONTROL), 1);
 
-    psb_cmdbuf_reg_end_block( cmdbuf );
+    psb_cmdbuf_reg_end_block(cmdbuf);
 }
 
 
@@ -770,7 +753,7 @@ static void	psb__MPEG2MC_send_highlevel_commands(
 static void	psb__MPEG2MC_interPB_mb(
     context_MPEG2MC_p const	ctx,
     VAMacroblockParameterBufferMPEG2 * const	mb_param
- )
+)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t cmd;
@@ -778,9 +761,9 @@ static void	psb__MPEG2MC_interPB_mb(
     psb_cmdbuf_reg_start_block(cmdbuf);
 
     /* 3.3.21.	Macroblock Number */
-    psb__MPEG2MC_send_mb_number(ctx, cmdbuf, mb_param->macroblock_address,MBPARAM_MotionType(mb_param),
-                       MBPARAM_IntraMacroblock(mb_param)? MB_CODE_TYPE_I : pict_libva2msvdx[ctx->picture_coding_type] 
-                       );  
+    psb__MPEG2MC_send_mb_number(ctx, cmdbuf, mb_param->macroblock_address, MBPARAM_MotionType(mb_param),
+                                MBPARAM_IntraMacroblock(mb_param) ? MB_CODE_TYPE_I : pict_libva2msvdx[ctx->picture_coding_type]
+                               );
 
     cmd = 0;
     /* Only used for direct insert of residual data;-
@@ -791,60 +774,60 @@ static void	psb__MPEG2MC_interPB_mb(
     */
     /* TODO:: ASSERT(ConfigSpatialResid8==0 ); */
     if (MBPARAM_IntraMacroblock(mb_param)) {
-        if(1/* TODO:: ConfigIntraResidUnsigned == 0 */) {
+        if (1/* TODO:: ConfigIntraResidUnsigned == 0 */) {
             /* sent as as 16 bit signed relative to 128*/
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128,1 );  
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT, 2); 
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128, 1);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT, 2);
         } else { /* ConfigIntraResidUnsigned == 1 */
             /* 16 bit unsigned unsigned relative to 0*/
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128,0 );  
-            REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT,	 2); 
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128, 0);
+            REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT,	 2);
         }
     } else {
         /* For non-intra in Inter frames : 16 bit signed */
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128,0 );  
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT,2 ); 
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128, 0);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT, 2);
     }
 
 
     if (FRAME_PICTURE == ctx->picture_structure) {
         /* mb_param->macroblock_modes.bits.dct_type =1: field DCT */
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, RESIDUAL_FIELD_CODED, mb_param->macroblock_modes.bits.dct_type?1:0);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, RESIDUAL_FIELD_CODED, mb_param->macroblock_modes.bits.dct_type ? 1 : 0);
     } else {
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, RESIDUAL_FIELD_CODED, 1);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, RESIDUAL_FIELD_CODED, 1);
     }
 
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, CR_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x40) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, CB_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x80) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y3_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x100) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y2_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x200) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y1_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x400) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y0_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x800) ? 1 : 0 ));
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT) , cmd );
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, CR_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x40) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, CB_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x80) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y3_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x100) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y2_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x200) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y1_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x400) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y0_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x800) ? 1 : 0));
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT) , cmd);
 
     /* Send Residuals	*/
     if (MBPARAM_IntraMacroblock(mb_param)) {
         cmd = 0;
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE0, 0);
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE1, 0);
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE2, 0);
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE3, 0);
-        psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, INTRA_BLOCK_PREDICTION) , cmd);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE0, 0);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE1, 0);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE2, 0);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE3, 0);
+        psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, INTRA_BLOCK_PREDICTION) , cmd);
 
-        psb__MPEG2MC_send_residual (ctx, MBPARAM_CodedBlockPattern(mb_param) );
+        psb__MPEG2MC_send_residual(ctx, MBPARAM_CodedBlockPattern(mb_param));
     } else {
-        psb__MPEG2MC_send_interPB_prediction (ctx, cmdbuf, mb_param, IMG_FALSE);  
+        psb__MPEG2MC_send_interPB_prediction(ctx, cmdbuf, mb_param, IMG_FALSE);
 
         /* Send motion vectors	*/
-        psb__MPEG2MC_send_motion_vectores (ctx, cmdbuf, mb_param);
+        psb__MPEG2MC_send_motion_vectores(ctx, cmdbuf, mb_param);
 
-        psb__MPEG2MC_send_residual (ctx, MBPARAM_CodedBlockPattern(mb_param) );
+        psb__MPEG2MC_send_residual(ctx, MBPARAM_CodedBlockPattern(mb_param));
     }
 
     psb_cmdbuf_reg_end_block(cmdbuf);
@@ -855,25 +838,25 @@ static void	psb__MPEG2MC_interPB_mb(
 /* Process Macroblocks of a B or P picture.*/
 static VAStatus psb__MPEG2MC_process_mbs_interPB(
     context_MPEG2MC_p	const	ctx
- )
+)
 {
-    uint32_t	skip_count=0;
+    uint32_t	skip_count = 0;
     VAMacroblockParameterBufferMPEG2 *mb_param  = NULL;
     VAMacroblockParameterBufferMPEG2 mbparam_skip;
 
     uint32_t mb_pending = ctx->mb_in_buffer;
     uint32_t mb_addr = ctx->mb_first_addr;
-    uint32_t mb_last = mb_addr+mb_pending;
+    uint32_t mb_last = mb_addr + mb_pending;
     mb_param = (VAMacroblockParameterBufferMPEG2 *) ctx->mb_param;
 
-    /* Proccess all DXVA_MBctrl_P_HostResidDiff_1 structure in the buffer 
+    /* Proccess all DXVA_MBctrl_P_HostResidDiff_1 structure in the buffer
      * - this may genererate more macroblocks due to skipped
      */
     while (mb_pending || skip_count) {
-        uint32_t mb_in_buffer =  ( ctx->picture_width_mb ); 
+        uint32_t mb_in_buffer = (ctx->picture_width_mb);
         psb_cmdbuf_p cmdbuf;
         void *cmd_start;
-        
+
         ctx->fstmb_slice = IMG_TRUE;
 
         psb_context_get_next_cmdbuf(ctx->obj_context);
@@ -886,31 +869,31 @@ static VAStatus psb__MPEG2MC_process_mbs_interPB(
         psb__MPEG2MC_send_slice_parameters(ctx);
 
         /* Process all the macroblocks in the slice */
-        while(( mb_pending || skip_count ) && mb_in_buffer--) {
-            /* Check for segment space - do we have space for at least one more 
+        while ((mb_pending || skip_count) && mb_in_buffer--) {
+            /* Check for segment space - do we have space for at least one more
              * worst case InterMB plus completion
             */
             psb__MPEG2MC_check_segment_residDMA(ctx, INTER_MB_WORST_CASE + 2);
-            
+
             if	(skip_count) { /* Skipped macroblock processing	*/
                 mbparam_skip.macroblock_address++;
 
-                ASSERT( mb_param->macroblock_address < ctx->size_mb );
-                ASSERT( mbparam_skip.macroblock_address  == mb_addr );
+                ASSERT(mb_param->macroblock_address < ctx->size_mb);
+                ASSERT(mbparam_skip.macroblock_address  == mb_addr);
 
-                psb__MPEG2MC_interPB_mb (ctx, &mbparam_skip);
+                psb__MPEG2MC_interPB_mb(ctx, &mbparam_skip);
 
                 skip_count--;
             } else {
-                ASSERT( mb_pending );
-                ASSERT( mb_param->macroblock_address < ctx->size_mb );
-                ASSERT( mb_param->macroblock_address  == mb_addr );
+                ASSERT(mb_pending);
+                ASSERT(mb_param->macroblock_address < ctx->size_mb);
+                ASSERT(mb_param->macroblock_address  == mb_addr);
 
-                psb__MPEG2MC_interPB_mb (ctx, mb_param);
+                psb__MPEG2MC_interPB_mb(ctx, mb_param);
 
-                skip_count = MBPARAM_MBskipsFollowing (mb_param);
+                skip_count = MBPARAM_MBskipsFollowing(mb_param);
                 if (skip_count) {
-                    memcpy (&mbparam_skip, mb_param, sizeof (mbparam_skip));
+                    memcpy(&mbparam_skip, mb_param, sizeof(mbparam_skip));
                 }
 
                 mb_param++;
@@ -923,20 +906,20 @@ static VAStatus psb__MPEG2MC_process_mbs_interPB(
         }
 
         /* Tell hardware we're done	*/
-        psb__MPEG2MC_send_slice_picture_endcommand (ctx, (mb_pending==0)&&(skip_count==0)&&(ctx->size_mb==mb_last));
+        psb__MPEG2MC_send_slice_picture_endcommand(ctx, (mb_pending == 0) && (skip_count == 0) && (ctx->size_mb == mb_last));
         psb__MPEG2MC_finalise_residDMA(ctx);
 
         /* write_kick */
         *cmdbuf->cmd_idx++ = CMD_COMPLETION;
 
         ctx->obj_context->video_op = psb_video_mc;
-        ctx->obj_context->flags = (mb_pending==0)&&(skip_count==0)&&(ctx->size_mb==mb_last) ? FW_DXVA_RENDER_IS_LAST_SLICE : 0;
+        ctx->obj_context->flags = (mb_pending == 0) && (skip_count == 0) && (ctx->size_mb == mb_last) ? FW_DXVA_RENDER_IS_LAST_SLICE : 0;
         ctx->obj_context->first_mb = 0;
         ctx->obj_context->last_mb = 0;
         psb_context_submit_cmdbuf(ctx->obj_context);
 
         /* check if the remained cmdbuf size can fill the commands of next slice */
-        if (1||(cmdbuf->lldma_base - (void *) cmdbuf->cmd_idx) < ((void *) cmdbuf->cmd_idx - cmd_start))
+        if (1 || (cmdbuf->lldma_base - (void *) cmdbuf->cmd_idx) < ((void *) cmdbuf->cmd_idx - cmd_start))
             psb_context_flush_cmdbuf(ctx->obj_context);
     }
 
@@ -947,7 +930,7 @@ static VAStatus psb__MPEG2MC_process_mbs_interPB(
 static void	psb__MPEG2MC_intra_mb(
     context_MPEG2MC_p const ctx,
     const VAMacroblockParameterBufferMPEG2* const mb_param
- )
+)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t cmd;
@@ -955,7 +938,7 @@ static void	psb__MPEG2MC_intra_mb(
     psb_cmdbuf_reg_start_block(cmdbuf);
 
     /* 3.3.21.	Macroblock Number */
-    psb__MPEG2MC_send_mb_number (ctx, cmdbuf, mb_param->macroblock_address, MBPARAM_MotionType(mb_param), MB_CODE_TYPE_I);  
+    psb__MPEG2MC_send_mb_number(ctx, cmdbuf, mb_param->macroblock_address, MBPARAM_MotionType(mb_param), MB_CODE_TYPE_I);
 
     /*3.3.25.	Macroblock Residual Format */
     cmd = 0;
@@ -976,15 +959,15 @@ static void	psb__MPEG2MC_intra_mb(
          *       0x2: 16-bit signed
          */
         /* Sent as  8 bit signed relative to 128 */
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT,0 ); /* ok ish */
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128,	 1 ); /* ok ish */
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT, 0);  /* ok ish */
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128,	 1);   /* ok ish */
     } else {
         /* Sent as 8 bit unsigned relative to 0 */
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT,1 ); 
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128,	 0 );
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_DATA_FORMAT, 1);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, DXVA_ADD_128,	 0);
     }
-	
-    if (FRAME_PICTURE ==ctx->picture_structure) {
+
+    if (FRAME_PICTURE == ctx->picture_structure) {
         /*
          * RESIDUAL_FIELD_CODED MC
          *               0: residual data frame coded
@@ -996,15 +979,15 @@ static void	psb__MPEG2MC_intra_mb(
         /*
          * (DXVA:wMBType bit 5: FieldResidual, wMBtype & 0x20)/libVA(dct_type:1 field DCT):
          * Indicates whether the residual difference blocks use a field IDCT structure as specified in MPEG-2.
-         * 
+         *
          * Must be 1 if the bPicStructure member of DXVA_PictureParameters is 1 or 2. When used for MPEG-2,
          * FieldResidual must be zero if the frame_pred_frame_DCT variable in the MPEG-2 syntax is 1, and
          * must be equal to the dct_type variable in the MPEG-2 syntax if dct_type is present for the macroblock.
          */
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT,
-                           RESIDUAL_FIELD_CODED, ((mb_param->macroblock_modes.bits.dct_type) ? 1 : 0 ));
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT,
+                          RESIDUAL_FIELD_CODED, ((mb_param->macroblock_modes.bits.dct_type) ? 1 : 0));
     } else {
-        REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, RESIDUAL_FIELD_CODED, 1);
+        REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, RESIDUAL_FIELD_CODED, 1);
     }
 
     /*   CR_FROM_VEC MC  0: constant zero residual
@@ -1026,27 +1009,27 @@ static void	psb__MPEG2MC_intra_mb(
                         1: block Y0 provided by VEC
                          (If REVERSE_FLAG_ORDER=1, this bit indicates if Cr provided)
     */
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, CR_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x40) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, CB_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x80) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y3_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x100) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y2_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x200) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y1_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x400) ? 1 : 0 ));
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y0_FROM_VEC,
-                       ((MBPARAM_CodedBlockPattern(mb_param) & 0x800) ? 1 : 0 ));
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT) , cmd );
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, CR_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x40) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, CB_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x80) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y3_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x100) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y2_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x200) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y1_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x400) ? 1 : 0));
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT, Y0_FROM_VEC,
+                      ((MBPARAM_CodedBlockPattern(mb_param) & 0x800) ? 1 : 0));
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, MACROBLOCK_RESIDUAL_FORMAT) , cmd);
 
     /* Send Residuals, spec p69,h264 only */
     cmd = 0;
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE0, 0);
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE1, 0);
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE2, 0);
-    REGIO_WRITE_FIELD (cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE3, 0);
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_CMDS, INTRA_BLOCK_PREDICTION) , cmd);
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE0, 0);
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE1, 0);
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE2, 0);
+    REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, INTRA_BLOCK_PREDICTION, INTRA_PRED_MODE3, 0);
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, INTRA_BLOCK_PREDICTION) , cmd);
 
     psb__MPEG2MC_send_residual(ctx, MBPARAM_CodedBlockPattern(mb_param));
 
@@ -1056,44 +1039,44 @@ static void	psb__MPEG2MC_intra_mb(
 
 static VAStatus psb__MPEG2MC_process_mbs_intra(
     context_MPEG2MC_p	const	ctx
- )
+)
 {
     const VAMacroblockParameterBufferMPEG2* mb_param = NULL;
     uint32_t mb_pending = ctx->mb_in_buffer;
     uint32_t mb_addr = ctx->mb_first_addr;
-    uint32_t mb_last = mb_addr+mb_pending;
+    uint32_t mb_last = mb_addr + mb_pending;
 
     mb_param = (VAMacroblockParameterBufferMPEG2*) ctx->mb_param;
 
     while (mb_pending) { /* one slice per loop */
-        uint32_t mb_in_buffer =  min(mb_pending,ctx->picture_width_mb);
+        uint32_t mb_in_buffer =  min(mb_pending, ctx->picture_width_mb);
         psb_cmdbuf_p cmdbuf;
         void *cmd_start;
-        
+
         mb_pending -= mb_in_buffer;
 
         psb_context_get_next_cmdbuf(ctx->obj_context);
         cmdbuf = ctx->obj_context->cmdbuf;
         cmd_start = (void *) cmdbuf->cmd_idx;
-        
+
         ctx->fstmb_slice = IMG_TRUE;
-	
+
         /* Build the high-level commands */
         psb__MPEG2MC_send_highlevel_commands(ctx);
 
         psb__MPEG2MC_send_slice_parameters(ctx);
-    
+
         /* Process all the macroblocks in the slice */
         while (mb_in_buffer--) { /* for every MB */
             ASSERT(mb_param->macroblock_address < ctx->size_mb);
-            ASSERT(mb_param->macroblock_address  == mb_addr );
-            
-            /* Check for segment space - do we have space for at least one more 
+            ASSERT(mb_param->macroblock_address  == mb_addr);
+
+            /* Check for segment space - do we have space for at least one more
              * worst case IntraMB plus completion
             */
             psb__MPEG2MC_check_segment_residDMA(ctx, INTRA_MB_WORST_CASE + 2);
 
-            psb__MPEG2MC_intra_mb (ctx, mb_param);
+            psb__MPEG2MC_intra_mb(ctx, mb_param);
 
             mb_param++; /* next macroblock parameter */
             mb_addr++;
@@ -1101,21 +1084,21 @@ static VAStatus psb__MPEG2MC_process_mbs_intra(
             ctx->fstmb_slice = IMG_FALSE;
         }
 
-        psb__MPEG2MC_send_slice_picture_endcommand (ctx, (mb_pending==0)&&(ctx->size_mb==mb_last) ); /* Tell hardware we're done	*/	
+        psb__MPEG2MC_send_slice_picture_endcommand(ctx, (mb_pending == 0) && (ctx->size_mb == mb_last)); /* Tell hardware we're done	*/
 
         psb__MPEG2MC_finalise_residDMA(ctx);
 
         /* write_kick */
         *cmdbuf->cmd_idx++ = CMD_COMPLETION;
-    
+
         ctx->obj_context->video_op = psb_video_mc;
-        ctx->obj_context->flags = (mb_pending==0)&&(ctx->size_mb==mb_last) ? FW_DXVA_RENDER_IS_LAST_SLICE : 0;
+        ctx->obj_context->flags = (mb_pending == 0) && (ctx->size_mb == mb_last) ? FW_DXVA_RENDER_IS_LAST_SLICE : 0;
         ctx->obj_context->first_mb = 0;
         ctx->obj_context->last_mb = 0;
         psb_context_submit_cmdbuf(ctx->obj_context);
 
         /* check if the remained cmdbuf size can fill the commands of next slice */
-        if (1||(cmdbuf->lldma_base - (void *) cmdbuf->cmd_idx) < ((void *) cmdbuf->cmd_idx - cmd_start))
+        if (1 || (cmdbuf->lldma_base - (void *) cmdbuf->cmd_idx) < ((void *) cmdbuf->cmd_idx - cmd_start))
             psb_context_flush_cmdbuf(ctx->obj_context);
     }
 
@@ -1128,18 +1111,18 @@ static VAStatus psb__MPEG2MC_process_mbs_intra(
 static VAStatus psb__MPEG2MC_process_picture_param(context_MPEG2MC_p ctx, object_buffer_p obj_buffer)
 {
     int coded_pic_height;
-    
+
     /* Take a copy of the picture parameters */
     ctx->pic_params = (VAPictureParameterBufferMPEG2 *) obj_buffer->buffer_data;
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
     ctx->picture_coding_type = ctx->pic_params->picture_coding_type;
-    ctx->picture_structure =ctx->pic_params->picture_coding_extension.bits.picture_structure;
+    ctx->picture_structure = ctx->pic_params->picture_coding_extension.bits.picture_structure;
 
     ctx->forward_ref_surface = SURFACE(ctx->pic_params->forward_reference_picture);
     ctx->backward_ref_surface = SURFACE(ctx->pic_params->backward_reference_picture);
-    
+
     /* Set picture type and reference indices for reference frames */
     if (ctx->picture_coding_type != PICTURE_CODING_I) {
         if (ctx->pic_params->picture_coding_extension.bits.is_first_field) { /* first field */
@@ -1170,12 +1153,12 @@ static VAStatus psb__MPEG2MC_process_picture_param(context_MPEG2MC_p ctx, object
     ctx->pic_params->picture_coding_type = ctx->picture_coding_type;
 
     /* residual data size per element */
-    if ( ctx->picture_coding_type==PICTURE_CODING_I) {
+    if (ctx->picture_coding_type == PICTURE_CODING_I) {
         ctx->blk_size = 64; /* unsigned char */
     } else {
-        ctx->blk_size = 2*64; /* unsigned short */
+        ctx->blk_size = 2 * 64; /* unsigned short */
     }
-    
+
     if (ctx->picture_coding_type != PICTURE_CODING_I) {
         if (ctx->backward_ref_surface) {
             if (ctx->forward_ref_surface == NULL)
@@ -1184,15 +1167,13 @@ static VAStatus psb__MPEG2MC_process_picture_param(context_MPEG2MC_p ctx, object
             ctx->backward_ref_surface = ctx->forward_ref_surface;
         }
     }
-    if (NULL == ctx->backward_ref_surface)
-    {
+    if (NULL == ctx->backward_ref_surface) {
         ctx->backward_ref_surface = ctx->obj_context->current_render_target;
     }
-    if (NULL == ctx->forward_ref_surface)
-    {
+    if (NULL == ctx->forward_ref_surface) {
         ctx->forward_ref_surface = ctx->obj_context->current_render_target;
     }
-    
+
     ctx->coded_picture_width = ctx->pic_params->horizontal_size;
     ctx->coded_picture_height = ctx->pic_params->vertical_size;
     ctx->picture_width_mb = ctx->pic_params->horizontal_size / 16;
@@ -1205,32 +1186,32 @@ static VAStatus psb__MPEG2MC_process_picture_param(context_MPEG2MC_p ctx, object
             ctx->picture_height_mb = 2 * ((ctx->coded_picture_height + 31) / 32);
         }
     }
-    coded_pic_height = (ctx->picture_structure!=FRAME_PICTURE)?
-        ((ctx->picture_height_mb) * 32 ) :  ((ctx->picture_height_mb) * 16 );
-    ctx->size_mb = ctx->picture_width_mb * (coded_pic_height>>4);
+    coded_pic_height = (ctx->picture_structure != FRAME_PICTURE) ?
+                       ((ctx->picture_height_mb) * 32) : ((ctx->picture_height_mb) * 16);
+    ctx->size_mb = ctx->picture_width_mb * (coded_pic_height >> 4);
 
     ctx->display_picture_size = 0;
-    REGIO_WRITE_FIELD_LITE (ctx->display_picture_size, MSVDX_CMDS,
-                            DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_HEIGHT, ctx->coded_picture_height - 1);
-    REGIO_WRITE_FIELD_LITE (ctx->display_picture_size, MSVDX_CMDS,
-                            DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_WIDTH,ctx->coded_picture_width - 1);
+    REGIO_WRITE_FIELD_LITE(ctx->display_picture_size, MSVDX_CMDS,
+                           DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_HEIGHT, ctx->coded_picture_height - 1);
+    REGIO_WRITE_FIELD_LITE(ctx->display_picture_size, MSVDX_CMDS,
+                           DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_WIDTH, ctx->coded_picture_width - 1);
 
     ctx->coded_picture_size = 0;
-    REGIO_WRITE_FIELD_LITE (ctx->coded_picture_size, MSVDX_CMDS,
-                            CODED_PICTURE_SIZE, CODED_PICTURE_HEIGHT, ctx->coded_picture_height - 1);
-    REGIO_WRITE_FIELD_LITE (ctx->coded_picture_size, MSVDX_CMDS,
-                            CODED_PICTURE_SIZE, CODED_PICTURE_WIDTH, ctx->coded_picture_width - 1);
+    REGIO_WRITE_FIELD_LITE(ctx->coded_picture_size, MSVDX_CMDS,
+                           CODED_PICTURE_SIZE, CODED_PICTURE_HEIGHT, ctx->coded_picture_height - 1);
+    REGIO_WRITE_FIELD_LITE(ctx->coded_picture_size, MSVDX_CMDS,
+                           CODED_PICTURE_SIZE, CODED_PICTURE_WIDTH, ctx->coded_picture_width - 1);
 
     ctx->obj_context->operating_mode = 0;
-    REGIO_WRITE_FIELD (ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CHROMA_FORMAT,  1);
-    REGIO_WRITE_FIELD (ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE,     1);
+    REGIO_WRITE_FIELD(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CHROMA_FORMAT,  1);
+    REGIO_WRITE_FIELD(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE,     1);
     /* 0 = VDMC and VDEB active.  1 = VDEB pass-thru. */
-    REGIO_WRITE_FIELD (ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE,
-                       CODEC_MODE,CODEC_MODE_MPEG2);
-    REGIO_WRITE_FIELD (ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE,
-                       CODEC_PROFILE,  CODEC_PROFILE_MPEG2_MAIN);
-    REGIO_WRITE_FIELD (ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE,
-                       ROW_STRIDE,(ctx->obj_context->current_render_target->psb_surface->stride_mode));
+    REGIO_WRITE_FIELD(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE,
+                      CODEC_MODE, CODEC_MODE_MPEG2);
+    REGIO_WRITE_FIELD(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE,
+                      CODEC_PROFILE,  CODEC_PROFILE_MPEG2_MAIN);
+    REGIO_WRITE_FIELD(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE,
+                      ROW_STRIDE, (ctx->obj_context->current_render_target->psb_surface->stride_mode));
 
     return VA_STATUS_SUCCESS;
 }
@@ -1238,29 +1219,27 @@ static VAStatus psb__MPEG2MC_process_picture_param(context_MPEG2MC_p ctx, object
 
 
 static void psb_MPEG2MC_QueryConfigAttributes(
-            VAProfile profile,
-            VAEntrypoint entrypoint,
-            VAConfigAttrib *attrib_list,
-            int num_attribs ) 
+    VAProfile profile,
+    VAEntrypoint entrypoint,
+    VAConfigAttrib *attrib_list,
+    int num_attribs)
 {
     /* No MPEG2 specific attributes */
 }
 
 static VAStatus psb_MPEG2MC_ValidateConfig(
-            object_config_p obj_config )
+    object_config_p obj_config)
 {
     int i;
     /* Check all attributes */
-    for(i = 0; i < obj_config->attrib_count; i++)
-    {
-        switch (obj_config->attrib_list[i].type)
-        {
-          case VAConfigAttribRTFormat:
-                  /* Ignore */
-                  break;
-          
-          default:
-                  return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
+    for (i = 0; i < obj_config->attrib_count; i++) {
+        switch (obj_config->attrib_list[i].type) {
+        case VAConfigAttribRTFormat:
+            /* Ignore */
+            break;
+
+        default:
+            return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
         }
     }
 
@@ -1271,56 +1250,51 @@ static VAStatus psb__MPEG2MC_check_legal_picture(object_context_p obj_context, o
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (NULL == obj_context)
-    {    
+    if (NULL == obj_context) {
         vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
         DEBUG_FAILURE;
         return vaStatus;
-    }    
+    }
 
-    if (NULL == obj_config)
-    {    
+    if (NULL == obj_config) {
         vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
         DEBUG_FAILURE;
         return vaStatus;
-    }    
+    }
 
     /* MSVDX decode capability for MPEG2:
      *     MP@HL
      *
-     * Refer to Table 8-11 (Upper bounds for luminance sample rate) of ISO/IEC 13818-2: 1995(E), 
+     * Refer to Table 8-11 (Upper bounds for luminance sample rate) of ISO/IEC 13818-2: 1995(E),
      * and the "MSVDX MPEG2 decode capability" table of "Poulsbo Media Software Overview"
      */
 
-    switch (obj_config->profile)
-    {    
-        case VAProfileMPEG2Simple:
-            if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 352) 
-                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 288))
-            {
-                vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
-            }
-            break;
+    switch (obj_config->profile) {
+    case VAProfileMPEG2Simple:
+        if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 352)
+                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 288)) {
+            vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
+        }
+        break;
 
-        case VAProfileMPEG2Main:
-            if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 1920)
-                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 1088))
-            {
-                vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
-            }
-            break;
+    case VAProfileMPEG2Main:
+        if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 1920)
+                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 1088)) {
+            vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
+        }
+        break;
 
-        default:
-            vaStatus = VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
-            break;
+    default:
+        vaStatus = VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
+        break;
     }
 
     return vaStatus;
 }
 
 static VAStatus psb_MPEG2MC_CreateContext(
-            object_context_p obj_context,
-            object_config_p obj_config )
+    object_context_p obj_context,
+    object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_MPEG2MC_p ctx;
@@ -1328,8 +1302,7 @@ static VAStatus psb_MPEG2MC_CreateContext(
     /* Validate flag */
     /* Validate picture dimensions */
     vaStatus = psb__MPEG2MC_check_legal_picture(obj_context, obj_config);
-    if (VA_STATUS_SUCCESS != vaStatus)
-    {
+    if (VA_STATUS_SUCCESS != vaStatus) {
         DEBUG_FAILURE;
         return vaStatus;
     }
@@ -1358,7 +1331,7 @@ static VAStatus psb_MPEG2MC_CreateContext(
 
 
 static void psb_MPEG2MC_DestroyContext(
-            object_context_p obj_context)
+    object_context_p obj_context)
 {
     INIT_CONTEXT_MPEG2MC;
 
@@ -1376,38 +1349,38 @@ static VAStatus	psb_MPEG2MC_BeginPicture(
     object_context_p obj_context)
 {
     INIT_CONTEXT_MPEG2MC;
-    
+
 #if 0 /* clear surface for debugging */
     void *surface_data = NULL;
     static psb_surface_p target_surface = NULL;
     psb_surface_p tmp = ctx->obj_context->current_render_target->psb_surface;
     if (target_surface != tmp) { /* for field picture, only reset one time */
         target_surface = tmp;
-        
+
         int ret = psb_buffer_map(&target_surface->buf, &surface_data);
         if (ret) {
             goto out;
         }
-        memset(surface_data,0x33,target_surface->size);
+        memset(surface_data, 0x33, target_surface->size);
         psb_buffer_unmap(&target_surface->buf);
     }
-  out:
-#endif    
+out:
+#endif
 
     if (ctx->pic_params) {
         free(ctx->pic_params);
         ctx->pic_params = NULL;
     }
-    
+
     /* TODO: others */
     return VA_STATUS_SUCCESS;
 }
 
 
 static VAStatus psb_MPEG2MC_RenderPicture(
-            object_context_p obj_context,
-            object_buffer_p *buffers,
-            int num_buffers)
+    object_context_p obj_context,
+    object_buffer_p *buffers,
+    int num_buffers)
 {
     int i;
     INIT_CONTEXT_MPEG2MC;
@@ -1415,38 +1388,35 @@ static VAStatus psb_MPEG2MC_RenderPicture(
 
     ctx->mb_param = NULL; /* Init. compressed buffer pointers	*/
     ctx->residual_buf = NULL;
-    
+
     for	(i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
 
         switch (obj_buffer->type) {
             /* Picture parameters processing */
-            case VAPictureParameterBufferType:
-            {
-                vaStatus = psb__MPEG2MC_process_picture_param(ctx, obj_buffer);
-                DEBUG_FAILURE;
-                break;
-            }
-            /* Macroblock Data processing */
-            case VAMacroblockParameterBufferType:
-            {
-                ctx->mb_param=(VAMacroblockParameterBufferMPEG2 *)obj_buffer->buffer_data;
-                ctx->mb_first_addr = ctx->mb_param->macroblock_address;
-                ctx->mb_in_buffer = obj_buffer->num_elements;
-                /* psb__information_message("Macroblock count %d\n",ctx->mb_in_buffer); */
-                break;
-            }
-            /* Residual Difference Data processing */
-            case VAResidualDataBufferType:
-            {
-                /* store the data after VLD+IDCT */
-                ctx->residual_buf = obj_buffer->psb_buffer;
-                ctx->blk_in_buffer = obj_buffer->num_elements;
-                break;
-            }
-            default:
-                psb__information_message("Unhandled buffer type 0x%x\n",obj_buffer->type);
-                break;
+        case VAPictureParameterBufferType: {
+            vaStatus = psb__MPEG2MC_process_picture_param(ctx, obj_buffer);
+            DEBUG_FAILURE;
+            break;
+        }
+        /* Macroblock Data processing */
+        case VAMacroblockParameterBufferType: {
+            ctx->mb_param = (VAMacroblockParameterBufferMPEG2 *)obj_buffer->buffer_data;
+            ctx->mb_first_addr = ctx->mb_param->macroblock_address;
+            ctx->mb_in_buffer = obj_buffer->num_elements;
+            /* psb__information_message("Macroblock count %d\n",ctx->mb_in_buffer); */
+            break;
+        }
+        /* Residual Difference Data processing */
+        case VAResidualDataBufferType: {
+            /* store the data after VLD+IDCT */
+            ctx->residual_buf = obj_buffer->psb_buffer;
+            ctx->blk_in_buffer = obj_buffer->num_elements;
+            break;
+        }
+        default:
+            psb__information_message("Unhandled buffer type 0x%x\n", obj_buffer->type);
+            break;
         }
     }
 
@@ -1454,42 +1424,48 @@ static VAStatus psb_MPEG2MC_RenderPicture(
     if (ctx->residual_buf && ctx->mb_param) {
         ctx->residual_sent = 0;
         ctx->residual_pendingDMA = 0;
-        
-        if (ctx->picture_coding_type==PICTURE_CODING_I) {
-            psb__MPEG2MC_process_mbs_intra (ctx);
+
+        if (ctx->picture_coding_type == PICTURE_CODING_I) {
+            psb__MPEG2MC_process_mbs_intra(ctx);
         } else {
             psb__MPEG2MC_process_mbs_interPB(ctx);
         }
         ctx->mb_param = NULL;
     }
-    
+
     return VA_STATUS_SUCCESS;
 }
 
 
 static VAStatus psb_MPEG2MC_EndPicture(
-            object_context_p obj_context)
+    object_context_p obj_context)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     INIT_CONTEXT_MPEG2MC;
-    
+
     psb__information_message("psb_MPEG2MC_EndPicture\n");
 
-    if (psb_context_flush_cmdbuf(ctx->obj_context))
-    {
+    if (psb_context_flush_cmdbuf(ctx->obj_context)) {
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
     }
-    
+
     return vaStatus;
 }
 
 /* TODO: integrate with VLD */
 struct format_vtable_s psb_MPEG2MC_vtable = {
-    queryConfigAttributes: psb_MPEG2MC_QueryConfigAttributes,
-    validateConfig: psb_MPEG2MC_ValidateConfig,
-    createContext: psb_MPEG2MC_CreateContext,
-    destroyContext: psb_MPEG2MC_DestroyContext,
-    beginPicture: psb_MPEG2MC_BeginPicture,
-    renderPicture: psb_MPEG2MC_RenderPicture,
-    endPicture: psb_MPEG2MC_EndPicture
+queryConfigAttributes:
+    psb_MPEG2MC_QueryConfigAttributes,
+validateConfig:
+    psb_MPEG2MC_ValidateConfig,
+createContext:
+    psb_MPEG2MC_CreateContext,
+destroyContext:
+    psb_MPEG2MC_DestroyContext,
+beginPicture:
+    psb_MPEG2MC_BeginPicture,
+renderPicture:
+    psb_MPEG2MC_RenderPicture,
+endPicture:
+    psb_MPEG2MC_EndPicture
 };

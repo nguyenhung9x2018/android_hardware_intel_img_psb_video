@@ -38,7 +38,7 @@ pvr_drv_video_la_SOURCES = psb_drv_video.c object_heap.c psb_buffer.c psb_buffer
 		pnw_hostheader.c pnw_hostcode.c \
 		pnw_cmdbuf.c pnw_H264ES.c pnw_H263ES.c pnw_MPEG4ES.c \
 		pnw_H264.c pnw_MPEG2.c pnw_MPEG4.c pnw_hostjpeg.c pnw_jpeg.c pnw_VC1.c\
-		psb_output.c  psb_overlay.c psb_texture.c \
+		psb_output.c  psb_overlay.c psb_texture.c psb_texstreaming.c\
 		x11/psb_x11.c x11/psb_coverlay.c x11/psb_xrandr.c x11/psb_xvva.c x11/psb_ctexture.c \
 		powervr_iep_lite/csc/csc2.c \
 		powervr_iep_lite/csc/csc2_data.c \

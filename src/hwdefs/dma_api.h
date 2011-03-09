@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -54,51 +54,51 @@
 
  $Log: dma_api.h $
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
-  --- Revision Logs Removed --- 
+  --- Revision Logs Removed ---
 
 
 *****************************************************************************/
@@ -112,140 +112,132 @@
 #include "msvdx_dmac_linked_list.h"
 
 #if (__cplusplus)
-extern "C" {
+extern "C"
+{
 #endif
 
-/*!
-******************************************************************************
- This type defines the DMAC status
-******************************************************************************/
-typedef enum
-{
-    DMA_STATUS_IDLE,			//!< The DMAC is idle.
-    DMA_STATUS_BUSY,			//!< The DMAC is busy - a DMA is in progress.
-    DMA_STATUS_COMPLETE,		/*!< The DMAC operation has completed - return by 
-									 DMA_GetStatus()once before the DMAC returns 
+    /*!
+    ******************************************************************************
+     This type defines the DMAC status
+    ******************************************************************************/
+    typedef enum {
+        DMA_STATUS_IDLE,			//!< The DMAC is idle.
+        DMA_STATUS_BUSY,			//!< The DMAC is busy - a DMA is in progress.
+        DMA_STATUS_COMPLETE,		/*!< The DMAC operation has completed - return by
+									 DMA_GetStatus()once before the DMAC returns
 									 to #DMA_STATUS_IDLE.							*/
-    DMA_STATUS_TIMEOUT,		    /*!< The DMAC operation has timed-out - return by 
-									 DMA_GetStatus()once before the DMAC returns 
+        DMA_STATUS_TIMEOUT,		    /*!< The DMAC operation has timed-out - return by
+									 DMA_GetStatus()once before the DMAC returns
 									 to #DMA_STATUS_IDLE.							*/
-	
-} DMA_eStatus;
 
-/*!
-******************************************************************************
- This type defines the DMA channel Ids
-******************************************************************************/
-typedef enum
-{
-    DMA_CHANNEL_MTX = 0x0,		//!< DMA channel for MTX
-	DMA_CHANNEL_RESERVED,		//!< DMA channel 1 is reserved for VEC use
-    DMA_CHANNEL_SR1,			//!< DMA channel for 1st shift register
-    DMA_CHANNEL_SR2,			//!< DMA channel for 2nd shift register
-    DMA_CHANNEL_SR3,			//!< DMA channel for 3rd shift register
-    DMA_CHANNEL_SR4,			//!< DMA channel for 4th shift register
-	
-} DMA_eChannelId;
-	
-/*!
-******************************************************************************
- Used with DMA_SyncAction() and DMA_AsyncAction() to indicate whether
- the peripheral is the mtx or not.
-******************************************************************************/
-enum
-{
-    DMA_PERIPH_IS_NOT_MTX	= 0,   //!< The peripheral is not the mtx.
-    DMA_PERIPH_IS_MTX		= 1,   //!< The peripheral is the mtx.
-};
+    } DMA_eStatus;
 
-/*!
-******************************************************************************
- This type defines the byte swap settings.
-******************************************************************************/
-typedef enum
-{
-    DMA_BSWAP_NO_SWAP = 0x0,   //!< No byte swapping will be performed.
-    DMA_BSWAP_REVERSE = 0x1,   //!< Byte order will be reversed.
+    /*!
+    ******************************************************************************
+     This type defines the DMA channel Ids
+    ******************************************************************************/
+    typedef enum {
+        DMA_CHANNEL_MTX = 0x0,		//!< DMA channel for MTX
+        DMA_CHANNEL_RESERVED,		//!< DMA channel 1 is reserved for VEC use
+        DMA_CHANNEL_SR1,			//!< DMA channel for 1st shift register
+        DMA_CHANNEL_SR2,			//!< DMA channel for 2nd shift register
+        DMA_CHANNEL_SR3,			//!< DMA channel for 3rd shift register
+        DMA_CHANNEL_SR4,			//!< DMA channel for 4th shift register
 
-} DMA_eBSwap;
+    } DMA_eChannelId;
 
-/*!
-******************************************************************************
- This type defines the peripheral width settings
-******************************************************************************/
-typedef enum
-{
-    DMA_PWIDTH_32_BIT = 0x0,       //!< Peripheral width 32-bit.
-    DMA_PWIDTH_16_BIT = 0x1,       //!< Peripheral width 16-bit.
-    DMA_PWIDTH_8_BIT  = 0x2,       //!< Peripheral width 8-bit.
+    /*!
+    ******************************************************************************
+     Used with DMA_SyncAction() and DMA_AsyncAction() to indicate whether
+     the peripheral is the mtx or not.
+    ******************************************************************************/
+    enum {
+        DMA_PERIPH_IS_NOT_MTX	= 0,   //!< The peripheral is not the mtx.
+        DMA_PERIPH_IS_MTX		= 1,   //!< The peripheral is the mtx.
+    };
 
-} DMA_ePW;
+    /*!
+    ******************************************************************************
+     This type defines the byte swap settings.
+    ******************************************************************************/
+    typedef enum {
+        DMA_BSWAP_NO_SWAP = 0x0,   //!< No byte swapping will be performed.
+        DMA_BSWAP_REVERSE = 0x1,   //!< Byte order will be reversed.
 
-/*!
-******************************************************************************
- This type defines the direction of the DMA transfer
-******************************************************************************/
-typedef enum
-{
-    DMA_DIR_MEM_TO_PERIPH = 0x0, //!< Data from memory to peripheral.
-    DMA_DIR_PERIPH_TO_MEM = 0x1, //!< Data from peripheral to memory.
+    } DMA_eBSwap;
 
-} DMA_eDir;
+    /*!
+    ******************************************************************************
+     This type defines the peripheral width settings
+    ******************************************************************************/
+    typedef enum {
+        DMA_PWIDTH_32_BIT = 0x0,       //!< Peripheral width 32-bit.
+        DMA_PWIDTH_16_BIT = 0x1,       //!< Peripheral width 16-bit.
+        DMA_PWIDTH_8_BIT  = 0x2,       //!< Peripheral width 8-bit.
 
-/*!
-******************************************************************************
- This type defines whether the peripheral address is to be incremented
-******************************************************************************/
-typedef enum
-{
-    DMA_PERIPH_INCR_ON	= 0x1,		//!< Peripheral address will be incremented
-    DMA_PERIPH_INCR_OFF	= 0x0,		//!< Peripheral address will not be incremented
+    } DMA_ePW;
 
-} DMA_ePeriphIncr;
+    /*!
+    ******************************************************************************
+     This type defines the direction of the DMA transfer
+    ******************************************************************************/
+    typedef enum {
+        DMA_DIR_MEM_TO_PERIPH = 0x0, //!< Data from memory to peripheral.
+        DMA_DIR_PERIPH_TO_MEM = 0x1, //!< Data from peripheral to memory.
 
-/*!
-******************************************************************************
- This type defines how much the peripheral address is incremented by
-******************************************************************************/
-typedef enum
-{
-    DMA_PERIPH_INCR_1	= 0x2,		//!< Increment peripheral address by 1
-    DMA_PERIPH_INCR_2	= 0x1,		//!< Increment peripheral address by 2
-    DMA_PERIPH_INCR_4	= 0x0,		//!< Increment peripheral address by 4
+    } DMA_eDir;
 
-} DMA_ePeriphIncrSize;
+    /*!
+    ******************************************************************************
+     This type defines whether the peripheral address is to be incremented
+    ******************************************************************************/
+    typedef enum {
+        DMA_PERIPH_INCR_ON	= 0x1,		//!< Peripheral address will be incremented
+        DMA_PERIPH_INCR_OFF	= 0x0,		//!< Peripheral address will not be incremented
 
-/*!
-******************************************************************************
- This type defines whether the 2d mode is enabled or disabled
-******************************************************************************/
-typedef enum
-{
-    DMA_MODE_2D_ON	= 0x1,		//!< the 2d mode will be used
-    DMA_MODE_2D_OFF	= 0x0,		//!< the 2d mode will not be used
+    } DMA_ePeriphIncr;
 
-} DMA_eMode2D;
+    /*!
+    ******************************************************************************
+     This type defines how much the peripheral address is incremented by
+    ******************************************************************************/
+    typedef enum {
+        DMA_PERIPH_INCR_1	= 0x2,		//!< Increment peripheral address by 1
+        DMA_PERIPH_INCR_2	= 0x1,		//!< Increment peripheral address by 2
+        DMA_PERIPH_INCR_4	= 0x0,		//!< Increment peripheral address by 4
 
-/*!
-******************************************************************************
+    } DMA_ePeriphIncrSize;
 
- @Function              DMA_LL_SET_WD0
+    /*!
+    ******************************************************************************
+     This type defines whether the 2d mode is enabled or disabled
+    ******************************************************************************/
+    typedef enum {
+        DMA_MODE_2D_ON	= 0x1,		//!< the 2d mode will be used
+        DMA_MODE_2D_OFF	= 0x0,		//!< the 2d mode will not be used
 
- @Description
+    } DMA_eMode2D;
 
- Set word 0 in a dmac linked list entry.
+    /*!
+    ******************************************************************************
 
- @Input    pList		: pointer to start of linked list entry
+     @Function              DMA_LL_SET_WD0
 
- @Input    BSWAP        : big/little endian byte swap (see DMA_eBSwap).
+     @Description
 
- @Input    DIR			: transfer direction (see DMA_eDir).
+     Set word 0 in a dmac linked list entry.
 
- @Input    PW			: peripheral width (see DMA_ePW).
+     @Input    pList		: pointer to start of linked list entry
 
- @Return   nothing
- 
-******************************************************************************/
+     @Input    BSWAP        : big/little endian byte swap (see DMA_eBSwap).
+
+     @Input    DIR			: transfer direction (see DMA_eDir).
+
+     @Input    PW			: peripheral width (see DMA_ePW).
+
+     @Return   nothing
+
+    ******************************************************************************/
 #define DMA_LL_SET_WD0(pList, BSWAP, DIR, PW)			\
 	do{													\
 		MEMIO_WRITE_FIELD(pList, DMAC_LL_BSWAP, BSWAP);	\
@@ -254,26 +246,26 @@ typedef enum
 	}while(0)
 
 
-/*!
-******************************************************************************
+    /*!
+    ******************************************************************************
 
- @Function              DMA_LL_SET_WD1
+     @Function              DMA_LL_SET_WD1
 
- @Description
+     @Description
 
- Set word 1 in a dmac linked list entry.
+     Set word 1 in a dmac linked list entry.
 
- @Input    pList		: pointer to start of linked list entry
+     @Input    pList		: pointer to start of linked list entry
 
- @Input    INCR			: whether to increment the peripeheral address (see DMA_ePeriphIncr)
+     @Input    INCR			: whether to increment the peripeheral address (see DMA_ePeriphIncr)
 
- @Input    PI			: how much to increment the peripheral address by (see DMA_ePeriphIncrSize)
+     @Input    PI			: how much to increment the peripheral address by (see DMA_ePeriphIncrSize)
 
- @Input    LEN			: length of transfer in peripheral width units
+     @Input    LEN			: length of transfer in peripheral width units
 
- @Return   nothing
- 
-******************************************************************************/
+     @Return   nothing
+
+    ******************************************************************************/
 #define DMA_LL_SET_WD1(pList, INCR, PI, LEN)			\
 	do	{													\
 		MEMIO_WRITE_FIELD(pList, DMAC_LL_PI,	PI);		\
@@ -281,45 +273,45 @@ typedef enum
 		MEMIO_WRITE_FIELD(pList, DMAC_LL_LEN,	LEN);		\
 	}while(0)
 
-/*!
-******************************************************************************
+    /*!
+    ******************************************************************************
 
- @Function              DMA_LL_SET_WD2
+     @Function              DMA_LL_SET_WD2
 
- @Description
+     @Description
 
- Set word 2 in a dmac linked list entry.
+     Set word 2 in a dmac linked list entry.
 
- @Input    pList		: pointer to start of linked list entry
+     @Input    pList		: pointer to start of linked list entry
 
- @Input    PERI_ADDR	: the perihperal address to transfer to/from
+     @Input    PERI_ADDR	: the perihperal address to transfer to/from
 
- @Return   nothing
- 
-******************************************************************************/
+     @Return   nothing
+
+    ******************************************************************************/
 #define DMA_LL_SET_WD2(pList, PERI_ADDR)					\
 	do {													\
 		MEMIO_WRITE_FIELD(pList, DMAC_LL_ADDR, PERI_ADDR);	\
 	}while(0)
 
-/*!
-******************************************************************************
+    /*!
+    ******************************************************************************
 
- @Function              DMA_LL_SET_WD3
+     @Function              DMA_LL_SET_WD3
 
- @Description
+     @Description
 
- Set word 3 in a dmac linked list entry.
+     Set word 3 in a dmac linked list entry.
 
- @Input    pList		: pointer to start of linked list entry
+     @Input    pList		: pointer to start of linked list entry
 
- @Input    ACC_DEL		: access delay (see DMA_eAccDel)
+     @Input    ACC_DEL		: access delay (see DMA_eAccDel)
 
- @Input    BURST		: burst size (see DMA_eBurst)
+     @Input    BURST		: burst size (see DMA_eBurst)
 
- @Return   nothing
- 
-******************************************************************************/
+     @Return   nothing
+
+    ******************************************************************************/
 #define DMA_LL_SET_WD3(pList, ACC_DEL, BURST , EXTSA )			\
 	do {														\
 		MEMIO_WRITE_FIELD(pList, DMAC_LL_ACC_DEL,	ACC_DEL);	\
@@ -327,99 +319,99 @@ typedef enum
 		MEMIO_WRITE_FIELD(pList, DMAC_LL_EXT_SA,	EXTSA);		\
 	}while(0)
 
-/*!
-******************************************************************************
+    /*!
+    ******************************************************************************
 
- @Function              DMA_LL_SET_WD4
+     @Function              DMA_LL_SET_WD4
 
- @Description
+     @Description
 
- Set word 4 in a dmac linked list entry.
+     Set word 4 in a dmac linked list entry.
 
- @Input    pList		: pointer to start of linked list entry
+     @Input    pList		: pointer to start of linked list entry
 
- @Input    MODE_2D		: enable/disable 2d mode (see DMA_eMode2D)
+     @Input    MODE_2D		: enable/disable 2d mode (see DMA_eMode2D)
 
- @Input    REP_COUNT	: repeat count (the number of rows transferred)
+     @Input    REP_COUNT	: repeat count (the number of rows transferred)
 
- @Return   nothing
- 
-******************************************************************************/
+     @Return   nothing
+
+    ******************************************************************************/
 #define DMA_LL_SET_WD4(pList, MODE_2D, REP_COUNT)			\
 	do {													\
 	MEMIO_WRITE_FIELD(pList, DMAC_LL_MODE_2D,	MODE_2D);	\
 	MEMIO_WRITE_FIELD(pList, DMAC_LL_REP_COUNT,	REP_COUNT); \
 	} while(0)
 
-/*!
-******************************************************************************
+    /*!
+    ******************************************************************************
 
- @Function              DMA_LL_SET_WD5
+     @Function              DMA_LL_SET_WD5
 
- @Description
+     @Description
 
- Set word 5 in a dmac linked list entry.
+     Set word 5 in a dmac linked list entry.
 
- @Input    pList		: pointer to start of linked list entry
+     @Input    pList		: pointer to start of linked list entry
 
- @Input    LINE_ADD_OFF	: number of bytes from the end of one row to the start of the next row
-						(only applicable when using 2D transfer mode)
+     @Input    LINE_ADD_OFF	: number of bytes from the end of one row to the start of the next row
+    						(only applicable when using 2D transfer mode)
 
- @Input    ROW_LENGTH	: number of bytes per row
-						(only applicable when using 2D transfer mode)
+     @Input    ROW_LENGTH	: number of bytes per row
+    						(only applicable when using 2D transfer mode)
 
- @Return   nothing
- 
-******************************************************************************/
+     @Return   nothing
+
+    ******************************************************************************/
 #define DMA_LL_SET_WD5(pList, LINE_ADD_OFF, ROW_LENGTH)					\
 	do{																	\
 	MEMIO_WRITE_FIELD(pList, DMAC_LL_LINE_ADD_OFF,	LINE_ADD_OFF);		\
 	MEMIO_WRITE_FIELD(pList, DMAC_LL_ROW_LENGTH,	ROW_LENGTH);		\
 	}while(0)
 
-/*!
-******************************************************************************
+    /*!
+    ******************************************************************************
 
- @Function              DMA_LL_SET_WD6
+     @Function              DMA_LL_SET_WD6
 
- @Description
+     @Description
 
- Set word 6 in a dmac linked list entry.
+     Set word 6 in a dmac linked list entry.
 
- @Input    pList		: pointer to start of linked list entry
+     @Input    pList		: pointer to start of linked list entry
 
- @Input    SA			: the host memory address to transfer to/from
+     @Input    SA			: the host memory address to transfer to/from
 
- @Return   nothing
- 
-******************************************************************************/
+     @Return   nothing
+
+    ******************************************************************************/
 #define DMA_LL_SET_WD6(pList, SA)						\
 	do{													\
 		MEMIO_WRITE_FIELD(pList, DMAC_LL_SA,	SA);	\
 	}while(0)
 
-/*!
-******************************************************************************
+    /*!
+    ******************************************************************************
 
-@Function              DMA_LL_SET_WD7
+    @Function              DMA_LL_SET_WD7
 
-@Description
+    @Description
 
-Set word 7 in a dmac linked list entry.
+    Set word 7 in a dmac linked list entry.
 
-@Input    pList:		pointer to start of linked list entry
+    @Input    pList:		pointer to start of linked list entry
 
-@Input    LISTPTR:		pointer to next linked list entry
+    @Input    LISTPTR:		pointer to next linked list entry
 
-If the linked list entry is in MTX memory (eListLocation == DMA_LIST_IS_IN_MTX_MEM) then
-LISTPTR is a pointer to the start of the next linked list entry.  If the linked list entry
-is in HOST memory (eListLocation == DMA_LIST_IS_IN_SYS_MEM) then LISTPTR is a pointer to the
-start of the next linked list entry, but right shifted by 4 bits (i.e. ptr >> 4).  If this
-is the last entry in the linked list sequence then LISTPTR must be set to NULL.
+    If the linked list entry is in MTX memory (eListLocation == DMA_LIST_IS_IN_MTX_MEM) then
+    LISTPTR is a pointer to the start of the next linked list entry.  If the linked list entry
+    is in HOST memory (eListLocation == DMA_LIST_IS_IN_SYS_MEM) then LISTPTR is a pointer to the
+    start of the next linked list entry, but right shifted by 4 bits (i.e. ptr >> 4).  If this
+    is the last entry in the linked list sequence then LISTPTR must be set to NULL.
 
-@Return   nothing
- 
-******************************************************************************/
+    @Return   nothing
+
+    ******************************************************************************/
 #define DMA_LL_SET_WD7(pList, LISTPTR)									\
 	do {																\
 		MEMIO_WRITE_FIELD(pList, DMAC_LL_LISTPTR,	LISTPTR);			\
@@ -427,31 +419,31 @@ is the last entry in the linked list sequence then LISTPTR must be set to NULL.
 	}while(0)
 
 
-/*!
-******************************************************************************
+    /*!
+    ******************************************************************************
 
- @Function              DMA_VALUE_COUNT
+     @Function              DMA_VALUE_COUNT
 
- @Description
+     @Description
 
- This MACRO is used to aid the generation of the ui32Count member of the DMA_sParams
- structure required by DMA_SyncAction() and DMA_AsyncAction().  If this is not suitable
- for a given application then the programmer is free to fill in the fields in any way they
- see fit.
+     This MACRO is used to aid the generation of the ui32Count member of the DMA_sParams
+     structure required by DMA_SyncAction() and DMA_AsyncAction().  If this is not suitable
+     for a given application then the programmer is free to fill in the fields in any way they
+     see fit.
 
- @Input    BSWAP        : Big/little endian byte swap (see DMA_eBSwap).
+     @Input    BSWAP        : Big/little endian byte swap (see DMA_eBSwap).
 
- @Input    PW           : The width of the peripheral DMA register (see DMA_ePW).
+     @Input    PW           : The width of the peripheral DMA register (see DMA_ePW).
 
- @Input    DIR          : The direction of the transfer (see DMA_eDir).
- 
- @Input    PERIPH_INCR	: How much to increment the peripheral address by (see DMA_ePeriphIncr).
- 
- @Input    COUNT		: The length of the transfer in transfer units.
- 
- @Return   img_uint32   : The value of the generated word.
- 
-******************************************************************************/
+     @Input    DIR          : The direction of the transfer (see DMA_eDir).
+
+     @Input    PERIPH_INCR	: How much to increment the peripheral address by (see DMA_ePeriphIncr).
+
+     @Input    COUNT		: The length of the transfer in transfer units.
+
+     @Return   img_uint32   : The value of the generated word.
+
+    ******************************************************************************/
 #define DMA_VALUE_COUNT(BSWAP,PW,DIR,PERIPH_INCR,COUNT)				                        \
 																		                    \
     (((BSWAP)		& DMAC_DMAC_COUNT_BSWAP_LSBMASK)	<< DMAC_DMAC_COUNT_BSWAP_SHIFT)	|   \
@@ -459,314 +451,309 @@ is the last entry in the linked list sequence then LISTPTR must be set to NULL.
 	(((DIR)			& DMAC_DMAC_COUNT_DIR_LSBMASK)		<< DMAC_DMAC_COUNT_DIR_SHIFT)	|   \
 	(((PERIPH_INCR)	& DMAC_DMAC_COUNT_PI_LSBMASK)		<< DMAC_DMAC_COUNT_PI_SHIFT)	|   \
 	(((COUNT)		& DMAC_DMAC_COUNT_CNT_LSBMASK)		<< DMAC_DMAC_COUNT_CNT_SHIFT)
-	
-/*!
-******************************************************************************
- This type defines the access delay settings.
-******************************************************************************/
-typedef enum
-{
-    DMA_ACC_DEL_0	    = 0x0,		//!< Access delay zero clock cycles
-    DMA_ACC_DEL_256     = 0x1,      //!< Access delay 256 clock cycles
-    DMA_ACC_DEL_512     = 0x2,      //!< Access delay 512 clock cycles
-    DMA_ACC_DEL_768     = 0x3,      //!< Access delay 768 clock cycles
-    DMA_ACC_DEL_1024    = 0x4,      //!< Access delay 1024 clock cycles
-    DMA_ACC_DEL_1280    = 0x5,      //!< Access delay 1280 clock cycles
-    DMA_ACC_DEL_1536    = 0x6,      //!< Access delay 1536 clock cycles
-    DMA_ACC_DEL_1792    = 0x7,      //!< Access delay 1792 clock cycles
 
-} DMA_eAccDel;
+    /*!
+    ******************************************************************************
+     This type defines the access delay settings.
+    ******************************************************************************/
+    typedef enum {
+        DMA_ACC_DEL_0	    = 0x0,		//!< Access delay zero clock cycles
+        DMA_ACC_DEL_256     = 0x1,      //!< Access delay 256 clock cycles
+        DMA_ACC_DEL_512     = 0x2,      //!< Access delay 512 clock cycles
+        DMA_ACC_DEL_768     = 0x3,      //!< Access delay 768 clock cycles
+        DMA_ACC_DEL_1024    = 0x4,      //!< Access delay 1024 clock cycles
+        DMA_ACC_DEL_1280    = 0x5,      //!< Access delay 1280 clock cycles
+        DMA_ACC_DEL_1536    = 0x6,      //!< Access delay 1536 clock cycles
+        DMA_ACC_DEL_1792    = 0x7,      //!< Access delay 1792 clock cycles
 
-/*!
-******************************************************************************
- This type defines whether the peripheral address is static or auto-incremented.
-******************************************************************************/
-typedef enum
-{
-    DMA_INCR_OFF		= 0,		//!< Static peripheral address.
-    DMA_INCR_ON		    = 1			//!< Incrementing peripheral address.
+    } DMA_eAccDel;
 
-} DMA_eIncr;
+    /*!
+    ******************************************************************************
+     This type defines whether the peripheral address is static or auto-incremented.
+    ******************************************************************************/
+    typedef enum {
+        DMA_INCR_OFF		= 0,		//!< Static peripheral address.
+        DMA_INCR_ON		    = 1			//!< Incrementing peripheral address.
 
-/*!
-******************************************************************************
- This type defines the burst size setting.
-******************************************************************************/
-typedef enum
-{
-    DMA_BURST_0		= 0x0,		//!< burst size of 0
-    DMA_BURST_1    	= 0x1,      //!< burst size of 1
-    DMA_BURST_2    	= 0x2,      //!< burst size of 2
-    DMA_BURST_3    	= 0x3,      //!< burst size of 3
-    DMA_BURST_4    	= 0x4,      //!< burst size of 4
-    DMA_BURST_5    	= 0x5,      //!< burst size of 5
-    DMA_BURST_6    	= 0x6,      //!< burst size of 6
-    DMA_BURST_7    	= 0x7,      //!< burst size of 7
+    } DMA_eIncr;
 
-} DMA_eBurst;
+    /*!
+    ******************************************************************************
+     This type defines the burst size setting.
+    ******************************************************************************/
+    typedef enum {
+        DMA_BURST_0		= 0x0,		//!< burst size of 0
+        DMA_BURST_1    	= 0x1,      //!< burst size of 1
+        DMA_BURST_2    	= 0x2,      //!< burst size of 2
+        DMA_BURST_3    	= 0x3,      //!< burst size of 3
+        DMA_BURST_4    	= 0x4,      //!< burst size of 4
+        DMA_BURST_5    	= 0x5,      //!< burst size of 5
+        DMA_BURST_6    	= 0x6,      //!< burst size of 6
+        DMA_BURST_7    	= 0x7,      //!< burst size of 7
 
-/*!
-******************************************************************************
+    } DMA_eBurst;
 
-@Function              DMA_VALUE_PERIPH_PARAM
+    /*!
+    ******************************************************************************
 
-@Description
+    @Function              DMA_VALUE_PERIPH_PARAM
 
-This MACRO is used to aid the generation of the ui32PeripheralParam member of the
-DMA_sParams structure required by DMA_SyncAction() and DMA_AsyncAction().  If this is
-not suitable for a given application then the programmer is free to fill in the fields in
-any way they see fit.
+    @Description
 
-@Input	ACC_DEL:	The access delay (see DMA_eAccDel).
+    This MACRO is used to aid the generation of the ui32PeripheralParam member of the
+    DMA_sParams structure required by DMA_SyncAction() and DMA_AsyncAction().  If this is
+    not suitable for a given application then the programmer is free to fill in the fields in
+    any way they see fit.
 
-@Input	INCR:		Whether the peripheral address is incremented (see DMA_eIncr).
+    @Input	ACC_DEL:	The access delay (see DMA_eAccDel).
 
-@Input	BURST:		The burst size.  This should correspond to the amount of data that the
-					peripheral will either be able to supply or accept from its FIFO (see DMA_eBurst).
+    @Input	INCR:		Whether the peripheral address is incremented (see DMA_eIncr).
 
-@Return	img_uint32: The value of the generated word.
+    @Input	BURST:		The burst size.  This should correspond to the amount of data that the
+    					peripheral will either be able to supply or accept from its FIFO (see DMA_eBurst).
 
-******************************************************************************/
+    @Return	img_uint32: The value of the generated word.
+
+    ******************************************************************************/
 #define DMA_VALUE_PERIPH_PARAM(ACC_DEL,INCR,BURST)						                    \
 																		                    \
 	(((ACC_DEL)	& DMAC_DMAC_PERIPH_ACC_DEL_LSBMASK)	<< DMAC_DMAC_PERIPH_ACC_DEL_SHIFT)	|   \
 	(((INCR)	& DMAC_DMAC_PERIPH_INCR_LSBMASK)	<< DMAC_DMAC_PERIPH_INCR_SHIFT)		|   \
 	(((BURST)	& DMAC_DMAC_PERIPH_BURST_LSBMASK)	<< DMAC_DMAC_PERIPH_BURST_SHIFT)
-	
 
 
-/*!
-******************************************************************************
- Used to describe the location of the linked list structure
-******************************************************************************/
-typedef enum {
-	DMA_LIST_IS_IN_MTX_MEM, 
-	DMA_LIST_IS_IN_SYS_MEM, 
-} DMA_LIST_LOCATION;
 
-/*!
-******************************************************************************
- DMAC linked list structure
-******************************************************************************/
-typedef struct
-{
-	IMG_UINT32	ui32Word_0;				//!< Word 0 of the linked list (see DMA_LL_SET_WD0).
-	IMG_UINT32	ui32Word_1;				//!< Word 1 of the linked list (see DMA_LL_SET_WD1).
-	IMG_UINT32	ui32Word_2;				//!< Word 2 of the linked list (see DMA_LL_SET_WD2).
-	IMG_UINT32	ui32Word_3;				//!< Word 3 of the linked list (see DMA_LL_SET_WD3).
-	IMG_UINT32	ui32Word_4;				//!< Word 4 of the linked list (see DMA_LL_SET_WD4).
-	IMG_UINT32	ui32Word_5;				//!< Word 5 of the linked list (see DMA_LL_SET_WD5).
-	IMG_UINT32	ui32Word_6;				//!< Word 6 of the linked list (see DMA_LL_SET_WD6).
-	IMG_UINT32	ui32Word_7;				//!< Word 7 of the linked list (see DMA_LL_SET_WD7).
+    /*!
+    ******************************************************************************
+     Used to describe the location of the linked list structure
+    ******************************************************************************/
+    typedef enum {
+        DMA_LIST_IS_IN_MTX_MEM,
+        DMA_LIST_IS_IN_SYS_MEM,
+    } DMA_LIST_LOCATION;
 
-} DMA_sLinkedList;
+    /*!
+    ******************************************************************************
+     DMAC linked list structure
+    ******************************************************************************/
+    typedef struct {
+        IMG_UINT32	ui32Word_0;				//!< Word 0 of the linked list (see DMA_LL_SET_WD0).
+        IMG_UINT32	ui32Word_1;				//!< Word 1 of the linked list (see DMA_LL_SET_WD1).
+        IMG_UINT32	ui32Word_2;				//!< Word 2 of the linked list (see DMA_LL_SET_WD2).
+        IMG_UINT32	ui32Word_3;				//!< Word 3 of the linked list (see DMA_LL_SET_WD3).
+        IMG_UINT32	ui32Word_4;				//!< Word 4 of the linked list (see DMA_LL_SET_WD4).
+        IMG_UINT32	ui32Word_5;				//!< Word 5 of the linked list (see DMA_LL_SET_WD5).
+        IMG_UINT32	ui32Word_6;				//!< Word 6 of the linked list (see DMA_LL_SET_WD6).
+        IMG_UINT32	ui32Word_7;				//!< Word 7 of the linked list (see DMA_LL_SET_WD7).
 
-/*!
-******************************************************************************
- DMAC Parameter structure
-******************************************************************************/
-typedef struct
-{
-	IMG_UINT32			ui32PerHold;			//!< peripheral hold register (see PER_HOLD register in TRM)
-	DMA_LIST_LOCATION	eListLocation;			//!< is the linked list in mtx memory or system memory
-	DMA_sLinkedList *	psDmaLinkedList;		//!< pointer to first element in the linked list
-	IMG_UINT32			ui32Ext_sa;
-} DMA_sParams;
+    } DMA_sLinkedList;
 
-/*!
-******************************************************************************
+    /*!
+    ******************************************************************************
+     DMAC Parameter structure
+    ******************************************************************************/
+    typedef struct {
+        IMG_UINT32			ui32PerHold;			//!< peripheral hold register (see PER_HOLD register in TRM)
+        DMA_LIST_LOCATION	eListLocation;			//!< is the linked list in mtx memory or system memory
+        DMA_sLinkedList *	psDmaLinkedList;		//!< pointer to first element in the linked list
+        IMG_UINT32			ui32Ext_sa;
+    } DMA_sParams;
 
- @Function              DMA_Initialise
+    /*!
+    ******************************************************************************
 
- @Description
+     @Function              DMA_Initialise
 
- This function initialises the DMAC. Only has effect on the first call, second
- and subsequent calls are ignored.
+     @Description
 
- @Input		eChannel	: The channel to initialise.
+     This function initialises the DMAC. Only has effect on the first call, second
+     and subsequent calls are ignored.
 
- @Return	None.
+     @Input		eChannel	: The channel to initialise.
 
-******************************************************************************/
-extern IMG_VOID DMA_Initialise (DMA_eChannelId eChannel);
+     @Return	None.
 
-/*!
-******************************************************************************
+    ******************************************************************************/
+    extern IMG_VOID DMA_Initialise(DMA_eChannelId eChannel);
 
- @Function              DMA_Reset
+    /*!
+    ******************************************************************************
 
- @Description
+     @Function              DMA_Reset
 
- This function resets the DMAC, cancels any pending DMAC operation and
- return the DMAC to the idle state - #DMA_STATUS_IDLE.
+     @Description
 
- @Input		eChannel	: The channel to reset.
+     This function resets the DMAC, cancels any pending DMAC operation and
+     return the DMAC to the idle state - #DMA_STATUS_IDLE.
 
- @Return	None.
+     @Input		eChannel	: The channel to reset.
 
-******************************************************************************/
-extern IMG_VOID DMA_Reset (DMA_eChannelId eChannel);
+     @Return	None.
 
-/*!
-******************************************************************************
+    ******************************************************************************/
+    extern IMG_VOID DMA_Reset(DMA_eChannelId eChannel);
 
- @Function              DMA_SyncAction
+    /*!
+    ******************************************************************************
 
- @Description
+     @Function              DMA_SyncAction
 
- This function is used to initiate a synchronous (blocking) DMAC tranfer.
+     @Description
 
- An internal callback function is registered using DMA_RegisterStatusCallback()
- to detect and act upon status transitions.
+     This function is used to initiate a synchronous (blocking) DMAC tranfer.
 
- The DMAC driver also uses the SEMA API, SEMA_ID_B to block whilst waiting
- for the DMAC transfer to complete.  The callback function will set the
- semaphore when the 
- 
- NOTE: The DMAC must be in the idle state - #DMA_STATUS_IDLE - when the
- transfer is initiated.
+     An internal callback function is registered using DMA_RegisterStatusCallback()
+     to detect and act upon status transitions.
 
- @Input		eChannel	: The channel to use.
+     The DMAC driver also uses the SEMA API, SEMA_ID_B to block whilst waiting
+     for the DMAC transfer to complete.  The callback function will set the
+     semaphore when the
 
- @Input		psParams	: A pointer to a #DMA_sParams structure set with the
-						  required DMAC setup.
+     NOTE: The DMAC must be in the idle state - #DMA_STATUS_IDLE - when the
+     transfer is initiated.
 
- @Input		bMtx		: If true then the peripheral address specifies an
-						  offset in MTX memory
+     @Input		eChannel	: The channel to use.
 
- @Return	DMA_eStatus : The completion status - #DMA_STATUS_COMPLETE or 
-						   #DMA_STATUS_TIMEOUT.
+     @Input		psParams	: A pointer to a #DMA_sParams structure set with the
+    						  required DMAC setup.
 
-******************************************************************************/
-extern DMA_eStatus DMA_SyncAction (
-	DMA_eChannelId			eChannel,
-    DMA_sParams *			psParams,
-	IMG_BOOL				bMtx
-);
+     @Input		bMtx		: If true then the peripheral address specifies an
+    						  offset in MTX memory
 
-/*!
-******************************************************************************
+     @Return	DMA_eStatus : The completion status - #DMA_STATUS_COMPLETE or
+    						   #DMA_STATUS_TIMEOUT.
 
- @Function              DMA_AsyncAction
+    ******************************************************************************/
+    extern DMA_eStatus DMA_SyncAction(
+            DMA_eChannelId			eChannel,
+            DMA_sParams *			psParams,
+            IMG_BOOL				bMtx
+        );
 
- @Description
+    /*!
+    ******************************************************************************
 
- This function is used to initiate an asynchronous (non-blocking) DMAC tranfer.
- 
- NOTE: The DMAC must be in the idle state - #DMA_STATUS_IDLE - when the
- transfer is initiated.
+     @Function              DMA_AsyncAction
 
- @Input		eChannel			: The channel to use.
+     @Description
 
- @Input		psDmacLinkedList	: A pointer to a #DMA_sLinkedList structure set with the
-								  required DMAC setup.
+     This function is used to initiate an asynchronous (non-blocking) DMAC tranfer.
 
- @Input		bPeriphIsMtx		: If true then the peripheral address specifies an
-								  offset in MTX memory.
+     NOTE: The DMAC must be in the idle state - #DMA_STATUS_IDLE - when the
+     transfer is initiated.
 
- NOTE: If eListLocation is DMA_LIST_IS_IN_SYS_MEM and bPeriphIsMtx is IMG_TRUE the linked list can only contain a single entry.
+     @Input		eChannel			: The channel to use.
 
- NOTE: If eListLocation is DMA_LIST_IS_IN_MTX_MEM then bPeriphIsMtx applies to all entries in the linked list (i.e. 
-	   they all use the mtx as the peripheral, or none of them use the mtx as the peripheral).
+     @Input		psDmacLinkedList	: A pointer to a #DMA_sLinkedList structure set with the
+    								  required DMAC setup.
 
- @Return	None.
+     @Input		bPeriphIsMtx		: If true then the peripheral address specifies an
+    								  offset in MTX memory.
 
-******************************************************************************/
-extern IMG_VOID DMA_AsyncAction (
-	DMA_eChannelId			eChannel,
-	DMA_sParams *			psParams, 
-	IMG_BOOL				bPeriphIsMtx
-);
+     NOTE: If eListLocation is DMA_LIST_IS_IN_SYS_MEM and bPeriphIsMtx is IMG_TRUE the linked list can only contain a single entry.
 
-/*!
-******************************************************************************
+     NOTE: If eListLocation is DMA_LIST_IS_IN_MTX_MEM then bPeriphIsMtx applies to all entries in the linked list (i.e.
+    	   they all use the mtx as the peripheral, or none of them use the mtx as the peripheral).
 
- @Function              DMA_WaitForTransfer
+     @Return	None.
 
- @Description
+    ******************************************************************************/
+    extern IMG_VOID DMA_AsyncAction(
+            DMA_eChannelId			eChannel,
+            DMA_sParams *			psParams,
+            IMG_BOOL				bPeriphIsMtx
+        );
 
- This function waits for the current transfer to complete or timeout.
+    /*!
+    ******************************************************************************
 
- @Input		eChannel :	The channel to wait use.
+     @Function              DMA_WaitForTransfer
 
- @Return DMA_eStatus :	DMA_STATUS_COMPLETE when transfer has completed or DMA_STATUS_IDLE
-						if there wasn't an active transfer in progress to wait for.
- 
-******************************************************************************/
-extern DMA_eStatus DMA_WaitForTransfer(DMA_eChannelId eChannel);
+     @Description
 
-/*!
-******************************************************************************
+     This function waits for the current transfer to complete or timeout.
 
- @Function              DMA_GetStatus
+     @Input		eChannel :	The channel to wait use.
 
- @Description
+     @Return DMA_eStatus :	DMA_STATUS_COMPLETE when transfer has completed or DMA_STATUS_IDLE
+    						if there wasn't an active transfer in progress to wait for.
 
- This function returns the status of the DMAC.
+    ******************************************************************************/
+    extern DMA_eStatus DMA_WaitForTransfer(DMA_eChannelId eChannel);
 
- @Input		eChannel		: The channel to get the status of.
+    /*!
+    ******************************************************************************
 
- @Return	DMA_eStatus	: The status of the DMAC.
- 
-******************************************************************************/
-extern DMA_eStatus DMA_GetStatus(DMA_eChannelId eChannel);
+     @Function              DMA_GetStatus
 
-/*!
-******************************************************************************
+     @Description
 
- @Function              DMA_pfnStatusCallback
+     This function returns the status of the DMAC.
 
- @Description
+     @Input		eChannel		: The channel to get the status of.
 
- This is the prototype for a status callback functions.
+     @Return	DMA_eStatus	: The status of the DMAC.
 
- @Input		eChannel		: The channel that the status change is being reported on.
+    ******************************************************************************/
+    extern DMA_eStatus DMA_GetStatus(DMA_eChannelId eChannel);
 
- @Input		DMA_eStatus 	: The "new" state of the DMAC.
+    /*!
+    ******************************************************************************
 
- @Return	None.
+     @Function              DMA_pfnStatusCallback
 
-******************************************************************************/
-typedef IMG_VOID (*DMA_pfnStatusCallback) (
-	DMA_eChannelId				eChannel, 
-    DMA_eStatus				eStatus
-);
+     @Description
 
+     This is the prototype for a status callback functions.
 
-/*!
-******************************************************************************
+     @Input		eChannel		: The channel that the status change is being reported on.
 
- @Function              DMA_RegisterStatusCallback
+     @Input		DMA_eStatus 	: The "new" state of the DMAC.
 
- @Description
+     @Return	None.
 
- This function is used to register a status callback function.  The caller 
- provides the address of a function that will be called when a change in the 
- status occurs - see #DMA_eStatus.
+    ******************************************************************************/
+    typedef IMG_VOID(*DMA_pfnStatusCallback)(
+        DMA_eChannelId				eChannel,
+        DMA_eStatus				eStatus
+    );
 
- NOTE: This can happen asynchronously (at interrupt level) on a 
- #DMA_STATUS_COMPLETE or #DMA_STATUS_TIMEOUT - or synchronously when
- DMA_Action() is called and the state changes to #DMA_STATUS_BUSY or
- when DMA_GetStatus() or DMA_Reset() are called and the state returns to
- #DMA_STATUS_IDLE.
 
- NOTE: Only one callback function can be registered with the API.  The
- callback function is persistent and is not removed by subsequent calls
- to DMA_Initialise() or DMA_Reset().
+    /*!
+    ******************************************************************************
 
- NOTE: The function asserts if a callback function has already been set.
+     @Function              DMA_RegisterStatusCallback
 
- @Input		eChannel			: The channel that the status change is being reported on.
+     @Description
 
- @Input		pfnStatusCallback	: A pointer to a status callback function.
+     This function is used to register a status callback function.  The caller
+     provides the address of a function that will be called when a change in the
+     status occurs - see #DMA_eStatus.
 
- @Return	None.
+     NOTE: This can happen asynchronously (at interrupt level) on a
+     #DMA_STATUS_COMPLETE or #DMA_STATUS_TIMEOUT - or synchronously when
+     DMA_Action() is called and the state changes to #DMA_STATUS_BUSY or
+     when DMA_GetStatus() or DMA_Reset() are called and the state returns to
+     #DMA_STATUS_IDLE.
 
-******************************************************************************/
-extern IMG_VOID DMA_RegisterStatusCallback (
-	DMA_eChannelId				eChannel, 
-    DMA_pfnStatusCallback		pfnStatusCallback
-);
+     NOTE: Only one callback function can be registered with the API.  The
+     callback function is persistent and is not removed by subsequent calls
+     to DMA_Initialise() or DMA_Reset().
+
+     NOTE: The function asserts if a callback function has already been set.
+
+     @Input		eChannel			: The channel that the status change is being reported on.
+
+     @Input		pfnStatusCallback	: A pointer to a status callback function.
+
+     @Return	None.
+
+    ******************************************************************************/
+    extern IMG_VOID DMA_RegisterStatusCallback(
+            DMA_eChannelId				eChannel,
+            DMA_pfnStatusCallback		pfnStatusCallback
+        );
 
 
 #if (__cplusplus)

@@ -45,7 +45,7 @@ LOCAL_SRC_FILES :=		\
     psb_deblock.c           \
     psb_drv_video.c         \
     psb_output.c		\
-    android/psb_texstreaming.c            \
+    psb_texstreaming.c            \
     android/psb_output_android.c            \
     android/psb_android_glue.cpp            \
     psb_surface.c           \

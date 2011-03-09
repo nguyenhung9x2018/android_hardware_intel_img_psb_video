@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -28,6 +28,9 @@
 #include <RAR/rar.h>
 
 //#include "xf86mm.h"
+
+/* For TopazSC, it indicates the next frame should be skipped */
+#define SKIP_NEXT_FRAME   0x800
 
 typedef struct psb_buffer_s *psb_buffer_p;
 
@@ -69,49 +72,49 @@ struct psb_buffer_s {
 /*
  * Create buffer
  */
-VAStatus psb_buffer_create( psb_driver_data_p driver_data,
-        unsigned int size,
-        psb_buffer_type_t type,
-        psb_buffer_p buf
-   );
+VAStatus psb_buffer_create(psb_driver_data_p driver_data,
+                           unsigned int size,
+                           psb_buffer_type_t type,
+                           psb_buffer_p buf
+                          );
 
 /*
  * Setstatus Buffer
  */
-int psb_buffer_setstatus( psb_buffer_p buf, uint32_t set_placement, uint32_t clr_placement);
+int psb_buffer_setstatus(psb_buffer_p buf, uint32_t set_placement, uint32_t clr_placement);
 
 
 /*
  * Reference buffer
  */
-VAStatus psb_buffer_reference( psb_driver_data_p driver_data,
-                            psb_buffer_p buf,
-                            psb_buffer_p reference_buf
-                               );
+VAStatus psb_buffer_reference(psb_driver_data_p driver_data,
+                              psb_buffer_p buf,
+                              psb_buffer_p reference_buf
+                             );
 
 /*
  * Suspend buffer
- */   
+ */
 void psb__suspend_buffer(psb_driver_data_p driver_data, object_buffer_p obj_buffer);
 
 /*
  * Destroy buffer
- */   
-void psb_buffer_destroy( psb_buffer_p buf );
+ */
+void psb_buffer_destroy(psb_buffer_p buf);
 
 /*
  * Map buffer
  *
  * Returns 0 on success
  */
-int psb_buffer_map( psb_buffer_p buf, void **address /* out */ );
+int psb_buffer_map(psb_buffer_p buf, void **address /* out */);
 
-int psb_buffer_sync( psb_buffer_p buf );
+int psb_buffer_sync(psb_buffer_p buf);
 
 int psb_codedbuf_map_mangle(
-        VADriverContextP ctx,
-        object_buffer_p obj_buffer,
-        void **pbuf /* out */
+    VADriverContextP ctx,
+    object_buffer_p obj_buffer,
+    void **pbuf /* out */
 );
 
 
@@ -120,49 +123,49 @@ int psb_codedbuf_map_mangle(
  *
  * Returns 0 on success
  */
-int psb_buffer_unmap( psb_buffer_p buf );
+int psb_buffer_unmap(psb_buffer_p buf);
 
 /*
  * Create buffer from camera device memory
  */
-VAStatus psb_buffer_create_camera( psb_driver_data_p driver_data,
-                            psb_buffer_p buf,
-                            int is_v4l2,
-                            int id_or_ofs
-                            );
+VAStatus psb_buffer_create_camera(psb_driver_data_p driver_data,
+                                  psb_buffer_p buf,
+                                  int is_v4l2,
+                                  int id_or_ofs
+                                 );
 
 /*
  * Create RAR buffer
  */
-VAStatus psb_buffer_create_rar( psb_driver_data_p driver_data,
-                            unsigned int size,
-                            psb_buffer_p buf
-                                );
+VAStatus psb_buffer_create_rar(psb_driver_data_p driver_data,
+                               unsigned int size,
+                               psb_buffer_p buf
+                              );
 
 /*
  * Destroy RAR buffer
  */
-VAStatus psb_buffer_destroy_rar( psb_driver_data_p driver_data,
-                            psb_buffer_p buf
-                                 );
+VAStatus psb_buffer_destroy_rar(psb_driver_data_p driver_data,
+                                psb_buffer_p buf
+                               );
 
 /*
- * Reference one RAR buffer from handle 
+ * Reference one RAR buffer from handle
  */
-VAStatus psb_buffer_reference_rar( psb_driver_data_p driver_data,
-                                   uint32_t rar_handle,
-                                   psb_buffer_p buf
-                                   );
+VAStatus psb_buffer_reference_rar(psb_driver_data_p driver_data,
+                                  uint32_t rar_handle,
+                                  psb_buffer_p buf
+                                 );
 /*
  * Create one buffer from user buffer
  * id_or_ofs is CI frame ID (actually now is frame offset), or V4L2 buffer offset
  * user_ptr :virtual address of user buffer start.
  */
-VAStatus psb_buffer_create_camera_from_ub( psb_driver_data_p driver_data,
-                            psb_buffer_p buf,
-                            int id_or_ofs,
-			    int size,
-			    const unsigned long * user_ptr);
+VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
+        psb_buffer_p buf,
+        int id_or_ofs,
+        int size,
+        const unsigned long * user_ptr);
 #ifdef ANDROID
 #define DRM_PSB_FLAG_MEM_CI (1<<9)
 #define DRM_PSB_FLAG_MEM_RAR (1<<10)

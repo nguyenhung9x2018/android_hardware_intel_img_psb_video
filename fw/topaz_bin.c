@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -34,17 +34,16 @@
 #include "MPG4FirmwareCBR_bin.h"
 #include "MPG4FirmwareVBR_bin.h"
 
-#define FW_VER 0x5B
+#define FW_VER 146 /* DDKv146 release */
 #define FW_FILE_NAME "topaz_fw.bin"
 
-struct topaz_fw_info_item_s
-{
-	unsigned short ver;
+struct topaz_fw_info_item_s {
+    unsigned short ver;
     unsigned short codec;
-    
-	unsigned int  text_size;
-	unsigned int data_size;
-	unsigned int data_location;
+
+    unsigned int  text_size;
+    unsigned int data_size;
+    unsigned int data_location;
 };
 typedef struct topaz_fw_info_item_s topaz_fw_info_item_t;
 
@@ -64,8 +63,7 @@ enum topaz_fw_codec_e {
 };
 typedef enum topaz_fw_codec_e topaz_fw_codec_t;
 
-struct fw_table_s
-{
+struct fw_table_s {
     topaz_fw_codec_t index;
     topaz_fw_info_item_t header;
     unsigned long *fw_text;
@@ -73,7 +71,7 @@ struct fw_table_s
 };
 typedef struct fw_table_s fw_table_t;
 
-int main ()
+int main()
 {
     FILE *fp = NULL;
     topaz_fw_codec_t iter = FW_H264_NO_RC;
@@ -84,7 +82,7 @@ int main ()
         /* index   header
          * { ver, codec, text_size, data_size, date_location }
          * fw_text fw_data */
-	{ 0, {0, 0, 0, 0, 0} },
+        { 0, {0, 0, 0, 0, 0} },
         { FW_H264_NO_RC,
           { FW_VER,
             FW_H264_NO_RC,
@@ -94,7 +92,7 @@ int main ()
           },
           aui32H264_MTXTOPAZFWText, aui32H264_MTXTOPAZFWData
         },
-    
+
         { FW_H264_VBR,
           { FW_VER,
             FW_H264_VBR,
@@ -193,34 +191,34 @@ int main ()
           aui32MPG4CBR_MTXTOPAZFWData
         }
     };
-    
+
     /* open file  */
-    fp = fopen (FW_FILE_NAME, "w");
+    fp = fopen(FW_FILE_NAME, "w");
 
     if (NULL == fp)
-	return -1;
+        return -1;
     /* write fw table into the file */
     while (iter < FW_NUM) {
-            /* record the size use bytes */
-            topaz_fw_table[iter].header.data_size *= 4;
-            topaz_fw_table[iter].header.text_size *= 4;
-            
+        /* record the size use bytes */
+        topaz_fw_table[iter].header.data_size *= 4;
+        topaz_fw_table[iter].header.text_size *= 4;
+
         /* write header */
-        fwrite (&(topaz_fw_table[iter].header), sizeof (topaz_fw_table[iter].header), 1, fp);
-        
+        fwrite(&(topaz_fw_table[iter].header), sizeof(topaz_fw_table[iter].header), 1, fp);
+
         /* write text */
         size = topaz_fw_table[iter].header.text_size;
-        fwrite (topaz_fw_table[iter].fw_text, 1, size, fp);
-            
+        fwrite(topaz_fw_table[iter].fw_text, 1, size, fp);
+
         /* write data */
         size = topaz_fw_table[iter].header.data_size;
-        fwrite (topaz_fw_table[iter].fw_data, 1, size, fp);
+        fwrite(topaz_fw_table[iter].fw_data, 1, size, fp);
 
         ++iter;
     }
-    
+
     /* close file */
-    fclose (fp);
+    fclose(fp);
 
     return 0;
 }

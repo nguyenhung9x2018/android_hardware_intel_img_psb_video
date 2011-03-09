@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -27,9 +27,9 @@
 
  @Title        MSVDX Offsets
 
- @Platform     
+ @Platform
 
- @Description  
+ @Description
 
 ******************************************************************************/
 #ifndef _MSVDX_OFFSETS_H_
@@ -51,16 +51,16 @@
 /* Not the best place for this */
 #ifdef PLEASE_DONT_INCLUDE_REGISTER_BASE
 
-	/* This macro is used by KM gpu sim code */
+/* This macro is used by KM gpu sim code */
 
-	#define REGISTER_OFFSET(__group__, __reg__ ) ( (__group__##_##__reg__##_OFFSET) )
+#define REGISTER_OFFSET(__group__, __reg__ ) ( (__group__##_##__reg__##_OFFSET) )
 
 #else
 
-	/* This is the macro used by UM Drivers - it included the Mtx memory offser to the msvdx redisters */
+/* This is the macro used by UM Drivers - it included the Mtx memory offser to the msvdx redisters */
 
-	// #define REGISTER_OFFSET(__group__, __reg__ ) ( (__group__##_##__reg__##_OFFSET) + ( REG_##__group__##_OFFSET ) )
-	#define REGISTER_OFFSET(__group__, __reg__ ) ( (__group__##_##__reg__##_OFFSET) + ( REG_##__group__##_OFFSET ) + 0x04800000 )
+// #define REGISTER_OFFSET(__group__, __reg__ ) ( (__group__##_##__reg__##_OFFSET) + ( REG_##__group__##_OFFSET ) )
+#define REGISTER_OFFSET(__group__, __reg__ ) ( (__group__##_##__reg__##_OFFSET) + ( REG_##__group__##_OFFSET ) + 0x04800000 )
 
 #endif
 

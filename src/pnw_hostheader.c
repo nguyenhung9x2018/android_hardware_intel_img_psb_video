@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -51,23 +51,21 @@ static void Show_Bits(
     char Txt[1024];
     IMG_UINT32 uiByteSize;
     IMG_UINT32 uiLp, uiBt, Bcnt;
-    Bcnt=0;
-    uiByteSize=(Bits+ByteStartBit+7) >> 3;
-    for (uiLp=0;uiLp<uiByteSize;uiLp++)
-    {
-        snprintf(Txt,strlen(" "), " ");
-        for (uiBt=128;uiBt>=1;uiBt=uiBt >> 1)
-        {
+    Bcnt = 0;
+    uiByteSize = (Bits + ByteStartBit + 7) >> 3;
+    for (uiLp = 0;uiLp < uiByteSize;uiLp++) {
+        snprintf(Txt, strlen(" "), " ");
+        for (uiBt = 128;uiBt >= 1;uiBt = uiBt >> 1) {
             Bcnt++;
-            if (Bcnt>Bits+ByteStartBit || Bcnt<=ByteStartBit)
+            if (Bcnt > Bits + ByteStartBit || Bcnt <= ByteStartBit)
                 snprintf(Txt, sizeof(Txt), "%sX", Txt);
             else
-                snprintf(Txt, sizeof(Txt), "%s%i", Txt, (ucBitStream[uiLp] & uiBt)>0);
+                snprintf(Txt, sizeof(Txt), "%s%i", Txt, (ucBitStream[uiLp] & uiBt) > 0);
         }
 
         snprintf(Txt, sizeof(Txt), "%s ", Txt);
         printf(Txt);
-        if ((uiLp+1)%8==0) printf("\n");
+        if ((uiLp + 1) % 8 == 0) printf("\n");
     }
 
     printf("\n\n");
@@ -83,31 +81,26 @@ static void Show_Elements(
     IMG_UINT8 f;
     IMG_UINT32 TotalByteSize;
     IMG_UINT32 RTotalByteSize;
- 
-    RTotalByteSize=TotalByteSize=0;
-    for (f=0;f<mtx_hdr->Elements;f++)
-    {
-#if HEADERS_VERBOSE_OUTPUT
-        psb__information_message("Encoding Element [%i] - Type:%i\n", f,elt_p[f]->Element_Type);
-#endif
-        if (elt_p[f]->Element_Type==ELEMENT_STARTCODE_RAWDATA ||
-            elt_p[f]->Element_Type==ELEMENT_RAWDATA)
-        {
-            TotalByteSize=elt_p[f]->Size;
-#if HEADERS_VERBOSE_OUTPUT
-            psb__information_message("Writing %i RAW bits to element.\n",elt_p[f]->Size);
-            Show_Bits((IMG_UINT8 *) (&elt_p[f]->Size)+1,0, TotalByteSize);
-#endif
-            TotalByteSize+=8;
 
-            RTotalByteSize+=(((IMG_UINT32) ((TotalByteSize+7)/8))*8);
-            RTotalByteSize+=32;	
-        }
-        else
-        {
-            TotalByteSize=0;
-            switch (elt_p[f]->Element_Type)
-            {
+    RTotalByteSize = TotalByteSize = 0;
+    for (f = 0;f < mtx_hdr->Elements;f++) {
+#if HEADERS_VERBOSE_OUTPUT
+        psb__information_message("Encoding Element [%i] - Type:%i\n", f, elt_p[f]->Element_Type);
+#endif
+        if (elt_p[f]->Element_Type == ELEMENT_STARTCODE_RAWDATA ||
+                elt_p[f]->Element_Type == ELEMENT_RAWDATA) {
+            TotalByteSize = elt_p[f]->Size;
+#if HEADERS_VERBOSE_OUTPUT
+            psb__information_message("Writing %i RAW bits to element.\n", elt_p[f]->Size);
+            Show_Bits((IMG_UINT8 *)(&elt_p[f]->Size) + 1, 0, TotalByteSize);
+#endif
+            TotalByteSize += 8;
+
+            RTotalByteSize += (((IMG_UINT32)((TotalByteSize + 7) / 8)) * 8);
+            RTotalByteSize += 32;
+        } else {
+            TotalByteSize = 0;
+            switch (elt_p[f]->Element_Type) {
             case ELEMENT_QP:
 #if HEADERS_VERBOSE_OUTPUT
                 psb__information_message("Insert token ELEMENT_QP (H264)- for MTX to generate and insert this value\n");
@@ -142,7 +135,7 @@ static void Show_Elements(
                 break;
             }
 
-            RTotalByteSize+=32;
+            RTotalByteSize += 32;
 #if HEADERS_VERBOSE_OUTPUT
             psb__information_message("No RAW bits\n\n");
 #endif
@@ -153,7 +146,7 @@ static void Show_Elements(
 
 #if HEADERS_VERBOSE_OUTPUT
     psb__information_message("\nCombined ELEMENTS Stream:\n");
-    Show_Bits((IMG_UINT8 *) mtx_hdr->asElementStream,0, RTotalByteSize);
+    Show_Bits((IMG_UINT8 *) mtx_hdr->asElementStream, 0, RTotalByteSize);
 #endif
 }
 #endif
@@ -175,11 +168,13 @@ static void pnw__write_upto8bits_elements(
      */
     IMG_UINT8 *wrt_bytes_p;
     IMG_UINT8 *size_bits_p;
-    union {IMG_UINT32 UI16Input; IMG_UINT8 UI8Input[2];} InputVal = {0,};
+    union {IMG_UINT32 UI16Input;
+        IMG_UINT8 UI8Input[2];
+    } InputVal = {0, };
     IMG_UINT8 OutByteIndex;
     IMG_INT16 Shift;
 
-    if (bit_cnt==0) return;
+    if (bit_cnt == 0) return;
 
     /* WA for klockwork */
     if (mtx_hdr->Elements >= MAXNUMBERELEMENTS) {
@@ -190,58 +185,54 @@ static void pnw__write_upto8bits_elements(
     /* First ensure that unused bits in wrt_bits are zeroed */
     wrt_bits &= (0x00ff >> (8 - bit_cnt));
 
-    InputVal.UI16Input=0;
+    InputVal.UI16Input = 0;
 
     /* Pointer to the bit count field */
-    size_bits_p=&(elt_p[mtx_hdr->Elements]->Size);
-    
-    /* Pointer to the space where header bits are to be written */
-    wrt_bytes_p=&(elt_p[mtx_hdr->Elements]->Bits); 
+    size_bits_p = &(elt_p[mtx_hdr->Elements]->Size);
 
-    OutByteIndex=(size_bits_p[0] / 8);
+    /* Pointer to the space where header bits are to be written */
+    wrt_bytes_p = &(elt_p[mtx_hdr->Elements]->Bits);
+
+    OutByteIndex = (size_bits_p[0] / 8);
 
     if (!(size_bits_p[0]&7)) {
-        if (size_bits_p[0]>=120)
-        {
+        if (size_bits_p[0] >= 120) {
             /* Element maximum bits send to element, time to start a new one */
             mtx_hdr->Elements++; /* Increment element index */
             /* Element pointer set to position of next element (120/8 = 15 bytes) */
-            elt_p[mtx_hdr->Elements]=(MTX_HEADER_ELEMENT *) &wrt_bytes_p[15];
-            
+            elt_p[mtx_hdr->Elements] = (MTX_HEADER_ELEMENT *) & wrt_bytes_p[15];
+
             /* Write ELEMENT_TYPE */
-            elt_p[mtx_hdr->Elements]->Element_Type=ELEMENT_RAWDATA;
-            
-            /* Set new element size (bits) to zero */            
-            elt_p[mtx_hdr->Elements]->Size=0; 
+            elt_p[mtx_hdr->Elements]->Element_Type = ELEMENT_RAWDATA;
+
+            /* Set new element size (bits) to zero */
+            elt_p[mtx_hdr->Elements]->Size = 0;
 
             /* Begin writing to the new element */
-            pnw__write_upto8bits_elements(mtx_hdr,elt_p, wrt_bits, bit_cnt); 
+            pnw__write_upto8bits_elements(mtx_hdr, elt_p, wrt_bits, bit_cnt);
             return;
         }
 
-        wrt_bytes_p[OutByteIndex]=0; /* Beginning a new byte, clear byte */
+        wrt_bytes_p[OutByteIndex] = 0; /* Beginning a new byte, clear byte */
     }
 
-    Shift=(IMG_INT16) ((8-bit_cnt)-(size_bits_p[0]&7));
+    Shift = (IMG_INT16)((8 - bit_cnt) - (size_bits_p[0] & 7));
 
-    if (Shift>=0)
-    {
+    if (Shift >= 0) {
         wrt_bits <<= Shift;
-        wrt_bytes_p[OutByteIndex]|=wrt_bits;
-        size_bits_p[0]=size_bits_p[0]+bit_cnt;
-    }
-    else
-    {
-        InputVal.UI8Input[1]=(IMG_UINT8) wrt_bits+256;
+        wrt_bytes_p[OutByteIndex] |= wrt_bits;
+        size_bits_p[0] = size_bits_p[0] + bit_cnt;
+    } else {
+        InputVal.UI8Input[1] = (IMG_UINT8) wrt_bits + 256;
         InputVal.UI16Input >>= -Shift;
 
-        wrt_bytes_p[OutByteIndex]|=InputVal.UI8Input[1];
-	
-        size_bits_p[0]=size_bits_p[0]+bit_cnt;
-        size_bits_p[0]=size_bits_p[0]-((IMG_UINT8) -Shift);
-        InputVal.UI8Input[0]=InputVal.UI8Input[0] >> (8+Shift);
+        wrt_bytes_p[OutByteIndex] |= InputVal.UI8Input[1];
 
-        pnw__write_upto8bits_elements(mtx_hdr, elt_p, InputVal.UI8Input[0],(IMG_UINT16) -Shift);
+        size_bits_p[0] = size_bits_p[0] + bit_cnt;
+        size_bits_p[0] = size_bits_p[0] - ((IMG_UINT8) - Shift);
+        InputVal.UI8Input[0] = InputVal.UI8Input[0] >> (8 + Shift);
+
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, InputVal.UI8Input[0], (IMG_UINT16) - Shift);
     }
 }
 
@@ -254,23 +245,21 @@ static void pnw__write_upto32bits_elements(
     IMG_UINT32 BitLp;
     IMG_UINT32 EndByte;
     IMG_UINT8 Bytes[4];
- 
-    for (BitLp=0; BitLp<4; BitLp++)
-    {
-        Bytes[BitLp]=(IMG_UINT8) (wrt_bits & 255);
+
+    for (BitLp = 0; BitLp < 4; BitLp++) {
+        Bytes[BitLp] = (IMG_UINT8)(wrt_bits & 255);
         wrt_bits = wrt_bits >> 8;
     }
- 
-    EndByte=((bit_cnt+7)/8);
 
-    if ((bit_cnt)%8)
-	pnw__write_upto8bits_elements(mtx_hdr, elt_p, Bytes[EndByte-1], (IMG_UINT8) ((bit_cnt)%8));
+    EndByte = ((bit_cnt + 7) / 8);
+
+    if ((bit_cnt) % 8)
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, Bytes[EndByte-1], (IMG_UINT8)((bit_cnt) % 8));
     else
- 	pnw__write_upto8bits_elements(mtx_hdr, elt_p, Bytes[EndByte-1], 8);
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, Bytes[EndByte-1], 8);
 
-    if (EndByte>1)
-	for (BitLp=EndByte-1; BitLp>0; BitLp--)
-        {
+    if (EndByte > 1)
+        for (BitLp = EndByte - 1; BitLp > 0; BitLp--) {
             pnw__write_upto8bits_elements(mtx_hdr, elt_p, Bytes[BitLp-1], 8);
         }
 }
@@ -283,28 +272,27 @@ static void pnw__generate_ue(
     IMG_UINT32 uiLp;
     IMG_UINT8 ucZeros;
     IMG_UINT32 uiChunk;
- 
-    for (uiLp=1, ucZeros=0;  (uiLp-1) < uiVal ; uiLp=uiLp+uiLp, ucZeros++)
-        uiVal=uiVal-uiLp;
+
+    for (uiLp = 1, ucZeros = 0; (uiLp - 1) < uiVal ; uiLp = uiLp + uiLp, ucZeros++)
+        uiVal = uiVal - uiLp;
 
     /* ucZeros = number of preceding zeros required
      * uiVal = value to append after zeros and 1 bit
      */
 
     /* Write preceding zeros */
-    for (uiLp=(IMG_UINT32) ucZeros; uiLp+1>8; uiLp-=8)
+    for (uiLp = (IMG_UINT32) ucZeros; uiLp + 1 > 8; uiLp -= 8)
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
 
     /* Write zeros and 1 bit set */
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8) 1, (IMG_UINT8) (uiLp+1));
+    pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8) 1, (IMG_UINT8)(uiLp + 1));
 
     /* Write Numeric part */
-    while (ucZeros>8)
-    {
-        ucZeros-=8;
-        uiChunk=(uiVal >> ucZeros);	
+    while (ucZeros > 8) {
+        ucZeros -= 8;
+        uiChunk = (uiVal >> ucZeros);
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8) uiChunk, 8);
-        uiVal=uiVal-(uiChunk << ucZeros);
+        uiVal = uiVal - (uiChunk << ucZeros);
     }
 
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8) uiVal, ucZeros);
@@ -319,9 +307,9 @@ static void pnw__generate_se(
     IMG_UINT32 uiCodeNum;
 
     if (iVal > 0)
-        uiCodeNum=(IMG_UINT32) (iVal+iVal-1);
+        uiCodeNum = (IMG_UINT32)(iVal + iVal - 1);
     else
-        uiCodeNum=(IMG_UINT32) (-iVal-iVal);
+        uiCodeNum = (IMG_UINT32)(-iVal - iVal);
 
     pnw__generate_ue(mtx_hdr, elt_p, uiCodeNum);
 }
@@ -335,36 +323,31 @@ static void pnw__insert_element_token(
     IMG_UINT8 Offset;
     IMG_UINT8 *P;
 
-    if (mtx_hdr->Elements!=ELEMENTS_EMPTY)
-    {
-        if (elt_p[mtx_hdr->Elements]->Element_Type==ELEMENT_STARTCODE_RAWDATA
-            || elt_p[mtx_hdr->Elements]->Element_Type==ELEMENT_RAWDATA)
-        {
+    if (mtx_hdr->Elements != ELEMENTS_EMPTY) {
+        if (elt_p[mtx_hdr->Elements]->Element_Type == ELEMENT_STARTCODE_RAWDATA
+                || elt_p[mtx_hdr->Elements]->Element_Type == ELEMENT_RAWDATA) {
             /*Add a new element aligned to word boundary
              *Find RAWBit size in bytes (rounded to word boundary))
              */
-            
+
             /* NumberofRawbits (excluding size of bit count field)+ size of the bitcount field  */
-            Offset=elt_p[mtx_hdr->Elements]->Size+8+31; 
-            Offset/=32;/* Now contains rawbits size in words */
-            Offset+=1;/* Now contains rawbits+element_type size in words */
-            Offset*=4;/* Convert to number of bytes (total size of structure in bytes, aligned to word boundary) */
-        } 
-        else
-        {
-            Offset=4;
+            Offset = elt_p[mtx_hdr->Elements]->Size + 8 + 31;
+            Offset /= 32;/* Now contains rawbits size in words */
+            Offset += 1;/* Now contains rawbits+element_type size in words */
+            Offset *= 4;/* Convert to number of bytes (total size of structure in bytes, aligned to word boundary) */
+        } else {
+            Offset = 4;
         }
 
         mtx_hdr->Elements++;
-        P=(IMG_UINT8 *) elt_p[mtx_hdr->Elements-1];
-        P+=Offset;
-        elt_p[mtx_hdr->Elements]=(MTX_HEADER_ELEMENT *) P;
-    }
-    else
-        mtx_hdr->Elements=0;
- 
-    elt_p[mtx_hdr->Elements]->Element_Type=Token;
-    elt_p[mtx_hdr->Elements]->Size=0;
+        P = (IMG_UINT8 *) elt_p[mtx_hdr->Elements-1];
+        P += Offset;
+        elt_p[mtx_hdr->Elements] = (MTX_HEADER_ELEMENT *) P;
+    } else
+        mtx_hdr->Elements = 0;
+
+    elt_p[mtx_hdr->Elements]->Element_Type = Token;
+    elt_p[mtx_hdr->Elements]->Size = 0;
 }
 
 /*
@@ -383,12 +366,12 @@ static void pnw__H264_writebits_startcode_prefix_element(
      * (3 bytes in slice header when slice is first in a picture
      * without sequence/picture_header before picture
      */
- 
-    for (Lp=0;Lp<ByteSize-1;Lp++)
+
+    for (Lp = 0;Lp < ByteSize - 1;Lp++)
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
 
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
-    
+
     /* Byte aligned (bit 32 or 24) */
     return;
 }
@@ -407,24 +390,24 @@ static void pnw__H264_writebits_VUI_params(
         (0 << 2) | /* video_signal_type_present_flag (1 bit) = 0 in Topaz */
         (0 << 1) | /* chroma_loc_info_present_flag (1 bit) = 0 in Topaz */
         (1),/* timing_info_present_flag (1 bit) = 1 in Topaz */
-        5);		
+        5);
 
     /* num_units_in_tick (32 bits) = 1 in Topaz */
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);     
+    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
-     
+
     /* time_scale (32 bits) = frame rate */
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);     
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p,(IMG_UINT8)  VUIParams->Time_Scale, 8);
+    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
+    pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)  VUIParams->Time_Scale, 8);
 
     /* fixed_frame_rate_flag (1 bit) = 1 in Topaz */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
     /* nal_hrd_parameters_present_flag (1 bit) = 1 in Topaz */
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);										
+    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
     /** Definitions for nal_hrd_parameters() contained in VUI structure for Topaz
      *  cpb_cnt_minus1 ue(v) = 0 in Topaz = 1b
@@ -439,33 +422,33 @@ static void pnw__H264_writebits_VUI_params(
     /* cpb_size_value_minus1[0] ue(v) = (CPB_Bits_Size/16)-1
      * where CPB_Bits_Size = 1.5 * Bitrate  [RANGE:0 to (2^32)-2]
      */
-    pnw__generate_ue(mtx_hdr, elt_p, VUIParams->cbp_size_value_minus1); 
+    pnw__generate_ue(mtx_hdr, elt_p, VUIParams->cbp_size_value_minus1);
 
     /* cbr_flag[0] (1 bit) = 0 for VBR, 1 for CBR */
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, VUIParams->CBR,1);
+    pnw__write_upto8bits_elements(mtx_hdr, elt_p, VUIParams->CBR, 1);
 
     pnw__write_upto8bits_elements(
         mtx_hdr, elt_p,
         VUIParams->initial_cpb_removal_delay_length_minus1,
         5); /* initial_cpb_removal_delay_length_minus1 (5 bits) = ??? */
-    
+
     pnw__write_upto8bits_elements(
         mtx_hdr,
         elt_p,
         VUIParams->cpb_removal_delay_length_minus1,
         5); /* cpb_removal_delay_length_minus1 (5 bits) = ??? */
-    
+
     pnw__write_upto8bits_elements(
         mtx_hdr, elt_p,
         VUIParams->dpb_output_delay_length_minus1,
         5); /* dpb_output_delay_length_minus1 (5 bits) = ??? */
-    
+
     pnw__write_upto8bits_elements(
         mtx_hdr,
         elt_p,
         VUIParams->time_offset_length,
         5); /* time_offst_length (5 bits) = ??? */
-    
+
     /* End of nal_hrd_parameters()  */
 
     pnw__write_upto8bits_elements(
@@ -474,7 +457,7 @@ static void pnw__H264_writebits_VUI_params(
         0, 1);/* vcl_hrd_parameters_present_flag (1 bit) = 0 in Topaz */
 
     /* if( nal_hrd_parameters_present_flag  ||  vcl_hrd_parameters_present_flag )
-     * FIX for BRN23039 
+     * FIX for BRN23039
      * low_delay_hrd_flag
      */
     pnw__write_upto8bits_elements(
@@ -493,13 +476,13 @@ static void pnw__H264_writebits_VUI_params(
 
 
 static void pnw__H264_writebits_picture_header(
-	MTX_HEADER_PARAMS *pMTX_Header,
-	MTX_HEADER_ELEMENT **aui32ElementPointers,
-	IMG_BOOL bCabacEnabled,
-	IMG_BOOL b_8x8transform,
-	IMG_BOOL bIntraConstrained,
-	IMG_INT8 i8CbQPOffset,
-	IMG_INT8 i8CrQPOffset)
+    MTX_HEADER_PARAMS *pMTX_Header,
+    MTX_HEADER_ELEMENT **aui32ElementPointers,
+    IMG_BOOL bCabacEnabled,
+    IMG_BOOL b_8x8transform,
+    IMG_BOOL bIntraConstrained,
+    IMG_INT8 i8CbQPOffset,
+    IMG_INT8 i8CrQPOffset)
 {
     //**-- Begin building the picture header element
     IMG_UINT8 ui8ECMF = (bCabacEnabled ? 1 : 0);
@@ -513,24 +496,24 @@ static void pnw__H264_writebits_picture_header(
 
     // 4 Byte StartCodePrefix Pregenerated in: H264_WriteBits_StartCodePrefix_Element()
     // Byte aligned (bit 32)
-    pnw__write_upto8bits_elements(pMTX_Header, 
-	    aui32ElementPointers,
-	    (0 << 7) |	// forbidden_zero_bit
-	    (1 << 5) |	// nal_ref_idc (2 bits) = 1
-	    (8),	// nal_unit_tpye (5 bits) = 8
-	    8);
+    pnw__write_upto8bits_elements(pMTX_Header,
+                                  aui32ElementPointers,
+                                  (0 << 7) |	// forbidden_zero_bit
+                                  (1 << 5) |	// nal_ref_idc (2 bits) = 1
+                                  (8),	// nal_unit_tpye (5 bits) = 8
+                                  8);
     // Byte aligned (bit 40)
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    (1 << 7) |		// pic_parameter_set_id ue(v) = 0 in Topaz
-	    (1 << 6) |		// seq_parameter_set_id ue(v) = 0 in Topaz
-	    (ui8ECMF << 5) |	// entropy_coding_mode_flag (1 bit) 0 for CAVLC
-	    (0 << 4) |		// pic_order_present_flag (1 bit) = 0
-	    (1 << 3) |		// num_slice_group_minus1 ue(v) = 0 in Topaz
-	    (1 << 2) |		// num_ref_idx_l0_active_minus1 ue(v) = 0 in Topaz
-	    (1 << 1) |		// num_ref_idx_l1_active_minus1 ue(v) = 0 in Topaz
-	    (0),		// weighted_pred_flag (1 bit) = 0 in Topaz
-	    8);
+                                  aui32ElementPointers,
+                                  (1 << 7) |		// pic_parameter_set_id ue(v) = 0 in Topaz
+                                  (1 << 6) |		// seq_parameter_set_id ue(v) = 0 in Topaz
+                                  (ui8ECMF << 5) |	// entropy_coding_mode_flag (1 bit) 0 for CAVLC
+                                  (0 << 4) |		// pic_order_present_flag (1 bit) = 0
+                                  (1 << 3) |		// num_slice_group_minus1 ue(v) = 0 in Topaz
+                                  (1 << 2) |		// num_ref_idx_l0_active_minus1 ue(v) = 0 in Topaz
+                                  (1 << 1) |		// num_ref_idx_l1_active_minus1 ue(v) = 0 in Topaz
+                                  (0),		// weighted_pred_flag (1 bit) = 0 in Topaz
+                                  8);
     // Byte aligned (bit 48)
     // weighted_bipred_flag (2 bits) = 0 in Topaz
     pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 2);
@@ -542,44 +525,43 @@ static void pnw__H264_writebits_picture_header(
     ///**** GENERATES THE SECOND ELEMENT OF THE H264_PICTURE_HEADER() STRUCTURE ****///
     ///**** ELEMENT BITCOUNT: 5
     //The following field will be generated as a special case by MTX - so not here
-    // pnw__generate_se(pMTX_Header, pPHParams->pic_init_qp_minus26); 
+    // pnw__generate_se(pMTX_Header, pPHParams->pic_init_qp_minus26);
     // pic_int_qp_minus26 se(v) = -26 to 25 in Topaz
     // pic_int_qs_minus26 se(v) = 0 in Topaz
     //chroma_qp_index_offset se(v) = 0 in Topaz
-    pnw__generate_se(pMTX_Header, aui32ElementPointers, 0); 
-    pnw__generate_se(pMTX_Header, aui32ElementPointers, i8CbQPOffset); 
+    pnw__generate_se(pMTX_Header, aui32ElementPointers, 0);
+    pnw__generate_se(pMTX_Header, aui32ElementPointers, i8CbQPOffset);
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    // deblocking_filter_control_present_flag (1 bit) = 1 in Topaz
-	    (1 << 2) |	
-	    // constrained_intra_pred_Flag (1 bit) = 0 in Topaz
-	    ((bIntraConstrained?1:0) << 1) |
-	    (0),// redundant_pic_cnt_present_flag (1 bit) = 0 in Topaz
-	    3);
+                                  aui32ElementPointers,
+                                  // deblocking_filter_control_present_flag (1 bit) = 1 in Topaz
+                                  (1 << 2) |
+                                  // constrained_intra_pred_Flag (1 bit) = 0 in Topaz
+                                  ((bIntraConstrained ? 1 : 0) << 1) |
+                                  (0),// redundant_pic_cnt_present_flag (1 bit) = 0 in Topaz
+                                  3);
     // Byte align is done using an element command (MTX elements in this structure, we don't know it's size)
 
-    if(b_8x8transform || (i8CbQPOffset != i8CrQPOffset))
-    {
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
-		(b_8x8transform << 1) |	// 8x8 transform flag
-		(0),	// pic_scaling_matrix_present_flag
-		2);
-	pnw__generate_se(pMTX_Header, aui32ElementPointers, i8CrQPOffset); 
-	// second_chroma_qp_index_offset se(v) = 0 in Topaz
+    if (b_8x8transform || (i8CbQPOffset != i8CrQPOffset)) {
+        pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
+                                      (b_8x8transform << 1) |	// 8x8 transform flag
+                                      (0),	// pic_scaling_matrix_present_flag
+                                      2);
+        pnw__generate_se(pMTX_Header, aui32ElementPointers, i8CrQPOffset);
+        // second_chroma_qp_index_offset se(v) = 0 in Topaz
     }
     // Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point)
-    pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_INSERTBYTEALIGN_H264); 
+    pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_INSERTBYTEALIGN_H264);
 
     return;
 }
-	
+
 
 static void pnw__H264_writebits_slice_header0(
     MTX_HEADER_PARAMS *mtx_hdr,
     MTX_HEADER_ELEMENT **elt_p,
     H264_SLICE_HEADER_PARAMS *pSlHParams)
 {
-    /* GENERATES THE FIRST ELEMENT OF THE H264_SLICE_HEADER() STRUCTURE 
+    /* GENERATES THE FIRST ELEMENT OF THE H264_SLICE_HEADER() STRUCTURE
      * ELEMENT BITCOUNT: 8
      *
      * StartCodePrefix Pregenerated in: Build_H264_4Byte_StartCodePrefix_Element() (4 or 3 bytes)
@@ -590,8 +572,8 @@ static void pnw__H264_writebits_slice_header0(
     pnw__write_upto8bits_elements(
         mtx_hdr, elt_p,
         (0 << 7) |/* forbidden_zero_bit */
-        ((pSlHParams->SliceFrame_Type==SLHP_B_SLICEFRAME_TYPE ? 0:1) << 5) | /* nal_ref_idc (2 bits) = 0 for B-frame and 1 for I or P-frame */
-        ((pSlHParams->SliceFrame_Type==SLHP_IDR_SLICEFRAME_TYPE ? 5:1)),/* nal_unit_tpye (5 bits) = I-frame IDR, and 1 for  rest */
+        ((pSlHParams->SliceFrame_Type == SLHP_B_SLICEFRAME_TYPE ? 0 : 1) << 5) | /* nal_ref_idc (2 bits) = 0 for B-frame and 1 for I or P-frame */
+        ((pSlHParams->SliceFrame_Type == SLHP_IDR_SLICEFRAME_TYPE ? 5 : 1)),/* nal_unit_tpye (5 bits) = I-frame IDR, and 1 for  rest */
         8);
 }
 
@@ -599,7 +581,8 @@ static void pnw__H264_writebits_slice_header0(
 static void pnw__H264_writebits_slice_header1(
     MTX_HEADER_PARAMS *mtx_hdr,
     MTX_HEADER_ELEMENT **elt_p,
-    H264_SLICE_HEADER_PARAMS *pSlHParams)
+    H264_SLICE_HEADER_PARAMS *pSlHParams,
+    IMG_UINT16 uiIdrPicId)
 {
     /* GENERATES THE SECOND ELEMENT OF THE H264_SLICE_HEADER() STRUCTURE
      * The following is slice parameter set in BP/MP
@@ -610,7 +593,7 @@ static void pnw__H264_writebits_slice_header1(
 
     pnw__generate_ue(
         mtx_hdr, elt_p,
-        (IMG_UINT32) ((pSlHParams->SliceFrame_Type == SLHP_IDR_SLICEFRAME_TYPE )? SLHP_I_SLICEFRAME_TYPE : pSlHParams->SliceFrame_Type)); /* slice_type ue(v): 0 for P-slice, 1 for B-slice, 2 for I-slice */
+        (IMG_UINT32)((pSlHParams->SliceFrame_Type == SLHP_IDR_SLICEFRAME_TYPE) ? SLHP_I_SLICEFRAME_TYPE : pSlHParams->SliceFrame_Type));  /* slice_type ue(v): 0 for P-slice, 1 for B-slice, 2 for I-slice */
 
     /* kab: not clean change from IDR to intra, IDR should have separate flag */
 
@@ -621,53 +604,80 @@ static void pnw__H264_writebits_slice_header1(
         6);
 
     /* frame_mb_only_flag is always 1, so no need for field_pic_flag or bottom_field_flag */
-    if (pSlHParams->SliceFrame_Type==SLHP_IDR_SLICEFRAME_TYPE)
-        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);/* idr_pic_id ue(v) = 0 (1b) in Topaz */
+    if (pSlHParams->SliceFrame_Type == SLHP_IDR_SLICEFRAME_TYPE)
+        pnw__generate_ue(mtx_hdr, elt_p, uiIdrPicId);/* idr_pic_id ue(v) = 0 (1b) in Topaz */
 
     /* kab: Idr_pic_id only for IDR, not nessesarely for all I pictures */
 
-    /* if (pic_order_cnt_type == 0) //Note: (pic_order_cnt_type always 0 in Topaz) */
+    /* customer request POC type should be 2*/
+    /* if (pic_order_cnt_type == 0) Note: (pic_order_cnt_type always 0 in Topaz)
     pnw__write_upto8bits_elements(
         mtx_hdr, elt_p,
         pSlHParams->Picture_Num_DO,
-        6); /* pic_order_cnt_lsb (6 bits) - picture no in display order */
+        6);  pic_order_cnt_lsb (6 bits) - picture no in display order */
 
-    if (pSlHParams->SliceFrame_Type==SLHP_B_SLICEFRAME_TYPE)
+    if (pSlHParams->SliceFrame_Type == SLHP_B_SLICEFRAME_TYPE)
         pnw__write_upto8bits_elements(
             mtx_hdr,
             elt_p,
             0,
             1);/* direct_spatial_mv_pred_flag (1 bit) = 0, spatial direct mode not supported in Topaz */
 
-    if (pSlHParams->SliceFrame_Type==SLHP_P_SLICEFRAME_TYPE || pSlHParams->SliceFrame_Type==SLHP_B_SLICEFRAME_TYPE)
+    if (pSlHParams->SliceFrame_Type == SLHP_P_SLICEFRAME_TYPE || pSlHParams->SliceFrame_Type == SLHP_B_SLICEFRAME_TYPE)
         pnw__write_upto8bits_elements(
             mtx_hdr,
             elt_p,
             0,
             1);/* num_ref_idx_active_override_flag (1 bit) = 0 in Topaz */
 
-    if (pSlHParams->SliceFrame_Type!=SLHP_I_SLICEFRAME_TYPE &&
-        pSlHParams->SliceFrame_Type!=SLHP_IDR_SLICEFRAME_TYPE)
-        pnw__write_upto8bits_elements(
-            mtx_hdr,
-            elt_p,
-            0,
-            1);/* ref_pic_list_ordering_flag_I0 (1 bit) = 0, no reference picture ordering in Topaz */
+    if (pSlHParams->SliceFrame_Type != SLHP_I_SLICEFRAME_TYPE &&
+            pSlHParams->SliceFrame_Type != SLHP_IDR_SLICEFRAME_TYPE) {
+        if (pSlHParams->UsesLongTermRef) {
+            // ref_pic_list_ordering_flag_I0 (1 bit) = 1, L0 reference picture ordering
+            pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+            // modification_of_pic_nums_idc = 2
+            pnw__generate_ue(mtx_hdr, elt_p, 2);
+            // long_term_pic_num = 0
+            pnw__generate_ue(mtx_hdr, elt_p, 0);
+            // modification_of_pic_nums_idc = 3
+            pnw__generate_ue(mtx_hdr, elt_p, 3);
+        } else
+            pnw__write_upto8bits_elements(
+                mtx_hdr,
+                elt_p,
+                0,
+                1);/* ref_pic_list_ordering_flag_I0 (1 bit) = 0 */
+    }
 
-    if (pSlHParams->SliceFrame_Type==SLHP_B_SLICEFRAME_TYPE)
+    if (pSlHParams->SliceFrame_Type == SLHP_B_SLICEFRAME_TYPE)
         pnw__write_upto8bits_elements(
             mtx_hdr,
             elt_p,
             0,
             1); /* ref_pic_list_ordering_flag_I1 (1 bit) = 0, no reference picture ordering in Topaz */
 
-    if (pSlHParams->SliceFrame_Type==SLHP_IDR_SLICEFRAME_TYPE)
-    {
-        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);/* no_output_of_prior_pics_flag (1 bit) = 0 */
-        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);/* long_term_reference_flag (1 bit) = 0 */
-    }
-    else
-    {
+    if (pSlHParams->SliceFrame_Type == SLHP_IDR_SLICEFRAME_TYPE) {
+        /* no_output_of_prior_pics_flag (1 bit) = 0 */
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+        /* long_term_reference_flag (1 bit)*/
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p,
+                                      pSlHParams->IsLongTermRef ? 1 : 0, 1);
+    } else if (pSlHParams->UsesLongTermRef) {
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);/* long_term_reference_flag (1 bit) = 0 */
+        // Allow a single long-term reference
+        pnw__generate_ue(mtx_hdr, elt_p, 4);
+        // memory_management_control_operation
+        pnw__generate_ue(mtx_hdr, elt_p, 1);
+
+        // Set current picture as the long-term reference
+        // memory_management_control_operation
+        pnw__generate_ue(mtx_hdr, elt_p, 6);
+        // long_term_frame_idx
+        pnw__generate_ue(mtx_hdr, elt_p, 0);
+
+        // End
+        pnw__generate_ue(mtx_hdr, elt_p, 0);
+    } else {
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);/* adaptive_ref_pic_marking_mode_flag (1 bit) = 0 */
     }
 }
@@ -678,24 +688,23 @@ static void pnw__H264_writebits_slice_header2(
     MTX_HEADER_ELEMENT **elt_p,
     H264_SLICE_HEADER_PARAMS *pSlHParams)
 {
-    /* GENERATES ELEMENT OF THE H264_SLICE_HEADER() STRUCTURE 
+    /* GENERATES ELEMENT OF THE H264_SLICE_HEADER() STRUCTURE
      * ELEMENT BITCOUNT: 11
      */
 
-#if 0    
+#if 0
     /* Next field is generated on MTX with a special commnad (not ELEMENT_RAW) - so not defined here */
 
     /* slice_qp_delta se(v) = SliceQPy - (pic_init_qp_minus26+26) */
     /* pucHS=pnw__generate_se(pucHS, puiBitPos, pSlHParams->Slice_QP_Delta);  */
 #endif
-    
+
     pnw__generate_ue(
         mtx_hdr,
         elt_p,
         pSlHParams->Disable_Deblocking_Filter_Idc); /* disable_deblocking_filter_idc ue(v) = 2?  */
 
-    if (pSlHParams->Disable_Deblocking_Filter_Idc!=1)
-    {
+    if (pSlHParams->Disable_Deblocking_Filter_Idc != 1) {
         pnw__generate_se(mtx_hdr, elt_p, 0); /* slice_alpha_c0_offset_div2 se(v) = 0 (1b) in Topaz */
         pnw__generate_se(mtx_hdr, elt_p, 0); /* slice_beta_offset_div2 se(v) = 0 (1b) in Topaz */
     }
@@ -706,174 +715,174 @@ static void pnw__H264_writebits_slice_header2(
 }
 
 static void pnw__H264_writebits_sequence_header(
-	MTX_HEADER_PARAMS *pMTX_Header,
-	MTX_HEADER_ELEMENT **aui32ElementPointers,
-	H264_SEQUENCE_HEADER_PARAMS *pSHParams,H264_CROP_PARAMS *psCrop)
+    MTX_HEADER_PARAMS *pMTX_Header,
+    MTX_HEADER_ELEMENT **aui32ElementPointers,
+    H264_SEQUENCE_HEADER_PARAMS *pSHParams, H264_CROP_PARAMS *psCrop)
 {
     IMG_UINT8 ui8SBP;
 
     pnw__insert_element_token(pMTX_Header,
-	    aui32ElementPointers,
-	    ELEMENT_STARTCODE_RAWDATA);
+                              aui32ElementPointers,
+                              ELEMENT_STARTCODE_RAWDATA);
 
     pnw__H264_writebits_startcode_prefix_element(pMTX_Header,
-	    aui32ElementPointers,
-	    4);
+            aui32ElementPointers,
+            4);
 
     ///**** GENERATES THE FIRST ELEMENT OF THE H264_SEQUENCE_HEADER() STRUCTURE ****///
 
     // 4 Byte StartCodePrefix Pregenerated in: H264_WriteBits_StartCodePrefix_Element()
     // Byte aligned (bit 32)
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,(0 << 7) |	// forbidden_zero_bit=0
-	    (0x3 << 5) |			// nal_ref_idc=01 (may be 11)
-	    (7),		// nal_unit_type=00111
-	    8);
+                                  aui32ElementPointers, (0 << 7) |	// forbidden_zero_bit=0
+                                  (0x3 << 5) |			// nal_ref_idc=01 (may be 11)
+                                  (7),		// nal_unit_type=00111
+                                  8);
 
-    if (pSHParams->ucProfile != SH_PROFILE_HP)
-    {
-	// profile_idc = 8 bits = 66 for BP (PROFILE_IDC_BP), 77 for MP (PROFILE_IDC_MP)
-	pnw__write_upto8bits_elements(pMTX_Header,
-		aui32ElementPointers,
-		(pSHParams->ucProfile==SH_PROFILE_BP ? 66 : 77),8);
+    if (pSHParams->ucProfile != SH_PROFILE_HP) {
+        // profile_idc = 8 bits = 66 for BP (PROFILE_IDC_BP), 77 for MP (PROFILE_IDC_MP)
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      aui32ElementPointers,
+                                      (pSHParams->ucProfile == SH_PROFILE_BP ? 66 : 77), 8);
 
-	// Byte aligned (bit 48)
-	pnw__write_upto8bits_elements(pMTX_Header,
-		// constrain_set0_flag = 1 for BP constraints
-		aui32ElementPointers,(0 << 7) |	
-		(0 << 6) |	// constrain_set1_flag	= 1 for	MP constraints
-		(0 << 5) |	// constrain_set2_flag = 1 for HP
-		// constrain_set3_flag = 1 for level 1b, 0 for others
-		((pSHParams->ucLevel==SH_LEVEL_1B ?	1:0) <<	4),			
-		// reserved_zero_4bits = 0
-		8);
-	// Byte aligned (bit 56)
-	pnw__write_upto8bits_elements(pMTX_Header, 
-		aui32ElementPointers,
-		// level_idc (8 bits) = 11 for 1b, 10xlevel for others
-		(IMG_UINT8) pSHParams->ucLevel,8);			
+        // Byte aligned (bit 48)
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      // constrain_set0_flag = 1 for BP constraints
+                                      aui32ElementPointers, (0 << 7) |
+                                      (0 << 6) |	// constrain_set1_flag	= 1 for	MP constraints
+                                      (0 << 5) |	// constrain_set2_flag = 1 for HP
+                                      // constrain_set3_flag = 1 for level 1b, 0 for others
+                                      ((pSHParams->ucLevel == SH_LEVEL_1B ?	1 : 0) <<	4),
+                                      // reserved_zero_4bits = 0
+                                      8);
+        // Byte aligned (bit 56)
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      aui32ElementPointers,
+                                      // level_idc (8 bits) = 11 for 1b, 10xlevel for others
+                                      (IMG_UINT8) pSHParams->ucLevel, 8);
+#if 0
+        // Byte aligned (bit 64)
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      // seq_parameter_Set_id = 0 in Topaz ->  ue(0)= 1b
+                                      aui32ElementPointers, (1 << 7) |
+                                      (2 << 4) |// log2_max_frame_num_minus4 = 1 in Topaz ->  ue(1)= 010b
+                                      (1 << 3) |	// pic_order_cnt_type = 0 in Topaz ->  ue(0)= 1b
+                                      (3),	// log2_max_pic_order_cnt_Isb_minus4 = 2 in Topaz ->  ue(2)= 011b
+                                      8);
+        // Bytes aligned (bit 72)
+#else
+        /*Customer request POC type should be 2*/
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      // seq_parameter_Set_id = 0 in Topaz ->  ue(0)= 1b
+                                      aui32ElementPointers, (1 << 6) |
+                                      (2 << 3) |// log2_max_frame_num_minus4 = 1 in Topaz ->  ue(1)= 010b
+                                      (3),// log2_max_pic_order_cnt_Isb_minus4 = 2 in Topaz ->  ue(2)= 011b$
+                                      7);
+#endif
+    } else {
+        // Byte aligned (bit 40)
+        // profile_idc = 8 bits = 66 for BP (PROFILE_IDC_BP), 77 for MP (PROFILE_IDC_MP)
+        pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 100, 8);
 
-	// Byte aligned (bit 64)
-	pnw__write_upto8bits_elements(pMTX_Header,
-		// seq_parameter_Set_id = 0 in Topaz ->  ue(0)= 1b
-	      	aui32ElementPointers,(1 << 7) |		
-		(2 << 4) |// log2_max_frame_num_minus4 = 1 in Topaz ->  ue(1)= 010b
-		(1 << 3) |	// pic_order_cnt_type = 0 in Topaz ->  ue(0)= 1b
-		(3),	// log2_max_pic_order_cnt_Isb_minus4 = 2 in Topaz ->  ue(2)= 011b
-		8);
-	// Bytes aligned (bit 72)
-	pnw__write_upto8bits_elements(pMTX_Header,
-		aui32ElementPointers,(2  << 1) | 	// num_ref_frames = 1 ue(1)= 010b,
-		(pSHParams->gaps_in_frame_num_value),
-		// gaps_in_frame_num_value_allowed_Flag	- (1 bit)
-		4);
+        // Byte aligned (bit 48)
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      aui32ElementPointers, (1 << 7) |
+                                      // constrain_set0_flag = 1 for MP + BP constraints
+                                      (1 << 6) |	// constrain_set1_flag  = 1 for MP + BP constraints
+                                      (0 << 5) |	// constrain_set2_flag = always 0 in BP/MP
+                                      (0 << 4),	// constrain_set3_flag = 1 for level 1b, 0 for others
+                                      // reserved_zero_4bits = 0
+                                      8);
+
+        // Byte aligned (bit 56)
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      aui32ElementPointers, (IMG_UINT8) pSHParams->ucLevel, 8);
+        // level_idc (8 bits) = 11 for 1b, 10xlevel for others
+
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, 0);
+        // seq_parameter_Set_id = 0
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, 1);
+        // chroma_format_idc = 1
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, 0);
+        // bit_depth_luma_minus8 = 0
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, 0);
+        // bit_depth_chroma_minus8 = 0
+        pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
+        // qpprime_y_zero_transform_bypass_flag = 0
+
+        //if (pSHParams->bUseDefaultScalingList)
+        //{
+        pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
+        // seq_scaling_matrix_present_flag
+        pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8);
+        // seq_scaling_matrix_present_flag[i] = 0; 0 < i < 8
+        //}
+        //else
+        //{
+        //	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1); 	// seq_scaling_matrix_present_flag
+        //}
+
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, 1);
+        // log2_max_frame_num_minus4 = 1
+        // Customer request POC type should be 2.
+        //pnw__generate_ue(pMTX_Header, aui32ElementPointers, 0);
+        // pic_order_cnt_type = 0
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, 2);
+        // log2_max_pic_order_cnt_Isb_minus4 = 2
+
+        // Bytes aligned (bit 72)
     }
-    else
-    {
-	// Byte aligned (bit 40)
-	// profile_idc = 8 bits = 66 for BP (PROFILE_IDC_BP), 77 for MP (PROFILE_IDC_MP)
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 100, 8);
+    // max_num_ref_frames. long term reference isn't used.
+    //pnw__generate_u(pMTX_Header, aui32ElementPointers, pSHParams->max_num_ref_frames);
+    pnw__generate_ue(pMTX_Header, aui32ElementPointers, 1);
+    // gaps_in_frame_num_value_allowed_Flag - (1 bit)
+    pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, pSHParams->gaps_in_frame_num_value, 1);
 
-	// Byte aligned (bit 48)
-	pnw__write_upto8bits_elements(pMTX_Header,
-		aui32ElementPointers,(1 << 7) |	
-		// constrain_set0_flag = 1 for MP + BP constraints
-		(1 << 6) |	// constrain_set1_flag  = 1 for MP + BP constraints
-		(0 << 5) |	// constrain_set2_flag = always 0 in BP/MP
-		(0 << 4),	// constrain_set3_flag = 1 for level 1b, 0 for others
-		// reserved_zero_4bits = 0
-		8);
-
-	// Byte aligned (bit 56)
-	pnw__write_upto8bits_elements(pMTX_Header,
-		aui32ElementPointers,(IMG_UINT8) pSHParams->ucLevel,8);
-	// level_idc (8 bits) = 11 for 1b, 10xlevel for others
-
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, 0);		
-	// seq_parameter_Set_id = 0
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, 1);		
-	// chroma_format_idc = 1
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, 0);		
-	// bit_depth_luma_minus8 = 0
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, 0);		
-	// bit_depth_chroma_minus8 = 0
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1); 
-	// qpprime_y_zero_transform_bypass_flag = 0
-
-	//if (pSHParams->bUseDefaultScalingList)
-	//{
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1); 	
-	// seq_scaling_matrix_present_flag
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8); 	
-	// seq_scaling_matrix_present_flag[i] = 0; 0 < i < 8
-	//}
-	//else
-	//{
-	//	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1); 	// seq_scaling_matrix_present_flag
-	//}
-
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, 1);		
-	// log2_max_frame_num_minus4 = 1
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, 0);		
-	// pic_order_cnt_type = 0
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, 2);		
-	// log2_max_pic_order_cnt_Isb_minus4 = 2
-
-	// Bytes aligned (bit 72)
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,(3  << 1) | 	
-		// num_ref_frames = 2 ue(2)= 011b,
-		(pSHParams->gaps_in_frame_num_value),					
-		// gaps_in_frame_num_value_allowed_Flag - (1 bit)
-		4);
-    }
 
     ///**** GENERATES THE SECOND, VARIABLE LENGTH, ELEMENT OF THE H264_SEQUENCE_HEADER() STRUCTURE ****///
     ///**** ELEMENT BITCOUNT: xx
-    pnw__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->ucWidth_in_mbs_minus1);				
+    pnw__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->ucWidth_in_mbs_minus1);
     //pic_width_in_mbs_minus1: ue(v) from 10 to 44 (176 to 720 pixel per row)
-    pnw__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->ucHeight_in_maps_units_minus1);		
+    pnw__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->ucHeight_in_maps_units_minus1);
     //pic_height_in_maps_units_minus1: ue(v) Value from 8 to 35 (144 to 576 pixels per column)
-    
+
     // We don't know the alignment at this point, so will have to use bit writing functions
-    pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,pSHParams->ucFrame_mbs_only_flag,1); 
+    pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, pSHParams->ucFrame_mbs_only_flag, 1);
     // frame_mb_only_flag 1=frame encoding, 0=field encoding
 
-    if(!pSHParams->ucFrame_mbs_only_flag) // in the case of interlaced encoding
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,0,1); 
+    if (!pSHParams->ucFrame_mbs_only_flag) // in the case of interlaced encoding
+        pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
     // mb_adaptive_frame_field_flag = 0 in Topaz(field encoding at the sequence level)
 
-    pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,1,1); 
+    pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
     // direct_8x8_inference_flag=1 in Topaz
 
-    if(psCrop->bClip)
-    {
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,1,1);
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->LeftCropOffset);				
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->RightCropOffset);				
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->TopCropOffset);				
-	pnw__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->BottomCropOffset);				
+    if (psCrop->bClip) {
+        pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->LeftCropOffset);
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->RightCropOffset);
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->TopCropOffset);
+        pnw__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->BottomCropOffset);
 
-    }
-    else
-    {
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,0,1);
+    } else {
+        pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
     }
 
     ///**** GENERATES THE THIRD ELEMENT OF THE H264_SEQUENCE_HEADER() STRUCTURE ****///
     ///**** ELEMENT BITCOUNT: xx
     pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
-	    (pSHParams->VUI_Params_Present),					
-	    // vui_parameters_present_flag (VUI only in 1st sequence of stream)
-	    1);
-    if (pSHParams->VUI_Params_Present>0)
-	pnw__H264_writebits_VUI_params(pMTX_Header, aui32ElementPointers, &(pSHParams->VUI_Params));
+                                  (pSHParams->VUI_Params_Present),
+                                  // vui_parameters_present_flag (VUI only in 1st sequence of stream)
+                                  1);
+    if (pSHParams->VUI_Params_Present > 0)
+        pnw__H264_writebits_VUI_params(pMTX_Header, aui32ElementPointers, &(pSHParams->VUI_Params));
 
     // Finally we need to align to the next byte
     // We know the size of the data in the sequence header (no MTX variables)  and start is byte aligned, so it's possible to add this field here rather than MTX ELEMENT_INSERTBYTEALIGN_H264 command.
     pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
-    ui8SBP=(aui32ElementPointers[pMTX_Header->Elements]->Size)&7;
-    if (ui8SBP>0) 
-	pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8-(ui8SBP));
+    ui8SBP = (aui32ElementPointers[pMTX_Header->Elements]->Size) & 7;
+    if (ui8SBP > 0)
+        pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8 - (ui8SBP));
     return;
 }
 
@@ -882,20 +891,22 @@ static void pnw__H264_writebits_slice_header(
     MTX_HEADER_PARAMS *mtx_hdr,
     MTX_HEADER_ELEMENT **elt_p,
     H264_SLICE_HEADER_PARAMS *pSlHParams,
-    IMG_BOOL bCabacEnabled)
+    IMG_BOOL bCabacEnabled,
+    IMG_UINT16 uiIdrPicId)
 {
 #ifdef USESTATICWHEREPOSSIBLE
     IMG_UINT32 *p;
-    p=(IMG_UINT32 *) mtx_hdr;
+    p = (IMG_UINT32 *) mtx_hdr;
 
-    p[0]=p[1]=0;p[2]=40;
-    if (pSlHParams->SliceFrame_Type==SLHP_B_SLICEFRAME_TYPE) p[3]=257;
-    else if (pSlHParams->SliceFrame_Type==SLHP_IDR_SLICEFRAME_TYPE) p[3]=9473;
-    else p[3]=8449;
+    p[0] = p[1] = 0;
+    p[2] = 40;
+    if (pSlHParams->SliceFrame_Type == SLHP_B_SLICEFRAME_TYPE) p[3] = 257;
+    else if (pSlHParams->SliceFrame_Type == SLHP_IDR_SLICEFRAME_TYPE) p[3] = 9473;
+    else p[3] = 8449;
 #else
     /* -- Begin building the picture header element */
     pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
- 
+
     pnw__H264_writebits_startcode_prefix_element(
         mtx_hdr,
         elt_p,
@@ -903,11 +914,10 @@ static void pnw__H264_writebits_slice_header(
     pnw__H264_writebits_slice_header0(mtx_hdr, elt_p, pSlHParams);
 #endif
 
-    pnw__H264_writebits_slice_header1(mtx_hdr, elt_p, pSlHParams);
+    pnw__H264_writebits_slice_header1(mtx_hdr, elt_p, pSlHParams, uiIdrPicId);
 
-    if(bCabacEnabled && ((SLHP_P_SLICEFRAME_TYPE == pSlHParams->SliceFrame_Type) ||
-                         (SLHP_B_SLICEFRAME_TYPE == pSlHParams->SliceFrame_Type)))
-    {
+    if (bCabacEnabled && ((SLHP_P_SLICEFRAME_TYPE == pSlHParams->SliceFrame_Type) ||
+                          (SLHP_B_SLICEFRAME_TYPE == pSlHParams->SliceFrame_Type))) {
         pnw__generate_ue(mtx_hdr, elt_p, 0);	/* hard code cabac_init_idc value of 0 */
     }
 
@@ -921,171 +931,171 @@ static void pnw__H264_writebits_slice_header(
 
 
 //static void pnw__H264_writebits_endofsequence_header(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //MTX_HEADER_ELEMENT **elt_p)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//MTX_HEADER_ELEMENT **elt_p)
 //{
-    ///* GENERATES THE FIRST ELEMENT OF THE H264_ENDOFSEQUENCE_HEADER() STRUCTURE */
-    //pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
+///* GENERATES THE FIRST ELEMENT OF THE H264_ENDOFSEQUENCE_HEADER() STRUCTURE */
+//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
 //
-    ///* Byte aligned (bit 32) */
-    //pnw__write_upto9bits_elements(
-        //mtx_hdr,
-        //elt_p,
-        //(0 << 7) |/* forbidden_zero_bit=0 */
-        //(0 << 5) |/* nal_ref_idc=0 for nal_unit_type=10 */
-        //(10),/* nal_unit_type=10 */
-        //8);		
+///* Byte aligned (bit 32) */
+//pnw__write_upto9bits_elements(
+//mtx_hdr,
+//elt_p,
+//(0 << 7) |/* forbidden_zero_bit=0 */
+//(0 << 5) |/* nal_ref_idc=0 for nal_unit_type=10 */
+//(10),/* nal_unit_type=10 */
+//8);
 //}
 
 
 //static void pnw__H264_writebits_SEI_rbspheader(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //MTX_HEADER_ELEMENT **elt_p,
-    //IMG_UINT32 Initial_cpb_removal_delay)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//MTX_HEADER_ELEMENT **elt_p,
+//IMG_UINT32 Initial_cpb_removal_delay)
 //{
-    ///*  Byte aligned (bit 32) */
-    //pnw__H264_writebits_startcode_prefix_element(
-        //mtx_hdr, elt_p, 4);/* 32 bit start code prefix    */
-   // 
-    //pnw__write_upto8bits_elements(
-        //mtx_hdr,
-        //elt_p,
-        //(0 << 7) |/* forbidden_zero_bit */
-        //(1 << 5) |/* nal_ref_idc (2 bits) = 1 */
-        //(6),/* nal_unit_tpye (5 bits) = 6 (SEI packet) */
-        //8);
+///*  Byte aligned (bit 32) */
+//pnw__H264_writebits_startcode_prefix_element(
+//mtx_hdr, elt_p, 4);/* 32 bit start code prefix    */
 //
-    ///* last_payload_type_byte (8 bits) = 0 for buffering period     */
-    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-   // 
-    ///* last_payload_size_byte (8 bits) = 41 as SEI_message length is 41-bit */
-    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 41, 8);
-   // 
-    ///* sequence_parameter_set_id	ue(0) = 1b sequence_parameter_set_id=0 in Topaz */
-    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-   // 
-    ///* Initial_cpb_removal_delay (20 bits)	x is initial cpb delay of each sequence     */
-    //pnw__write_upto32bits_elements(mtx_hdr, elt_p, Initial_cpb_removal_delay, 20);			
-    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
+//pnw__write_upto8bits_elements(
+//mtx_hdr,
+//elt_p,
+//(0 << 7) |/* forbidden_zero_bit */
+//(1 << 5) |/* nal_ref_idc (2 bits) = 1 */
+//(6),/* nal_unit_tpye (5 bits) = 6 (SEI packet) */
+//8);
 //
-    ///* Initial_cpb_removal_delay_offset (20 bits) 0x10101 (It won't be used in Topaz) */
-    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 5, 4);
+///* last_payload_type_byte (8 bits) = 0 for buffering period     */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
 //
-    ///* Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point) */
-    //pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_H264);					
+///* last_payload_size_byte (8 bits) = 41 as SEI_message length is 41-bit */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 41, 8);
+//
+///* sequence_parameter_set_id	ue(0) = 1b sequence_parameter_set_id=0 in Topaz */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+//
+///* Initial_cpb_removal_delay (20 bits)	x is initial cpb delay of each sequence     */
+//pnw__write_upto32bits_elements(mtx_hdr, elt_p, Initial_cpb_removal_delay, 20);
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
+//
+///* Initial_cpb_removal_delay_offset (20 bits) 0x10101 (It won't be used in Topaz) */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 5, 4);
+//
+///* Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point) */
+//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_H264);
 //}
 
 
 //static void pnw__H264_writebits_endofstream_header(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //MTX_HEADER_ELEMENT **elt_p)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//MTX_HEADER_ELEMENT **elt_p)
 //{
-    ///* GENERATES THE FIRST ELEMENT OF THE H264_ENDOFSTREAM_HEADER() STRUCTURE */
-    //pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
-    ///* Byte aligned (bit 32) */
-    //pnw__write_upto8bits_elements(
-        //mtx_hdr,
-        //elt_p,
-        //(0 << 7) |/* forbidden_zero_bit=0 */
-        //(0 << 5) |/* nal_ref_idc=0 for nal_unit_type=11 */
-        //(11),/* nal_unit_type=11 */
-        //8);			
+///* GENERATES THE FIRST ELEMENT OF THE H264_ENDOFSTREAM_HEADER() STRUCTURE */
+//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
+///* Byte aligned (bit 32) */
+//pnw__write_upto8bits_elements(
+//mtx_hdr,
+//elt_p,
+//(0 << 7) |/* forbidden_zero_bit=0 */
+//(0 << 5) |/* nal_ref_idc=0 for nal_unit_type=11 */
+//(11),/* nal_unit_type=11 */
+//8);
 //}
 
 /*
  * High level functions to call when a H264 header is required
  */
 //static void pnw__H264_getelements_skip_B_slice(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //H264_SLICE_HEADER_PARAMS *pSlHParams,
-    //IMG_UINT8 MB_No_In_Slice)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//H264_SLICE_HEADER_PARAMS *pSlHParams,
+//IMG_UINT8 MB_No_In_Slice)
 //{
-    ///* Skipped P-Slice
-     //* Ensure pSlHParams is filled with appropriate parameters for a P-slice
-     //* Essential we initialise our header structures before building
-     //*/
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
+///* Skipped P-Slice
+//* Ensure pSlHParams is filled with appropriate parameters for a P-slice
+//* Essential we initialise our header structures before building
+//*/
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
 //
-    ///* Not sure if this will be required in the final spec
-     //* pnw__insert_element_token(mtx_hdr, ELEMENT_STARTCOUNTER);
-     //*/
-    //pnw__H264_writebits_slice_header(mtx_hdr, elt_p, pSlHParams);
+///* Not sure if this will be required in the final spec
+//* pnw__insert_element_token(mtx_hdr, ELEMENT_STARTCOUNTER);
+//*/
+//pnw__H264_writebits_slice_header(mtx_hdr, elt_p, pSlHParams);
 //
-    ///* mb_skip_run = mb_no_in_slice */
-    //pnw__generate_ue(mtx_hdr, elt_p, MB_No_In_Slice);
+///* mb_skip_run = mb_no_in_slice */
+//pnw__generate_ue(mtx_hdr, elt_p, MB_No_In_Slice);
 //
-    ///* Tell MTX to insert the byte align field
-     //* (we don't know final stream size for alignment at this point)
-     //*/
-    //pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_H264);
-   // 
-    ///* Has been used as an index, so need to add 1 for a valid element count */
-    //mtx_hdr->Elements++; 
+///* Tell MTX to insert the byte align field
+//* (we don't know final stream size for alignment at this point)
+//*/
+//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_H264);
+//
+///* Has been used as an index, so need to add 1 for a valid element count */
+//mtx_hdr->Elements++;
 //}
 
 //static void pnw__H264_getelements_backward_zero_B_slice(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //IMG_UINT8 MB_No_In_Slice)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//IMG_UINT8 MB_No_In_Slice)
 //{
-    ///* Skipped P-Slice
-     //* Ensure pSlHParams is filled with appropriate parameters for a P-slice
-     //* Essential we initialise our header structures before building
-     //*/
-    //IMG_UINT8 Lp;
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
-//	
-    //for (Lp=0;Lp<MB_No_In_Slice;Lp++)
-    //{
-        ///* mb_skip_run = ue(0) = 1b */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p,	1,1);
-	///* backward_zero_B_mb() - all static         */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p,	15,5);
-    //}
+///* Skipped P-Slice
+//* Ensure pSlHParams is filled with appropriate parameters for a P-slice
+//* Essential we initialise our header structures before building
+//*/
+//IMG_UINT8 Lp;
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
 //
-    ///* Tell MTX to insert the byte align field
-     //* (we don't know final stream size for alignment at this point)
-     //*/
-    //pnw__insert_element_token(
-        //mtx_hdr,
-        //elt_p,
-        //ELEMENT_INSERTBYTEALIGN_H264);
+//for (Lp=0;Lp<MB_No_In_Slice;Lp++)
+//{
+///* mb_skip_run = ue(0) = 1b */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p,	1,1);
+///* backward_zero_B_mb() - all static         */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p,	15,5);
+//}
 //
-    ///* Has been used as an index, so need to add 1 for a valid element count */
-    //mtx_hdr->Elements++; 
+///* Tell MTX to insert the byte align field
+//* (we don't know final stream size for alignment at this point)
+//*/
+//pnw__insert_element_token(
+//mtx_hdr,
+//elt_p,
+//ELEMENT_INSERTBYTEALIGN_H264);
+//
+///* Has been used as an index, so need to add 1 for a valid element count */
+//mtx_hdr->Elements++;
 //}
 
 
 //static void pnw__H264_getelements_rbsp_ATE_only(MTX_HEADER_PARAMS *mtx_hdr)
 //{
-    ///* Skipped P-Slice
-     //* Ensure pSlHParams is filled with appropriate parameters for a P-slice
-     //* Essential we initialise our header structures before building
-     //*/
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
+///* Skipped P-Slice
+//* Ensure pSlHParams is filled with appropriate parameters for a P-slice
+//* Essential we initialise our header structures before building
+//*/
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
 //
-    ///* Tell MTX to insert the byte align field
-     //* (we don't know final stream size for alignment at this point)
-     //*/
-    //pnw__insert_element_token(
-        //mtx_hdr,
-        //elt_p,
-        //ELEMENT_INSERTBYTEALIGN_H264);
-   // 
-    ///* Has been used as an index, so need to add 1 for a valid element count */
-    //mtx_hdr->Elements++; 
+///* Tell MTX to insert the byte align field
+//* (we don't know final stream size for alignment at this point)
+//*/
+//pnw__insert_element_token(
+//mtx_hdr,
+//elt_p,
+//ELEMENT_INSERTBYTEALIGN_H264);
+//
+///* Has been used as an index, so need to add 1 for a valid element count */
+//mtx_hdr->Elements++;
 //}
 
 
@@ -1101,17 +1111,17 @@ static void pnw__H264_getelements_skip_P_slice(
      */
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    mtx_hdr->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0]=This_Element;
+    mtx_hdr->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+    elt_p[0] = This_Element;
 
     /* pnw__insert_element_token(mtx_hdr, ELEMENT_STARTCOUNTER); */
     /* Not sure if this will be required in the final spec */
-    pnw__H264_writebits_slice_header(mtx_hdr, elt_p, pSlHParams, bCabacEnabled);
+    pnw__H264_writebits_slice_header(mtx_hdr, elt_p, pSlHParams, bCabacEnabled, 0);
     pnw__generate_ue(mtx_hdr, elt_p, MB_No_In_Slice); /* mb_skip_run = mb_no_in_slice */
 
     /* Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point) */
-    pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_H264); 
+    pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_H264);
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 
@@ -1120,101 +1130,101 @@ static void pnw__H264_getelements_skip_P_slice(
 static void pnw__H264_getelements_sequence_header(
     MTX_HEADER_PARAMS *mtx_hdr,
     H264_SEQUENCE_HEADER_PARAMS *pSHParams,
-    H264_CROP_PARAMS *psCropParams)	 
+    H264_CROP_PARAMS *psCropParams)
 {
     /* Builds a sequence, picture and slice header with from the given inputs parameters (start of new frame)
      * Essential we initialise our header structures before building
      */
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    mtx_hdr->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0]=This_Element;
- 
+    mtx_hdr->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+    elt_p[0] = This_Element;
+
     pnw__H264_writebits_sequence_header(mtx_hdr, elt_p, pSHParams, psCropParams);
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 
 
-//static void pnw__H264_getelements_picture_header(MTX_HEADER_PARAMS *mtx_hdr)	 
+//static void pnw__H264_getelements_picture_header(MTX_HEADER_PARAMS *mtx_hdr)
 //{
-    ///* Builds a sequence, picture and slice header with from the given inputs parameters (start of new frame)
-     //* Essential we initialise our header structures before building
-     //*/
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
-// 
-    //pnw__H264_writebits_picture_header(mtx_hdr, elt_p);
-    //mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
+///* Builds a sequence, picture and slice header with from the given inputs parameters (start of new frame)
+//* Essential we initialise our header structures before building
+//*/
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
+//
+//pnw__H264_writebits_picture_header(mtx_hdr, elt_p);
+//mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
 //}
 
 
 static void pnw__H264_getelements_slice_header(
     MTX_HEADER_PARAMS *mtx_hdr,
     H264_SLICE_HEADER_PARAMS *pSlHParams,
-    IMG_BOOL bCabacEnabled)	 
+    IMG_BOOL bCabacEnabled,
+    IMG_UINT16 uiIdrPicId)
 {
     /* Builds a single slice header from the given parameters (mid frame)
      * Essential we initialise our header structures before building
      */
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    mtx_hdr->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0]=This_Element;
+    mtx_hdr->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+    elt_p[0] = This_Element;
 
     /* Not sure if this will be required in the final spec */
     /* pnw__insert_element_token(mtx_hdr, ELEMENT_STARTCOUNTER);*/
-    pnw__H264_writebits_slice_header(mtx_hdr, elt_p, pSlHParams, bCabacEnabled);
-    
+    pnw__H264_writebits_slice_header(mtx_hdr, elt_p, pSlHParams, bCabacEnabled, uiIdrPicId);
+
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 
 
 //static void pnw__H264_getelements_endofsequence_header(
-    //MTX_HEADER_PARAMS *mtx_hdr)
+//MTX_HEADER_PARAMS *mtx_hdr)
 //{
-    ///* Builds a single endofsequence header from the given parameters (mid frame) */
+///* Builds a single endofsequence header from the given parameters (mid frame) */
 //
-    ///* Essential we initialise our header structures before building */
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
-// 
-    //pnw__H264_writebits_endofsequence_header(mtx_hdr, elt_p);
-    //mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
+///* Essential we initialise our header structures before building */
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
+//
+//pnw__H264_writebits_endofsequence_header(mtx_hdr, elt_p);
+//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 //}
 
 
 
-//static void pnw__H264_getelements_endofstream_header(MTX_HEADER_PARAMS *mtx_hdr)	 
+//static void pnw__H264_getelements_endofstream_header(MTX_HEADER_PARAMS *mtx_hdr)
 //{
-    ///* Builds a single endofstream header from the given parameters (mid frame) */
+///* Builds a single endofstream header from the given parameters (mid frame) */
 //
-    ///* Essential we initialise our header structures before building */
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
-// 
-    //pnw__H264_writebits_endofstream_header(mtx_hdr, elt_p);
-    //mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
+///* Essential we initialise our header structures before building */
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
+//
+//pnw__H264_writebits_endofstream_header(mtx_hdr, elt_p);
+//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 //}
 
 static IMG_UINT8 Bits2Code(IMG_UINT32 CodeVal)
 {
-    IMG_UINT8 Bits=32;
-    if(CodeVal==0)
+    IMG_UINT8 Bits = 32;
+    if (CodeVal == 0)
         return 1;
-    while(!(CodeVal & 0x80000000))
-    {
-        CodeVal<<=1;
+    while (!(CodeVal & 0x80000000)) {
+        CodeVal <<= 1;
         Bits--;
     }
     return Bits;
@@ -1235,7 +1245,7 @@ static void pnw__MPEG4_writebits_sequence_header(
     FIXED_VOP_TIME_TYPE sFixed_vop_time_increment,
     IMG_UINT32 Picture_Width_Pixels,
     IMG_UINT32 Picture_Height_Pixels,
-    VBVPARAMS *sVBVParams,IMG_UINT32 VopTimeResolution) /* Send NULL pointer if there are no VBVParams */
+    VBVPARAMS *sVBVParams, IMG_UINT32 VopTimeResolution) /* Send NULL pointer if there are no VBVParams */
 {
     /* Essential we insert the element before we try to fill it! */
     pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
@@ -1279,15 +1289,14 @@ static void pnw__MPEG4_writebits_sequence_header(
     /* random_accessible_vol = 1 Bit		= 0 (P-Frame in GOP) */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    if (bProfile == SP)
-    {
+    if (bProfile == SP) {
         /* video_object_type_indication = 8 Bits	= 0x01 for SP */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
 #ifndef MATCH_TO_ENC
         /* is_object_layer_identifier	= 1 Bit		= 0 for SP */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 #else
-	/* to match the encoder */
+        /* to match the encoder */
 
         /* is_object_layer_identifier 	= 1 Bit		 */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
@@ -1298,9 +1307,7 @@ static void pnw__MPEG4_writebits_sequence_header(
         /* video_object_layer_priority	= 3 Bits	 */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 3);  // 0 is reserved...
 #endif
-    }
-    else
-    {
+    } else {
         /* video_object_type_indication	= 8 Bits	= 0x11 for ASP */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 3, 8);
 
@@ -1335,8 +1342,7 @@ static void pnw__MPEG4_writebits_sequence_header(
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
     /* vbv_parameters			= 1 Bit			=0/1  */
-    if (sVBVParams)
-    {
+    if (sVBVParams) {
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
         /* For recording, only send vbv parameters in 1st sequence header.
@@ -1347,21 +1353,21 @@ static void pnw__MPEG4_writebits_sequence_header(
             elt_p,
             sVBVParams->First_half_bit_rate,
             15); /* first_half_bit_rate */
-        
+
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);/* Marker Bit = 1 */
         pnw__write_upto32bits_elements(
             mtx_hdr,
             elt_p,
             sVBVParams->Latter_half_bit_rate,
             15); /* latter_half_bit_rate */
-        
+
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);/* Marker Bit = 1 */
         pnw__write_upto32bits_elements(
             mtx_hdr,
             elt_p,
             sVBVParams->First_half_vbv_buffer_size,
             15);/* first_half_vbv_buffer_size */
-        
+
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1); /* Marker Bit = 1 */
         pnw__write_upto32bits_elements(
             mtx_hdr, elt_p,
@@ -1380,8 +1386,7 @@ static void pnw__MPEG4_writebits_sequence_header(
             sVBVParams->Latter_half_vbv_occupancy,
             15); /* latter_half_vbv_occupancy */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);/* Marker Bit = 1 */
-    }
-    else
+    } else
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1); /* No vbv parameters present */
 #endif
     /* video_object_layer_shape	= 2 Bits =	00b	Rectangular shape */
@@ -1389,7 +1394,7 @@ static void pnw__MPEG4_writebits_sequence_header(
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1); /* Marker Bit = 1 */
 
     /* vop_time_increment_solution = 16 Bits */
-    pnw__write_upto32bits_elements(mtx_hdr, elt_p, VopTimeResolution, 16);	
+    pnw__write_upto32bits_elements(mtx_hdr, elt_p, VopTimeResolution, 16);
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1); /* Marker Bit = 1 */
 
 #ifndef MATCH_TO_ENC
@@ -1428,12 +1433,11 @@ static void pnw__MPEG4_writebits_sequence_header(
     /* quant_type = 1 Bit = 0 2nd quantization method in Topaz */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    if (bProfile==ASP)
-    {
+    if (bProfile == ASP) {
         /* quarter_sample = 1 Bit = 0 No ¼-pel MC in Topaz */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
     }
-     
+
     /* complexity_estimation_disable	= 1 Bit	= 1 No complexity estimation in Topaz */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 #ifndef MATCH_TO_ENC
@@ -1446,8 +1450,7 @@ static void pnw__MPEG4_writebits_sequence_header(
     /* data_partitioned = 1 Bit = 0 No data partitioning in Topaz */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    if (bProfile == ASP)
-    {			
+    if (bProfile == ASP) {
         /* newpred_enable = 1 Bit = 0 No newpred mode in SP/ASP */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
         /* reduced_vop_resolution_enable=1 Bit = 0	No reduced resolution frame in SP/ASP */
@@ -1465,7 +1468,7 @@ static void pnw__MPEG4_writebits_sequence_header(
     pnw__insert_element_token(
         mtx_hdr,
         elt_p,
-        ELEMENT_INSERTBYTEALIGN_MPG4); 
+        ELEMENT_INSERTBYTEALIGN_MPG4);
 
     return;
 }
@@ -1506,14 +1509,14 @@ static void pnw__MPEG4_writebits_VOP_header(
 
     /* vop_coding_type	= 2 Bits = 0 for I-frame and 1 for P-frame */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, sVopCodingType, 2);
-    bIsSyncPoint = (VOP_time_increment > 1) && ((VOP_time_increment ) % VopTimeResolution == 0);
+    bIsSyncPoint = (VOP_time_increment > 1) && ((VOP_time_increment) % VopTimeResolution == 0);
 
 #ifndef MATCH_TO_ENC
     /* modulo_time_base = 1 Bit = 0 As at least  1 synchronization point (I-frame) per second in Topaz */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 #else
-	
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, bIsSyncPoint  ? 2 : 0 ,bIsSyncPoint ? 2:1 );
+
+    pnw__write_upto8bits_elements(mtx_hdr, elt_p, bIsSyncPoint  ? 2 : 0 , bIsSyncPoint ? 2 : 1);
 
 #endif
 
@@ -1529,31 +1532,27 @@ static void pnw__MPEG4_writebits_VOP_header(
     /* will chrash here... */
     pnw__write_upto8bits_elements(
         mtx_hdr, elt_p,
-        (VOP_time_increment) %VopTimeResolution,
-        Bits2Code(VopTimeResolution - 1));	
+        (VOP_time_increment) % VopTimeResolution,
+        Bits2Code(VopTimeResolution - 1));
 
 #endif
     /* marker_bit = 1 Bit		= 1	 */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-    
-    if (!bIsVOP_coded)
-    {			
+
+    if (!bIsVOP_coded) {
         /* vop_coded	= 1 Bit		= 0 for skipped frame */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-       	/* byte_aligned_bits (skipped pictures are byte aligned) */
+        /* byte_aligned_bits (skipped pictures are byte aligned) */
         /* Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point)
          * End of VOP - skipped picture
          */
         pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_MPG4);
-    }	
-    else
-    {
+    } else {
         /* vop_coded = 1 Bit		= 1 for normal coded frame */
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
-        if (sVopCodingType == P_FRAME)
-        {
+        if (sVopCodingType == P_FRAME) {
             /* vop_rounding_type = 1 Bit = 0 vop_rounding_type is 0 in Topaz */
             pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
         }
@@ -1565,23 +1564,22 @@ static void pnw__MPEG4_writebits_VOP_header(
         /* pnw__write_upto8bits_elements(mtx_hdr, elt_p, Frame_Q_scale, 5); */
         pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_FRAMEQSCALE);
 
-        if (sVopCodingType == P_FRAME)
-        {
+        if (sVopCodingType == P_FRAME) {
             /* vop_fcode_forward = 3 bits	= 2 for +/-32 and 3 for +/-64 search range  */
             pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
             pnw__write_upto8bits_elements(mtx_hdr, elt_p, sSearch_range, 3);
         }
 
         /*
-      **** THE FINAL PART OF VOP STRUCTURE CAN'T BE GENERATED HERE
-      pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
-      video_packet_data ( )			= 1st  VP that doesn’t have the VP header
+        **** THE FINAL PART OF VOP STRUCTURE CAN'T BE GENERATED HERE
+        pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
+        video_packet_data ( )			= 1st  VP that doesn’t have the VP header
 
-      while (nextbits_bytealigned ( ) == resync_marker)
-      {
-      video_packet _header( )
-      video_packet _data( )			All MB in the slice
-      }
+        while (nextbits_bytealigned ( ) == resync_marker)
+        {
+        video_packet _header( )
+        video_packet _data( )			All MB in the slice
+        }
         */
     }
 }
@@ -1589,178 +1587,178 @@ static void pnw__MPEG4_writebits_VOP_header(
 
 /* MPEG 4 Video Packet (Slice) Header */
 //static void pnw__MPEG4_writebits_videopacket_header(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //MTX_HEADER_ELEMENT **elt_p,
-    //VOP_CODING_TYPE eVop_Coding_Type,
-    //IMG_UINT8 Fcode,
-    //IMG_UINT32 MBNumber,
-    //IMG_UINT32 MBNumberlength,
-    //IMG_BOOL bHeader_Extension_Code,
-    //IMG_UINT8 VOP_Time_Increment,
-    //SEARCH_RANGE_TYPE sSearch_range)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//MTX_HEADER_ELEMENT **elt_p,
+//VOP_CODING_TYPE eVop_Coding_Type,
+//IMG_UINT8 Fcode,
+//IMG_UINT32 MBNumber,
+//IMG_UINT32 MBNumberlength,
+//IMG_BOOL bHeader_Extension_Code,
+//IMG_UINT8 VOP_Time_Increment,
+//SEARCH_RANGE_TYPE sSearch_range)
 //{
-    ///* Essential we insert the element before we try to fill it! */
-    //pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
+///* Essential we insert the element before we try to fill it! */
+//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
 //
-    //if (eVop_Coding_Type == I_FRAME)
-    //{
-        ///* resync_marker	= 17 bit	=0x1	17-bit for I-frame */
-        //pnw__write_upto32bits_elements(mtx_hdr, elt_p, 1, 17);
-    //}
-    //else
-    //{
-        ///* resync_marker = 17 bit	=0x1	(16+fcode) bits for P-frame */
-        //pnw__write_upto32bits_elements(mtx_hdr, elt_p, 1, 16+Fcode);
-    //}
+//if (eVop_Coding_Type == I_FRAME)
+//{
+///* resync_marker	= 17 bit	=0x1	17-bit for I-frame */
+//pnw__write_upto32bits_elements(mtx_hdr, elt_p, 1, 17);
+//}
+//else
+//{
+///* resync_marker = 17 bit	=0x1	(16+fcode) bits for P-frame */
+//pnw__write_upto32bits_elements(mtx_hdr, elt_p, 1, 16+Fcode);
+//}
 //
-    ///* macroblock_number = 1-14 bits	= ?????? */
-    //pnw__write_upto32bits_elements(mtx_hdr, elt_p, MBNumber, MBNumberlength);
+///* macroblock_number = 1-14 bits	= ?????? */
+//pnw__write_upto32bits_elements(mtx_hdr, elt_p, MBNumber, MBNumberlength);
 //
-    ///* quant_scale = 5 bits	=1-32	VP (Slice) Q_scale 
-     //* pnw__write_upto8bits_elements(mtx_hdr, elt_p, VP_Slice_Q_Scale, 5);
-     //*/
-    //pnw__insert_element_token(
-        //mtx_hdr, elt_p,
-        //ELEMENT_SLICEQSCALE); /* Insert token to tell MTX to insert rate-control value */
+///* quant_scale = 5 bits	=1-32	VP (Slice) Q_scale
+//* pnw__write_upto8bits_elements(mtx_hdr, elt_p, VP_Slice_Q_Scale, 5);
+//*/
+//pnw__insert_element_token(
+//mtx_hdr, elt_p,
+//ELEMENT_SLICEQSCALE); /* Insert token to tell MTX to insert rate-control value */
 //
-    //pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA); /* Begin writing rawdata again */
+//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA); /* Begin writing rawdata again */
 //
-    //if (bHeader_Extension_Code)
-    //{
-        ///* header_extension_code = 1bit = 1	picture header parameters are repeated */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+//if (bHeader_Extension_Code)
+//{
+///* header_extension_code = 1bit = 1	picture header parameters are repeated */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 //
-        ///* modulo_time_base = 1 bit = 0	The same as it is in the current picture header */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+///* modulo_time_base = 1 bit = 0	The same as it is in the current picture header */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 //
-        ///* marker_bit = 1 bit 	= 1 */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+///* marker_bit = 1 bit 	= 1 */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 //
-        ///* vop_time_increment = 5 bits	= 0-30	The same as it is in the current picture header */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p, VOP_Time_Increment, 5);
+///* vop_time_increment = 5 bits	= 0-30	The same as it is in the current picture header */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, VOP_Time_Increment, 5);
 //
-        ///* marker_bit	= 1 bit		= 1	 */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+///* marker_bit	= 1 bit		= 1	 */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 //
-        ///* vop_coding_type= 2	bits	= 0/1 The same as it is in the current picture header */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p, eVop_Coding_Type, 2);
+///* vop_coding_type= 2	bits	= 0/1 The same as it is in the current picture header */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, eVop_Coding_Type, 2);
 //
-        ///* intra_dc_vlc_thr = 3 bits	= 0 The same as it is in the current picture header */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 3);
+///* intra_dc_vlc_thr = 3 bits	= 0 The same as it is in the current picture header */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 3);
 //
-        //if (eVop_Coding_Type == P_FRAME)  		
-        //{
-            ///* vop_fcode_forward = 3 bits = 2/3 The same as it is in the current picture header */
-            //pnw__write_upto8bits_elements(mtx_hdr, elt_p, sSearch_range, 3);
-        //}
-    //}
-    //else
-    //{
-        ///* header_extension_code = 1 bits =0	picture header parameters are NOT repeated */
-        //pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-    //}
-//}			
+//if (eVop_Coding_Type == P_FRAME)
+//{
+///* vop_fcode_forward = 3 bits = 2/3 The same as it is in the current picture header */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, sSearch_range, 3);
+//}
+//}
+//else
+//{
+///* header_extension_code = 1 bits =0	picture header parameters are NOT repeated */
+//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+//}
+//}
 
 /*
  * High level functions to call when a MPEG4 header is required - HOST ROUTINES
  */
 //static void pnw__MPEG4_getelements_sequence_header (
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //IMG_BOOL bBFrame,
-    //MPEG4_PROFILE_TYPE sProfile,
-    //IMG_UINT8 Profile_and_level_indication,
-    //FIXED_VOP_TIME_TYPE sFixed_vop_time_increment,
-    //IMG_UINT32 Picture_Width_Pixels,
-    //IMG_UINT32 Picture_Height_Pixels,
-    //VBVPARAMS *sVBVParams,
-    //IMG_UINT32 VopTimeResolution) /* NULL pointer if there are no VBVParams */
+//MTX_HEADER_PARAMS *mtx_hdr,
+//IMG_BOOL bBFrame,
+//MPEG4_PROFILE_TYPE sProfile,
+//IMG_UINT8 Profile_and_level_indication,
+//FIXED_VOP_TIME_TYPE sFixed_vop_time_increment,
+//IMG_UINT32 Picture_Width_Pixels,
+//IMG_UINT32 Picture_Height_Pixels,
+//VBVPARAMS *sVBVParams,
+//IMG_UINT32 VopTimeResolution) /* NULL pointer if there are no VBVParams */
 //{
-    ///* Builds a single MPEG4 video sequence header from the given parameters */
+///* Builds a single MPEG4 video sequence header from the given parameters */
 //
-    ///* Essential we initialise our header structures before building */
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
-// 
-    //pnw__MPEG4_writebits_sequence_header(
-        //mtx_hdr,
-        //elt_p,
-        //bBFrame, sProfile,
-        //Profile_and_level_indication,
-        //sFixed_vop_time_increment,
-        //Picture_Width_Pixels,
-        //Picture_Height_Pixels,
-        //sVBVParams,VopTimeResolution);
+///* Essential we initialise our header structures before building */
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
 //
-    //mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
+//pnw__MPEG4_writebits_sequence_header(
+//mtx_hdr,
+//elt_p,
+//bBFrame, sProfile,
+//Profile_and_level_indication,
+//sFixed_vop_time_increment,
+//Picture_Width_Pixels,
+//Picture_Height_Pixels,
+//sVBVParams,VopTimeResolution);
+//
+//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 //}
 
 
 /* MPEG 4 VOP (Picture) Header */
 //static void pnw__MPEG4_getelements_VOP_header(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //IMG_BOOL	bIsVOP_coded,
-    //IMG_UINT8	VOP_time_increment,
-    //SEARCH_RANGE_TYPE sSearch_range,
-    //VOP_CODING_TYPE sVopCodingType,
-    //IMG_UINT32 VopTimeResolution)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//IMG_BOOL	bIsVOP_coded,
+//IMG_UINT8	VOP_time_increment,
+//SEARCH_RANGE_TYPE sSearch_range,
+//VOP_CODING_TYPE sVopCodingType,
+//IMG_UINT32 VopTimeResolution)
 //{
-    ///* Builds a single MPEG4 VOP (picture) header from the given parameters */
+///* Builds a single MPEG4 VOP (picture) header from the given parameters */
 //
-    ///* Essential we initialise our header structures before building */
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
+///* Essential we initialise our header structures before building */
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
 //
-    ///* Frame QScale no longer written here as it is inserted by MTX later
-     //* (add as parameter to MTX_Send_Elements_To_VLC)
-     //*/
-    //pnw__MPEG4_writebits_VOP_header(
-        //mtx_hdr, elt_p, bIsVOP_coded,
-        //VOP_time_increment,
-        //sSearch_range,
-        //sVopCodingType,VopTimeResolution);
+///* Frame QScale no longer written here as it is inserted by MTX later
+//* (add as parameter to MTX_Send_Elements_To_VLC)
+//*/
+//pnw__MPEG4_writebits_VOP_header(
+//mtx_hdr, elt_p, bIsVOP_coded,
+//VOP_time_increment,
+//sSearch_range,
+//sVopCodingType,VopTimeResolution);
 //
-    //mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
+//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 //}
 
 
 //static void pnw_MPEG4_getelements_video_packet_header(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //VOP_CODING_TYPE eVop_Coding_Type,
-    //IMG_UINT8 Fcode,
-    //IMG_UINT32 MBNumber,
-    //IMG_UINT32 MBNumberlength,
-    //IMG_BOOL bHeader_Extension_Code,
-    //IMG_UINT8 VOP_Time_Increment,
-    //SEARCH_RANGE_TYPE sSearch_range)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//VOP_CODING_TYPE eVop_Coding_Type,
+//IMG_UINT8 Fcode,
+//IMG_UINT32 MBNumber,
+//IMG_UINT32 MBNumberlength,
+//IMG_BOOL bHeader_Extension_Code,
+//IMG_UINT8 VOP_Time_Increment,
+//SEARCH_RANGE_TYPE sSearch_range)
 //{
-    ///* Builds a single MPEG4 video packet (slice) header from the given parameters */
+///* Builds a single MPEG4 video packet (slice) header from the given parameters */
 //
-    ///* Essential we initialise our header structures before building */
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
-// 
-    ///* Slice QScale no longer written here as it is inserted by MTX later
-     //* (add as parameter when sending to VLC)
-     //*/
-    //pnw__MPEG4_writebits_videopacket_header(
-        //mtx_hdr, elt_p, eVop_Coding_Type,
-        //Fcode, MBNumber, MBNumberlength,
-        //bHeader_Extension_Code, VOP_Time_Increment, sSearch_range);
+///* Essential we initialise our header structures before building */
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
 //
-    //mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
+///* Slice QScale no longer written here as it is inserted by MTX later
+//* (add as parameter when sending to VLC)
+//*/
+//pnw__MPEG4_writebits_videopacket_header(
+//mtx_hdr, elt_p, eVop_Coding_Type,
+//Fcode, MBNumber, MBNumberlength,
+//bHeader_Extension_Code, VOP_Time_Increment, sSearch_range);
+//
+//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 //}
 
 /*
- * Intermediary functions to build H263 headers 
+ * Intermediary functions to build H263 headers
  */
 static void H263_writebits_VideoSequenceHeader(
     MTX_HEADER_PARAMS *mtx_hdr,
@@ -1830,7 +1828,7 @@ static void H263_writebits_VideoPictureHeader(
 
     /* split_screen_indicator	= 1	Bits	= 0	No direct effect on encoding of picture */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-	
+
     /* document_camera_indicator= 1	Bits	= 0	No direct effect on encoding of picture */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
@@ -1841,136 +1839,122 @@ static void H263_writebits_VideoPictureHeader(
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, SourceFormatType, 3);
 
     /*Write optional Custom Picture Clock Frequency(OCPCF)*/
-    if (FrameRate == 30 || FrameRate == 0/* unspecified */)
-    {
-	OCPCF = 0; // 0 for CIF PCF
-    }
-    else
-    {
-	OCPCF = 1; //1 for Custom PCF
+    if (FrameRate == 30 || FrameRate == 0/* unspecified */) {
+        OCPCF = 0; // 0 for CIF PCF
+    } else {
+        OCPCF = 1; //1 for Custom PCF
     }
 
-    if (SourceFormatType != 7)
-    {
-	// picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
-	pnw__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 1);
-	// four_reserved_zero_bits	= 4 Bits	= 0
-	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 4);
-    }
-    else
-    {
-	static unsigned char  RTYPE = 0;
+    if (SourceFormatType != 7) {
+        // picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 1);
+        // four_reserved_zero_bits	= 4 Bits	= 0
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 4);
+    } else {
+        static unsigned char  RTYPE = 0;
 
-	// if I- Frame set Update Full Extended PTYPE to true
-	if ((PictureCodingType == I_FRAME) || (SourceFormatType == 7) || OCPCF )
-	{
-	    UFEP = 1;
-	}
-	else
-	{
-	    UFEP = 0;
-	}
-	pnw__write_upto8bits_elements(mtx_hdr, elt_p, UFEP, 3);
-	if (UFEP == 1)
-	{
-	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 6, 3);
-	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, OCPCF , 1);
+        // if I- Frame set Update Full Extended PTYPE to true
+        if ((PictureCodingType == I_FRAME) || (SourceFormatType == 7) || OCPCF) {
+            UFEP = 1;
+        } else {
+            UFEP = 0;
+        }
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, UFEP, 3);
+        if (UFEP == 1) {
+            pnw__write_upto8bits_elements(mtx_hdr, elt_p, 6, 3);
+            pnw__write_upto8bits_elements(mtx_hdr, elt_p, OCPCF , 1);
 
-	    /* 10 reserve bits ( Optional support for the encoding). All are OFF(0).
-	     *  - Optional Unrestricted Motion Vector (UMV)
-	     *  - Optional Syntax-based Arithmetic Coding (SAC)
-	     *  - Optional Advanced Prediction (AP) mode
-	     *  - Optional Advanced INTRA Coding (AIC) mode
-	     *  - Optional Deblocking Filter (DF) mode
-	     *  - Optional Slice Structured (SS) mode
-	     *  - Optional Reference Picture Selection(RPS) mode.
-	     *  - Optional Independent Segment Decoding (ISD) mode
-	     *  - Optional Alternative INTER VLC (AIV) mode
-	     *  - Optional Modified Quantization (MQ) mode */
-	     
-	    pnw__write_upto32bits_elements(mtx_hdr, elt_p, 0, 10);
-	    // 10 reserve bits
-	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 8, 4);
-	    // 4 reserve bits
-	}
-	// picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
-	pnw__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 3 );
+            /* 10 reserve bits ( Optional support for the encoding). All are OFF(0).
+             *  - Optional Unrestricted Motion Vector (UMV)
+             *  - Optional Syntax-based Arithmetic Coding (SAC)
+             *  - Optional Advanced Prediction (AP) mode
+             *  - Optional Advanced INTRA Coding (AIC) mode
+             *  - Optional Deblocking Filter (DF) mode
+             *  - Optional Slice Structured (SS) mode
+             *  - Optional Reference Picture Selection(RPS) mode.
+             *  - Optional Independent Segment Decoding (ISD) mode
+             *  - Optional Alternative INTER VLC (AIV) mode
+             *  - Optional Modified Quantization (MQ) mode */
 
-	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
-	// two_reserve_bits,      rounding_type,       two_reserve_bits       marker_bit       CPM
+            pnw__write_upto32bits_elements(mtx_hdr, elt_p, 0, 10);
+            // 10 reserve bits
+            pnw__write_upto8bits_elements(mtx_hdr, elt_p, 8, 4);
+            // 4 reserve bits
+        }
+        // picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 3);
+
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
+        // two_reserve_bits,      rounding_type,       two_reserve_bits       marker_bit       CPM
         // Rounding Type (RTYPE) (1 for P Picture, 0 for all other Picture frames.
-	pnw__write_upto8bits_elements(mtx_hdr, elt_p, RTYPE, 1);
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, RTYPE, 1);
         //2 reserve bits
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
         //   - 1 (ON) to prevent start code emulation.
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1 , 1);
         // CPM immediately follows the PPTYPE part of the header.
-        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0 ,1);
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0 , 1);
 
 
-	if (UFEP == 1)
-	{
-	    IMG_UINT16 ui16PWI,ui16PHI;
-	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
-	    // aspect ratio
-	    //PictureWidth--;
-	    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth >> 8), 1);
-	    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth & 0xFF), 8);
-	    //Width = (PWI-1)*4, Height = PHI*4, see H263 spec 5.1.5
-	    ui16PWI = (PictureWidth >> 2) - 1;
-	    pnw__write_upto32bits_elements(mtx_hdr, elt_p,(IMG_UINT8)ui16PWI, 9);
+        if (UFEP == 1) {
+            IMG_UINT16 ui16PWI, ui16PHI;
+            pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
+            // aspect ratio
+            //PictureWidth--;
+            //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth >> 8), 1);
+            //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth & 0xFF), 8);
+            //Width = (PWI-1)*4, Height = PHI*4, see H263 spec 5.1.5
+            ui16PWI = (PictureWidth >> 2) - 1;
+            pnw__write_upto32bits_elements(mtx_hdr, elt_p, (IMG_UINT8)ui16PWI, 9);
 
-	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-	    // marker_bit				= 1 Bit		= 1
-	    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight >> 8), 1);
-	    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight & 0xFF), 8);
+            pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+            // marker_bit				= 1 Bit		= 1
+            //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight >> 8), 1);
+            //pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight & 0xFF), 8);
 
-	    ui16PHI = PictureHeight >> 2;
-	    pnw__write_upto32bits_elements(mtx_hdr, elt_p,(IMG_UINT8)ui16PHI, 9);
-	    // good up to that point
-	    //	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-	    // marker_bit				= 1 Bit		= 1
-	    // just checking
-	    if (OCPCF == 1)
-	    {
-		//IMG_UINT8 CPCFC;
-		//CPCFC = (IMG_UINT8)(1800/(IMG_UINT16)FrameRate);
-		/* you can use the table for division */
-		//CPCFC <<= 1; /* for Clock Conversion Code */
-		pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-		// Clock Divisor : 7 bits The natural binary representation of the value of the clock divisor.
-		pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1800000/(FrameRate*1000), 7);				
-	    }
-	}
-	if (OCPCF == 1)
-	{
-	    IMG_UINT8 ui8ETR; // extended Temporal reference 
-	    // Two MSBs of 10 bit temporal_reference : value 0
-	    ui8ETR = Temporal_Ref >> 8;
+            ui16PHI = PictureHeight >> 2;
+            pnw__write_upto32bits_elements(mtx_hdr, elt_p, (IMG_UINT8)ui16PHI, 9);
+            // good up to that point
+            //	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+            // marker_bit				= 1 Bit		= 1
+            // just checking
+            if (OCPCF == 1) {
+                //IMG_UINT8 CPCFC;
+                //CPCFC = (IMG_UINT8)(1800/(IMG_UINT16)FrameRate);
+                /* you can use the table for division */
+                //CPCFC <<= 1; /* for Clock Conversion Code */
+                pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+                // Clock Divisor : 7 bits The natural binary representation of the value of the clock divisor.
+                pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1800000 / (FrameRate*1000), 7);
+            }
+        }
+        if (OCPCF == 1) {
+            IMG_UINT8 ui8ETR; // extended Temporal reference
+            // Two MSBs of 10 bit temporal_reference : value 0
+            ui8ETR = Temporal_Ref >> 8;
 
-	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, ui8ETR, 2);
-	    /* Two MSBs of temporal_reference */
-	}
+            pnw__write_upto8bits_elements(mtx_hdr, elt_p, ui8ETR, 2);
+            /* Two MSBs of temporal_reference */
+        }
     }
     // vop_quant				= 5 Bits	= x	5-bit frame Q_scale from rate control - GENERATED BY MTX
-	//pnw__write_upto8bits_elements(mtx_hdr, elt_p, ui8Q_Scale, 5);
-	pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_FRAMEQSCALE); // Insert token to tell MTX to insert rate-control value (QScale is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, FrameQScale))
-	pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
-	// zero_bit					= 1 Bit		= 0
-	// pei						= 1 Bit		= 0	No direct effect on encoding of picture
-	if (SourceFormatType != 7)
-	{
-	    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-	}
+    //pnw__write_upto8bits_elements(mtx_hdr, elt_p, ui8Q_Scale, 5);
+    pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_FRAMEQSCALE); // Insert token to tell MTX to insert rate-control value (QScale is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, FrameQScale))
+    pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
+    // zero_bit					= 1 Bit		= 0
+    // pei						= 1 Bit		= 0	No direct effect on encoding of picture
+    if (SourceFormatType != 7) {
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    }
 
-	pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-	// FOLLOWING SECTION CAN'T BE GENERATED HERE
+    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    // FOLLOWING SECTION CAN'T BE GENERATED HERE
     //gob_data( )
     //for(i=1; i<num_gob_in_picture; i++) {
     //      gob_header( )
     //      gob_data( )
     // }
-	return;
+    return;
 }
 
 static void H263_writebits_GOBSliceHeader(
@@ -1993,11 +1977,11 @@ static void H263_writebits_GOBSliceHeader(
 
     /* quant_scale	= 5	= 1-32	gob (Slice) Q_scale  */
     /* pnw__write_upto8bits_elements(mtx_hdr, elt_p, GOB_Q_Scale, 5); */
-    
+
     /* Insert token to tell MTX to insert rate-control value
      *  (QScale is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, SliceQScale))
      */
-    pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_SLICEQSCALE); 
+    pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_SLICEQSCALE);
     return;
 }
 
@@ -2005,114 +1989,114 @@ static void H263_writebits_GOBSliceHeader(
  * High level functions to call when a H263 header is required - HOST ROUTINES
  */
 //static void pnw__H263_getelements_videosequence_header(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //IMG_UINT8 Profile_and_level_indication)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//IMG_UINT8 Profile_and_level_indication)
 //{
-    ///* Builds a single H263 video sequence header from the given parameters */
+///* Builds a single H263 video sequence header from the given parameters */
 //
-    ///* Essential we initialise our header structures before building */
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
-// 
-    //H263_writebits_VideoSequenceHeader(mtx_hdr, elt_p, Profile_and_level_indication);
+///* Essential we initialise our header structures before building */
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
 //
-    //mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
+//H263_writebits_VideoSequenceHeader(mtx_hdr, elt_p, Profile_and_level_indication);
+//
+//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 //}
 
 //static void pnw__H263_getelements_videopicture_header(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //IMG_UINT8 Temporal_Ref,
-    //H263_PICTURE_CODING_TYPE PictureCodingType,
-    //H263_SOURCE_FORMAT_TYPE SourceFormatType,
-    //IMG_UINT8 FrameRate,
-    //IMG_UINT16 PictureWidth,
-    //IMG_UINT16 PictureHeigth)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//IMG_UINT8 Temporal_Ref,
+//H263_PICTURE_CODING_TYPE PictureCodingType,
+//H263_SOURCE_FORMAT_TYPE SourceFormatType,
+//IMG_UINT8 FrameRate,
+//IMG_UINT16 PictureWidth,
+//IMG_UINT16 PictureHeigth)
 //{
-    ///* Essential we initialise our header structures before building */
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
+///* Essential we initialise our header structures before building */
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
 //
-    //H263_writebits_VideoPictureHeader(
-        //mtx_hdr, elt_p,
-        //Temporal_Ref,
-        //PictureCodingType,
-        //SourceFormatType,
-        //FrameRate,
-        //PictureWidth,
-        //PictureHeigth);
+//H263_writebits_VideoPictureHeader(
+//mtx_hdr, elt_p,
+//Temporal_Ref,
+//PictureCodingType,
+//SourceFormatType,
+//FrameRate,
+//PictureWidth,
+//PictureHeigth);
 //
-    //mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
+//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 //}
 
 //static void pnw__H263_getelements_GOBslice_header(
-    //MTX_HEADER_PARAMS *mtx_hdr,
-    //IMG_UINT8 GOBNumber,
-    //IMG_UINT8 GOBFrameId)
+//MTX_HEADER_PARAMS *mtx_hdr,
+//IMG_UINT8 GOBNumber,
+//IMG_UINT8 GOBFrameId)
 //{
-    ///* Essential we initialise our header structures before building */
-    //MTX_HEADER_ELEMENT *This_Element;
-    //MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    //mtx_hdr->Elements=ELEMENTS_EMPTY;
-    //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    //elt_p[0]=This_Element;
+///* Essential we initialise our header structures before building */
+//MTX_HEADER_ELEMENT *This_Element;
+//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//mtx_hdr->Elements=ELEMENTS_EMPTY;
+//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+//elt_p[0]=This_Element;
 //
-    //H263_writebits_GOBSliceHeader(mtx_hdr, elt_p, GOBNumber, GOBFrameId);
+//H263_writebits_GOBSliceHeader(mtx_hdr, elt_p, GOBNumber, GOBFrameId);
 //
-    //mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
+//mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
 //}
 
 // SEI_INSERTION
 static void pnw__H264_writebits_AUD_header(
-	MTX_HEADER_PARAMS *pMTX_Header,
-	MTX_HEADER_ELEMENT **aui32ElementPointers)
+    MTX_HEADER_PARAMS *pMTX_Header,
+    MTX_HEADER_ELEMENT **aui32ElementPointers)
 {
     // Essential we insert the element before we try to fill it!
     pnw__insert_element_token(pMTX_Header,
-	    aui32ElementPointers,
-	    ELEMENT_STARTCODE_RAWDATA);
+                              aui32ElementPointers,
+                              ELEMENT_STARTCODE_RAWDATA);
 
     pnw__H264_writebits_startcode_prefix_element(pMTX_Header,
-	    aui32ElementPointers, 4); // 00 00 00 01 start code prefix
+            aui32ElementPointers, 4); // 00 00 00 01 start code prefix
 
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    9,
-	    8); // AUD nal_unit_type = 09
+                                  aui32ElementPointers,
+                                  9,
+                                  8); // AUD nal_unit_type = 09
 
     // primary_pic_type	 u(3) 0=I slice, 1=P or I slice, 2=P,B or I slice
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    2,
-	    3);
+                                  aui32ElementPointers,
+                                  2,
+                                  3);
 
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    1 << 4, 5); // rbsp_trailing_bits
+                                  aui32ElementPointers,
+                                  1 << 4, 5); // rbsp_trailing_bits
 
     // Write terminator
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers, 0x80, 8);
+                                  aui32ElementPointers, 0x80, 8);
     return;
 }
 
 static void pnw__H264_writebits_SEI_buffering_period_header(
-	MTX_HEADER_PARAMS *pMTX_Header,
-	MTX_HEADER_ELEMENT **aui32ElementPointers,
-	IMG_UINT8 ui8NalHrdBpPresentFlag,
-	IMG_UINT8 ui8nal_cpb_cnt_minus1,
-	IMG_UINT8 ui8nal_initial_cpb_removal_delay_length,
-	IMG_UINT32 ui32nal_initial_cpb_removal_delay,
-	IMG_UINT32 ui32nal_initial_cpb_removal_delay_offset,
-	IMG_UINT8 ui8VclHrdBpPresentFlag,
-	IMG_UINT8 ui8vcl_cpb_cnt_minus1,
-	IMG_UINT32 ui32vcl_initial_cpb_removal_delay,
-	IMG_UINT32 ui32vcl_initial_cpb_removal_delay_offset)
+    MTX_HEADER_PARAMS *pMTX_Header,
+    MTX_HEADER_ELEMENT **aui32ElementPointers,
+    IMG_UINT8 ui8NalHrdBpPresentFlag,
+    IMG_UINT8 ui8nal_cpb_cnt_minus1,
+    IMG_UINT8 ui8nal_initial_cpb_removal_delay_length,
+    IMG_UINT32 ui32nal_initial_cpb_removal_delay,
+    IMG_UINT32 ui32nal_initial_cpb_removal_delay_offset,
+    IMG_UINT8 ui8VclHrdBpPresentFlag,
+    IMG_UINT8 ui8vcl_cpb_cnt_minus1,
+    IMG_UINT32 ui32vcl_initial_cpb_removal_delay,
+    IMG_UINT32 ui32vcl_initial_cpb_removal_delay_offset)
 {
     IMG_UINT8 ui8SchedSelIdx;
     IMG_UINT8 ui8PayloadSizeBits;
@@ -2121,107 +2105,103 @@ static void pnw__H264_writebits_SEI_buffering_period_header(
 #endif
     // Essential we insert the element before we try to fill it!
     pnw__insert_element_token(pMTX_Header,
-	    aui32ElementPointers,
-	    ELEMENT_STARTCODE_RAWDATA);
+                              aui32ElementPointers,
+                              ELEMENT_STARTCODE_RAWDATA);
 
     pnw__H264_writebits_startcode_prefix_element(pMTX_Header,
-	    aui32ElementPointers,
-	    3); // 00 00 01 start code prefix
+            aui32ElementPointers,
+            3); // 00 00 01 start code prefix
 
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    6, 8); // nal_unit_type = 06 (SEI Message)
+                                  aui32ElementPointers,
+                                  6, 8); // nal_unit_type = 06 (SEI Message)
 
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    0, 8); // SEI payload type (buffering period)
+                                  aui32ElementPointers,
+                                  0, 8); // SEI payload type (buffering period)
 
-    ui8PayloadSizeBits=1; // seq_parameter_set_id bitsize = 1
-    if(ui8NalHrdBpPresentFlag)
-	ui8PayloadSizeBits += ((ui8nal_cpb_cnt_minus1 + 1)
-		* ui8nal_initial_cpb_removal_delay_length * 2);
-    if(ui8VclHrdBpPresentFlag)
-	ui8PayloadSizeBits += ((ui8vcl_cpb_cnt_minus1 + 1)
-		* ui8nal_initial_cpb_removal_delay_length * 2);
+    ui8PayloadSizeBits = 1; // seq_parameter_set_id bitsize = 1
+    if (ui8NalHrdBpPresentFlag)
+        ui8PayloadSizeBits += ((ui8nal_cpb_cnt_minus1 + 1)
+                               * ui8nal_initial_cpb_removal_delay_length * 2);
+    if (ui8VclHrdBpPresentFlag)
+        ui8PayloadSizeBits += ((ui8vcl_cpb_cnt_minus1 + 1)
+                               * ui8nal_initial_cpb_removal_delay_length * 2);
 
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    ((ui8PayloadSizeBits+7)/8),
-	    8); 
-    // SEI payload size = No of bytes required for SEI payload 
+                                  aui32ElementPointers,
+                                  ((ui8PayloadSizeBits + 7) / 8),
+                                  8);
+    // SEI payload size = No of bytes required for SEI payload
     // (including seq_parameter_set_id)
 
-    //seq_parameter_set_id 	ue(v) = 0 default? = 1 (binary) 
+    //seq_parameter_set_id 	ue(v) = 0 default? = 1 (binary)
     //= sequence parameter set containing HRD attributes
     pnw__generate_ue(pMTX_Header, aui32ElementPointers, 0);
 
-    if( ui8NalHrdBpPresentFlag )
-    {
-	for( ui8SchedSelIdx = 0; ui8SchedSelIdx <= ui8nal_cpb_cnt_minus1; ui8SchedSelIdx++ )
-	{
-	    // ui32nal_initial_cpb_removal_delay = delay between time of arrival in CODED PICTURE BUFFER of coded data of this access
-	    // unit and time of removal from CODED PICTURE BUFFER of the coded data of the same access unit.
-	    // Delay is based on the time taken for a 90 kHz clock.
-	    // Range >0 and < 90000 * (CPBsize / BitRate)
-	    // For the 1st buffering period after HARDWARE REFERENCE DECODER initialisation.
-	    // pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_NAL_INIT_CPB_REMOVAL_DELAY); // Eventually use this if firmware value required
+    if (ui8NalHrdBpPresentFlag) {
+        for (ui8SchedSelIdx = 0; ui8SchedSelIdx <= ui8nal_cpb_cnt_minus1; ui8SchedSelIdx++) {
+            // ui32nal_initial_cpb_removal_delay = delay between time of arrival in CODED PICTURE BUFFER of coded data of this access
+            // unit and time of removal from CODED PICTURE BUFFER of the coded data of the same access unit.
+            // Delay is based on the time taken for a 90 kHz clock.
+            // Range >0 and < 90000 * (CPBsize / BitRate)
+            // For the 1st buffering period after HARDWARE REFERENCE DECODER initialisation.
+            // pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_NAL_INIT_CPB_REMOVAL_DELAY); // Eventually use this if firmware value required
 
-	    //pnw__write_upto32bits_elements(pMTX_Header, aui32ElementPointers, ui32nal_initial_cpb_removal_delay, ui8nal_initial_cpb_removal_delay_length);
-	    pnw__insert_element_token(pMTX_Header,
-		    aui32ElementPointers,
-		    BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY);
+            //pnw__write_upto32bits_elements(pMTX_Header, aui32ElementPointers, ui32nal_initial_cpb_removal_delay, ui8nal_initial_cpb_removal_delay_length);
+            pnw__insert_element_token(pMTX_Header,
+                                      aui32ElementPointers,
+                                      BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY);
 
-	    // ui32nal_initial_cpb_removal_delay_offset = used for the SchedSelIdx-th CPB in combination with the cpb_removal_delay to
-	    // specify the initial delivery time of coded access units to the CODED PICTURE BUFFER initial_cpb_removal_delay_offset
-	    // Delay is based on the time taken for a 90 kHz clock.
-	    // NOT USED BY DECODERS and is needed only for the delivery scheduler (HSS) specified in Annex C
+            // ui32nal_initial_cpb_removal_delay_offset = used for the SchedSelIdx-th CPB in combination with the cpb_removal_delay to
+            // specify the initial delivery time of coded access units to the CODED PICTURE BUFFER initial_cpb_removal_delay_offset
+            // Delay is based on the time taken for a 90 kHz clock.
+            // NOT USED BY DECODERS and is needed only for the delivery scheduler (HSS) specified in Annex C
 
-	    pnw__insert_element_token(pMTX_Header,
-		    aui32ElementPointers,
-		    BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_OFFSET);
-	}
+            pnw__insert_element_token(pMTX_Header,
+                                      aui32ElementPointers,
+                                      BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_OFFSET);
+        }
     }
-    if( ui8VclHrdBpPresentFlag )
-    {
-	for( ui8SchedSelIdx = 0; ui8SchedSelIdx <= ui8vcl_cpb_cnt_minus1; ui8SchedSelIdx++ )
-	{
-	    pnw__insert_element_token(pMTX_Header,
-		    aui32ElementPointers,
-		    ELEMENT_STARTCODE_RAWDATA);
-	    // pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_VCL_INIT_CPB_REMOVAL_DELAY); // Eventually use this if firmware value required
-	    pnw__write_upto32bits_elements(pMTX_Header,
-		    aui32ElementPointers,
-		    ui32vcl_initial_cpb_removal_delay,
-		    ui8nal_initial_cpb_removal_delay_length);
-	    // pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_VCL_INIT_CPB_REMOVAL_DELAY_CPB); // Eventually use this if firmware value required
-	    pnw__write_upto32bits_elements(pMTX_Header,
-		    aui32ElementPointers,
-		    ui32vcl_initial_cpb_removal_delay_offset,
-		    ui8nal_initial_cpb_removal_delay_length);
-	}
+    if (ui8VclHrdBpPresentFlag) {
+        for (ui8SchedSelIdx = 0; ui8SchedSelIdx <= ui8vcl_cpb_cnt_minus1; ui8SchedSelIdx++) {
+            pnw__insert_element_token(pMTX_Header,
+                                      aui32ElementPointers,
+                                      ELEMENT_STARTCODE_RAWDATA);
+            // pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_VCL_INIT_CPB_REMOVAL_DELAY); // Eventually use this if firmware value required
+            pnw__write_upto32bits_elements(pMTX_Header,
+                                           aui32ElementPointers,
+                                           ui32vcl_initial_cpb_removal_delay,
+                                           ui8nal_initial_cpb_removal_delay_length);
+            // pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_VCL_INIT_CPB_REMOVAL_DELAY_CPB); // Eventually use this if firmware value required
+            pnw__write_upto32bits_elements(pMTX_Header,
+                                           aui32ElementPointers,
+                                           ui32vcl_initial_cpb_removal_delay_offset,
+                                           ui8nal_initial_cpb_removal_delay_length);
+        }
     }
 
     // Pad to end of byte
 #ifdef SEI_NOT_USE_TOKEN_ALIGN
-    if(!ui8VclHrdBpPresentFlag)
-	pnw__insert_element_token(pMTX_Header,
-		aui32ElementPointers,
-		ELEMENT_STARTCODE_RAWDATA);
-    ui8Pad = (ui8PayloadSizeBits+7)/8;
-    ui8Pad = (ui8Pad*8)-ui8PayloadSizeBits;
-    if (ui8Pad>0) 
-	pnw__write_upto8bits_elements(pMTX_Header,
-		aui32ElementPointers,
-		1 << (ui8Pad-1),
-		ui8Pad); // SEI payload type (buffering period)
+    if (!ui8VclHrdBpPresentFlag)
+        pnw__insert_element_token(pMTX_Header,
+                                  aui32ElementPointers,
+                                  ELEMENT_STARTCODE_RAWDATA);
+    ui8Pad = (ui8PayloadSizeBits + 7) / 8;
+    ui8Pad = (ui8Pad * 8) - ui8PayloadSizeBits;
+    if (ui8Pad > 0)
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      aui32ElementPointers,
+                                      1 << (ui8Pad - 1),
+                                      ui8Pad); // SEI payload type (buffering period)
 #else
     pnw__insert_element_token(pMTX_Header,
-	    aui32ElementPointers,
-	    ELEMENT_INSERTBYTEALIGN_H264); 
+                              aui32ElementPointers,
+                              ELEMENT_INSERTBYTEALIGN_H264);
     // Tell MTX to insert the byte align field
     pnw__insert_element_token(pMTX_Header,
-	    aui32ElementPointers,
-	    ELEMENT_STARTCODE_RAWDATA);
+                              aui32ElementPointers,
+                              ELEMENT_STARTCODE_RAWDATA);
 #endif
 
     // Write terminator
@@ -2232,31 +2212,31 @@ static void pnw__H264_writebits_SEI_buffering_period_header(
 
 
 static void pnw__H264_writebits_SEI_picture_timing_header(
-	MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_ELEMENT **aui32ElementPointers,
-	IMG_UINT8 ui8CpbDpbDelaysPresentFlag,
-	IMG_UINT32 ui32cpb_removal_delay_length_minus1,
-	IMG_UINT32 ui32dpb_output_delay_length_minus1,
-	IMG_UINT32 ui32cpb_removal_delay,
-	IMG_UINT32 ui32dpb_output_delay,
-	IMG_UINT8 ui8pic_struct_present_flag,
-	IMG_UINT8 ui8pic_struct,
-	IMG_UINT8 ui8NumClockTS,
-	IMG_UINT8 *aui8clock_timestamp_flag,
-	IMG_UINT8 ui8full_timestamp_flag,
-	IMG_UINT8 ui8seconds_flag,
-	IMG_UINT8 ui8minutes_flag,
-	IMG_UINT8 ui8hours_flag,
-	IMG_UINT8 ui8seconds_value,
-	IMG_UINT8 ui8minutes_value,
-	IMG_UINT8 ui8hours_value,
-	IMG_UINT8 ui8ct_type,
-	IMG_UINT8 ui8nuit_field_based_flag,
-	IMG_UINT8 ui8counting_type,
-	IMG_UINT8 ui8discontinuity_flag,
-	IMG_UINT8 ui8cnt_dropped_flag,
-	IMG_UINT8 ui8n_frames,
-	IMG_UINT8 ui8time_offset_length,
-	IMG_UINT32 i32time_offset)
+    MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_ELEMENT **aui32ElementPointers,
+    IMG_UINT8 ui8CpbDpbDelaysPresentFlag,
+    IMG_UINT32 ui32cpb_removal_delay_length_minus1,
+    IMG_UINT32 ui32dpb_output_delay_length_minus1,
+    IMG_UINT32 ui32cpb_removal_delay,
+    IMG_UINT32 ui32dpb_output_delay,
+    IMG_UINT8 ui8pic_struct_present_flag,
+    IMG_UINT8 ui8pic_struct,
+    IMG_UINT8 ui8NumClockTS,
+    IMG_UINT8 *aui8clock_timestamp_flag,
+    IMG_UINT8 ui8full_timestamp_flag,
+    IMG_UINT8 ui8seconds_flag,
+    IMG_UINT8 ui8minutes_flag,
+    IMG_UINT8 ui8hours_flag,
+    IMG_UINT8 ui8seconds_value,
+    IMG_UINT8 ui8minutes_value,
+    IMG_UINT8 ui8hours_value,
+    IMG_UINT8 ui8ct_type,
+    IMG_UINT8 ui8nuit_field_based_flag,
+    IMG_UINT8 ui8counting_type,
+    IMG_UINT8 ui8discontinuity_flag,
+    IMG_UINT8 ui8cnt_dropped_flag,
+    IMG_UINT8 ui8n_frames,
+    IMG_UINT8 ui8time_offset_length,
+    IMG_UINT32 i32time_offset)
 {
     IMG_UINT8 ui8PayloadSizeBits, ui8Tmp;
 #ifdef SEI_NOT_USE_TOKEN_ALIGN
@@ -2265,218 +2245,202 @@ static void pnw__H264_writebits_SEI_picture_timing_header(
 
     // Essential we insert the element before we try to fill it!
     pnw__insert_element_token(pMTX_Header,
-	    aui32ElementPointers,
-	    ELEMENT_STARTCODE_RAWDATA);
+                              aui32ElementPointers,
+                              ELEMENT_STARTCODE_RAWDATA);
 
     pnw__H264_writebits_startcode_prefix_element(pMTX_Header,
-	    aui32ElementPointers,
-	    3); // 00 00 01 start code prefix
+            aui32ElementPointers,
+            3); // 00 00 01 start code prefix
 
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    6, 8); // nal_unit_type = 06 (SEI Message)
+                                  aui32ElementPointers,
+                                  6, 8); // nal_unit_type = 06 (SEI Message)
 
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    1, 8); // SEI payload type (picture timing)
+                                  aui32ElementPointers,
+                                  1, 8); // SEI payload type (picture timing)
 
 
     // Precalculate the payload bit size
-    ui8PayloadSizeBits=0;
+    ui8PayloadSizeBits = 0;
     if (ui8CpbDpbDelaysPresentFlag)
-	ui8PayloadSizeBits += ui32cpb_removal_delay_length_minus1 
-	    + 1 + ui32dpb_output_delay_length_minus1 + 1;
+        ui8PayloadSizeBits += ui32cpb_removal_delay_length_minus1
+                              + 1 + ui32dpb_output_delay_length_minus1 + 1;
 
-    if (ui8pic_struct_present_flag)
-    {
-	ui8PayloadSizeBits += 4;
-	for( ui8Tmp = 0; ui8Tmp < ui8NumClockTS ; ui8Tmp++ )
-	{
-	    ui8PayloadSizeBits += 1;
+    if (ui8pic_struct_present_flag) {
+        ui8PayloadSizeBits += 4;
+        for (ui8Tmp = 0; ui8Tmp < ui8NumClockTS ; ui8Tmp++) {
+            ui8PayloadSizeBits += 1;
 
-	    if(aui8clock_timestamp_flag[ui8Tmp])
-	    {
-		ui8PayloadSizeBits += 2+1+5+1+1+1+8;
-		if(ui8full_timestamp_flag)
-		    ui8PayloadSizeBits += 6+6+5;
-		else
-		{		
-		    ui8PayloadSizeBits += 1;
-		    if(ui8seconds_flag)
-		    {
-			ui8PayloadSizeBits += 6+1;
-			if(ui8minutes_flag)
-			{
-			    ui8PayloadSizeBits += 6+1;
-			    if(ui8hours_flag)
-				ui8PayloadSizeBits += 5;
-			}
-		    }
-		}	
+            if (aui8clock_timestamp_flag[ui8Tmp]) {
+                ui8PayloadSizeBits += 2 + 1 + 5 + 1 + 1 + 1 + 8;
+                if (ui8full_timestamp_flag)
+                    ui8PayloadSizeBits += 6 + 6 + 5;
+                else {
+                    ui8PayloadSizeBits += 1;
+                    if (ui8seconds_flag) {
+                        ui8PayloadSizeBits += 6 + 1;
+                        if (ui8minutes_flag) {
+                            ui8PayloadSizeBits += 6 + 1;
+                            if (ui8hours_flag)
+                                ui8PayloadSizeBits += 5;
+                        }
+                    }
+                }
 
-		if(ui8time_offset_length > 0) 
-		    ui8PayloadSizeBits += ui8time_offset_length;
-	    }
-	}
+                if (ui8time_offset_length > 0)
+                    ui8PayloadSizeBits += ui8time_offset_length;
+            }
+        }
     }
 
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    ((ui8PayloadSizeBits+7)/8), 8); 
+                                  aui32ElementPointers,
+                                  ((ui8PayloadSizeBits + 7) / 8), 8);
     // SEI payload size = No of bytes required for SEI payload (including seq_parameter_set_id)
 
 
-    if (ui8CpbDpbDelaysPresentFlag)
-    {
-	//SEI_INSERTION
+    if (ui8CpbDpbDelaysPresentFlag) {
+        //SEI_INSERTION
 #ifdef SEI_HOSTCALC_CPB_DPB
-	pnw__write_upto32bits_elements(pMTX_Header,
-		aui32ElementPointers,
-		ui32cpb_removal_delay,
-		ui32cpb_removal_delay_length_minus1+1 ); // cpb_removal_delay
-	pnw__write_upto32bits_elements(pMTX_Header,
-		aui32ElementPointers,
-		ui32dpb_output_delay,
-		ui32dpb_output_delay_length_minus1+1 ); // dpb_output_delay
+        pnw__write_upto32bits_elements(pMTX_Header,
+                                       aui32ElementPointers,
+                                       ui32cpb_removal_delay,
+                                       ui32cpb_removal_delay_length_minus1 + 1); // cpb_removal_delay
+        pnw__write_upto32bits_elements(pMTX_Header,
+                                       aui32ElementPointers,
+                                       ui32dpb_output_delay,
+                                       ui32dpb_output_delay_length_minus1 + 1); // dpb_output_delay
 #else
-	pnw__insert_element_token(pMTX_Header,
-		aui32ElementPointers,
-		PTH_SEI_NAL_CPB_REMOVAL_DELAY);
-	pnw__insert_element_token(pMTX_Header,
-		aui32ElementPointers,
-		PTH_SEI_NAL_DPB_OUTPUT_DELAY);
+        pnw__insert_element_token(pMTX_Header,
+                                  aui32ElementPointers,
+                                  PTH_SEI_NAL_CPB_REMOVAL_DELAY);
+        pnw__insert_element_token(pMTX_Header,
+                                  aui32ElementPointers,
+                                  PTH_SEI_NAL_DPB_OUTPUT_DELAY);
 #endif
     }
 
-    if (ui8pic_struct_present_flag)
-    {
-	pnw__insert_element_token(pMTX_Header,
-		aui32ElementPointers,
-		ELEMENT_STARTCODE_RAWDATA);
-	pnw__write_upto8bits_elements(pMTX_Header,
-		aui32ElementPointers,
-		ui8pic_struct, 4); // See TRM able D 1 – Interpretation of pic_struct
+    if (ui8pic_struct_present_flag) {
+        pnw__insert_element_token(pMTX_Header,
+                                  aui32ElementPointers,
+                                  ELEMENT_STARTCODE_RAWDATA);
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      aui32ElementPointers,
+                                      ui8pic_struct, 4); // See TRM able D 1 – Interpretation of pic_struct
 
-	for( ui8Tmp = 0; ui8Tmp < ui8NumClockTS ; ui8Tmp++ )
-	{		
-	    pnw__write_upto8bits_elements(pMTX_Header,
-		    aui32ElementPointers,
-		    aui8clock_timestamp_flag[ui8Tmp], 1);
+        for (ui8Tmp = 0; ui8Tmp < ui8NumClockTS ; ui8Tmp++) {
+            pnw__write_upto8bits_elements(pMTX_Header,
+                                          aui32ElementPointers,
+                                          aui8clock_timestamp_flag[ui8Tmp], 1);
 
-	    if(aui8clock_timestamp_flag[ui8Tmp])
-	    {
-		pnw__write_upto8bits_elements(pMTX_Header,
-			aui32ElementPointers,
-			ui8ct_type, 2); 
-		// (2=Unknown) See TRM Table D 2 – Mapping of ct_type to source picture scan
-		pnw__write_upto8bits_elements(pMTX_Header,
-			aui32ElementPointers,
-			ui8nuit_field_based_flag, 1);
-		pnw__write_upto8bits_elements(pMTX_Header,
-			aui32ElementPointers,
-			ui8counting_type, 5); 
-		// See TRM Table D 3 – Definition of counting_type values
-		pnw__write_upto8bits_elements(pMTX_Header,
-			aui32ElementPointers,
-			ui8full_timestamp_flag, 1);
-		pnw__write_upto8bits_elements(pMTX_Header,
-			aui32ElementPointers,
-			ui8discontinuity_flag, 1);
-		pnw__write_upto8bits_elements(pMTX_Header,
-			aui32ElementPointers,
-			ui8cnt_dropped_flag, 1);
-		pnw__write_upto8bits_elements(pMTX_Header,
-			aui32ElementPointers,
-			ui8n_frames, 8);
+            if (aui8clock_timestamp_flag[ui8Tmp]) {
+                pnw__write_upto8bits_elements(pMTX_Header,
+                                              aui32ElementPointers,
+                                              ui8ct_type, 2);
+                // (2=Unknown) See TRM Table D 2 – Mapping of ct_type to source picture scan
+                pnw__write_upto8bits_elements(pMTX_Header,
+                                              aui32ElementPointers,
+                                              ui8nuit_field_based_flag, 1);
+                pnw__write_upto8bits_elements(pMTX_Header,
+                                              aui32ElementPointers,
+                                              ui8counting_type, 5);
+                // See TRM Table D 3 – Definition of counting_type values
+                pnw__write_upto8bits_elements(pMTX_Header,
+                                              aui32ElementPointers,
+                                              ui8full_timestamp_flag, 1);
+                pnw__write_upto8bits_elements(pMTX_Header,
+                                              aui32ElementPointers,
+                                              ui8discontinuity_flag, 1);
+                pnw__write_upto8bits_elements(pMTX_Header,
+                                              aui32ElementPointers,
+                                              ui8cnt_dropped_flag, 1);
+                pnw__write_upto8bits_elements(pMTX_Header,
+                                              aui32ElementPointers,
+                                              ui8n_frames, 8);
 
-		if(ui8full_timestamp_flag)
-		{
-		    pnw__write_upto8bits_elements(pMTX_Header,
-			    aui32ElementPointers,
-			    ui8seconds_value, 6); // 0 - 59
-		    pnw__write_upto8bits_elements(pMTX_Header,
-			    aui32ElementPointers,
-			    ui8minutes_value, 6); // 0 - 59
-		    pnw__write_upto8bits_elements(pMTX_Header,
-			    aui32ElementPointers,
-			    ui8hours_value, 5); // 0 - 23
-		}
-		else
-		{		
-		    pnw__write_upto8bits_elements(pMTX_Header,
-			    aui32ElementPointers,
-			    ui8seconds_flag, 1);
+                if (ui8full_timestamp_flag) {
+                    pnw__write_upto8bits_elements(pMTX_Header,
+                                                  aui32ElementPointers,
+                                                  ui8seconds_value, 6); // 0 - 59
+                    pnw__write_upto8bits_elements(pMTX_Header,
+                                                  aui32ElementPointers,
+                                                  ui8minutes_value, 6); // 0 - 59
+                    pnw__write_upto8bits_elements(pMTX_Header,
+                                                  aui32ElementPointers,
+                                                  ui8hours_value, 5); // 0 - 23
+                } else {
+                    pnw__write_upto8bits_elements(pMTX_Header,
+                                                  aui32ElementPointers,
+                                                  ui8seconds_flag, 1);
 
-		    if(ui8seconds_flag)
-		    {
-			pnw__write_upto8bits_elements(pMTX_Header,
-				aui32ElementPointers,
-				ui8seconds_value, 6); // 0 - 59
-			pnw__write_upto8bits_elements(pMTX_Header,
-				aui32ElementPointers,
-				ui8minutes_flag, 1);
+                    if (ui8seconds_flag) {
+                        pnw__write_upto8bits_elements(pMTX_Header,
+                                                      aui32ElementPointers,
+                                                      ui8seconds_value, 6); // 0 - 59
+                        pnw__write_upto8bits_elements(pMTX_Header,
+                                                      aui32ElementPointers,
+                                                      ui8minutes_flag, 1);
 
-			if(ui8minutes_flag)
-			{
-			    pnw__write_upto8bits_elements(pMTX_Header,
-				    aui32ElementPointers,
-				    ui8minutes_value, 6); // 0 - 59
-			    pnw__write_upto8bits_elements(pMTX_Header,
-				    aui32ElementPointers,
-				    ui8hours_flag, 1);
+                        if (ui8minutes_flag) {
+                            pnw__write_upto8bits_elements(pMTX_Header,
+                                                          aui32ElementPointers,
+                                                          ui8minutes_value, 6); // 0 - 59
+                            pnw__write_upto8bits_elements(pMTX_Header,
+                                                          aui32ElementPointers,
+                                                          ui8hours_flag, 1);
 
-			    if(ui8hours_flag)
-				pnw__write_upto8bits_elements(pMTX_Header,
-					aui32ElementPointers,
-					ui8hours_value, 5); // 0 - 23
-			}
-		    }
-		}	
+                            if (ui8hours_flag)
+                                pnw__write_upto8bits_elements(pMTX_Header,
+                                                              aui32ElementPointers,
+                                                              ui8hours_value, 5); // 0 - 23
+                        }
+                    }
+                }
 
-		if(ui8time_offset_length > 0)
-		{
-		    // Two's complement storage : If time_offset<0 = ((2 ^ v) + time_offset)
-		    if (i32time_offset < 0)
-			pnw__write_upto32bits_elements(pMTX_Header,
-				aui32ElementPointers,
-				(IMG_UINT32) ((2 ^ ui8time_offset_length) + i32time_offset),
-				ui8time_offset_length);
-		    else
-			pnw__write_upto32bits_elements(pMTX_Header,
-				aui32ElementPointers,
-				(IMG_UINT32) i32time_offset,
-				ui8time_offset_length);
-		}
-	    }
-	}
+                if (ui8time_offset_length > 0) {
+                    // Two's complement storage : If time_offset<0 = ((2 ^ v) + time_offset)
+                    if (i32time_offset < 0)
+                        pnw__write_upto32bits_elements(pMTX_Header,
+                                                       aui32ElementPointers,
+                                                       (IMG_UINT32)((2 ^ ui8time_offset_length) + i32time_offset),
+                                                       ui8time_offset_length);
+                    else
+                        pnw__write_upto32bits_elements(pMTX_Header,
+                                                       aui32ElementPointers,
+                                                       (IMG_UINT32) i32time_offset,
+                                                       ui8time_offset_length);
+                }
+            }
+        }
     }
 
 #ifdef SEI_NOT_USE_TOKEN_ALIGN
     // Pad to end of byte
     if (!ui8pic_struct_present_flag)
-	pnw__insert_element_token(pMTX_Header,
-		aui32ElementPointers,
-		ELEMENT_STARTCODE_RAWDATA);
-    ui8Pad = (ui8PayloadSizeBits+7)/8;
-    ui8Pad = (ui8Pad*8)-ui8PayloadSizeBits;
-    if (ui8Pad>0) 
-	pnw__write_upto8bits_elements(pMTX_Header,
-		aui32ElementPointers,
-		1 << (ui8Pad-1),
-		ui8Pad); // SEI payload type (buffering period)
+        pnw__insert_element_token(pMTX_Header,
+                                  aui32ElementPointers,
+                                  ELEMENT_STARTCODE_RAWDATA);
+    ui8Pad = (ui8PayloadSizeBits + 7) / 8;
+    ui8Pad = (ui8Pad * 8) - ui8PayloadSizeBits;
+    if (ui8Pad > 0)
+        pnw__write_upto8bits_elements(pMTX_Header,
+                                      aui32ElementPointers,
+                                      1 << (ui8Pad - 1),
+                                      ui8Pad); // SEI payload type (buffering period)
 #else
     pnw__insert_element_token(pMTX_Header,
-	    aui32ElementPointers,
-	    ELEMENT_INSERTBYTEALIGN_H264); // Tell MTX to insert the byte align field
+                              aui32ElementPointers,
+                              ELEMENT_INSERTBYTEALIGN_H264); // Tell MTX to insert the byte align field
     pnw__insert_element_token(pMTX_Header,
-	    aui32ElementPointers,
-	    ELEMENT_STARTCODE_RAWDATA);
+                              aui32ElementPointers,
+                              ELEMENT_STARTCODE_RAWDATA);
 #endif
 
     // Write terminator
     pnw__write_upto8bits_elements(pMTX_Header,
-	    aui32ElementPointers,
-	    0x80, 8);
+                                  aui32ElementPointers,
+                                  0x80, 8);
     return;
 }
 
@@ -2487,9 +2451,9 @@ void pnw__H264_prepare_AUD_header(MTX_HEADER_PARAMS * pMTX_Header)
     // Essential we initialise our header structures before building
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
-    pMTX_Header->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
-    aui32ElementPointers[0]=This_Element;
+    pMTX_Header->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
+    aui32ElementPointers[0] = This_Element;
 
     pnw__H264_writebits_AUD_header(pMTX_Header, aui32ElementPointers);
 
@@ -2497,104 +2461,104 @@ void pnw__H264_prepare_AUD_header(MTX_HEADER_PARAMS * pMTX_Header)
 }
 
 
-void pnw__H264_prepare_SEI_buffering_period_header(	
-	MTX_HEADER_PARAMS * pMTX_Header,
-	IMG_UINT8 ui8NalHrdBpPresentFlag,
-	IMG_UINT8 ui8nal_cpb_cnt_minus1,
-	IMG_UINT8 ui8nal_initial_cpb_removal_delay_length,
-	IMG_UINT32 ui32nal_initial_cpb_removal_delay,
-	IMG_UINT32 ui32nal_initial_cpb_removal_delay_offset,
-	IMG_UINT8 ui8VclHrdBpPresentFlag,
-	IMG_UINT8 ui8vcl_cpb_cnt_minus1,
-	IMG_UINT32 ui32vcl_initial_cpb_removal_delay,
-	IMG_UINT32 ui32vcl_initial_cpb_removal_delay_offset)
+void pnw__H264_prepare_SEI_buffering_period_header(
+    MTX_HEADER_PARAMS * pMTX_Header,
+    IMG_UINT8 ui8NalHrdBpPresentFlag,
+    IMG_UINT8 ui8nal_cpb_cnt_minus1,
+    IMG_UINT8 ui8nal_initial_cpb_removal_delay_length,
+    IMG_UINT32 ui32nal_initial_cpb_removal_delay,
+    IMG_UINT32 ui32nal_initial_cpb_removal_delay_offset,
+    IMG_UINT8 ui8VclHrdBpPresentFlag,
+    IMG_UINT8 ui8vcl_cpb_cnt_minus1,
+    IMG_UINT32 ui32vcl_initial_cpb_removal_delay,
+    IMG_UINT32 ui32vcl_initial_cpb_removal_delay_offset)
 {
     // Essential we initialise our header structures before building
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
-    pMTX_Header->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
-    aui32ElementPointers[0]=This_Element;
+    pMTX_Header->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
+    aui32ElementPointers[0] = This_Element;
 
     pnw__H264_writebits_SEI_buffering_period_header(
-	    pMTX_Header, aui32ElementPointers,
-	    ui8NalHrdBpPresentFlag,
-	    ui8nal_cpb_cnt_minus1,
-	    ui8nal_initial_cpb_removal_delay_length,
-	    ui32nal_initial_cpb_removal_delay,
-	    ui32nal_initial_cpb_removal_delay_offset,
-	    ui8VclHrdBpPresentFlag,
-	    ui8vcl_cpb_cnt_minus1,
-	    ui32vcl_initial_cpb_removal_delay,
-	    ui32vcl_initial_cpb_removal_delay_offset);
+        pMTX_Header, aui32ElementPointers,
+        ui8NalHrdBpPresentFlag,
+        ui8nal_cpb_cnt_minus1,
+        ui8nal_initial_cpb_removal_delay_length,
+        ui32nal_initial_cpb_removal_delay,
+        ui32nal_initial_cpb_removal_delay_offset,
+        ui8VclHrdBpPresentFlag,
+        ui8vcl_cpb_cnt_minus1,
+        ui32vcl_initial_cpb_removal_delay,
+        ui32vcl_initial_cpb_removal_delay_offset);
 
     pMTX_Header->Elements++;
     //Has been used as an index, so need to add 1 for a valid element count
     return;
 }
 
-void pnw__H264_prepare_SEI_picture_timing_header(	
-	MTX_HEADER_PARAMS * pMTX_Header,
-	IMG_UINT8 ui8CpbDpbDelaysPresentFlag,
-	IMG_UINT32 ui32cpb_removal_delay_length_minus1,
-	IMG_UINT32 ui32dpb_output_delay_length_minus1,
-	IMG_UINT32 ui32cpb_removal_delay,
-	IMG_UINT32 ui32dpb_output_delay,
-	IMG_UINT8 ui8pic_struct_present_flag,
-	IMG_UINT8 ui8pic_struct,
-	IMG_UINT8 ui8NumClockTS,
-	IMG_UINT8 *aui8clock_timestamp_flag,
-	IMG_UINT8 ui8full_timestamp_flag,
-	IMG_UINT8 ui8seconds_flag,
-	IMG_UINT8 ui8minutes_flag,
-	IMG_UINT8 ui8hours_flag,
-	IMG_UINT8 ui8seconds_value,
-	IMG_UINT8 ui8minutes_value,
-	IMG_UINT8 ui8hours_value,
-	IMG_UINT8 ui8ct_type,
-	IMG_UINT8 ui8nuit_field_based_flag,
-	IMG_UINT8 ui8counting_type,
-	IMG_UINT8 ui8discontinuity_flag,
-	IMG_UINT8 ui8cnt_dropped_flag,
-	IMG_UINT8 ui8n_frames,
-	IMG_UINT8 ui8time_offset_length,
-	IMG_INT32 i32time_offset)
+void pnw__H264_prepare_SEI_picture_timing_header(
+    MTX_HEADER_PARAMS * pMTX_Header,
+    IMG_UINT8 ui8CpbDpbDelaysPresentFlag,
+    IMG_UINT32 ui32cpb_removal_delay_length_minus1,
+    IMG_UINT32 ui32dpb_output_delay_length_minus1,
+    IMG_UINT32 ui32cpb_removal_delay,
+    IMG_UINT32 ui32dpb_output_delay,
+    IMG_UINT8 ui8pic_struct_present_flag,
+    IMG_UINT8 ui8pic_struct,
+    IMG_UINT8 ui8NumClockTS,
+    IMG_UINT8 *aui8clock_timestamp_flag,
+    IMG_UINT8 ui8full_timestamp_flag,
+    IMG_UINT8 ui8seconds_flag,
+    IMG_UINT8 ui8minutes_flag,
+    IMG_UINT8 ui8hours_flag,
+    IMG_UINT8 ui8seconds_value,
+    IMG_UINT8 ui8minutes_value,
+    IMG_UINT8 ui8hours_value,
+    IMG_UINT8 ui8ct_type,
+    IMG_UINT8 ui8nuit_field_based_flag,
+    IMG_UINT8 ui8counting_type,
+    IMG_UINT8 ui8discontinuity_flag,
+    IMG_UINT8 ui8cnt_dropped_flag,
+    IMG_UINT8 ui8n_frames,
+    IMG_UINT8 ui8time_offset_length,
+    IMG_INT32 i32time_offset)
 {
     // Essential we initialise our header structures before building
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
-    pMTX_Header->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
-    aui32ElementPointers[0]=This_Element;
+    pMTX_Header->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
+    aui32ElementPointers[0] = This_Element;
 
     pnw__H264_writebits_SEI_picture_timing_header(
-	    pMTX_Header, aui32ElementPointers,
-	    ui8CpbDpbDelaysPresentFlag,
-	    ui32cpb_removal_delay_length_minus1,
-	    ui32dpb_output_delay_length_minus1,
-	    ui32cpb_removal_delay,
-	    ui32dpb_output_delay,
-	    ui8pic_struct_present_flag,
-	    ui8pic_struct,
-	    ui8NumClockTS,
-	    aui8clock_timestamp_flag,
-	    ui8full_timestamp_flag,
-	    ui8seconds_flag,
-	    ui8minutes_flag,
-	    ui8hours_flag,
-	    ui8seconds_value,
-	    ui8minutes_value,
-	    ui8hours_value,
-	    ui8ct_type,
-	    ui8nuit_field_based_flag,
-	    ui8counting_type,
-	    ui8discontinuity_flag,
-	    ui8cnt_dropped_flag,
-	    ui8n_frames,
-	    ui8time_offset_length,
-	    i32time_offset);
+        pMTX_Header, aui32ElementPointers,
+        ui8CpbDpbDelaysPresentFlag,
+        ui32cpb_removal_delay_length_minus1,
+        ui32dpb_output_delay_length_minus1,
+        ui32cpb_removal_delay,
+        ui32dpb_output_delay,
+        ui8pic_struct_present_flag,
+        ui8pic_struct,
+        ui8NumClockTS,
+        aui8clock_timestamp_flag,
+        ui8full_timestamp_flag,
+        ui8seconds_flag,
+        ui8minutes_flag,
+        ui8hours_flag,
+        ui8seconds_value,
+        ui8minutes_value,
+        ui8hours_value,
+        ui8ct_type,
+        ui8nuit_field_based_flag,
+        ui8counting_type,
+        ui8discontinuity_flag,
+        ui8cnt_dropped_flag,
+        ui8n_frames,
+        ui8time_offset_length,
+        i32time_offset);
 
-    pMTX_Header->Elements++; 
+    pMTX_Header->Elements++;
     //Has been used as an index, so need to add 1 for a valid element count
     return;
 }
@@ -2606,12 +2570,12 @@ void pnw__H264_prepare_sequence_header(
     IMG_UINT32 *pHeaderMemory,
     IMG_UINT32 uiPicWidthInMbs,
     IMG_UINT32 uiPicHeightInMbs,
-    IMG_BOOL VUI_present,H264_VUI_PARAMS *VUI_params,
+    IMG_BOOL VUI_present, H264_VUI_PARAMS *VUI_params,
     H264_CROP_PARAMS *psCropParams,
     IMG_UINT8 uiLevel,
     IMG_UINT8 uiProfile)
 {
-    H264_SEQUENCE_HEADER_PARAMS	SHParams = {0,};
+    H264_SEQUENCE_HEADER_PARAMS	SHParams = {0, };
     MTX_HEADER_PARAMS	*mtx_hdr;
 
     /* Route output elements to memory provided */
@@ -2619,65 +2583,64 @@ void pnw__H264_prepare_sequence_header(
 
     /* Setup Sequence Header information  */
 
-     
-    switch (uiProfile)
-    {
-        case 5:
-            SHParams.ucProfile  = SH_PROFILE_BP;
-            break;
-        case 6:
-            SHParams.ucProfile  = SH_PROFILE_MP;    
-            break;
-        default:
-            SHParams.ucProfile  = SH_PROFILE_MP;
-            break;
+
+    switch (uiProfile) {
+    case 5:
+        SHParams.ucProfile  = SH_PROFILE_BP;
+        break;
+    case 6:
+        SHParams.ucProfile  = SH_PROFILE_MP;
+        break;
+    default:
+        SHParams.ucProfile  = SH_PROFILE_MP;
+        break;
     }
 
-    switch (uiLevel)
-    {
-        case 10:
-          SHParams.ucLevel =  SH_LEVEL_1;
-          break;
-        case 111:
-          SHParams.ucLevel =  SH_LEVEL_1B;
-          break;
-	case 11:
-	  SHParams.ucLevel =  SH_LEVEL_11;
-	  break;
-	case 12:
-	  SHParams.ucLevel =  SH_LEVEL_12;
-	  break;  
-        case 20:
-          SHParams.ucLevel =  SH_LEVEL_2;
-          break;
-        case 30:
-          SHParams.ucLevel =  SH_LEVEL_3;
-          break;
-        case 31:
-          SHParams.ucLevel =  SH_LEVEL_31;  
-          break;
-	case 40:
-	  SHParams.ucLevel =  SH_LEVEL_4;
-	  break;
-	case 41:
-	  SHParams.ucLevel =  SH_LEVEL_41;
-	  break;
-        default:
-          SHParams.ucLevel =  SH_LEVEL_3;
-          break;
-    }  
-    
-    SHParams.ucWidth_in_mbs_minus1 = (IMG_UINT8) (uiPicWidthInMbs-1);
-    SHParams.ucHeight_in_maps_units_minus1 = (IMG_UINT8) (uiPicHeightInMbs-1);
+    switch (uiLevel) {
+    case 10:
+        SHParams.ucLevel =  SH_LEVEL_1;
+        break;
+    case 111:
+        SHParams.ucLevel =  SH_LEVEL_1B;
+        break;
+    case 11:
+        SHParams.ucLevel =  SH_LEVEL_11;
+        break;
+    case 12:
+        SHParams.ucLevel =  SH_LEVEL_12;
+        break;
+    case 20:
+        SHParams.ucLevel =  SH_LEVEL_2;
+        break;
+    case 30:
+        SHParams.ucLevel =  SH_LEVEL_3;
+        break;
+    case 31:
+        SHParams.ucLevel =  SH_LEVEL_31;
+        break;
+    case 40:
+        SHParams.ucLevel =  SH_LEVEL_4;
+        break;
+    case 41:
+        SHParams.ucLevel =  SH_LEVEL_41;
+        break;
+    default:
+        SHParams.ucLevel =  SH_LEVEL_3;
+        break;
+    }
+
+    SHParams.ucWidth_in_mbs_minus1 = (IMG_UINT8)(uiPicWidthInMbs - 1);
+    SHParams.ucHeight_in_maps_units_minus1 = (IMG_UINT8)(uiPicHeightInMbs - 1);
     SHParams.VUI_Params_Present	= VUI_present;
-    SHParams.VUI_Params = *VUI_params;
+    if (VUI_present)
+	SHParams.VUI_Params = *VUI_params;
     SHParams.gaps_in_frame_num_value = IMG_FALSE;
     SHParams.ucFrame_mbs_only_flag = IMG_TRUE;
 
     /* All picture header information is static
      * (apart from 'pic_init_qp_minus26' and 'rsbp_byte_align' fields, which are set in MTX anyway)
      */
- 
+
     /* Clears ensures elementstream memory is zeroed.. not necessary, but makes it easier to debug
      * for (Lp=0;Lp<MAX_HEADERSIZEWORDS-1;Lp++) MTX_Header.asElementStream[Lp]=0;
      */
@@ -2689,7 +2652,7 @@ void pnw__H264_prepare_sequence_header(
 #endif
 
     /* Functions that actually pack Elements (MTX_HEADER_PARAMS structure) with header information */
-    pnw__H264_getelements_sequence_header(mtx_hdr,&SHParams, psCropParams);
+    pnw__H264_getelements_sequence_header(mtx_hdr, &SHParams, psCropParams);
 }
 
 void pnw__H264_prepare_picture_header(IMG_UINT32 *pHeaderMemory, IMG_BOOL bCabacEnabled, IMG_INT8 CQPOffset)
@@ -2705,13 +2668,13 @@ void pnw__H264_prepare_picture_header(IMG_UINT32 *pHeaderMemory, IMG_BOOL bCabac
      */
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    mtx_hdr->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0]=This_Element;
- 
+    mtx_hdr->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+    elt_p[0] = This_Element;
+
     pnw__H264_writebits_picture_header(mtx_hdr, elt_p, bCabacEnabled,
-	    0, 0, 
-	    CQPOffset, CQPOffset);
+                                       0, 0,
+                                       CQPOffset, CQPOffset);
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 
@@ -2723,7 +2686,10 @@ void pnw__H264_prepare_slice_header(
     IMG_UINT32 uiFirst_MB_Address,
     IMG_UINT32 uiMBSkipRun,
     IMG_BOOL bCabacEnabled,
-    IMG_BOOL bForceIDR)
+    IMG_BOOL bForceIDR,
+    IMG_BOOL bUsesLongTermRef,
+    IMG_BOOL bIsLongTermRef,
+    IMG_UINT16 uiIdrPicId)
 {
     H264_SLICE_HEADER_PARAMS SlHParams = {0};
     MTX_HEADER_PARAMS *mtx_hdr;
@@ -2732,15 +2698,18 @@ void pnw__H264_prepare_slice_header(
     mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
 
     SlHParams.Start_Code_Prefix_Size_Bytes = 4;
+    SlHParams.UsesLongTermRef = bUsesLongTermRef;
+    SlHParams.IsLongTermRef = bIsLongTermRef;
 
-    if (bForceIDR || (uiFrameNumber == 0) )
-	SlHParams.SliceFrame_Type = SLHP_IDR_SLICEFRAME_TYPE;
-    else
-	SlHParams.SliceFrame_Type = bIntraSlice ? SLHP_I_SLICEFRAME_TYPE : SLHP_P_SLICEFRAME_TYPE;
+    if (bForceIDR || (uiFrameNumber == 0)) {
+        psb__information_message("TOPAZ: Generate a IDR slice\n");
+        SlHParams.SliceFrame_Type = SLHP_IDR_SLICEFRAME_TYPE;
+    } else
+        SlHParams.SliceFrame_Type = bIntraSlice ? SLHP_I_SLICEFRAME_TYPE : SLHP_P_SLICEFRAME_TYPE;
 
     /*SlHParams.SliceFrame_Type =	bIntraSlice ? (((uiFrameNumber%(1<<5))==0) ? SLHP_IDR_SLICEFRAME_TYPE :SLHP_I_SLICEFRAME_TYPE ) : SLHP_P_SLICEFRAME_TYPE;*/
-    SlHParams.Frame_Num_DO = (IMG_UINT8) uiFrameNumber%(1<<5);
-    SlHParams.Picture_Num_DO = (IMG_UINT8) (SlHParams.Frame_Num_DO * 2);
+    SlHParams.Frame_Num_DO = (IMG_UINT8) uiFrameNumber % (1 << 5);
+    SlHParams.Picture_Num_DO = (IMG_UINT8)(SlHParams.Frame_Num_DO * 2);
 
 
     SlHParams.First_MB_Address	=  uiFirst_MB_Address;
@@ -2749,16 +2718,16 @@ void pnw__H264_prepare_slice_header(
     {
         IMG_UINT32	*pMTX_Header_Mem = (IMG_UINT32 *)mtx_hdr;
         // rhk: first insert normal header.
-        pnw__H264_getelements_slice_header(mtx_hdr, &SlHParams, bCabacEnabled);
+        pnw__H264_getelements_slice_header(mtx_hdr, &SlHParams, bCabacEnabled, uiIdrPicId);
 
-        // put a marker to indicate that this is a complex header	
+        // put a marker to indicate that this is a complex header
         // note that first "int" in the buffer is used for number of elements
         // which is not going to be more than 255
         *pMTX_Header_Mem |= 0x100;
-        
+
         // rhk: insert skipped frame header at an offset of 128 bytes
         pMTX_Header_Mem += (HEADER_SIZE >> 3);	// get a pointer to the second half of memory
-        mtx_hdr = (MTX_HEADER_PARAMS *)pMTX_Header_Mem;		
+        mtx_hdr = (MTX_HEADER_PARAMS *)pMTX_Header_Mem;
         pnw__H264_getelements_skip_P_slice(mtx_hdr, &SlHParams, uiMBSkipRun, bCabacEnabled);
     }
 
@@ -2766,32 +2735,32 @@ void pnw__H264_prepare_slice_header(
 
 //void pnw__H264_prepare_eodofstream_header(IMG_UINT32 *pHeaderMemory)
 //{
-    //MTX_HEADER_PARAMS *mtx_hdr;
+//MTX_HEADER_PARAMS *mtx_hdr;
 //
-    ///* Route output elements to memory provided */
-    //mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
+///* Route output elements to memory provided */
+//mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
 //
-    //pnw__H264_getelements_endofstream_header(mtx_hdr);
+//pnw__H264_getelements_endofstream_header(mtx_hdr);
 //}
 
 //void pnw__H264_prepare_endofpicture_header(IMG_UINT32 *pHeaderMemory)
 //{
-    //MTX_HEADER_PARAMS *mtx_hdr;
+//MTX_HEADER_PARAMS *mtx_hdr;
 //
-    ///* Route output elements to memory provided */
-    //mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
+///* Route output elements to memory provided */
+//mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
 //
-    ///* H264_GetElements_EndOfPicture_Header(MTX_Header); */
+///* H264_GetElements_EndOfPicture_Header(MTX_Header); */
 //}
 
 //void pnw__H264_prepare_endofsequence_header(IMG_UINT32 *pHeaderMemory)
 //{
-    //MTX_HEADER_PARAMS *mtx_hdr;
+//MTX_HEADER_PARAMS *mtx_hdr;
 //
-    ///* Route output elements to memory provided */
-    //mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
+///* Route output elements to memory provided */
+//mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
 //
-    //pnw__H264_getelements_endofsequence_header(mtx_hdr);
+//pnw__H264_getelements_endofsequence_header(mtx_hdr);
 //}
 
 void pnw__MPEG4_prepare_sequence_header(
@@ -2814,10 +2783,10 @@ void pnw__MPEG4_prepare_sequence_header(
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    mtx_hdr->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0]=This_Element;
- 
+    mtx_hdr->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+    elt_p[0] = This_Element;
+
     pnw__MPEG4_writebits_sequence_header(
         mtx_hdr,
         elt_p,
@@ -2826,7 +2795,7 @@ void pnw__MPEG4_prepare_sequence_header(
         sFixed_vop_time_increment,
         Picture_Width_Pixels,
         Picture_Height_Pixels,
-        psVBVParams,VopTimeResolution);
+        psVBVParams, VopTimeResolution);
 
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 
@@ -2848,9 +2817,9 @@ void pnw__MPEG4_prepare_vop_header(
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    mtx_hdr->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0]=This_Element;
+    mtx_hdr->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+    elt_p[0] = This_Element;
 
     /* Frame QScale no longer written here as it is inserted by MTX later
      * (add as parameter to MTX_Send_Elements_To_VLC)
@@ -2879,10 +2848,10 @@ void pnw__H263_prepare_sequence_header(
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    mtx_hdr->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0]=This_Element;
- 
+    mtx_hdr->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+    elt_p[0] = This_Element;
+
     H263_writebits_VideoSequenceHeader(mtx_hdr, elt_p, Profile_and_level_indication);
 
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
@@ -2905,9 +2874,9 @@ void pnw__H263_prepare_picture_header(
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    mtx_hdr->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0]=This_Element;
+    mtx_hdr->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+    elt_p[0] = This_Element;
 
     H263_writebits_VideoPictureHeader(
         mtx_hdr, elt_p,
@@ -2933,9 +2902,9 @@ void pnw__H263_prepare_GOBslice_header(
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-    mtx_hdr->Elements=ELEMENTS_EMPTY;
-    This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0]=This_Element;
+    mtx_hdr->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
+    elt_p[0] = This_Element;
 
     H263_writebits_GOBSliceHeader(mtx_hdr, elt_p, GOBNumber, GOBFrameId);
 

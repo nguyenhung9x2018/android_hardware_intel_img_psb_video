@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -46,7 +46,7 @@ static void pnw_MPEG4ES_QueryConfigAttributes(
     VAProfile profile,
     VAEntrypoint entrypoint,
     VAConfigAttrib *attrib_list,
-    int num_attribs )
+    int num_attribs)
 {
     int i;
 
@@ -57,23 +57,23 @@ static void pnw_MPEG4ES_QueryConfigAttributes(
         switch (attrib_list[i].type) {
         case VAConfigAttribRTFormat:
             break;
-                
+
         case VAConfigAttribRateControl:
             attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR;
             break;
-              
+
         default:
             attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
             break;
         }
     }
-    
+
     return;
 }
 
 
 static VAStatus pnw_MPEG4ES_ValidateConfig(
-    object_config_p obj_config )
+    object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     psb__information_message("pnw_MPEG4ES_ValidateConfig\n");
@@ -85,7 +85,7 @@ static VAStatus pnw_MPEG4ES_ValidateConfig(
 
 static VAStatus pnw_MPEG4ES_CreateContext(
     object_context_p obj_context,
-    object_config_p obj_config )
+    object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_p ctx;
@@ -95,13 +95,13 @@ static VAStatus pnw_MPEG4ES_CreateContext(
     psb__information_message("pnw_MPEG4ES_CreateContext\n");
 
     vaStatus = pnw_CreateContext(obj_context, obj_config, 0);
-    if(VA_STATUS_SUCCESS != vaStatus) 
+    if (VA_STATUS_SUCCESS != vaStatus)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
     ctx = (context_ENC_p) obj_context->format_data;
 
     for (i = 0; i < obj_config->attrib_count; i++) {
-        if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
+        if (obj_config->attrib_list[i].type == VAConfigAttribRateControl)
             break;
     }
 
@@ -114,16 +114,13 @@ static VAStatus pnw_MPEG4ES_CreateContext(
     if (eRCmode == VA_RC_VBR) {
         ctx->eCodec = IMG_CODEC_MPEG4_VBR;
         ctx->sRCParams.RCEnable = IMG_TRUE;
-    }
-    else if (eRCmode == VA_RC_CBR) {
+    } else if (eRCmode == VA_RC_CBR) {
         ctx->eCodec = IMG_CODEC_MPEG4_CBR;
         ctx->sRCParams.RCEnable = IMG_TRUE;
-    }
-    else if (eRCmode == VA_RC_NONE) {
+    } else if (eRCmode == VA_RC_NONE) {
         ctx->eCodec = IMG_CODEC_MPEG4_NO_RC;
         ctx->sRCParams.RCEnable = IMG_FALSE;
-    }
-    else
+    } else
         return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
     ctx->eFormat = IMG_CODEC_PL12;
 
@@ -132,17 +129,16 @@ static VAStatus pnw_MPEG4ES_CreateContext(
 
     ctx->IPEControl = pnw__get_ipe_control(ctx->eCodec);
 
-    switch (obj_config->profile)
-    {
-	case VAProfileMPEG4Simple:
-	    ctx->profile_idc = 2;
-	    break;
-	case VAProfileMPEG4AdvancedSimple:
-	    ctx->profile_idc = 3;
-	    break;
-	default:
-	    ctx->profile_idc = 2; 
-	    break;   
+    switch (obj_config->profile) {
+    case VAProfileMPEG4Simple:
+        ctx->profile_idc = 2;
+        break;
+    case VAProfileMPEG4AdvancedSimple:
+        ctx->profile_idc = 3;
+        break;
+    default:
+        ctx->profile_idc = 2;
+        break;
     }
 
     return vaStatus;
@@ -166,7 +162,7 @@ static VAStatus pnw_MPEG4ES_BeginPicture(
     psb__information_message("pnw_MPEG4ES_BeginPicture\n");
 
     vaStatus = pnw_BeginPicture(ctx);
-  
+
     return vaStatus;
 }
 
@@ -183,7 +179,7 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferMPEG4));
 
     if ((obj_buffer->num_elements != 1) ||
-        (obj_buffer->size != sizeof(VAEncSequenceParameterBufferMPEG4))) {
+            (obj_buffer->size != sizeof(VAEncSequenceParameterBufferMPEG4))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -191,64 +187,60 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
-    if (seq_params->bits_per_second > TOPAZ_MPEG4_MAX_BITRATE)
-    {
-	ctx->sRCParams.BitsPerSecond = TOPAZ_MPEG4_MAX_BITRATE;
-	psb__information_message(" bits_per_second(%d) exceeds \
-		the maximum bitrate, set it with %d\n", 
-		seq_params->bits_per_second,
-		TOPAZ_MPEG4_MAX_BITRATE);
-    }
-    else
-	ctx->sRCParams.BitsPerSecond = seq_params->bits_per_second;
+    if (seq_params->bits_per_second > TOPAZ_MPEG4_MAX_BITRATE) {
+        ctx->sRCParams.BitsPerSecond = TOPAZ_MPEG4_MAX_BITRATE;
+        psb__information_message(" bits_per_second(%d) exceeds \
+		the maximum bitrate, set it with %d\n",
+                                 seq_params->bits_per_second,
+                                 TOPAZ_MPEG4_MAX_BITRATE);
+    } else
+        ctx->sRCParams.BitsPerSecond = seq_params->bits_per_second;
 
     ctx->sRCParams.FrameRate = seq_params->frame_rate;
     ctx->sRCParams.InitialQp = seq_params->initial_qp;
     ctx->sRCParams.MinQP = seq_params->min_qp;
     ctx->sRCParams.BUSize = 0;	/* default 0, and will be set in pnw__setup_busize */
- 
+
     ctx->sRCParams.Slices = 1;
     ctx->sRCParams.QCPOffset = 0;/* FIXME */
     ctx->sRCParams.IntraFreq = seq_params->intra_period;
 
-   /* if (ctx->sRCParams.BitsPerSecond < 256000)
-        ctx->sRCParams.BufferSize = (9 * ctx->sRCParams.BitsPerSecond) >> 1;
-    else
-        ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
+    /* if (ctx->sRCParams.BitsPerSecond < 256000)
+         ctx->sRCParams.BufferSize = (9 * ctx->sRCParams.BitsPerSecond) >> 1;
+     else
+         ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
 
     ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond;
     ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
     ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
 
-    if(ctx->obj_context->frame_count == 0)/* Add Register IO behind begin Picture */ 
-    {
-	pnw__UpdateRCBitsTransmitted(ctx);
-	for(i = (ctx->ParallelCores - 1); i >= 0; i--) {
-	    pnw_set_bias(ctx, i);
-	}
-	/* This is needed in old firmware, now is no needed any more */
-	//ctx->initial_qp_in_cmdbuf = cmdbuf->cmd_idx; /* remember the place */
-	//cmdbuf->cmd_idx++;
+    if (ctx->obj_context->frame_count == 0) { /* Add Register IO behind begin Picture */
+        pnw__UpdateRCBitsTransmitted(ctx);
+        for (i = (ctx->ParallelCores - 1); i >= 0; i--) {
+            pnw_set_bias(ctx, i);
+        }
+        /* This is needed in old firmware, now is no needed any more */
+        //ctx->initial_qp_in_cmdbuf = cmdbuf->cmd_idx; /* remember the place */
+        //cmdbuf->cmd_idx++;
     }
 
     cmdbuf = ctx->obj_context->pnw_cmdbuf;
 
-    switch (ctx->profile_idc)
-    {
-	case 2:
-	    profile = SP;
-	    break;
-	case 3:
-	    profile = ASP;
-	    break;
-	default:
-	    profile = SP;
-	    break;
+    switch (ctx->profile_idc) {
+    case 2:
+        profile = SP;
+        break;
+    case 3:
+        profile = ASP;
+        break;
+    default:
+        profile = SP;
+        break;
     }
-     
+
     memset(cmdbuf->header_mem_p + ctx->seq_header_ofs,
-	    0,
-	    HEADER_SIZE);
+           0,
+           HEADER_SIZE);
 
     pnw__MPEG4_prepare_sequence_header(
         cmdbuf->header_mem_p + ctx->seq_header_ofs,
@@ -286,9 +278,8 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
 
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
-    if((obj_buffer->num_elements != 1) ||
-       (obj_buffer->size != sizeof(VAEncPictureParameterBufferMPEG4)))
-    {
+    if ((obj_buffer->num_elements != 1) ||
+            (obj_buffer->size != sizeof(VAEncPictureParameterBufferMPEG4))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -316,18 +307,18 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
 
     pnw__MPEG4_prepare_vop_header(pPictureHeaderMem,
                                   bIsVOPCoded,
-                                  pBuffer->vop_time_increment, /* In testbench, this should be FrameNum */ 
+                                  pBuffer->vop_time_increment, /* In testbench, this should be FrameNum */
                                   4,/* default value is 4,search range */
                                   pBuffer->picture_type,
                                   ctx->MPEG4_vop_time_increment_resolution/* defaule value */);
 
     /* Mark this header as a complex header */
     psPicHeader->Elements |= 0x100;
-    pPictureHeaderMem += ( (HEADER_SIZE)  >> 3);
+    pPictureHeaderMem += ((HEADER_SIZE)  >> 3);
 
     pnw__MPEG4_prepare_vop_header(pPictureHeaderMem,
                                   IMG_FALSE,
-                                  pBuffer->vop_time_increment, /* In testbench, this should be FrameNum */ 
+                                  pBuffer->vop_time_increment, /* In testbench, this should be FrameNum */
                                   4,/* default value is 4,search range */
                                   pBuffer->picture_type,
                                   ctx->MPEG4_vop_time_increment_resolution/* defaule value */);
@@ -339,7 +330,7 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
                                       ctx->pic_header_ofs);
 
     /* Prepare START_PICTURE params */
-    for(i = (ctx->ParallelCores - 1); i >= 0; i--)
+    for (i = (ctx->ParallelCores - 1); i >= 0; i--)
         vaStatus = pnw_RenderPictureParameter(ctx, i);
 
     free(pBuffer);
@@ -359,89 +350,82 @@ static VAStatus pnw__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
 
     pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
 
-    if (0 == pBuffer->start_row_number)
-    {
-	if (pBuffer->slice_flags.bits.is_intra) 
-	    RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_I);
-	else
-	    RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_P);
+    if (0 == pBuffer->start_row_number) {
+        if (pBuffer->slice_flags.bits.is_intra)
+            RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_I);
+        else
+            RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_P);
     }
 
     /*In case the slice number changes*/
-    if ( (ctx->slice_param_cache != NULL ) && (obj_buffer->num_elements != ctx->slice_param_num))
-    {
-	psb__information_message("Slice number changes. Previous value is %d. Now it's %d\n", 
-		ctx->slice_param_num, obj_buffer->num_elements);
-	free(ctx->slice_param_cache);
-	ctx->slice_param_cache = NULL;
-	ctx->slice_param_num = 0;
-    }	
+    if ((ctx->slice_param_cache != NULL) && (obj_buffer->num_elements != ctx->slice_param_num)) {
+        psb__information_message("Slice number changes. Previous value is %d. Now it's %d\n",
+                                 ctx->slice_param_num, obj_buffer->num_elements);
+        free(ctx->slice_param_cache);
+        ctx->slice_param_cache = NULL;
+        ctx->slice_param_num = 0;
+    }
 
-    if (NULL == ctx->slice_param_cache)
-    {
-	psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num); 
-	ctx->slice_param_num = obj_buffer->num_elements;
-	ctx->slice_param_cache = calloc( 2*ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
-	if (NULL == ctx->slice_param_cache)
-	{
-	    psb__error_message("Run out of memory!\n");
-	    free(obj_buffer->buffer_data);
-	    return VA_STATUS_ERROR_ALLOCATION_FAILED;
-	}
+    if (NULL == ctx->slice_param_cache) {
+        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num);
+        ctx->slice_param_num = obj_buffer->num_elements;
+        ctx->slice_param_cache = calloc(2 * ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
+        if (NULL == ctx->slice_param_cache) {
+            psb__error_message("Run out of memory!\n");
+            free(obj_buffer->buffer_data);
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        }
     }
 
 
-    for(i = 0; i < obj_buffer->num_elements; i++) {
+    for (i = 0; i < obj_buffer->num_elements; i++) {
 
         unsigned char deblock_idc;
 
         deblock_idc = pBuffer->slice_flags.bits.disable_deblocking_filter_idc;
 
-        if((ctx->NumCores > 1) && (deblock_idc == 0))
-            deblock_idc = 2;
-
         if ((pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra) {
-                pnw_reset_encoder_params(ctx);
-                ctx->BelowParamsBufIdx = (ctx->BelowParamsBufIdx + 1) & 0x1;
+            pnw_reset_encoder_params(ctx);
+            ctx->BelowParamsBufIdx = (ctx->BelowParamsBufIdx + 1) & 0x1;
         }
 
-	/*The corresponding slice buffer cache*/
-	slice_param_idx = (pBuffer->slice_flags.bits.is_intra ? 0:1) * ctx->slice_param_num + i; 
+        /*The corresponding slice buffer cache*/
+        slice_param_idx = (pBuffer->slice_flags.bits.is_intra ? 0 : 1) * ctx->slice_param_num + i;
 
-	if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[slice_param_idx],pBuffer) == 0) {
-	    /* cache current param parameters */
-	    memcpy(&ctx->slice_param_cache[slice_param_idx],
-		    pBuffer, sizeof(VAEncSliceParameterBuffer));
+        if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[slice_param_idx], pBuffer) == 0) {
+            /* cache current param parameters */
+            memcpy(&ctx->slice_param_cache[slice_param_idx],
+                   pBuffer, sizeof(VAEncSliceParameterBuffer));
 
-	    /* Setup InParams value*/
-	    pnw_setup_slice_params(ctx,
-		    pBuffer->start_row_number * 16,
-		    pBuffer->slice_height*16,
-		    pBuffer->slice_flags.bits.is_intra,
-		    ctx->obj_context->frame_count > 0,
-		    psPicParams->sInParams.SeInitQP);
-	}
+            /* Setup InParams value*/
+            pnw_setup_slice_params(ctx,
+                                   pBuffer->start_row_number * 16,
+                                   pBuffer->slice_height*16,
+                                   pBuffer->slice_flags.bits.is_intra,
+                                   ctx->obj_context->frame_count > 0,
+                                   psPicParams->sInParams.SeInitQP);
+        }
 
-	pnw__send_encode_slice_params(ctx,
-		pBuffer->slice_flags.bits.is_intra,
-		pBuffer->start_row_number * 16,
+        pnw__send_encode_slice_params(ctx,
+                                      pBuffer->slice_flags.bits.is_intra,
+                                      pBuffer->start_row_number * 16,
                                       deblock_idc,
                                       ctx->obj_context->frame_count,
                                       pBuffer->slice_height*16,
                                       ctx->obj_context->slice_count);
 
-        psb__information_message("Now frame_count/slice_count is %d/%d\n", 
+        psb__information_message("Now frame_count/slice_count is %d/%d\n",
                                  ctx->obj_context->frame_count, ctx->obj_context->slice_count);
 
         ctx->obj_context->slice_count++;
-	pBuffer++;
+        pBuffer++;
 
-	ASSERT(ctx->obj_context->slice_count < MAX_SLICES_PER_PICTURE);
+        ASSERT(ctx->obj_context->slice_count < MAX_SLICES_PER_PICTURE);
     }
 
     free(obj_buffer->buffer_data);
     obj_buffer->buffer_data = NULL;
-    
+
     return vaStatus;
 }
 
@@ -454,25 +438,25 @@ static VAStatus pnw_MPEG4ES_RenderPicture(
     INIT_CONTEXT_MPEG4ES;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i;
-    
+
     psb__information_message("pnw_MPEG4ES_RenderPicture\n");
 
-    for (i=0; i<num_buffers; i++) {
+    for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
-        
+
         switch (obj_buffer->type) {
         case VAEncSequenceParameterBufferType:
             psb__information_message("pnw_MPEG4ES_RenderPicture got VAEncSequenceParameterBufferType\n");
             vaStatus = pnw__MPEG4ES_process_sequence_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
-              
+
         case VAEncPictureParameterBufferType:
             psb__information_message("pnw_MPEG4ES_RenderPicture got VAEncPictureParameterBufferType\n");
             vaStatus = pnw__MPEG4ES_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
-                
+
         case VAEncSliceParameterBufferType:
             psb__information_message("pnw_MPEG4ES_RenderPicture got VAEncSliceParameterBufferType\n");
             vaStatus = pnw__MPEG4ES_process_slice_param(ctx, obj_buffer);
@@ -483,7 +467,7 @@ static VAStatus pnw_MPEG4ES_RenderPicture(
             DEBUG_FAILURE;
         }
     }
-    
+
     return vaStatus;
 }
 
@@ -498,11 +482,18 @@ static VAStatus pnw_MPEG4ES_EndPicture(
 
 
 struct format_vtable_s pnw_MPEG4ES_vtable = {
-  queryConfigAttributes: pnw_MPEG4ES_QueryConfigAttributes,
-  validateConfig: pnw_MPEG4ES_ValidateConfig,
-  createContext: pnw_MPEG4ES_CreateContext,
-  destroyContext: pnw_MPEG4ES_DestroyContext,
-  beginPicture: pnw_MPEG4ES_BeginPicture,
-  renderPicture: pnw_MPEG4ES_RenderPicture,
-  endPicture: pnw_MPEG4ES_EndPicture
+queryConfigAttributes:
+    pnw_MPEG4ES_QueryConfigAttributes,
+validateConfig:
+    pnw_MPEG4ES_ValidateConfig,
+createContext:
+    pnw_MPEG4ES_CreateContext,
+destroyContext:
+    pnw_MPEG4ES_DestroyContext,
+beginPicture:
+    pnw_MPEG4ES_BeginPicture,
+renderPicture:
+    pnw_MPEG4ES_RenderPicture,
+endPicture:
+    pnw_MPEG4ES_EndPicture
 };

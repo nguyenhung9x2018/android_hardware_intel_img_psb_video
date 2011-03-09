@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -36,70 +36,90 @@
 #define __DXVA_CMDSEQ_MSG_H__
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-/* Deblock parameters */
-typedef struct {
-	uint32_t handle;	/* struct ttm_buffer_object * of REGIO */
-	uint32_t buffer_size;
-	uint32_t ctxid;
+    /* Deblock parameters */
+    typedef struct {
+        uint32_t handle;	/* struct ttm_buffer_object * of REGIO */
+        uint32_t buffer_size;
+        uint32_t ctxid;
 
-	uint32_t *pPicparams; 
-	void	 *regio_kmap;	/* virtual of regio */
-	uint32_t pad[3];
-} DEBLOCKPARAMS;
+        uint32_t *pPicparams;
+        void	 *regio_kmap;	/* virtual of regio */
+        uint32_t pad[3];
+    } DEBLOCKPARAMS;
 
-typedef struct {
-	union {
-		struct {
-			uint32_t msg_size	: 8;
-			uint32_t msg_type	: 8;
-			uint32_t msg_fence	: 16;
-		} bits;
-		uint32_t value;
-	} header;
-	union {
-		struct {
-			uint32_t flags		: 16;
-			uint32_t slice_type	: 8;
-			uint32_t padding	: 8;
-		} bits;
-		uint32_t value;
-	} flags;
-	uint32_t operating_mode;
- 	union {
-		struct {
-			uint32_t context	: 8;
-			uint32_t mmu_ptd	: 24;
-		} bits;
-		uint32_t value;
-	} mmu_context;
- 	union {
-		struct {
-			uint32_t frame_height_mb	: 16;
-			uint32_t pic_width_mb	: 16;
-		} bits;
-		uint32_t value;
-	} pic_size;
-	uint32_t address_a0;
-	uint32_t address_a1;
-	uint32_t mb_param_address;
-	uint32_t ext_stride_a;
-	uint32_t address_b0;
-	uint32_t address_b1;
-	uint32_t rotation_flags;
-} FW_VA_DEBLOCK_MSG;
+    /* Host BE OPP parameters */
+    typedef struct {
+        uint32_t handle;	/* struct ttm_buffer_object * of REGIO */
+        uint32_t buffer_stride;
+        uint32_t buffer_size;
+        uint32_t picture_width_mb;
+        uint32_t size_mb;
+    } FRAME_INFO_PARAMS;
 
-/* OOLD message */
-typedef struct {
-	uint32_t pad[5];
+    typedef struct {
+        union {
+            struct {
+uint32_t msg_size	:
+                8;
+uint32_t msg_type	:
+                8;
+uint32_t msg_fence	:
+                16;
+            } bits;
+            uint32_t value;
+        } header;
+        union {
+            struct {
+uint32_t flags		:
+                16;
+uint32_t slice_type	:
+                8;
+uint32_t padding	:
+                8;
+            } bits;
+            uint32_t value;
+        } flags;
+        uint32_t operating_mode;
+        union {
+            struct {
+uint32_t context	:
+                8;
+uint32_t mmu_ptd	:
+                24;
+            } bits;
+            uint32_t value;
+        } mmu_context;
+        union {
+            struct {
+uint32_t frame_height_mb	:
+                16;
+uint32_t pic_width_mb	:
+                16;
+            } bits;
+            uint32_t value;
+        } pic_size;
+        uint32_t address_a0;
+        uint32_t address_a1;
+        uint32_t mb_param_address;
+        uint32_t ext_stride_a;
+        uint32_t address_b0;
+        uint32_t address_b1;
+        uint32_t rotation_flags;
+    } FW_VA_DEBLOCK_MSG;
+
+    /* OOLD message */
+    typedef struct {
+        uint32_t pad[5];
         uint32_t SOURCE_LUMA_BUFFER_ADDRESS;
         uint32_t SOURCE_CHROMA_BUFFER_ADDRESS;
         uint32_t SOURCE_MB_PARAM_ADDRESS;
         uint32_t TARGET_LUMA_BUFFER_ADDRESS;
         uint32_t TARGET_CHROMA_BUFFER_ADDRESS;
-} FW_DXVA_OOLD_MSG;
+    } FW_DXVA_OOLD_MSG;
 
 
 
@@ -569,7 +589,25 @@ typedef struct {
 #define FW_DXVA_HW_PANIC_IRQSTATUS_OFFSET		(0x0008)
 #define FW_DXVA_HW_PANIC_IRQSTATUS_SHIFT		(0)
 
+#define FW_DXVA_HOST_BE_OPP_SIZE 16
 
+// FW_DXVA_HOST_BE_OPP     CONTEXT
+#define FW_DXVA_HOST_BE_OPP_CONTEXT_ALIGNMENT		(4)
+#define FW_DXVA_HOST_BE_OPP_CONTEXT_TYPE		IMG_UINT32
+#define FW_DXVA_HOST_BE_OPP_CONTEXT_MASK		(0xFFFFFFFF)
+#define FW_DXVA_HOST_BE_OPP_CONTEXT_LSBMASK		(0xFFFFFFFF)
+#define FW_DXVA_HOST_BE_OPP_CONTEXT_OFFSET		(0x0004)
+#define FW_DXVA_HOST_BE_OPP_CONTEXT_SHIFT		(0)
+
+// FW_DXVA_HOST_BE_OPP    FLAGS
+#define FW_DXVA_HOST_BE_OPP_FLAGS_ALIGNMENT		(2)
+#define FW_DXVA_HOST_BE_OPP_FLAGS_TYPE		IMG_UINT16
+#define FW_DXVA_HOST_BE_OPP_FLAGS_MASK		(0xFFFF)
+#define FW_DXVA_HOST_BE_OPP_FLAGS_LSBMASK		(0xFFFF)
+#define FW_DXVA_HOST_BE_OPP_FLAGS_OFFSET		(0x0002)
+#define FW_DXVA_HOST_BE_OPP_FLAGS_SHIFT		(0)
+
+#define FW_DXVA_FRAME_INFO_SIZE 24 /* 20 bytes for FRAME_INFO_PARAMS */
 
 #ifdef __cplusplus
 }

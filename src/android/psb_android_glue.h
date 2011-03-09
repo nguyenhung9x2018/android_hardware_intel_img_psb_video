@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -21,95 +21,34 @@
  */
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
+    unsigned char* psb_android_registerBuffers(void** surface, int pid, int width, int height);
 
+    void psb_android_postBuffer(int offset);
 
-/* add for texture streaming */
-#define DRM_BUFFER_CLASS_VIDEO          0x32
+    void psb_android_clearHeap();
 
-#define BC_FOURCC(a,b,c,d) \
-    ((unsigned long) ((a) | (b)<<8 | (c)<<16 | (d)<<24))
+    void psb_android_texture_streaming_display(int buffer_index);
 
-#define BC_PIX_FMT_NV12     BC_FOURCC('N', 'V', '1', '2') /*YUV 4:2:0*/
-#define BC_PIX_FMT_UYVY     BC_FOURCC('U', 'Y', 'V', 'Y') /*YUV 4:2:2*/
-#define BC_PIX_FMT_YUYV     BC_FOURCC('Y', 'U', 'Y', 'V') /*YUV 4:2:2*/
-#define BC_PIX_FMT_RGB565   BC_FOURCC('R', 'G', 'B', 'P') /*RGB 5:6:5*/
+    void psb_android_texture_streaming_set_crop(short srcx,
+            short srcy,
+            unsigned short srcw,
+            unsigned short srch);
 
-unsigned int buffer_device_id;
+    void psb_android_texture_streaming_set_blend(short destx,
+            short desty,
+            unsigned short destw,
+            unsigned short desth,
+            unsigned int border_color,
+            unsigned int blend_color,
+            unsigned short blend_mode);
 
-typedef struct BC_Video_ioctl_package_TAG
-{
-	int ioctl_cmd;
-    int device_id;    
-	int inputparam;
-	int outputparam;
-}BC_Video_ioctl_package;
+    void psb_android_texture_streaming_destroy();
 
-typedef struct bc_buf_ptr {
-    unsigned int index;
-    int size;
-    unsigned long pa;
-    unsigned long handle;
-} bc_buf_ptr_t;
-
-#define BC_Video_ioctl_fill_buffer		    0
-#define BC_Video_ioctl_get_buffer_count	    1
-#define BC_Video_ioctl_get_buffer_phyaddr   2  /*get physical address by index*/
-#define BC_Video_ioctl_get_buffer_index 	3  /*get index by physical address*/
-#define BC_Video_ioctl_request_buffers      4
-#define BC_Video_ioctl_set_buffer_phyaddr   5
-#define BC_Video_ioctl_release_buffer_device  6
-
-enum BC_memory {
-    BC_MEMORY_MMAP          = 1,
-    BC_MEMORY_USERPTR       = 2,
-};
-
-/* 
- * the following types are tested for fourcc in struct bc_buf_params_t
- *   NV12
- *   UYVY
- *   RGB565 - not tested yet
- *   YUYV
- */
-typedef struct bc_buf_params {
-    int count;              /*number of buffers, [in/out]*/
-    int width;              /*buffer width in pixel, multiple of 8 or 32*/
-    int height;             /*buffer height in pixel*/
-    int stride;
-    unsigned int fourcc;    /*buffer pixel format*/
-    enum BC_memory type;
-} bc_buf_params_t;
-
-/*add for texture streaming end*/
-    
-unsigned char* psb_android_registerBuffers(void** surface, int pid, int width, int height);
-
-void psb_android_postBuffer(int offset);
-
-void psb_android_clearHeap();
-
-void psb_android_texture_streaming_display(int buffer_index);
-
-void psb_android_texture_streaming_set_crop( short srcx,
-                                                        short srcy,
-                                                        unsigned short srcw,
-                                                        unsigned short srch);
-
-void psb_android_texture_streaming_set_blend( short destx,
-                                                        short desty,
-                                                        unsigned short destw,
-                                                        unsigned short desth,
-                                                        unsigned int blend_enabled,
-                                                        unsigned int border_color,
-                                                        unsigned int blend_color,
-                                                        unsigned short blend_mode);
-
-void psb_android_texture_streaming_destroy();
-
-void psb_android_register_isurface(void** surface, int bcd_id, int srcw, int srch);
+    void psb_android_register_isurface(void** surface, int bcd_id, int srcw, int srch);
 
 #ifdef __cplusplus
 }

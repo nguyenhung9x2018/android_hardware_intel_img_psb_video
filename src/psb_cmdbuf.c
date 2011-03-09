@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -88,20 +88,20 @@
 
 #define PSB_TIMEOUT_USEC 990000
 
-static void psb_cmdbuf_lldma_create_internal( psb_cmdbuf_p cmdbuf,
-                 LLDMA_CMD *pLLDMACmd,
-                                 psb_buffer_p bitstream_buf,
-                                 uint32_t buffer_offset,
-                                 uint32_t size,
-                                 uint32_t dest_offset,
-                                 LLDMA_TYPE cmd);
+static void psb_cmdbuf_lldma_create_internal(psb_cmdbuf_p cmdbuf,
+        LLDMA_CMD *pLLDMACmd,
+        psb_buffer_p bitstream_buf,
+        uint32_t buffer_offset,
+        uint32_t size,
+        uint32_t dest_offset,
+        LLDMA_TYPE cmd);
 
 /*
  * Create command buffer
  */
 VAStatus psb_cmdbuf_create(object_context_p obj_context, psb_driver_data_p driver_data,
-        psb_cmdbuf_p cmdbuf
-   )
+                           psb_cmdbuf_p cmdbuf
+                          )
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int size = CMD_SIZE + LLDMA_SIZE;
@@ -129,29 +129,24 @@ VAStatus psb_cmdbuf_create(object_context_p obj_context, psb_driver_data_p drive
     cmdbuf->buffer_refs_count = 0;
     cmdbuf->buffer_refs_allocated = 10;
     cmdbuf->buffer_refs = (psb_buffer_p *) calloc(1, sizeof(psb_buffer_p) * cmdbuf->buffer_refs_allocated);
-    if (NULL == cmdbuf->buffer_refs)
-    {
+    if (NULL == cmdbuf->buffer_refs) {
         cmdbuf->buffer_refs_allocated = 0;
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
-    if (VA_STATUS_SUCCESS == vaStatus)
-    {
-        vaStatus = psb_buffer_create( driver_data, size, psb_bt_cpu_vpu, &cmdbuf->buf );
+    if (VA_STATUS_SUCCESS == vaStatus) {
+        vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, &cmdbuf->buf);
         cmdbuf->size = size;
     }
-    if (VA_STATUS_SUCCESS == vaStatus)
-    {
-        vaStatus = psb_buffer_create( driver_data, reloc_size, psb_bt_cpu_only, &cmdbuf->reloc_buf );
+    if (VA_STATUS_SUCCESS == vaStatus) {
+        vaStatus = psb_buffer_create(driver_data, reloc_size, psb_bt_cpu_only, &cmdbuf->reloc_buf);
         cmdbuf->reloc_size = reloc_size;
     }
-    if (VA_STATUS_SUCCESS == vaStatus)
-    {
-        vaStatus = psb_buffer_create( driver_data, regio_size, psb_bt_cpu_only, &cmdbuf->regio_buf );
+    if (VA_STATUS_SUCCESS == vaStatus) {
+        vaStatus = psb_buffer_create(driver_data, regio_size, psb_bt_cpu_only, &cmdbuf->regio_buf);
         cmdbuf->regio_size = regio_size;
     }
 
-    if (VA_STATUS_SUCCESS != vaStatus)
-    {
+    if (VA_STATUS_SUCCESS != vaStatus) {
         psb_cmdbuf_destroy(cmdbuf);
     }
     return vaStatus;
@@ -159,27 +154,23 @@ VAStatus psb_cmdbuf_create(object_context_p obj_context, psb_driver_data_p drive
 
 /*
  * Destroy buffer
- */   
-void psb_cmdbuf_destroy( psb_cmdbuf_p cmdbuf )
+ */
+void psb_cmdbuf_destroy(psb_cmdbuf_p cmdbuf)
 {
-    if (cmdbuf->size)
-    {
-        psb_buffer_destroy( &cmdbuf->buf );
+    if (cmdbuf->size) {
+        psb_buffer_destroy(&cmdbuf->buf);
         cmdbuf->size = 0;
     }
-    if (cmdbuf->reloc_size)
-    {
-        psb_buffer_destroy( &cmdbuf->reloc_buf );
+    if (cmdbuf->reloc_size) {
+        psb_buffer_destroy(&cmdbuf->reloc_buf);
         cmdbuf->reloc_size = 0;
     }
-    if (cmdbuf->regio_size)
-    {
-        psb_buffer_destroy( &cmdbuf->regio_buf );
+    if (cmdbuf->regio_size) {
+        psb_buffer_destroy(&cmdbuf->regio_buf);
         cmdbuf->regio_size = 0;
     }
-    if (cmdbuf->buffer_refs_allocated)
-    {
-        free( cmdbuf->buffer_refs );
+    if (cmdbuf->buffer_refs_allocated) {
+        free(cmdbuf->buffer_refs);
         cmdbuf->buffer_refs = NULL;
         cmdbuf->buffer_refs_allocated = 0;
     }
@@ -190,10 +181,10 @@ void psb_cmdbuf_destroy( psb_cmdbuf_p cmdbuf )
  *
  * Returns 0 on success
  */
-int psb_cmdbuf_reset( psb_cmdbuf_p cmdbuf )
+int psb_cmdbuf_reset(psb_cmdbuf_p cmdbuf)
 {
     int ret;
-    
+
     cmdbuf->MTX_msg = NULL;
     cmdbuf->cmd_base = NULL;
     cmdbuf->cmd_idx = NULL;
@@ -208,19 +199,19 @@ int psb_cmdbuf_reset( psb_cmdbuf_p cmdbuf )
     cmdbuf->cmd_count = 0;
     cmdbuf->deblock_count = 0;
     cmdbuf->oold_count = 0;
+    cmdbuf->host_be_opp_count = 0;
+    cmdbuf->frame_info_count = 0;
 
-    ret = psb_buffer_map( &cmdbuf->buf, &cmdbuf->cmd_base );
-    if (ret)
-    {
+    ret = psb_buffer_map(&cmdbuf->buf, &cmdbuf->cmd_base);
+    if (ret) {
         return ret;
     }
-    ret = psb_buffer_map( &cmdbuf->reloc_buf, &cmdbuf->MTX_msg );
-    if (ret)
-    {
-        psb_buffer_unmap( &cmdbuf->buf );
+    ret = psb_buffer_map(&cmdbuf->reloc_buf, &cmdbuf->MTX_msg);
+    if (ret) {
+        psb_buffer_unmap(&cmdbuf->buf);
         return ret;
     }
-    
+
     cmdbuf->cmd_start = cmdbuf->cmd_base;
     cmdbuf->cmd_idx = (uint32_t *) cmdbuf->cmd_base;
     cmdbuf->cmd_bitstream_size = NULL;
@@ -241,7 +232,7 @@ int psb_cmdbuf_reset( psb_cmdbuf_p cmdbuf )
  *
  * Returns 0 on success
  */
-int psb_cmdbuf_unmap( psb_cmdbuf_p cmdbuf )
+int psb_cmdbuf_unmap(psb_cmdbuf_p cmdbuf)
 {
     cmdbuf->MTX_msg = NULL;
     cmdbuf->cmd_base = NULL;
@@ -253,8 +244,8 @@ int psb_cmdbuf_unmap( psb_cmdbuf_p cmdbuf )
     cmdbuf->reloc_base = NULL;
     cmdbuf->reloc_idx = NULL;
     cmdbuf->cmd_count = 0;
-    psb_buffer_unmap( &cmdbuf->buf );
-    psb_buffer_unmap( &cmdbuf->reloc_buf );
+    psb_buffer_unmap(&cmdbuf->buf);
+    psb_buffer_unmap(&cmdbuf->reloc_buf);
     return 0;
 }
 
@@ -264,66 +255,62 @@ int psb_cmdbuf_unmap( psb_cmdbuf_p cmdbuf )
  * Returns a reference index that can be used to refer to "buf" in
  * relocation records, -1 on error
  */
-int psb_cmdbuf_buffer_ref( psb_cmdbuf_p cmdbuf, psb_buffer_p buf )
+int psb_cmdbuf_buffer_ref(psb_cmdbuf_p cmdbuf, psb_buffer_p buf)
 {
-	int item_loc = 0;
+    int item_loc = 0;
 
-        // buf->next = NULL; /* buf->next only used for buffer list validation */
-        
-        while( (item_loc < cmdbuf->buffer_refs_count)
-                && (wsbmKBufHandle(wsbmKBuf(cmdbuf->buffer_refs[item_loc]->drm_buf))
-                    != wsbmKBufHandle(wsbmKBuf(buf->drm_buf))))
-	{
-		item_loc++;
-	}
-	if (item_loc == cmdbuf->buffer_refs_count)
-	{
-		/* Add new entry */
-		if (item_loc >= cmdbuf->buffer_refs_allocated)
-		{
-			/* Allocate more entries */
-			int new_size = cmdbuf->buffer_refs_allocated+10;
-			psb_buffer_p *new_array;
-			new_array = (psb_buffer_p *) calloc(1, sizeof(psb_buffer_p) * new_size);
-			if (NULL == new_array)
-			{
-				return -1; /* Allocation failure */
-			}
-			memcpy(new_array, cmdbuf->buffer_refs, sizeof(psb_buffer_p) * cmdbuf->buffer_refs_allocated);
-			free(cmdbuf->buffer_refs);
-			cmdbuf->buffer_refs_allocated = new_size;
-			cmdbuf->buffer_refs = new_array;
-		}
-		cmdbuf->buffer_refs[item_loc] = buf;
-		cmdbuf->buffer_refs_count++;
-		buf->status = psb_bs_queued;
-                
-                buf->next = NULL;
-	}
+    // buf->next = NULL; /* buf->next only used for buffer list validation */
 
-        /* only for RAR buffers */
-        if ((cmdbuf->buffer_refs[item_loc] != buf)
-            && (buf->rar_handle != 0)) {
-            psb_buffer_p tmp = cmdbuf->buffer_refs[item_loc];
-            psb__information_message("RAR: found same drm buffer with different psb buffer, link them\n",
-                               tmp, buf);
-            while ((tmp->next != NULL)) {
-                tmp = tmp->next;
-                if (tmp == buf) /* found same buffer */
-                    break;
+    while ((item_loc < cmdbuf->buffer_refs_count)
+            && (wsbmKBufHandle(wsbmKBuf(cmdbuf->buffer_refs[item_loc]->drm_buf))
+                != wsbmKBufHandle(wsbmKBuf(buf->drm_buf)))) {
+        item_loc++;
+    }
+    if (item_loc == cmdbuf->buffer_refs_count) {
+        /* Add new entry */
+        if (item_loc >= cmdbuf->buffer_refs_allocated) {
+            /* Allocate more entries */
+            int new_size = cmdbuf->buffer_refs_allocated + 10;
+            psb_buffer_p *new_array;
+            new_array = (psb_buffer_p *) calloc(1, sizeof(psb_buffer_p) * new_size);
+            if (NULL == new_array) {
+                return -1; /* Allocation failure */
             }
-
-            if (tmp != buf) {
-                tmp->next = buf; /* link it */
-                buf->status = psb_bs_queued;
-                buf->next = NULL;
-            } else {
-                psb__information_message("RAR: buffer aleady in the list, skip\n",
-                                   tmp, buf);
-            }
+            memcpy(new_array, cmdbuf->buffer_refs, sizeof(psb_buffer_p) * cmdbuf->buffer_refs_allocated);
+            free(cmdbuf->buffer_refs);
+            cmdbuf->buffer_refs_allocated = new_size;
+            cmdbuf->buffer_refs = new_array;
         }
-        
-	return item_loc;
+        cmdbuf->buffer_refs[item_loc] = buf;
+        cmdbuf->buffer_refs_count++;
+        buf->status = psb_bs_queued;
+
+        buf->next = NULL;
+    }
+
+    /* only for RAR buffers */
+    if ((cmdbuf->buffer_refs[item_loc] != buf)
+            && (buf->rar_handle != 0)) {
+        psb_buffer_p tmp = cmdbuf->buffer_refs[item_loc];
+        psb__information_message("RAR: found same drm buffer with different psb buffer, link them\n",
+                                 tmp, buf);
+        while ((tmp->next != NULL)) {
+            tmp = tmp->next;
+            if (tmp == buf) /* found same buffer */
+                break;
+        }
+
+        if (tmp != buf) {
+            tmp->next = buf; /* link it */
+            buf->status = psb_bs_queued;
+            buf->next = NULL;
+        } else {
+            psb__information_message("RAR: buffer aleady in the list, skip\n",
+                                     tmp, buf);
+        }
+    }
+
+    return item_loc;
 }
 
 /* Creates a relocation record for a DWORD in the mapped "cmdbuf" at address
@@ -334,53 +321,47 @@ int psb_cmdbuf_buffer_ref( psb_cmdbuf_p cmdbuf, psb_buffer_p buf )
  * "mask" determines which bits of the target DWORD will be updated with the so
  * constructed address. The remaining bits will be filled with bits from "background".
  */
-void psb_cmdbuf_add_relocation( psb_cmdbuf_p cmdbuf,
-                                uint32_t *addr_in_cmdbuf,
-                                psb_buffer_p ref_buffer,
-                                uint32_t buf_offset,
-                                uint32_t mask,
-                                uint32_t background,
-                                uint32_t align_shift,
-                                uint32_t dst_buffer) /* 0 = reloc buf, 1 = cmdbuf, 2 = for host reloc */
+void psb_cmdbuf_add_relocation(psb_cmdbuf_p cmdbuf,
+                               uint32_t *addr_in_cmdbuf,
+                               psb_buffer_p ref_buffer,
+                               uint32_t buf_offset,
+                               uint32_t mask,
+                               uint32_t background,
+                               uint32_t align_shift,
+                               uint32_t dst_buffer) /* 0 = reloc buf, 1 = cmdbuf, 2 = for host reloc */
 {
     struct drm_psb_reloc *reloc = cmdbuf->reloc_idx;
     uint64_t presumed_offset = wsbmBOOffsetHint(ref_buffer->drm_buf);
 
     /* Check that address is within buffer range */
-    if (dst_buffer)
-    {
-        ASSERT( ((void *) (addr_in_cmdbuf)) >= cmdbuf->cmd_base );
-        ASSERT( ((void *) (addr_in_cmdbuf)) < LLDMA_END(cmdbuf) );
+    if (dst_buffer) {
+        ASSERT(((void *)(addr_in_cmdbuf)) >= cmdbuf->cmd_base);
+        ASSERT(((void *)(addr_in_cmdbuf)) < LLDMA_END(cmdbuf));
         reloc->where = addr_in_cmdbuf - (uint32_t *) cmdbuf->cmd_base; /* Location in DWORDs */
-    }
-    else
-    {
-        ASSERT( ((void *) (addr_in_cmdbuf)) >= cmdbuf->MTX_msg );
-        ASSERT( ((void *) (addr_in_cmdbuf)) < MTXMSG_END(cmdbuf) );
+    } else {
+        ASSERT(((void *)(addr_in_cmdbuf)) >= cmdbuf->MTX_msg);
+        ASSERT(((void *)(addr_in_cmdbuf)) < MTXMSG_END(cmdbuf));
         reloc->where = addr_in_cmdbuf - (uint32_t *) cmdbuf->MTX_msg; /* Location in DWORDs */
     }
 
-    reloc->buffer = psb_cmdbuf_buffer_ref( cmdbuf, ref_buffer );
-    ASSERT( reloc->buffer != -1 );
-    
+    reloc->buffer = psb_cmdbuf_buffer_ref(cmdbuf, ref_buffer);
+    ASSERT(reloc->buffer != -1);
+
     reloc->reloc_op = PSB_RELOC_OP_OFFSET;
-    
+
 #ifdef DEBUG_TRACE
     //psb__trace_message("[RE] Reloc at offset %08x (%08x), offset = %08x background = %08x buffer = %d (%08x)\n", reloc->where, reloc->where << 2, buf_offset, background, reloc->buffer, presumed_offset);
 #endif
 
-    if (presumed_offset)
-    {
+    if (presumed_offset) {
         uint32_t new_val =  presumed_offset + buf_offset;
         new_val = ((new_val >> align_shift) << (align_shift << PSB_RELOC_ALSHIFT_SHIFT));
         new_val = (background & ~mask) | (new_val & mask);
         *addr_in_cmdbuf = new_val;
-    } 
-    else
-    {
+    } else {
         *addr_in_cmdbuf = PSB_RELOC_MAGIC;
     }
-	
+
     reloc->mask = mask;
     reloc->shift = align_shift << PSB_RELOC_ALSHIFT_SHIFT;
     reloc->pre_add =  buf_offset;
@@ -388,7 +369,7 @@ void psb_cmdbuf_add_relocation( psb_cmdbuf_p cmdbuf,
     reloc->dst_buffer = dst_buffer;
     cmdbuf->reloc_idx++;
 
-    ASSERT( ((void *) (cmdbuf->reloc_idx)) < RELOC_END(cmdbuf) );
+    ASSERT(((void *)(cmdbuf->reloc_idx)) < RELOC_END(cmdbuf));
 }
 
 /*
@@ -396,25 +377,22 @@ void psb_cmdbuf_add_relocation( psb_cmdbuf_p cmdbuf,
  *
  * Returns 0 on success
  */
-int psb_context_get_next_cmdbuf( object_context_p obj_context )
+int psb_context_get_next_cmdbuf(object_context_p obj_context)
 {
     psb_cmdbuf_p cmdbuf;
     int ret;
-    
-    if (obj_context->cmdbuf)
-    {
+
+    if (obj_context->cmdbuf) {
         return 0;
     }
 
     obj_context->cmdbuf_current++;
-    if (obj_context->cmdbuf_current >= PSB_MAX_CMDBUFS)
-    {
+    if (obj_context->cmdbuf_current >= PSB_MAX_CMDBUFS) {
         obj_context->cmdbuf_current = 0;
     }
     cmdbuf = obj_context->cmdbuf_list[obj_context->cmdbuf_current];
-    ret = psb_cmdbuf_reset( cmdbuf );
-    if (!ret)
-    {
+    ret = psb_cmdbuf_reset(cmdbuf);
+    if (!ret) {
         /* Success */
         obj_context->cmdbuf = cmdbuf;
     }
@@ -432,7 +410,7 @@ psbTimeDiff(struct timeval *now, struct timeval *then)
     val += now->tv_usec;
     val -= then->tv_usec;
     if (val < 1LL)
-	val = 1LL;
+        val = 1LL;
 
     return (unsigned) val;
 }
@@ -448,34 +426,33 @@ psbTimeDiff(struct timeval *now, struct timeval *then)
  * DRM lock held and output to an X terminal can cause X to deadlock
  */
 static int
-psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list,int buffer_count,unsigned cmdBufHandle,
+psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_count, unsigned cmdBufHandle,
              unsigned cmdBufOffset, unsigned cmdBufSize,
              unsigned relocBufHandle, unsigned relocBufOffset,
              unsigned numRelocs, drm_clip_rect_t * clipRects, int damage,
-             unsigned engine, unsigned fence_flags,struct psb_ttm_fence_rep *fence_arg)
+             unsigned engine, unsigned fence_flags, struct psb_ttm_fence_rep *fence_arg)
 {
     drm_psb_cmdbuf_arg_t ca;
     struct psb_validate_arg *arg_list;
-    int i;    
+    int i;
     int ret;
     struct timeval then, now;
     Bool have_then = FALSE;
     uint64_t mask = PSB_GPU_ACCESS_MASK;
 
-    arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg)*buffer_count);
+    arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg) * buffer_count);
     if (arg_list == NULL) {
         psb__error_message("Malloc failed \n");
         return -ENOMEM;
     }
-    
-    for( i = 0; i < buffer_count; i++)
-    {
+
+    for (i = 0; i < buffer_count; i++) {
         struct psb_validate_arg *arg = &(arg_list[i]);
         struct psb_validate_req *req = &arg->d.req;
 
         memset(arg, 0, sizeof(*arg));
-        req->next = (unsigned long) &(arg_list[i+1]);
-            
+        req->next = (unsigned long) & (arg_list[i+1]);
+
         req->buffer_handle = wsbmKBufHandle(wsbmKBuf(buffer_list[i]->drm_buf));
         req->group = 0;
         req->set_flags = (PSB_GPU_ACCESS_READ | PSB_GPU_ACCESS_WRITE) & mask;
@@ -486,14 +463,14 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list,int buffer_coun
         req->pad64 = (uint32_t)buffer_list[i]->pl_flags;
     }
     arg_list[buffer_count-1].d.req.next = 0;
-    
-    ca.buffer_list = (uint64_t)((unsigned long)arg_list);    
+
+    ca.buffer_list = (uint64_t)((unsigned long)arg_list);
     ca.clip_rects = (uint64_t)((unsigned long)clipRects);
     ca.scene_arg = 0;
-    ca.fence_arg = (uint64_t) ((unsigned long)fence_arg);
-    
+    ca.fence_arg = (uint64_t)((unsigned long)fence_arg);
+
     ca.ta_flags = 0;
-    
+
     ca.ta_handle = 0;
     ca.ta_offset = 0;
     ca.ta_size = 0;
@@ -501,15 +478,15 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list,int buffer_coun
     ca.oom_handle = 0;
     ca.oom_offset = 0;
     ca.oom_size = 0;
-    
+
     ca.cmdbuf_handle = cmdBufHandle;
     ca.cmdbuf_offset = cmdBufOffset;
     ca.cmdbuf_size = cmdBufSize;
-	
+
     ca.reloc_handle = relocBufHandle;
     ca.reloc_offset = relocBufOffset;
     ca.num_relocs = numRelocs;
-	
+
     ca.damage = damage;
     ca.fence_flags = fence_flags;
     ca.engine = engine;
@@ -521,16 +498,16 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list,int buffer_coun
     ca.feedback_size = 0;
 
 #if 1
-psb__information_message("PSB submit: buffer_list   = %08x\n", ca.buffer_list);
-psb__information_message("PSB submit: clip_rects    = %08x\n", ca.clip_rects);
-psb__information_message("PSB submit: cmdbuf_handle = %08x\n", ca.cmdbuf_handle);
-psb__information_message("PSB submit: cmdbuf_offset = %08x\n", ca.cmdbuf_offset);
-psb__information_message("PSB submit: cmdbuf_size   = %08x\n", ca.cmdbuf_size);
-psb__information_message("PSB submit: reloc_handle  = %08x\n", ca.reloc_handle);
-psb__information_message("PSB submit: reloc_offset  = %08x\n", ca.reloc_offset);
-psb__information_message("PSB submit: num_relocs    = %08x\n", ca.num_relocs);
-psb__information_message("PSB submit: engine        = %08x\n", ca.engine);
-psb__information_message("PSB submit: fence_flags   = %08x\n", ca.fence_flags);
+    psb__information_message("PSB submit: buffer_list   = %08x\n", ca.buffer_list);
+    psb__information_message("PSB submit: clip_rects    = %08x\n", ca.clip_rects);
+    psb__information_message("PSB submit: cmdbuf_handle = %08x\n", ca.cmdbuf_handle);
+    psb__information_message("PSB submit: cmdbuf_offset = %08x\n", ca.cmdbuf_offset);
+    psb__information_message("PSB submit: cmdbuf_size   = %08x\n", ca.cmdbuf_size);
+    psb__information_message("PSB submit: reloc_handle  = %08x\n", ca.reloc_handle);
+    psb__information_message("PSB submit: reloc_offset  = %08x\n", ca.reloc_offset);
+    psb__information_message("PSB submit: num_relocs    = %08x\n", ca.num_relocs);
+    psb__information_message("PSB submit: engine        = %08x\n", ca.engine);
+    psb__information_message("PSB submit: fence_flags   = %08x\n", ca.fence_flags);
 #endif
 
     /*
@@ -545,36 +522,33 @@ psb__information_message("PSB submit: fence_flags   = %08x\n", ca.fence_flags);
                     psb__error_message("Gettimeofday error.\n");
                     break;
                 }
-                
+
                 have_then = TRUE;
             }
             if (gettimeofday(&now, NULL)) {
                 psb__error_message("Gettimeofday error.\n");
                 break;
             }
-            
+
         }
     } while ((ret == EAGAIN) && (psbTimeDiff(&now, &then) < PSB_TIMEOUT_USEC));
 
     psb__information_message("command write return is %d\n", ret);
 
-    if (ret)
-    {
+    if (ret) {
         psb__information_message("command write return is %d\n", ret);
         goto out;
     }
 
-    for( i = 0; i < buffer_count; i++)
-    {
+    for (i = 0; i < buffer_count; i++) {
         struct psb_validate_arg *arg = &(arg_list[i]);
         struct psb_validate_rep *rep = &arg->d.rep;
-        
+
         if (!arg->handled) {
             ret = -EFAULT;
             goto out;
         }
-        if (arg->ret != 0)
-        {
+        if (arg->ret != 0) {
             ret = arg->ret;
             goto out;
         }
@@ -582,23 +556,22 @@ psb__information_message("PSB submit: fence_flags   = %08x\n", ca.fence_flags);
                        rep->gpu_offset, rep->placement, rep->fence_type_mask);
     }
 
-  out:
+out:
     free(arg_list);
-    for( i = 0; i < buffer_count; i++)
-    {
+    for (i = 0; i < buffer_count; i++) {
         /*
          * Buffer no longer queued in userspace
          */
         psb_buffer_p tmp = buffer_list[i];
-        
+
         /*
          * RAR slice buffer/surface buffer are share one BO, and then only one in
          * buffer_list, but they are linked in psb_cmdbuf_buffer_ref
-         
+
          */
-        if (buffer_list[i]->rar_handle==0)
+        if (buffer_list[i]->rar_handle == 0)
             tmp->next = NULL; /* don't loop for non RAR buffer, "next" may be not initialized  */
-        
+
         do {
             psb_buffer_p p = tmp;
 
@@ -619,7 +592,7 @@ psb__information_message("PSB submit: fence_flags   = %08x\n", ca.fence_flags);
             }
         } while (tmp);
     }
-    
+
     return ret;
 }
 
@@ -638,163 +611,140 @@ static void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
         unsigned int start;
         unsigned int end;
         char *name;
-    } msvdx_regs[10] = {{0x04800000,0x048003FF,"MTX_MTX"},
-                      {0x04800400,0x0480047F,"VDMC_MTX"},
-                      {0x04800480,0x048004FF,"VDEB_MTX"},
-                      {0x04800500,0x048005FF,"DMAC_MTX"},
-                      {0x04800600,0x048006FF,"SYS_MTX"},
-                      {0x04800700,0x048007FF,"VEC_IQRAM_MTX"},
-                      {0x04800800,0x04800FFF,"VEC_MTX"},
-                      {0x04801000,0x04801FFF,"CMD_MTX"},
-                      {0x04802000,0x04802FFF,"VEC_RAM_MTX"},
-                      {0x04803000,0x04804FFF,"VEC_VLC_M"}
+    } msvdx_regs[10] = {{0x04800000, 0x048003FF, "MTX_MTX"},
+        {0x04800400, 0x0480047F, "VDMC_MTX"},
+        {0x04800480, 0x048004FF, "VDEB_MTX"},
+        {0x04800500, 0x048005FF, "DMAC_MTX"},
+        {0x04800600, 0x048006FF, "SYS_MTX"},
+        {0x04800700, 0x048007FF, "VEC_IQRAM_MTX"},
+        {0x04800800, 0x04800FFF, "VEC_MTX"},
+        {0x04801000, 0x04801FFF, "CMD_MTX"},
+        {0x04802000, 0x04802FFF, "VEC_RAM_MTX"},
+        {0x04803000, 0x04804FFF, "VEC_VLC_M"}
     };
-    
+
     DBH("CMD BUFFER [%08x] - [%08x], %08x bytes, %08x dwords\n", (uint32_t) cmd_idx, cmd_end, cmd_size_in_bytes, cmd_size);
-while(cmd_idx < cmd_end)
-{
-    uint32_t cmd = *cmd_idx;
-/* What about CMD_MAGIC_BEGIN ?*/
-    switch(cmd & CMD_MASK)
-    {
-      case CMD_NOP:
-      {
-          DB("CMD_NOPE\n", cmd_idx);
-          cmd_idx++;
-          break;
-      }
-      
-      case CMD_HEADER:
-      {
-          uint32_t context = cmd & CMD_HEADER_CONTEXT_MASK;
-          DB("CMD_HEADER context = %08x\n", cmd_idx, context);
-          cmd_idx++;
-          DB("StatusBufferAddress\n", cmd_idx);
-          cmd_idx++;
-          DB("PreloadSave\n", cmd_idx);
-          cmd_idx++;
-          DB("PreloadRestore\n", cmd_idx);
-          cmd_idx++;
-          break;
-      }
-      case CMD_REGVALPAIR_WRITE:
-      {
-          uint32_t count = (cmd & CMD_REGVALPAIR_COUNT_MASK) >> CMD_REGVALPAIR_COUNT_SHIFT;
-          DB("CMD_REGVALPAIR_WRITE count = %08x\n", cmd_idx, count);
-          cmd_idx++;
-          
-          while(count--)
-          {
-              int i;
-              for (i=0; i<10; i++) {
-                  if ((*cmd_idx >= msvdx_regs[i].start) &&
-                      (*cmd_idx <= msvdx_regs[i].end))
-                      break;
-              }
-              DB("%s_%04x\n", cmd_idx, msvdx_regs[i].name, *cmd_idx & 0xffff);
-              cmd_idx++;
-              DB("value\n", cmd_idx);
-              cmd_idx++;
-          }
-          break;
-      }
-      case CMD_RENDEC_WRITE:
-      {
-          uint32_t encoding;
-          uint32_t count = (cmd & CMD_RENDEC_COUNT_MASK) >> CMD_RENDEC_COUNT_SHIFT;
-          DB("CMD_RENDEC_WRITE count = %08x\n", cmd_idx, count);
-          cmd_idx++;
-
-          DB("RENDEC_SL_HDR\n", cmd_idx);
-          cmd_idx++;
-
-          DB("RENDEC_SL_NULL\n", cmd_idx);
-          cmd_idx++;
-          
-          do
-          {
-              uint32_t chk_hdr = *cmd_idx;
-              count = 1 + ((chk_hdr & 0x07FF0000) >> 16);
-              uint32_t start_address = (chk_hdr & 0x0000FFF0) >> 4; 
-              encoding = (chk_hdr & 0x07);
-              if ((count == 1) && (encoding == 7))
-              {
-                  count = 0;
-                  DB("SLICE_SEPARATOR\n", cmd_idx);
-              }
-              else
-              {
-                  DB("RENDEC_CK_HDR #symbols = %d address = %08x encoding = %01x\n", cmd_idx, count, start_address, encoding);
-            }
-              cmd_idx++;
-          
-              while(count && (count < 0x1000))
-              {
-                  DB("value\n", cmd_idx);
-                  cmd_idx++;
-
-                  count -= 2;
-              }
+    while (cmd_idx < cmd_end) {
+        uint32_t cmd = *cmd_idx;
+        /* What about CMD_MAGIC_BEGIN ?*/
+        switch (cmd & CMD_MASK) {
+        case CMD_NOP: {
+            DB("CMD_NOPE\n", cmd_idx);
+            cmd_idx++;
+            break;
         }
-        while (encoding != 0x07);
-          
-          break;
-      }
-      case CMD_COMPLETION:
-      {
-          if (*cmd_idx == PSB_RELOC_MAGIC)
-          {
-              DB("CMD_(S)LLDMA (assumed)\n", cmd_idx);
-              cmd_idx++;
-              
-          }
-          else
-          {
-              DB("CMD_COMPLETION\n", cmd_idx);
-              cmd_idx++;
-          
+
+        case CMD_HEADER: {
+            uint32_t context = cmd & CMD_HEADER_CONTEXT_MASK;
+            DB("CMD_HEADER context = %08x\n", cmd_idx, context);
+            cmd_idx++;
+            DB("StatusBufferAddress\n", cmd_idx);
+            cmd_idx++;
+            DB("PreloadSave\n", cmd_idx);
+            cmd_idx++;
+            DB("PreloadRestore\n", cmd_idx);
+            cmd_idx++;
+            break;
+        }
+        case CMD_REGVALPAIR_WRITE: {
+            uint32_t count = (cmd & CMD_REGVALPAIR_COUNT_MASK) >> CMD_REGVALPAIR_COUNT_SHIFT;
+            DB("CMD_REGVALPAIR_WRITE count = %08x\n", cmd_idx, count);
+            cmd_idx++;
+
+            while (count--) {
+                int i;
+                for (i = 0; i < 10; i++) {
+                    if ((*cmd_idx >= msvdx_regs[i].start) &&
+                            (*cmd_idx <= msvdx_regs[i].end))
+                        break;
+                }
+                DB("%s_%04x\n", cmd_idx, msvdx_regs[i].name, *cmd_idx & 0xffff);
+                cmd_idx++;
+                DB("value\n", cmd_idx);
+                cmd_idx++;
+            }
+            break;
+        }
+        case CMD_RENDEC_WRITE: {
+            uint32_t encoding;
+            uint32_t count = (cmd & CMD_RENDEC_COUNT_MASK) >> CMD_RENDEC_COUNT_SHIFT;
+            DB("CMD_RENDEC_WRITE count = %08x\n", cmd_idx, count);
+            cmd_idx++;
+
+            DB("RENDEC_SL_HDR\n", cmd_idx);
+            cmd_idx++;
+
+            DB("RENDEC_SL_NULL\n", cmd_idx);
+            cmd_idx++;
+
+            do {
+                uint32_t chk_hdr = *cmd_idx;
+                count = 1 + ((chk_hdr & 0x07FF0000) >> 16);
+                uint32_t start_address = (chk_hdr & 0x0000FFF0) >> 4;
+                encoding = (chk_hdr & 0x07);
+                if ((count == 1) && (encoding == 7)) {
+                    count = 0;
+                    DB("SLICE_SEPARATOR\n", cmd_idx);
+                } else {
+                    DB("RENDEC_CK_HDR #symbols = %d address = %08x encoding = %01x\n", cmd_idx, count, start_address, encoding);
+                }
+                cmd_idx++;
+
+                while (count && (count < 0x1000)) {
+                    DB("value\n", cmd_idx);
+                    cmd_idx++;
+
+                    count -= 2;
+                }
+            } while (encoding != 0x07);
+
+            break;
+        }
+        case CMD_COMPLETION: {
+            if (*cmd_idx == PSB_RELOC_MAGIC) {
+                DB("CMD_(S)LLDMA (assumed)\n", cmd_idx);
+                cmd_idx++;
+
+            } else {
+                DB("CMD_COMPLETION\n", cmd_idx);
+                cmd_idx++;
+
 //              DB("interrupt\n", cmd_idx);
 //              cmd_idx++;
-          }
-          break;
-      }
-      case CMD_LLDMA:
-      {
-          DB("CMD_LLDMA\n", cmd_idx);
-          cmd_idx++;
-          break;
-      }
-      case CMD_SLLDMA:
-      {
-          DB("CMD_SLLDMA\n", cmd_idx);
-          cmd_idx++;
-          break;
-      }
-      case CMD_SR_SETUP:
-      {
-          DB("CMD_SR_SETUP\n", cmd_idx);
-          cmd_idx++;
-          DB("offset in bits\n", cmd_idx);
-          cmd_idx++;
-          DB("size in bytes\n", cmd_idx);
-          cmd_idx++;
-          break;
-      }
-      default:
-          if (*cmd_idx == PSB_RELOC_MAGIC)
-          {
-              DB("CMD_(S)LLDMA (assumed)\n", cmd_idx);
-              cmd_idx++;
-              
-          }
-          else
-          {
-              DB("*** Unknown command ***\n", cmd_idx);
-              cmd_idx++;
-          }
-          break;
-    } /* switch */
-} /* while */
+            }
+            break;
+        }
+        case CMD_LLDMA: {
+            DB("CMD_LLDMA\n", cmd_idx);
+            cmd_idx++;
+            break;
+        }
+        case CMD_SLLDMA: {
+            DB("CMD_SLLDMA\n", cmd_idx);
+            cmd_idx++;
+            break;
+        }
+        case CMD_SR_SETUP: {
+            DB("CMD_SR_SETUP\n", cmd_idx);
+            cmd_idx++;
+            DB("offset in bits\n", cmd_idx);
+            cmd_idx++;
+            DB("size in bytes\n", cmd_idx);
+            cmd_idx++;
+            break;
+        }
+        default:
+            if (*cmd_idx == PSB_RELOC_MAGIC) {
+                DB("CMD_(S)LLDMA (assumed)\n", cmd_idx);
+                cmd_idx++;
+
+            } else {
+                DB("*** Unknown command ***\n", cmd_idx);
+                cmd_idx++;
+            }
+            break;
+        } /* switch */
+    } /* while */
 }
 #endif
 
@@ -807,13 +757,13 @@ int psb_fence_destroy(struct _WsbmFenceObject *pFence)
 }
 
 struct _WsbmFenceObject *
-psb_fence_wait(psb_driver_data_p driver_data,
-               struct psb_ttm_fence_rep *fence_rep, int *status)
+            psb_fence_wait(psb_driver_data_p driver_data,
+                           struct psb_ttm_fence_rep *fence_rep, int *status)
 
 {
     struct _WsbmFenceObject *fence = NULL;
     int ret = -1;
-    
+
     /* copy fence information */
     if (fence_rep->error != 0) {
         psb__error_message("drm failed to create a fence"
@@ -826,9 +776,9 @@ psb_fence_wait(psb_driver_data_p driver_data,
                             fence_rep->fence_type,
                             (void *)fence_rep->handle,
                             0);
-    if (fence) 
-        *status = wsbmFenceFinish(fence,fence_rep->fence_type,0);
-    
+    if (fence)
+        *status = wsbmFenceFinish(fence, fence_rep->fence_type, 0);
+
     return fence;
 }
 
@@ -853,9 +803,8 @@ uint32_t     debug_dump_count = 0;
 #define DWH(wd, sym, to, from) psb__debug_w(((uint32_t *)pasDmaList)[wd], "LLDMA: " #sym " = %08x\n", to, from);
 static void psb__debug_w(uint32_t val, char *fmt, uint32_t bit_to, uint32_t bit_from)
 {
-    if (bit_to < 31)
-    {
-        val &= ~(0xffffffff << (bit_to+1));
+    if (bit_to < 31) {
+        val &= ~(0xffffffff << (bit_to + 1));
     }
     val = val >> bit_from;
     psb__trace_message(fmt, val);
@@ -870,12 +819,10 @@ static void psb__hexdump2(unsigned char *p, int offset, int size)
     psb__trace_message("[%04x]", g_hexdump_offset);
     g_hexdump_offset += offset;
     g_hexdump_offset += size;
-    while( offset-- > 0)
-    {
+    while (offset-- > 0) {
         psb__trace_message(" --");
     }
-    while( size-- > 0)
-    {
+    while (size-- > 0) {
         psb__trace_message(" %02x", *p++);
     }
     psb__trace_message("\n");
@@ -884,22 +831,18 @@ static void psb__hexdump2(unsigned char *p, int offset, int size)
 static void psb__hexdump(void *addr, int size)
 {
     unsigned char *p = (unsigned char *) addr;
-    
+
     int offset = g_hexdump_offset % 8;
     g_hexdump_offset -= offset;
-    if (offset)
-    {
+    if (offset) {
         psb__hexdump2(p, offset, size);
         size -= 8 - offset;
         p += 8 - offset;
     }
 
-    while( 1 )
-    {
-        if (size < 8)
-        {
-            if (size > 0)
-            {
+    while (1) {
+        if (size < 8) {
+            if (size > 0) {
                 psb__hexdump2(p, 0, size);
             }
             return;
@@ -927,21 +870,21 @@ void psb__debug_schedule_hexdump(const char *name, psb_buffer_p buf, uint32_t of
 /*
  * Closes the last segment
  */
-static void psb_cmdbuf_close_segment( psb_cmdbuf_p cmdbuf )
+static void psb_cmdbuf_close_segment(psb_cmdbuf_p cmdbuf)
 {
     uint32_t bytes_used = ((void *) cmdbuf->cmd_idx - cmdbuf->cmd_start) % MTX_SEG_SIZE;
     void *segment_start = (void *) cmdbuf->cmd_idx - bytes_used;
-    uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, 
-                                          &(cmdbuf->buf), (segment_start - cmdbuf->cmd_base) /* offset */,
-                                          bytes_used,
-                                          0 /* destination offset */,
-                                          LLDMA_TYPE_RENDER_BUFF_MC);
+    uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf,
+                                   &(cmdbuf->buf), (segment_start - cmdbuf->cmd_base) /* offset */,
+                                   bytes_used,
+                                   0 /* destination offset */,
+                                   LLDMA_TYPE_RENDER_BUFF_MC);
     uint32_t cmd = CMD_NEXT_SEG;
-    RELOC_SHIFT4( *cmdbuf->last_next_segment_cmd, lldma_record_offset, cmd, &(cmdbuf->buf));
-    *(cmdbuf->last_next_segment_cmd+1) = bytes_used;
+    RELOC_SHIFT4(*cmdbuf->last_next_segment_cmd, lldma_record_offset, cmd, &(cmdbuf->buf));
+    *(cmdbuf->last_next_segment_cmd + 1) = bytes_used;
 }
 
-int psb_context_submit_deblock( object_context_p obj_context )
+int psb_context_submit_deblock(object_context_p obj_context)
 {
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     uint32_t msg_size = FW_DXVA_DEBLOCK_SIZE;
@@ -949,9 +892,9 @@ int psb_context_submit_deblock( object_context_p obj_context )
     DEBLOCKPARAMS* pdbParams;
 
     psb__information_message("Send two pass deblock cmd\n");
-    if(cmdbuf->cmd_count) {
+    if (cmdbuf->cmd_count) {
         psb__information_message("two pass deblock cmdbuf has render msg!\n");
-	return 1;
+        return 1;
     }
 
     cmdbuf->deblock_count++;
@@ -961,14 +904,14 @@ int psb_context_submit_deblock( object_context_p obj_context )
     MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID, DXVA_MSGID_DEBLOCK);
 
     MEMIO_WRITE_FIELD(msg, FW_DXVA_DEBLOCK_CONTEXT, obj_context->msvdx_context);
-    MEMIO_WRITE_FIELD(msg, FW_DXVA_DEBLOCK_FLAGS, FW_DXVA_RENDER_HOST_INT );
-    
-    pdbParams = (DEBLOCKPARAMS*) (msg + 16 / sizeof(uint32_t));
+    MEMIO_WRITE_FIELD(msg, FW_DXVA_DEBLOCK_FLAGS, FW_DXVA_RENDER_HOST_INT);
+
+    pdbParams = (DEBLOCKPARAMS*)(msg + 16 / sizeof(uint32_t));
 
     pdbParams->handle = wsbmKBufHandle(wsbmKBuf(cmdbuf->regio_buf.drm_buf));
     /* printf("regio buffer size is 0x%x\n", cmdbuf->regio_size); */
     pdbParams->buffer_size = cmdbuf->regio_size;
-    pdbParams->ctxid = obj_context->msvdx_context;
+    pdbParams->ctxid = (obj_context->msvdx_context & 0xfff);
 
     return 0;
 }
@@ -981,8 +924,8 @@ int psb_context_submit_hw_deblock(object_context_p obj_context,
                                   uint32_t picture_widht_mb,
                                   uint32_t frame_height_mb,
                                   uint32_t rotation_flags,
-				  uint32_t field_type,
-				  uint32_t ext_stride_a,
+                                  uint32_t field_type,
+                                  uint32_t ext_stride_a,
                                   uint32_t chroma_offset_a,
                                   uint32_t chroma_offset_b,
                                   uint32_t is_oold)
@@ -993,7 +936,7 @@ int psb_context_submit_hw_deblock(object_context_p obj_context,
     unsigned int item_size; /* Size of a render/deocde msg */
     FW_VA_DEBLOCK_MSG *deblock_msg;
 
-    if(IS_MFLD(driver_data))
+    if (IS_MFLD(driver_data))
         item_size = FW_DEVA_DECODE_SIZE;
     else
         item_size = FW_DXVA_RENDER_SIZE;
@@ -1004,22 +947,22 @@ int psb_context_submit_hw_deblock(object_context_p obj_context,
     deblock_msg = (FW_VA_DEBLOCK_MSG *)msg;
 
     deblock_msg->header.bits.msg_size = msg_size;
-    if(is_oold)
+    if (is_oold)
         deblock_msg->header.bits.msg_type = VA_MSGID_OOLD_MFLD;
     else
         deblock_msg->header.bits.msg_type = VA_MSGID_DEBLOCK_MFLD;
     deblock_msg->flags.bits.flags = FW_DXVA_RENDER_HOST_INT | FW_DXVA_RENDER_IS_LAST_SLICE;
     deblock_msg->flags.bits.slice_type = field_type;
     deblock_msg->operating_mode = obj_context->operating_mode;
-    deblock_msg->mmu_context.bits.context = (uint8_t)(obj_context->msvdx_context >> 16);
+    deblock_msg->mmu_context.bits.context = (uint8_t)(obj_context->msvdx_context);
     deblock_msg->pic_size.bits.frame_height_mb = (uint16_t)frame_height_mb;
-    deblock_msg->pic_size.bits.pic_width_mb = (uint16_t)picture_widht_mb; 
+    deblock_msg->pic_size.bits.pic_width_mb = (uint16_t)picture_widht_mb;
     deblock_msg->ext_stride_a = ext_stride_a;
     deblock_msg->rotation_flags = rotation_flags;
 
     RELOC_MSG(deblock_msg->address_a0, buf_a->buffer_ofs, buf_a);
     RELOC_MSG(deblock_msg->address_a1, buf_a->buffer_ofs + chroma_offset_a, buf_a);
-    if(buf_b) {
+    if (buf_b) {
         RELOC_MSG(deblock_msg->address_b0, buf_b->buffer_ofs, buf_b);
         RELOC_MSG(deblock_msg->address_b1, buf_b->buffer_ofs + chroma_offset_b, buf_b);
     }
@@ -1029,25 +972,24 @@ int psb_context_submit_hw_deblock(object_context_p obj_context,
     return 0;
 }
 
-int psb_context_submit_oold( object_context_p obj_context,
-                               psb_buffer_p src_buf,
-                               psb_buffer_p dst_buf,
-                               psb_buffer_p colocate_buffer,
-                               uint32_t picture_width_in_mb,
-                               uint32_t frame_height_in_mb,
-                               uint32_t field_type,
-                               uint32_t chroma_offset )
+int psb_context_submit_oold(object_context_p obj_context,
+                            psb_buffer_p src_buf,
+                            psb_buffer_p dst_buf,
+                            psb_buffer_p colocate_buffer,
+                            uint32_t picture_width_in_mb,
+                            uint32_t frame_height_in_mb,
+                            uint32_t field_type,
+                            uint32_t chroma_offset)
 {
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     uint32_t msg_size = FW_DXVA_OOLD_SIZE;
     uint32_t *msg = cmdbuf->MTX_msg + cmdbuf->cmd_count * FW_DXVA_RENDER_SIZE;
     FW_DXVA_OOLD_MSG *oold_msg;
 
-    if (NULL == src_buf || NULL == dst_buf || NULL == colocate_buffer)
-    {
-	psb__error_message("%s L%d Invalide src_buf, dst_buf or colocate_buffer\n",
-		__FUNCTION__, __LINE__);
-	return VA_STATUS_ERROR_INVALID_BUFFER;
+    if (NULL == src_buf || NULL == dst_buf || NULL == colocate_buffer) {
+        psb__error_message("%s L%d Invalide src_buf, dst_buf or colocate_buffer\n",
+                           __FUNCTION__, __LINE__);
+        return VA_STATUS_ERROR_INVALID_BUFFER;
     }
 
     psb__information_message("Send out of loop deblock cmd\n");
@@ -1055,7 +997,7 @@ int psb_context_submit_oold( object_context_p obj_context,
     cmdbuf->oold_count++;
     memset(msg, 0, msg_size);
     oold_msg = (FW_DXVA_OOLD_MSG *) msg;
- 
+
     MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE, FW_DXVA_OOLD_SIZE);
     MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID, DXVA_MSGID_OOLD);
     MEMIO_WRITE_FIELD(msg, FW_DXVA_DEBLOCK_CONTEXT, obj_context->msvdx_context);
@@ -1072,7 +1014,66 @@ int psb_context_submit_oold( object_context_p obj_context,
     RELOC_MSG(oold_msg->SOURCE_MB_PARAM_ADDRESS, colocate_buffer->buffer_ofs, colocate_buffer);
 
     MEMIO_WRITE_FIELD(msg, FW_DXVA_OOLD_SLICE_FIELD_TYPE, field_type);
- 
+
+    return 0;
+}
+
+int psb_context_submit_host_be_opp(object_context_p obj_context, psb_buffer_p dst_buf,
+                                   uint32_t stride, uint32_t size,
+                                   uint32_t picture_width_mb,
+                                   uint32_t size_mb)
+{
+    psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
+    uint32_t msg_size = FW_DXVA_HOST_BE_OPP_SIZE;
+
+    if ((NULL == cmdbuf) || ((0 == cmdbuf->cmd_count) && (0 == cmdbuf->host_be_opp_count) &&
+                             (0 == cmdbuf->deblock_count) || (0 == cmdbuf->frame_info_count))) {
+        psb_context_get_next_cmdbuf(obj_context);
+        cmdbuf = obj_context->cmdbuf;
+    }
+    uint32_t *msg = cmdbuf->MTX_msg + cmdbuf->cmd_count * FW_DXVA_RENDER_SIZE +
+                    cmdbuf->oold_count * FW_DXVA_OOLD_SIZE + cmdbuf->frame_info_count * FW_DXVA_FRAME_INFO_SIZE;
+
+    psb__information_message("Send host be opp cmd\n");
+
+    cmdbuf->host_be_opp_count++;
+    memset(msg, 0, msg_size);
+
+    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE, 16); /* Deblock message size is 16 bytes */
+    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID, DAVA_MSGID_HOST_BE_OPP);
+
+    MEMIO_WRITE_FIELD(msg, FW_DXVA_HOST_BE_OPP_CONTEXT, ((obj_context->msvdx_context >> 8) | 0x1));
+    MEMIO_WRITE_FIELD(msg, FW_DXVA_HOST_BE_OPP_FLAGS, FW_DXVA_RENDER_HOST_INT | FW_ERROR_DETECTION_AND_RECOVERY);
+
+    return 0;
+}
+
+int psb_context_submit_frame_info(object_context_p obj_context, psb_buffer_p dst_buf,
+                                  uint32_t stride, uint32_t size,
+                                  uint32_t picture_width_mb,
+                                  uint32_t size_mb)
+{
+    FRAME_INFO_PARAMS* frame_info;
+    psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
+    uint32_t msg_size = FW_DXVA_FRAME_INFO_SIZE;
+
+    uint32_t *msg = cmdbuf->MTX_msg;
+
+    psb__information_message("Send frame info cmd\n");
+
+    cmdbuf->frame_info_count++;
+    memset(msg, 0, msg_size);
+    /*first word is used to store message id and message size*/
+    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE, FW_DXVA_FRAME_INFO_SIZE); /* Deblock message size is 16 bytes */
+    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID, DXVA_MSGID_FRAME_INFO);
+
+    frame_info = (FRAME_INFO_PARAMS*)(msg + 4 / sizeof(uint32_t));
+
+    frame_info->handle = wsbmKBufHandle(wsbmKBuf(dst_buf->drm_buf));
+    frame_info->buffer_size = size;
+    frame_info->buffer_stride = stride;
+    frame_info->picture_width_mb = picture_width_mb;
+    frame_info->size_mb = size_mb;
     return 0;
 }
 
@@ -1081,32 +1082,31 @@ int psb_context_submit_oold( object_context_p obj_context,
  *
  * Returns 0 on success
  */
-int psb_context_submit_cmdbuf( object_context_p obj_context )
+int psb_context_submit_cmdbuf(object_context_p obj_context)
 {
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     psb_driver_data_p driver_data = obj_context->driver_data;
     unsigned int item_size; /* Size of a render/deocde msg */
 
-    if(IS_MFLD(driver_data))
+    if (IS_MFLD(driver_data))
         item_size = FW_DEVA_DECODE_SIZE;
     else
         item_size = FW_DXVA_RENDER_SIZE;
 
-   uint32_t cmdbuffer_size = (void *) cmdbuf->cmd_idx - cmdbuf->cmd_start; // In bytes
+    uint32_t cmdbuffer_size = (void *) cmdbuf->cmd_idx - cmdbuf->cmd_start; // In bytes
 
-    if (cmdbuf->last_next_segment_cmd)
-    {
+    if (cmdbuf->last_next_segment_cmd) {
         cmdbuffer_size = cmdbuf->first_segment_size;
-        psb_cmdbuf_close_segment( cmdbuf );
+        psb_cmdbuf_close_segment(cmdbuf);
     }
 
     uint32_t msg_size = item_size;
-    uint32_t *msg = cmdbuf->MTX_msg + cmdbuf->cmd_count * msg_size;
+    uint32_t *msg = cmdbuf->MTX_msg + cmdbuf->cmd_count * msg_size + cmdbuf->frame_info_count * FW_DXVA_FRAME_INFO_SIZE;
 
 #ifdef DEBUG_TRACE
     debug_cmd_start[cmdbuf->cmd_count] = cmdbuf->cmd_start - cmdbuf->cmd_base;
     debug_cmd_size[cmdbuf->cmd_count] = (void *) cmdbuf->cmd_idx - cmdbuf->cmd_start;
-    debug_cmd_count = cmdbuf->cmd_count+1;
+    debug_cmd_count = cmdbuf->cmd_count + 1;
 #endif
 
 #define DUMP_CMDBUF 0
@@ -1116,8 +1116,8 @@ int psb_context_submit_cmdbuf( object_context_p obj_context )
     static char pFileName[30];
 
 
-    sprintf( pFileName , "cmdbuf%i.txt", c++);
-    FILE* pF = fopen(pFileName,"w");
+    sprintf(pFileName , "cmdbuf%i.txt", c++);
+    FILE* pF = fopen(pFileName, "w");
 
     fwrite(cmdbuf->cmd_start, 1, cmdbuffer_size, pF);
     fclose(pF);
@@ -1133,41 +1133,42 @@ int psb_context_submit_cmdbuf( object_context_p obj_context )
     MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE,                  msg_size);
     MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID,                    DXVA_MSGID_RENDER);
 
-    if(!IS_MFLD(driver_data))
-    {
+    if (!IS_MFLD(driver_data)) {
         /* TODO: Need to make context more unique */
-        MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_CONTEXT,            obj_context->msvdx_context );
+        if (driver_data->ec_enabled) { /* ec firmware hw issue, unknown reason */
+            MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_CONTEXT, ((obj_context->msvdx_context >> 8) | 0x1));
+        } else {
+            MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_CONTEXT,            obj_context->msvdx_context);
+        }
 
         /* Point to CMDBUFFER */
-        uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, 
-                                      &(cmdbuf->buf), (cmdbuf->cmd_start - cmdbuf->cmd_base) /* offset */,
-                                      cmdbuffer_size,
-                                      0 /* destination offset */,
-                                      (obj_context->video_op == psb_video_vld) ? LLDMA_TYPE_RENDER_BUFF_VLD : LLDMA_TYPE_RENDER_BUFF_MC);
+        uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf,
+                                       &(cmdbuf->buf), (cmdbuf->cmd_start - cmdbuf->cmd_base) /* offset */,
+                                       cmdbuffer_size,
+                                       0 /* destination offset */,
+                                       (obj_context->video_op == psb_video_vld) ? LLDMA_TYPE_RENDER_BUFF_VLD : LLDMA_TYPE_RENDER_BUFF_MC);
         /* This is the last relocation */
-        RELOC_MSG( *(msg + (FW_DXVA_RENDER_LLDMA_ADDRESS_OFFSET/sizeof(uint32_t))), 
-               lldma_record_offset, &(cmdbuf->buf));
-    
+        RELOC_MSG(*(msg + (FW_DXVA_RENDER_LLDMA_ADDRESS_OFFSET / sizeof(uint32_t))),
+                  lldma_record_offset, &(cmdbuf->buf));
+
         MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_BUFFER_SIZE,          cmdbuffer_size); // In bytes
         MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_OPERATING_MODE,       obj_context->operating_mode);
         MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_LAST_MB_IN_FRAME,     obj_context->last_mb);
         MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_FIRST_MB_IN_SLICE,    obj_context->first_mb);
         MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_FLAGS,                obj_context->flags);
-    }
-    else
-    {
-        MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_CONTEXT, (obj_context->msvdx_context >> 16) );/* context is 8 bits */
+    } else {
+        MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_CONTEXT, (obj_context->msvdx_context)); /* context is 8 bits */
 
         /* Point to CMDBUFFER */
-        uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, 
-                                      &(cmdbuf->buf), (cmdbuf->cmd_start - cmdbuf->cmd_base) /* offset */,
-                                      cmdbuffer_size,
-                                      0 /* destination offset */,
-                                      (obj_context->video_op == psb_video_vld) ? LLDMA_TYPE_RENDER_BUFF_VLD : LLDMA_TYPE_RENDER_BUFF_MC);
+        uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf,
+                                       &(cmdbuf->buf), (cmdbuf->cmd_start - cmdbuf->cmd_base) /* offset */,
+                                       cmdbuffer_size,
+                                       0 /* destination offset */,
+                                       (obj_context->video_op == psb_video_vld) ? LLDMA_TYPE_RENDER_BUFF_VLD : LLDMA_TYPE_RENDER_BUFF_MC);
         /* This is the last relocation */
-        RELOC_MSG( *(msg + (FW_DEVA_DECODE_LLDMA_ADDRESS_OFFSET/sizeof(uint32_t))), 
-               lldma_record_offset, &(cmdbuf->buf));
-    
+        RELOC_MSG(*(msg + (FW_DEVA_DECODE_LLDMA_ADDRESS_OFFSET / sizeof(uint32_t))),
+                  lldma_record_offset, &(cmdbuf->buf));
+
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_BUFFER_SIZE,          cmdbuffer_size / 4); // In dwords
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE,       obj_context->operating_mode);
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_FLAGS,                obj_context->flags);
@@ -1182,24 +1183,23 @@ int psb_context_submit_cmdbuf( object_context_p obj_context )
     cmdbuf->cmd_start = cmdbuf->cmd_idx;
 
 #ifdef DEBUG_TRACE
-    return psb_context_flush_cmdbuf( obj_context ); 
+    return psb_context_flush_cmdbuf(obj_context);
 #else
     if ((cmdbuf->cmd_count >= MAX_CMD_COUNT) ||
-        (MTXMSG_END(cmdbuf) - (void *) msg < MTXMSG_MARGIN) ||
-        (CMD_END(cmdbuf) - (void *) cmdbuf->cmd_idx < CMD_MARGIN) ||
-        (LLDMA_END(cmdbuf) - cmdbuf->lldma_idx < LLDMA_MARGIN) ||
-        (RELOC_END(cmdbuf) - (void *) cmdbuf->reloc_idx < RELOC_MARGIN))
-    {
-        return psb_context_flush_cmdbuf( obj_context ); 
+            (MTXMSG_END(cmdbuf) - (void *) msg < MTXMSG_MARGIN) ||
+            (CMD_END(cmdbuf) - (void *) cmdbuf->cmd_idx < CMD_MARGIN) ||
+            (LLDMA_END(cmdbuf) - cmdbuf->lldma_idx < LLDMA_MARGIN) ||
+            (RELOC_END(cmdbuf) - (void *) cmdbuf->reloc_idx < RELOC_MARGIN)) {
+        return psb_context_flush_cmdbuf(obj_context);
     }
-#endif    
+#endif
     return 0;
 }
 
 /*
  * Flushes all cmdbufs
  */
-int psb_context_flush_cmdbuf( object_context_p obj_context )
+int psb_context_flush_cmdbuf(object_context_p obj_context)
 {
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     psb_driver_data_p driver_data = obj_context->driver_data;
@@ -1211,13 +1211,13 @@ int psb_context_flush_cmdbuf( object_context_p obj_context )
     int ret;
     unsigned int item_size; /* Size of a render/deocde msg */
 
-    if(IS_MFLD(driver_data))
+    if (IS_MFLD(driver_data))
         item_size = FW_DEVA_DECODE_SIZE;
     else
         item_size = FW_DXVA_RENDER_SIZE;
 
-    if ((NULL == cmdbuf) || ((0 == cmdbuf->cmd_count) && (0 == cmdbuf->deblock_count)))
-    {
+    if ((NULL == cmdbuf) ||
+            (0 == (cmdbuf->cmd_count + cmdbuf->deblock_count + cmdbuf->host_be_opp_count + cmdbuf->frame_info_count))) {
         return 0; // Nothing to do
     }
 
@@ -1227,68 +1227,64 @@ int psb_context_flush_cmdbuf( object_context_p obj_context )
 
     /* LOCK */
     ret = LOCK_HARDWARE(driver_data);
-    if (ret)
-    {
+    if (ret) {
         UNLOCK_HARDWARE(driver_data);
         DEBUG_FAILURE_RET;
         return ret;
     }
-    
-    for(i = 1; i <= cmdbuf->cmd_count; i++)
-    {
+
+    for (i = 1; i <= cmdbuf->frame_info_count; i++) {
+        msg_size += FW_DXVA_FRAME_INFO_SIZE;
+        msg += FW_DXVA_FRAME_INFO_SIZE / sizeof(uint32_t);
+    }
+
+    for (i = 1; i <= cmdbuf->cmd_count; i++) {
         uint32_t flags;
-        
-        if(IS_MFLD(driver_data))
+
+        if (IS_MFLD(driver_data))
             flags = MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_FLAGS);
         else
             flags = MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FLAGS);
 
         /* Update flags */
-        int bBatchEnd = (i == (cmdbuf->cmd_count + cmdbuf->deblock_count + cmdbuf->oold_count));
-
-        flags |= 
-            (bBatchEnd ? (FW_DXVA_RENDER_HOST_INT | FW_DXVA_LAST_SLICE_OF_EXT_DMA)    : FW_DXVA_RENDER_NO_RESPONCE_MSG) |
+        int bBatchEnd = (i == (cmdbuf->cmd_count + cmdbuf->deblock_count + cmdbuf->oold_count
+                               + cmdbuf->host_be_opp_count));
+        flags |=
+            (bBatchEnd ? FW_DXVA_RENDER_HOST_INT : FW_DXVA_RENDER_NO_RESPONCE_MSG) |
             (obj_context->video_op == psb_video_vld    ? FW_DXVA_RENDER_IS_VLD_NOT_MC : 0);
 
-	if( i == cmdbuf->cmd_count )
-            flags |= FW_DXVA_LAST_SLICE_OF_EXT_DMA;
+        if (driver_data->ec_enabled && IS_MRST(driver_data))
+            flags |= FW_ERROR_DETECTION_AND_RECOVERY;
 
-        /* VXD385 DDK406 not use FW_DXVA_LAST_SLICE_OF_EXT_DMA, this flags should be cleaned later */
-        if(IS_MFLD(driver_data)) 
-        {
-            flags &= ~FW_DXVA_LAST_SLICE_OF_EXT_DMA;
+        if (IS_MFLD(driver_data)) {
             flags &= ~FW_DXVA_RENDER_IS_VLD_NOT_MC;
             MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_FLAGS, flags);
-        }
-        else {
+        } else {
             MEMIO_WRITE_FIELD(msg, FW_DXVA_RENDER_FLAGS, flags);
         }
 
 #ifdef DEBUG_TRACE
-    if(!IS_MFLD(driver_data))
-    {
-	psb__trace_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_BUFFER_SIZE) );
-	psb__trace_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_OPERATING_MODE) );
-	psb__trace_message("MSG LAST_MB_IN_FRAME  = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_LAST_MB_IN_FRAME) );
-	psb__trace_message("MSG FIRST_MB_IN_SLICE = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FIRST_MB_IN_SLICE) );
-	psb__trace_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FLAGS) );
+        if (!IS_MFLD(driver_data)) {
+            psb__trace_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_BUFFER_SIZE));
+            psb__trace_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_OPERATING_MODE));
+            psb__trace_message("MSG LAST_MB_IN_FRAME  = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_LAST_MB_IN_FRAME));
+            psb__trace_message("MSG FIRST_MB_IN_SLICE = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FIRST_MB_IN_SLICE));
+            psb__trace_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FLAGS));
 
-	psb__information_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_BUFFER_SIZE) );
-	psb__information_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_OPERATING_MODE) );
-	psb__information_message("MSG LAST_MB_IN_FRAME  = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_LAST_MB_IN_FRAME) );
-	psb__information_message("MSG FIRST_MB_IN_SLICE = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FIRST_MB_IN_SLICE) );
-	psb__information_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FLAGS) );
-    }
-    else
-    {
-	psb__trace_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_BUFFER_SIZE) );
-	psb__trace_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE) );
-	psb__trace_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_FLAGS) );
+            psb__information_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_BUFFER_SIZE));
+            psb__information_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_OPERATING_MODE));
+            psb__information_message("MSG LAST_MB_IN_FRAME  = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_LAST_MB_IN_FRAME));
+            psb__information_message("MSG FIRST_MB_IN_SLICE = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FIRST_MB_IN_SLICE));
+            psb__information_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DXVA_RENDER_FLAGS));
+        } else {
+            psb__trace_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_BUFFER_SIZE));
+            psb__trace_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE));
+            psb__trace_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_FLAGS));
 
-	psb__information_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_BUFFER_SIZE) );
-	psb__information_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE) );
-	psb__information_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_FLAGS) );
-    }
+            psb__information_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_BUFFER_SIZE));
+            psb__information_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE));
+            psb__information_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_FLAGS));
+        }
 #endif
 
 #if 0  /* todo */
@@ -1300,62 +1296,64 @@ int psb_context_flush_cmdbuf( object_context_p obj_context )
     }
 
     /* Assume deblock message is following render messages and no more render message behand deblock message */
-    for(i = 1; i <= cmdbuf->deblock_count; i++)
-    {
-        if(!IS_MFLD(driver_data))
+    for (i = 1; i <= cmdbuf->deblock_count; i++) {
+        if (!IS_MFLD(driver_data))
             msg_size += FW_DXVA_DEBLOCK_SIZE;
         else
             msg_size += FW_DEVA_DEBLOCK_SIZE;
     }
- 
-    for(i = 1; i <= cmdbuf->oold_count; i++)
-    {
+
+    for (i = 1; i <= cmdbuf->oold_count; i++) {
         msg_size += FW_DXVA_OOLD_SIZE;
     }
+
+    for (i = 1; i <= cmdbuf->host_be_opp_count; i++) {
+        msg_size += FW_DXVA_HOST_BE_OPP_SIZE;
+    }
+
     /* Now calculate the total number of relocations */
     reloc_offset = cmdbuf->reloc_base - cmdbuf->MTX_msg;
     num_relocs = (((void *) cmdbuf->reloc_idx) - cmdbuf->reloc_base) / sizeof(struct drm_psb_reloc);
 
 #ifdef DEBUG_TRACE
-psb__information_message("Cmdbuf MTXMSG size = %08x [%08x]\n", msg_size, MTXMSG_SIZE);
-psb__information_message("Cmdbuf CMD size = %08x - %d[%08x]\n",  (void *) cmdbuf->cmd_idx - cmdbuf->cmd_base, cmdbuf->cmd_count, CMD_SIZE);
-psb__information_message("Cmdbuf LLDMA size = %08x [%08x]\n", cmdbuf->lldma_idx - cmdbuf->lldma_base, LLDMA_SIZE);
-psb__information_message("Cmdbuf RELOC size = %08x [%08x]\n", num_relocs * sizeof(struct drm_psb_reloc), RELOC_SIZE);
+    psb__information_message("Cmdbuf MTXMSG size = %08x [%08x]\n", msg_size, MTXMSG_SIZE);
+    psb__information_message("Cmdbuf CMD size = %08x - %d[%08x]\n", (void *) cmdbuf->cmd_idx - cmdbuf->cmd_base, cmdbuf->cmd_count, CMD_SIZE);
+    psb__information_message("Cmdbuf LLDMA size = %08x [%08x]\n", cmdbuf->lldma_idx - cmdbuf->lldma_base, LLDMA_SIZE);
+    psb__information_message("Cmdbuf RELOC size = %08x [%08x]\n", num_relocs * sizeof(struct drm_psb_reloc), RELOC_SIZE);
 #endif
-    
-    psb_cmdbuf_unmap( cmdbuf );
+
+    psb_cmdbuf_unmap(cmdbuf);
 
 #ifdef DEBUG_TRACE
     psb__trace_message(NULL); /* Flush trace */
 #endif
-    
-    ASSERT( NULL == cmdbuf->MTX_msg );
-    ASSERT( NULL == cmdbuf->reloc_base );
+
+    ASSERT(NULL == cmdbuf->MTX_msg);
+    ASSERT(NULL == cmdbuf->reloc_base);
 
 #ifdef DEBUG_TRACE
     fence_flags = 0;
 #else
     fence_flags = DRM_PSB_FENCE_NO_USER;
-#endif    
+#endif
 
     /* cmdbuf will be validated as part of the buffer list */
     /* Submit */
 #if 1
     wsbmWriteLockKernelBO();
-    ret = psbDRMCmdBuf(driver_data->drm_fd, driver_data->execIoctlOffset,cmdbuf->buffer_refs,
-		    cmdbuf->buffer_refs_count,
-		    wsbmKBufHandle(wsbmKBuf(cmdbuf->reloc_buf.drm_buf)),
-		    0, msg_size,
-		    wsbmKBufHandle(wsbmKBuf(cmdbuf->reloc_buf.drm_buf)),
-		    reloc_offset, num_relocs,
-		    0 /* clipRects */, 0, PSB_ENGINE_VIDEO, fence_flags, &fence_rep);
+    ret = psbDRMCmdBuf(driver_data->drm_fd, driver_data->execIoctlOffset, cmdbuf->buffer_refs,
+                       cmdbuf->buffer_refs_count,
+                       wsbmKBufHandle(wsbmKBuf(cmdbuf->reloc_buf.drm_buf)),
+                       0, msg_size,
+                       wsbmKBufHandle(wsbmKBuf(cmdbuf->reloc_buf.drm_buf)),
+                       reloc_offset, num_relocs,
+                       0 /* clipRects */, 0, PSB_ENGINE_VIDEO, fence_flags, &fence_rep);
     wsbmWriteUnlockKernelBO();
     UNLOCK_HARDWARE(driver_data);
 #else
     ret = 1;
 #endif
-    if (ret)
-    {
+    if (ret) {
         obj_context->cmdbuf = NULL;
         obj_context->slice_count++;
 
@@ -1363,25 +1361,24 @@ psb__information_message("Cmdbuf RELOC size = %08x [%08x]\n", num_relocs * sizeo
         return ret;
     }
 
-    
+
 #ifdef DEBUG_TRACE
-static int error_count = 0;
+    static int error_count = 0;
     int status = 0;
-    struct _WsbmFenceObject *fence=NULL;
+    struct _WsbmFenceObject *fence = NULL;
 #if 0
     fence = psb_fence_wait(driver_data, &fence_rep, &status);
-    psb__information_message("psb_fence_wait returns: %d (fence=0x%08x)\n",status, fence);
-#endif    
+    psb__information_message("psb_fence_wait returns: %d (fence=0x%08x)\n", status, fence);
+#endif
 
-    psb_buffer_map( &cmdbuf->buf, &cmdbuf->cmd_base );
-    psb_buffer_map( &cmdbuf->reloc_buf, &cmdbuf->MTX_msg );
+    psb_buffer_map(&cmdbuf->buf, &cmdbuf->cmd_base);
+    psb_buffer_map(&cmdbuf->reloc_buf, &cmdbuf->MTX_msg);
 
     if (getenv("PSB_VIDEO_TRACE_LLDMA")) {
-        psb__trace_message("lldma_count = %d, vitual=0x%08x\n", 
+        psb__trace_message("lldma_count = %d, vitual=0x%08x\n",
                            debug_lldma_count,  wsbmBOOffsetHint(cmdbuf->buf.drm_buf) + CMD_SIZE);
-        for(i = 0; i < debug_lldma_count; i++)
-        {
-            DMA_sLinkedList* pasDmaList = (DMA_sLinkedList*) (cmdbuf->cmd_base + debug_lldma_start);
+        for (i = 0; i < debug_lldma_count; i++) {
+            DMA_sLinkedList* pasDmaList = (DMA_sLinkedList*)(cmdbuf->cmd_base + debug_lldma_start);
             pasDmaList += i;
 
             psb__trace_message("\nLLDMA record at offset %08x\n", ((void*)pasDmaList) - cmdbuf->cmd_base);
@@ -1406,56 +1403,83 @@ static int error_count = 0;
         }
     }
 
-    
+
 
     psb__trace_message("debug_dump_count = %d\n", debug_dump_count);
-    for(i = 0; i < debug_dump_count; i++)
-    {
+    for (i = 0; i < debug_dump_count; i++) {
         void *buf_addr;
         psb__trace_message("Buffer %d = '%s' offset = %08x size = %08x\n", i, debug_dump_name[i], debug_dump_offset[i], debug_dump_size[i]);
-        if (debug_dump_buf[i]->rar_handle 
-            || (psb_buffer_map( debug_dump_buf[i], &buf_addr) != 0)) {
+        if (debug_dump_buf[i]->rar_handle
+                || (psb_buffer_map(debug_dump_buf[i], &buf_addr) != 0)) {
             psb__trace_message("Unmappable buffer,e.g. RAR buffer\n");
             continue;
         }
-        
+
         g_hexdump_offset = 0;
-        psb__hexdump( buf_addr + debug_dump_offset[i], debug_dump_size[i]);
-        psb_buffer_unmap( debug_dump_buf[i] );
+        psb__hexdump(buf_addr + debug_dump_offset[i], debug_dump_size[i]);
+        psb_buffer_unmap(debug_dump_buf[i]);
     }
     debug_dump_count = 0;
 
-    psb__trace_message("cmd_count = %d, virtual=0x%08x\n", 
-    		       debug_cmd_count, wsbmBOOffsetHint(cmdbuf->buf.drm_buf));
-    for(i = 0; i < debug_cmd_count; i++)
-    {
-	uint32_t *msg = cmdbuf->MTX_msg + i * item_size;
-	int j;
+    psb__trace_message("cmd_count = %d, virtual=0x%08x\n",
+                       debug_cmd_count, wsbmBOOffsetHint(cmdbuf->buf.drm_buf));
+    for (i = 0; i < debug_cmd_count; i++) {
+        uint32_t *msg = cmdbuf->MTX_msg + i * item_size;
+        int j;
         psb__information_message("start = %08x size = %08x\n", debug_cmd_start[i], debug_cmd_size[i]);
-        debug_dump_cmdbuf( (uint32_t *) (cmdbuf->cmd_base + debug_cmd_start[i]), debug_cmd_size[i] );
+        debug_dump_cmdbuf((uint32_t *)(cmdbuf->cmd_base + debug_cmd_start[i]), debug_cmd_size[i]);
 
-	for (j=0; j<item_size/4; j++)
-            psb__trace_message("MTX msg[%d] = 0x%08x\n", j, *(msg+j));
+        for (j = 0; j < item_size / 4; j++) {
+            psb__trace_message("MTX msg[%d] = 0x%08x", j, *(msg + j));
+            switch (j) {
+            case 0:
+                psb__trace_message("[BufferSize|ID|MSG_SIZE]\n");
+                break;
+            case 1:
+                psb__trace_message("[MMUPTD]\n");
+                break;
+            case 2:
+                psb__trace_message("[LLDMA_address]\n");
+                break;
+            case 3:
+                psb__trace_message("[Context]\n");
+                break;
+            case 4:
+                psb__trace_message("[Fence_Value]\n");
+                break;
+            case 5:
+                psb__trace_message("[Operating_Mode]\n");
+                break;
+            case 6:
+                psb__trace_message("[LastMB|FirstMB]\n");
+                break;
+            case 7:
+                psb__trace_message("[Flags]\n");
+                break;
+            default:
+                psb__trace_message("[overflow]\n");
+                break;
+            }
+        }
     }
-    psb_buffer_unmap( &cmdbuf->buf );
-    psb_buffer_unmap( &cmdbuf->reloc_buf);
+    psb_buffer_unmap(&cmdbuf->buf);
+    psb_buffer_unmap(&cmdbuf->reloc_buf);
 
     cmdbuf->cmd_base = NULL;
 
-    if (status)
-    {
+    if (status) {
         psb__error_message("RENDERING ERROR FRAME=%03d SLICE=%02d status=%d\n", obj_context->frame_count, obj_context->slice_count, status);
         error_count++;
-	ASSERT(status != 2);
+        ASSERT(status != 2);
         ASSERT(error_count < 40); /* Exit on 40 errors */
     }
     if (fence)
-        psb_fence_destroy(fence);    
-#endif    
-    
+        psb_fence_destroy(fence);
+#endif
+
     obj_context->cmdbuf = NULL;
     obj_context->slice_count++;
-    
+
     return 0;
 }
 
@@ -1471,168 +1495,157 @@ typedef enum    {
 } DMA_DIRECTION;
 
 typedef struct {
-	IMG_UINT32 ui32DevDestAddr ;	/* destination address */
-	DMA_ePW	ePeripheralWidth;
-	DMA_ePeriphIncrSize	ePeriphIncrSize;
-	DMA_ePeriphIncr	ePeriphIncr;
-	IMG_BOOL		bSynchronous;
-	MMU_GROUP		eMMUGroup;
-	DMA_DIRECTION	eDMADir;
-	DMA_eBurst		eDMA_eBurst;
+    IMG_UINT32 ui32DevDestAddr ;	/* destination address */
+    DMA_ePW	ePeripheralWidth;
+    DMA_ePeriphIncrSize	ePeriphIncrSize;
+    DMA_ePeriphIncr	ePeriphIncr;
+    IMG_BOOL		bSynchronous;
+    MMU_GROUP		eMMUGroup;
+    DMA_DIRECTION	eDMADir;
+    DMA_eBurst		eDMA_eBurst;
 } DMA_DETAIL_LOOKUP;
 
 
-static const DMA_DETAIL_LOOKUP DmaDetailLookUp[] =
-{
-	/* LLDMA_TYPE_VLC_TABLE */ { 	REG_MSVDX_VEC_VLC_OFFSET  ,
-									DMA_PWIDTH_16_BIT,	/* 16 bit wide data*/
-									DMA_PERIPH_INCR_4,	/* Incrament the dest by 32 bits */
-									DMA_PERIPH_INCR_ON,
-									IMG_TRUE,
-									MMU_GROUP0,
-									HOST_TO_MSVDX,
-									DMA_BURST_2
-								},
-	/* LLDMA_TYPE_BITSTREAM */ {
-									( REG_MSVDX_VEC_OFFSET + MSVDX_VEC_CR_VEC_SHIFTREG_STREAMIN_OFFSET  ),
-									DMA_PWIDTH_8_BIT,
-									DMA_PERIPH_INCR_1,
-									DMA_PERIPH_INCR_OFF,
-									IMG_FALSE,
-									MMU_GROUP0,
-									HOST_TO_MSVDX,
-									DMA_BURST_4
-								},
-	/*LLDMA_TYPE_RESIDUAL*/		{
-									(REG_MSVDX_VDMC_OFFSET + MSVDX_VDMC_CR_VDMC_RESIDUAL_DIRECT_INSERT_DATA_OFFSET),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_1,	
-									DMA_PERIPH_INCR_OFF,
-									IMG_FALSE,
-									MMU_GROUP1,
-									HOST_TO_MSVDX,
-									DMA_BURST_4
-								},
+static const DMA_DETAIL_LOOKUP DmaDetailLookUp[] = {
+    /* LLDMA_TYPE_VLC_TABLE */ { 	REG_MSVDX_VEC_VLC_OFFSET  ,
+        DMA_PWIDTH_16_BIT,	/* 16 bit wide data*/
+        DMA_PERIPH_INCR_4,	/* Incrament the dest by 32 bits */
+        DMA_PERIPH_INCR_ON,
+        IMG_TRUE,
+        MMU_GROUP0,
+        HOST_TO_MSVDX,
+        DMA_BURST_2
+    },
+    /* LLDMA_TYPE_BITSTREAM */ {
+        (REG_MSVDX_VEC_OFFSET + MSVDX_VEC_CR_VEC_SHIFTREG_STREAMIN_OFFSET),
+        DMA_PWIDTH_8_BIT,
+        DMA_PERIPH_INCR_1,
+        DMA_PERIPH_INCR_OFF,
+        IMG_FALSE,
+        MMU_GROUP0,
+        HOST_TO_MSVDX,
+        DMA_BURST_4
+    },
+    /*LLDMA_TYPE_RESIDUAL*/		{
+        (REG_MSVDX_VDMC_OFFSET + MSVDX_VDMC_CR_VDMC_RESIDUAL_DIRECT_INSERT_DATA_OFFSET),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_1,
+        DMA_PERIPH_INCR_OFF,
+        IMG_FALSE,
+        MMU_GROUP1,
+        HOST_TO_MSVDX,
+        DMA_BURST_4
+    },
 
-	/*LLDMA_TYPE_RENDER_BUFF_MC*/{
-									(REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET ),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_1,	
-									DMA_PERIPH_INCR_OFF,
-									IMG_TRUE,
-									MMU_GROUP1,
-									HOST_TO_MSVDX,
-									DMA_BURST_1		/* Into MTX */
-								},
-	/*LLDMA_TYPE_RENDER_BUFF_VLD*/{
-									(REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET ),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_1,	
-									DMA_PERIPH_INCR_OFF,
-									IMG_TRUE,
-									MMU_GROUP0,
-									HOST_TO_MSVDX,
-									DMA_BURST_1		/* Into MTX */
-								},
-	/*LLDMA_TYPE_MPEG4_FESTATE_SAVE*/{
-									(REG_MSVDX_VEC_RAM_OFFSET + 0xB90 ),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_4,	
-									DMA_PERIPH_INCR_ON,
-									IMG_TRUE,
-									MMU_GROUP0,
-									MSXDX_TO_HOST,
-									DMA_BURST_2		 /* From VLR */
-								},
-	/*LLDMA_TYPE_MPEG4_FESTATE_RESTORE*/{
-									(REG_MSVDX_VEC_RAM_OFFSET + 0xB90 ),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_4,	
-									DMA_PERIPH_INCR_ON,
-									IMG_TRUE,
-									MMU_GROUP0,
-									HOST_TO_MSVDX,
-									DMA_BURST_2		/* Into VLR */
-								},
-	/*LLDMA_TYPE_H264_PRELOAD_SAVE*/{
-									(REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET ),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_1,	
-									DMA_PERIPH_INCR_OFF,
-									IMG_TRUE,	/* na */
-									MMU_GROUP1,
-									MSXDX_TO_HOST,
-									DMA_BURST_1		/* From MTX */
-								},
-	/*LLDMA_TYPE_H264_PRELOAD_RESTORE*/{
-									(REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET ),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_1,	
-									DMA_PERIPH_INCR_OFF,
-									IMG_TRUE,	/* na */
-									MMU_GROUP1,
-									HOST_TO_MSVDX,
-									DMA_BURST_1		/* Into MTX */
-								},
-	/*LLDMA_TYPE_VC1_PRELOAD_SAVE*/{
-									(REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET ),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_1,	
-									DMA_PERIPH_INCR_OFF,
-									IMG_TRUE,	/* na */
-									MMU_GROUP0,
-									MSXDX_TO_HOST,
-									DMA_BURST_1		//2	/* From MTX */
-								},
-	/*LLDMA_TYPE_VC1_PRELOAD_RESTORE*/{
-									(REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET ),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_1,	
-									DMA_PERIPH_INCR_OFF,
-									IMG_TRUE,	/* na */
-									MMU_GROUP0,
-									HOST_TO_MSVDX,
-									DMA_BURST_1		/* Into MTX */
-								},
-	/*LLDMA_TYPE_IDCT_INSERTION*/{
-									(REG_MSVDX_VEC_OFFSET + MSVDX_VEC_CR_VEC_DIRECT_MODE_DATA0_OFFSET ),
-									DMA_PWIDTH_32_BIT,
-									DMA_PERIPH_INCR_1,	
-									DMA_PERIPH_INCR_OFF,
-									IMG_FALSE,
-									MMU_GROUP1,
-									HOST_TO_MSVDX,
-									DMA_BURST_4
-								},
-	/*LLDMA_TYPE_RENDER_BUFF_ALTERNATE */
-	 {
-									( REG_MSVDX_VEC_OFFSET + MSVDX_VEC_CR_VEC_SHIFTREG_STREAMIN_OFFSET  ),
-									DMA_PWIDTH_8_BIT,
-									DMA_PERIPH_INCR_1,
-									DMA_PERIPH_INCR_OFF,
-									IMG_FALSE,
-									MMU_GROUP0,
-									HOST_TO_MSVDX,
-									DMA_BURST_4
-								},
+    /*LLDMA_TYPE_RENDER_BUFF_MC*/{
+        (REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_1,
+        DMA_PERIPH_INCR_OFF,
+        IMG_TRUE,
+        MMU_GROUP1,
+        HOST_TO_MSVDX,
+        DMA_BURST_1		/* Into MTX */
+    },
+    /*LLDMA_TYPE_RENDER_BUFF_VLD*/{
+        (REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_1,
+        DMA_PERIPH_INCR_OFF,
+        IMG_TRUE,
+        MMU_GROUP0,
+        HOST_TO_MSVDX,
+        DMA_BURST_1		/* Into MTX */
+    },
+    /*LLDMA_TYPE_MPEG4_FESTATE_SAVE*/{
+        (REG_MSVDX_VEC_RAM_OFFSET + 0xB90),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_4,
+        DMA_PERIPH_INCR_ON,
+        IMG_TRUE,
+        MMU_GROUP0,
+        MSXDX_TO_HOST,
+        DMA_BURST_2		 /* From VLR */
+    },
+    /*LLDMA_TYPE_MPEG4_FESTATE_RESTORE*/{
+        (REG_MSVDX_VEC_RAM_OFFSET + 0xB90),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_4,
+        DMA_PERIPH_INCR_ON,
+        IMG_TRUE,
+        MMU_GROUP0,
+        HOST_TO_MSVDX,
+        DMA_BURST_2		/* Into VLR */
+    },
+    /*LLDMA_TYPE_H264_PRELOAD_SAVE*/{
+        (REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_1,
+        DMA_PERIPH_INCR_OFF,
+        IMG_TRUE,	/* na */
+        MMU_GROUP1,
+        MSXDX_TO_HOST,
+        DMA_BURST_1		/* From MTX */
+    },
+    /*LLDMA_TYPE_H264_PRELOAD_RESTORE*/{
+        (REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_1,
+        DMA_PERIPH_INCR_OFF,
+        IMG_TRUE,	/* na */
+        MMU_GROUP1,
+        HOST_TO_MSVDX,
+        DMA_BURST_1		/* Into MTX */
+    },
+    /*LLDMA_TYPE_VC1_PRELOAD_SAVE*/{
+        (REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_1,
+        DMA_PERIPH_INCR_OFF,
+        IMG_TRUE,	/* na */
+        MMU_GROUP0,
+        MSXDX_TO_HOST,
+        DMA_BURST_1		//2	/* From MTX */
+    },
+    /*LLDMA_TYPE_VC1_PRELOAD_RESTORE*/{
+        (REG_MSVDX_MTX_OFFSET + MTX_CORE_CR_MTX_SYSC_CDMAT_OFFSET),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_1,
+        DMA_PERIPH_INCR_OFF,
+        IMG_TRUE,	/* na */
+        MMU_GROUP0,
+        HOST_TO_MSVDX,
+        DMA_BURST_1		/* Into MTX */
+    },
+    /*LLDMA_TYPE_MEM_SET */{
+        (REG_MSVDX_VEC_RAM_OFFSET + 0xCC0),
+        DMA_PWIDTH_32_BIT,
+        DMA_PERIPH_INCR_4,
+        DMA_PERIPH_INCR_OFF,
+        IMG_TRUE,       /* na */
+        MMU_GROUP0,
+        MSXDX_TO_HOST,
+        DMA_BURST_4                     /* From VLR */
+    },
+
 };
 
 #define MAX_DMA_LEN     ( 0xffff )
 
 
-void psb_cmdbuf_lldma_write_cmdbuf( psb_cmdbuf_p cmdbuf,
-                                 psb_buffer_p bitstream_buf,
-                                 uint32_t buffer_offset,
-                                 uint32_t size,
-                                 uint32_t dest_offset,
-                                 LLDMA_TYPE cmd)
+void psb_cmdbuf_lldma_write_cmdbuf(psb_cmdbuf_p cmdbuf,
+                                   psb_buffer_p bitstream_buf,
+                                   uint32_t buffer_offset,
+                                   uint32_t size,
+                                   uint32_t dest_offset,
+                                   LLDMA_TYPE cmd)
 {
     LLDMA_CMD *pLLDMACmd = (LLDMA_CMD*) cmdbuf->cmd_idx++;
     psb_cmdbuf_lldma_create_internal(cmdbuf, pLLDMACmd, bitstream_buf, buffer_offset, size,
-                dest_offset, cmd);
+                                     dest_offset, cmd);
 }
 
-uint32_t psb_cmdbuf_lldma_create( psb_cmdbuf_p cmdbuf,
+uint32_t psb_cmdbuf_lldma_create(psb_cmdbuf_p cmdbuf,
                                  psb_buffer_p bitstream_buf,
                                  uint32_t buffer_offset,
                                  uint32_t size,
@@ -1641,33 +1654,33 @@ uint32_t psb_cmdbuf_lldma_create( psb_cmdbuf_p cmdbuf,
 {
     uint32_t lldma_record_offset = (((void*)cmdbuf->lldma_idx) - ((void *) cmdbuf->cmd_base));
     psb_cmdbuf_lldma_create_internal(cmdbuf, 0, bitstream_buf, buffer_offset, size,
-                dest_offset, cmd);
+                                     dest_offset, cmd);
     return lldma_record_offset;
 }
 
 /*
  * Write a CMD_SR_SETUP referencing a bitstream buffer to the command buffer
  */
-void psb_cmdbuf_lldma_write_bitstream( psb_cmdbuf_p cmdbuf,
+void psb_cmdbuf_lldma_write_bitstream(psb_cmdbuf_p cmdbuf,
                                       psb_buffer_p bitstream_buf,
                                       uint32_t buffer_offset,
                                       uint32_t size_in_bytes,
                                       uint32_t offset_in_bits,
                                       uint32_t flags)
 {
-/*
- * We use byte alignment instead of 32bit alignment.
- * The third frame of sa10164.vc1 results in the following bitstream 
- * patttern:
- * [0000] 00 00 03 01 76 dc 04 8d
- * with offset_in_bits = 0x1e
- * This causes an ENTDEC failure because 00 00 03 is a start code
- * By byte aligning the datastream the start code will be eliminated.
- */
+    /*
+     * We use byte alignment instead of 32bit alignment.
+     * The third frame of sa10164.vc1 results in the following bitstream
+     * patttern:
+     * [0000] 00 00 03 01 76 dc 04 8d
+     * with offset_in_bits = 0x1e
+     * This causes an ENTDEC failure because 00 00 03 is a start code
+     * By byte aligning the datastream the start code will be eliminated.
+     */
 //don't need to change the offset_in_bits, size_in_bytes and buffer_offset
 #if 0
-#define ALIGNMENT	 sizeof(uint8_t)    
-    uint32_t bs_offset_in_dwords    = ((offset_in_bits /8) / ALIGNMENT);
+#define ALIGNMENT	 sizeof(uint8_t)
+    uint32_t bs_offset_in_dwords    = ((offset_in_bits / 8) / ALIGNMENT);
     size_in_bytes                   -= bs_offset_in_dwords * ALIGNMENT;
     offset_in_bits                  -= bs_offset_in_dwords * 8 * ALIGNMENT;
     buffer_offset                   += bs_offset_in_dwords * ALIGNMENT;
@@ -1677,9 +1690,9 @@ void psb_cmdbuf_lldma_write_bitstream( psb_cmdbuf_p cmdbuf,
     *cmdbuf->cmd_idx++ = offset_in_bits;
     cmdbuf->cmd_bitstream_size = cmdbuf->cmd_idx;
     *cmdbuf->cmd_idx++ = size_in_bytes;
-    
-    psb_cmdbuf_lldma_write_cmdbuf( cmdbuf, bitstream_buf, buffer_offset, 
-                            size_in_bytes, 0, LLDMA_TYPE_BITSTREAM );
+
+    psb_cmdbuf_lldma_write_cmdbuf(cmdbuf, bitstream_buf, buffer_offset,
+                                  size_in_bytes, 0, LLDMA_TYPE_BITSTREAM);
 
 #ifdef DEBUG_TRACE
     //psb__debug_schedule_hexdump("Bitstream", bitstream_buf, buffer_offset, size_in_bytes);
@@ -1689,13 +1702,13 @@ void psb_cmdbuf_lldma_write_bitstream( psb_cmdbuf_p cmdbuf,
 /*
  * Chain a LLDMA bitstream command to the previous one
  */
-void psb_cmdbuf_lldma_write_bitstream_chained( psb_cmdbuf_p cmdbuf,
-                                      psb_buffer_p bitstream_buf,
-                                      uint32_t size_in_bytes)
+void psb_cmdbuf_lldma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
+        psb_buffer_p bitstream_buf,
+        uint32_t size_in_bytes)
 {
     DMA_sLinkedList* pasDmaList = (DMA_sLinkedList*) cmdbuf->lldma_last;
-    uint32_t lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, bitstream_buf, bitstream_buf->buffer_ofs, 
-                            size_in_bytes, 0, LLDMA_TYPE_BITSTREAM );
+    uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, bitstream_buf, bitstream_buf->buffer_ofs,
+                                   size_in_bytes, 0, LLDMA_TYPE_BITSTREAM);
     /* Update WD7 of last LLDMA record to point to this one */
     RELOC_SHIFT4(pasDmaList->ui32Word_7, lldma_record_offset, 0, &(cmdbuf->buf));
     /* This touches WD1 */
@@ -1708,95 +1721,89 @@ void psb_cmdbuf_lldma_write_bitstream_chained( psb_cmdbuf_p cmdbuf,
     *(cmdbuf->cmd_bitstream_size) += size_in_bytes;
 }
 
-static void psb_cmdbuf_lldma_create_internal( psb_cmdbuf_p cmdbuf,
-                 LLDMA_CMD *pLLDMACmd,
-                                 psb_buffer_p bitstream_buf,
-                                 uint32_t buffer_offset,
-                                 uint32_t size,
-                                 uint32_t dest_offset,
-                                 LLDMA_TYPE cmd)
+static void psb_cmdbuf_lldma_create_internal(psb_cmdbuf_p cmdbuf,
+        LLDMA_CMD *pLLDMACmd,
+        psb_buffer_p bitstream_buf,
+        uint32_t buffer_offset,
+        uint32_t size,
+        uint32_t dest_offset,
+        LLDMA_TYPE cmd)
 {
     const DMA_DETAIL_LOOKUP* pDmaDetail;
     IMG_UINT32 ui32DMACount, ui32LLDMA_Offset, ui32DMADestAddr, ui32Cmd;
     DMA_sLinkedList* pasDmaList;
-    static IMG_UINT32 lu[] = {4,2,1};
+    static IMG_UINT32 lu[] = {4, 2, 1};
 
     /* See if we will fit */
-    ASSERT( cmdbuf->lldma_idx + sizeof( DMA_sLinkedList ) < LLDMA_END(cmdbuf) );
+    ASSERT(cmdbuf->lldma_idx + sizeof(DMA_sLinkedList) < LLDMA_END(cmdbuf));
 
     pDmaDetail = &DmaDetailLookUp[cmd];
 
     ui32DMACount = size / lu[pDmaDetail->ePeripheralWidth];
 
     /* DMA list must be 16byte alligned if it is done in Hw */
-    pasDmaList = (DMA_sLinkedList*) (cmdbuf->lldma_idx) ;
+    pasDmaList = (DMA_sLinkedList*)(cmdbuf->lldma_idx) ;
     // psaDmaList = (DMA_sLinkedList*) ((( cmdbuf->lldma_idx )+0x0f) & ~0x0f );
 
     /* Offset of LLDMA record in cmdbuf */
-    ui32LLDMA_Offset = (IMG_UINT32)(((IMG_UINT8*)pasDmaList) -((IMG_UINT8*) cmdbuf->cmd_base));
+    ui32LLDMA_Offset = (IMG_UINT32)(((IMG_UINT8*)pasDmaList) - ((IMG_UINT8*) cmdbuf->cmd_base));
 
-    ASSERT( 0 == (ui32LLDMA_Offset&0xf) );
+    ASSERT(0 == (ui32LLDMA_Offset&0xf));
 
     ui32DMADestAddr = pDmaDetail->ui32DevDestAddr + dest_offset;
 
     /* Write the header */
-    if (pLLDMACmd)
-    {
-         ui32Cmd = ((pDmaDetail->bSynchronous) ? CMD_SLLDMA : CMD_LLDMA );
-         RELOC_SHIFT4(pLLDMACmd->ui32CmdAndDevLinAddr, ui32LLDMA_Offset, ui32Cmd, &(cmdbuf->buf));
+    if (pLLDMACmd) {
+        ui32Cmd = ((pDmaDetail->bSynchronous) ? CMD_SLLDMA : CMD_LLDMA);
+        RELOC_SHIFT4(pLLDMACmd->ui32CmdAndDevLinAddr, ui32LLDMA_Offset, ui32Cmd, &(cmdbuf->buf));
     }
 
-    while( ui32DMACount )
-    {
-        memset( pasDmaList , 0 ,sizeof(DMA_sLinkedList) );
+    while (ui32DMACount) {
+        memset(pasDmaList , 0 , sizeof(DMA_sLinkedList));
 
-        DMA_LL_SET_WD2(pasDmaList, ui32DMADestAddr );    
+        DMA_LL_SET_WD2(pasDmaList, ui32DMADestAddr);
 
         /* DMA_LL_SET_WD6 with relocation */
         ASSERT(DMAC_LL_SA_SHIFT == 0);
 
         RELOC(pasDmaList->ui32Word_6, buffer_offset, bitstream_buf);
 
-        if( ui32DMACount > MAX_DMA_LEN )
-        {    
-            ui32LLDMA_Offset+=sizeof(DMA_sLinkedList);
+        if (ui32DMACount > MAX_DMA_LEN) {
+            ui32LLDMA_Offset += sizeof(DMA_sLinkedList);
 
             /* DMA_LL_SET_WD7 with relocation */
             ASSERT(DMAC_LL_LISTPTR_SHIFT == 0);
             RELOC_SHIFT4(pasDmaList->ui32Word_7, ui32LLDMA_Offset, 0, &(cmdbuf->buf));
             /* This touches WD1 */
             MEMIO_WRITE_FIELD(pasDmaList, DMAC_LL_LIST_FIN, 0);
-            
-            DMA_LL_SET_WD1(pasDmaList, pDmaDetail->ePeriphIncr, pDmaDetail->ePeriphIncrSize, MAX_DMA_LEN );    /* size */
 
-            ui32DMACount-= MAX_DMA_LEN;
+            DMA_LL_SET_WD1(pasDmaList, pDmaDetail->ePeriphIncr, pDmaDetail->ePeriphIncrSize, MAX_DMA_LEN);     /* size */
 
-            if(  pDmaDetail->ePeriphIncr == DMA_PERIPH_INCR_ON )
-            {
+            ui32DMACount -= MAX_DMA_LEN;
+
+            if (pDmaDetail->ePeriphIncr == DMA_PERIPH_INCR_ON) {
                 /* Update Destination pointers */
-                ui32DMADestAddr += ((MAX_DMA_LEN)* lu[pDmaDetail->ePeriphIncrSize] ); 
+                ui32DMADestAddr += ((MAX_DMA_LEN) * lu[pDmaDetail->ePeriphIncrSize]);
             }
 
             /* Update Source Pointer */
-            buffer_offset += ((MAX_DMA_LEN)*lu[pDmaDetail->ePeripheralWidth]); 
-        }
-        else
-        {
+            buffer_offset += ((MAX_DMA_LEN) * lu[pDmaDetail->ePeripheralWidth]);
+        } else {
             /* This also set LIST_FIN in WD1 to 1*/
             DMA_LL_SET_WD7(pasDmaList, IMG_NULL);                // next linked list
-            DMA_LL_SET_WD1(pasDmaList,pDmaDetail->ePeriphIncr, pDmaDetail->ePeriphIncrSize, ui32DMACount );    /* size */
+            DMA_LL_SET_WD1(pasDmaList, pDmaDetail->ePeriphIncr, pDmaDetail->ePeriphIncrSize, ui32DMACount);    /* size */
 
-            ui32DMACount =0;
+            ui32DMACount = 0;
         }
 
         /* Keep pointer in case we need to chain another LLDMA command */
         cmdbuf->lldma_last = (void *) pasDmaList;
 
-        DMA_LL_SET_WD0(pasDmaList, DMA_BSWAP_NO_SWAP, 
-            (pDmaDetail->eDMADir==HOST_TO_MSVDX)?DMA_DIR_MEM_TO_PERIPH:DMA_DIR_PERIPH_TO_MEM ,
-            pDmaDetail->ePeripheralWidth);
+        DMA_LL_SET_WD0(pasDmaList, DMA_BSWAP_NO_SWAP,
+                       (pDmaDetail->eDMADir == HOST_TO_MSVDX) ? DMA_DIR_MEM_TO_PERIPH : DMA_DIR_PERIPH_TO_MEM ,
+                       pDmaDetail->ePeripheralWidth);
 
-        DMA_LL_SET_WD3(pasDmaList, DMA_ACC_DEL_0, pDmaDetail->eDMA_eBurst, pDmaDetail->eMMUGroup );
+        DMA_LL_SET_WD3(pasDmaList, DMA_ACC_DEL_0, pDmaDetail->eDMA_eBurst, pDmaDetail->eMMUGroup);
         DMA_LL_SET_WD4(pasDmaList, DMA_MODE_2D_OFF, 0);    // 2d
         DMA_LL_SET_WD5(pasDmaList, 0, 0);                    // 2d
 
@@ -1812,26 +1819,26 @@ static void psb_cmdbuf_lldma_create_internal( psb_cmdbuf_p cmdbuf,
 /*
  * Create a command to set registers
  */
-void psb_cmdbuf_reg_start_block( psb_cmdbuf_p cmdbuf )
+void psb_cmdbuf_reg_start_block(psb_cmdbuf_p cmdbuf)
 {
     ASSERT(NULL == cmdbuf->rendec_block_start); /* Can't have both */
 
     cmdbuf->reg_start = cmdbuf->cmd_idx++;
     *cmdbuf->reg_start = 0;
-}    
+}
 
-void psb_cmdbuf_reg_start_block_flag( psb_cmdbuf_p cmdbuf, uint32_t flags )
+void psb_cmdbuf_reg_start_block_flag(psb_cmdbuf_p cmdbuf, uint32_t flags)
 {
     ASSERT(NULL == cmdbuf->rendec_block_start); /* Can't have both */
 
     cmdbuf->reg_start = cmdbuf->cmd_idx++;
     *cmdbuf->reg_start = flags;
-}    
+}
 
-void psb_cmdbuf_reg_set_address( psb_cmdbuf_p cmdbuf, 
-                                 uint32_t reg,
-                                 psb_buffer_p buffer,
-                                 uint32_t buffer_offset )
+void psb_cmdbuf_reg_set_address(psb_cmdbuf_p cmdbuf,
+                                uint32_t reg,
+                                psb_buffer_p buffer,
+                                uint32_t buffer_offset)
 {
     *cmdbuf->cmd_idx++ = reg;
     RELOC(*cmdbuf->cmd_idx++, buffer_offset, buffer);
@@ -1840,16 +1847,15 @@ void psb_cmdbuf_reg_set_address( psb_cmdbuf_p cmdbuf,
 /*
  * Finish a command to set registers
  */
-void psb_cmdbuf_reg_end_block( psb_cmdbuf_p cmdbuf )
+void psb_cmdbuf_reg_end_block(psb_cmdbuf_p cmdbuf)
 {
     uint32_t reg_count = ((cmdbuf->cmd_idx - cmdbuf->reg_start) - 1) / 2;
-    
+
     *cmdbuf->reg_start |= CMD_REGVALPAIR_WRITE | reg_count;
     cmdbuf->reg_start = NULL;
 }
 
-typedef enum
-{
+typedef enum {
     MTX_CTRL_HEADER = 0,
     RENDEC_SL_HDR,
     RENDEC_SL_NULL,
@@ -1859,61 +1865,60 @@ typedef enum
 /*
  * Create a RENDEC command block
  */
-void psb_cmdbuf_rendec_start_block( psb_cmdbuf_p cmdbuf )
+void psb_cmdbuf_rendec_start_block(psb_cmdbuf_p cmdbuf)
 {
     ASSERT(NULL == cmdbuf->rendec_block_start); /* Can't have both */
     cmdbuf->rendec_block_start = cmdbuf->cmd_idx;
 
     cmdbuf->rendec_block_start[RENDEC_SL_HDR] = 0;
-    REGIO_WRITE_FIELD_LITE (cmdbuf->rendec_block_start[RENDEC_SL_HDR], RENDEC_SLICE_INFO, SL_HDR_CK_START, SL_ROUTING_INFO,      1);
-    REGIO_WRITE_FIELD_LITE (cmdbuf->rendec_block_start[RENDEC_SL_HDR], RENDEC_SLICE_INFO, SL_HDR_CK_START, SL_ENCODING_METHOD,   3);
-    REGIO_WRITE_FIELD_LITE (cmdbuf->rendec_block_start[RENDEC_SL_HDR], RENDEC_SLICE_INFO, SL_HDR_CK_START, SL_NUM_SYMBOLS_LESS1, 1);
+    REGIO_WRITE_FIELD_LITE(cmdbuf->rendec_block_start[RENDEC_SL_HDR], RENDEC_SLICE_INFO, SL_HDR_CK_START, SL_ROUTING_INFO,      1);
+    REGIO_WRITE_FIELD_LITE(cmdbuf->rendec_block_start[RENDEC_SL_HDR], RENDEC_SLICE_INFO, SL_HDR_CK_START, SL_ENCODING_METHOD,   3);
+    REGIO_WRITE_FIELD_LITE(cmdbuf->rendec_block_start[RENDEC_SL_HDR], RENDEC_SLICE_INFO, SL_HDR_CK_START, SL_NUM_SYMBOLS_LESS1, 1);
 
     cmdbuf->rendec_block_start[RENDEC_SL_NULL] = 0; /* empty */
 
     cmdbuf->cmd_idx += RENDEC_CK_HDR;
-}    
+}
 
 /*
  * Start a new chunk in a RENDEC command block
  */
-void psb_cmdbuf_rendec_start_chunk( psb_cmdbuf_p cmdbuf, uint32_t dest_address )
+void psb_cmdbuf_rendec_start_chunk(psb_cmdbuf_p cmdbuf, uint32_t dest_address)
 {
     ASSERT(NULL != cmdbuf->rendec_block_start); /* Must have a RENDEC block open */
     cmdbuf->rendec_chunk_start = cmdbuf->cmd_idx++;
 
     *cmdbuf->rendec_chunk_start = 0;
     REGIO_WRITE_FIELD_LITE(*cmdbuf->rendec_chunk_start, RENDEC_SLICE_INFO, CK_HDR, CK_ENCODING_METHOD, 3);
-    REGIO_WRITE_FIELD_LITE(*cmdbuf->rendec_chunk_start, RENDEC_SLICE_INFO, CK_HDR, CK_START_ADDRESS, ( dest_address >> 2));
-}    
+    REGIO_WRITE_FIELD_LITE(*cmdbuf->rendec_chunk_start, RENDEC_SLICE_INFO, CK_HDR, CK_START_ADDRESS, (dest_address >> 2));
+}
 
 /*
  * Start a new rendec block of another format
  */
-void psb_cmdbuf_rendec_start( psb_cmdbuf_p cmdbuf, uint32_t dest_address )
+void psb_cmdbuf_rendec_start(psb_cmdbuf_p cmdbuf, uint32_t dest_address)
 {
-    ASSERT(   ((dest_address>>2)& ~0xfff) == 0  );
+    ASSERT(((dest_address >> 2)& ~0xfff) == 0);
     cmdbuf->rendec_chunk_start = cmdbuf->cmd_idx++;
 
-    *cmdbuf->rendec_chunk_start = CMD_RENDEC_BLOCK | ((dest_address>>2) <<4 );
-}    
+    *cmdbuf->rendec_chunk_start = CMD_RENDEC_BLOCK | ((dest_address >> 2) << 4);
+}
 
-void psb_cmdbuf_rendec_write_block( psb_cmdbuf_p cmdbuf, 
-                                    unsigned char *block,
-                                    uint32_t size )
+void psb_cmdbuf_rendec_write_block(psb_cmdbuf_p cmdbuf,
+                                   unsigned char *block,
+                                   uint32_t size)
 {
     ASSERT((size & 0x3) == 0);
     int i;
-    for( i = 0; i < size; i += 4)
-    {
+    for (i = 0; i < size; i += 4) {
         uint32_t val = block[i] | (block[i+1] << 8) | (block[i+2] << 16) | (block[i+3] << 24);
-        psb_cmdbuf_rendec_write( cmdbuf, val );
+        psb_cmdbuf_rendec_write(cmdbuf, val);
     }
 }
 
-void psb_cmdbuf_rendec_write_address( psb_cmdbuf_p cmdbuf, 
-                                      psb_buffer_p buffer,
-                                      uint32_t buffer_offset )
+void psb_cmdbuf_rendec_write_address(psb_cmdbuf_p cmdbuf,
+                                     psb_buffer_p buffer,
+                                     uint32_t buffer_offset)
 {
     RELOC(*cmdbuf->cmd_idx++, buffer_offset, buffer);
 }
@@ -1921,17 +1926,17 @@ void psb_cmdbuf_rendec_write_address( psb_cmdbuf_p cmdbuf,
 /*
  * Finish a RENDEC chunk
  */
-void psb_cmdbuf_rendec_end_chunk( psb_cmdbuf_p cmdbuf )
+void psb_cmdbuf_rendec_end_chunk(psb_cmdbuf_p cmdbuf)
 {
     ASSERT(NULL != cmdbuf->rendec_block_start); /* Must have an open RENDEC block */
     ASSERT(NULL != cmdbuf->rendec_chunk_start); /* Must have an open RENDEC chunk */
     uint32_t dword_count = (cmdbuf->cmd_idx - cmdbuf->rendec_chunk_start) - 1;
 
-    REGIO_WRITE_FIELD_LITE (*cmdbuf->rendec_chunk_start,
-                RENDEC_SLICE_INFO,
-                CK_HDR,
-                CK_NUM_SYMBOLS_LESS1,
-                (2 * dword_count) - 1);        /* Number of 16-bit symbols, minus 1.*/
+    REGIO_WRITE_FIELD_LITE(*cmdbuf->rendec_chunk_start,
+                           RENDEC_SLICE_INFO,
+                           CK_HDR,
+                           CK_NUM_SYMBOLS_LESS1,
+                           (2 * dword_count) - 1);        /* Number of 16-bit symbols, minus 1.*/
 
     cmdbuf->rendec_chunk_start = NULL;
 }
@@ -1939,12 +1944,12 @@ void psb_cmdbuf_rendec_end_chunk( psb_cmdbuf_p cmdbuf )
 /*
  * Finish a RENDEC block
  */
-void psb_cmdbuf_rendec_end( psb_cmdbuf_p cmdbuf )
+void psb_cmdbuf_rendec_end(psb_cmdbuf_p cmdbuf)
 {
     ASSERT(NULL != cmdbuf->rendec_chunk_start); /* Must have an open RENDEC chunk */
     uint32_t dword_count = cmdbuf->cmd_idx - cmdbuf->rendec_chunk_start;
 
-    ASSERT( (dword_count-1) <= 0xff  );
+    ASSERT((dword_count - 1) <= 0xff);
 
     *cmdbuf->rendec_chunk_start += ((dword_count - 1) << 16);
     cmdbuf->rendec_chunk_start = NULL;
@@ -1953,16 +1958,16 @@ void psb_cmdbuf_rendec_end( psb_cmdbuf_p cmdbuf )
 /*
  * Finish a RENDEC block
  */
-void psb_cmdbuf_rendec_end_block( psb_cmdbuf_p cmdbuf )
+void psb_cmdbuf_rendec_end_block(psb_cmdbuf_p cmdbuf)
 {
     ASSERT(NULL != cmdbuf->rendec_block_start); /* Must have an open RENDEC block */
     ASSERT(NULL == cmdbuf->rendec_chunk_start); /* All chunks must be closed */
 
     uint32_t block_size = cmdbuf->cmd_idx - cmdbuf->rendec_block_start;  /* Include separator but not mtx block header*/
 
-    /* Write separator (footer-type thing)    */    
+    /* Write separator (footer-type thing)    */
     *cmdbuf->cmd_idx = 0;
-    REGIO_WRITE_FIELD( *cmdbuf->cmd_idx, RENDEC_SLICE_INFO, SLICE_SEPARATOR, SL_SEP_SUFFIX, 7); 
+    REGIO_WRITE_FIELD(*cmdbuf->cmd_idx, RENDEC_SLICE_INFO, SLICE_SEPARATOR, SL_SEP_SUFFIX, 7);
     cmdbuf->cmd_idx++;
 
     /* Write CMD Header    */
@@ -1974,7 +1979,7 @@ void psb_cmdbuf_rendec_end_block( psb_cmdbuf_p cmdbuf )
 /*
  * Returns the number of words left in the current segment
  */
-uint32_t psb_cmdbuf_segment_space( psb_cmdbuf_p cmdbuf )
+uint32_t psb_cmdbuf_segment_space(psb_cmdbuf_p cmdbuf)
 {
     uint32_t bytes_used = (void *) cmdbuf->cmd_idx - cmdbuf->cmd_start;
     return (MTX_SEG_SIZE - (bytes_used % MTX_SEG_SIZE)) / sizeof(uint32_t);
@@ -1983,35 +1988,32 @@ uint32_t psb_cmdbuf_segment_space( psb_cmdbuf_p cmdbuf )
 /*
  * Forwards the command buffer index to the next segment
  */
-void psb_cmdbuf_next_segment( psb_cmdbuf_p cmdbuf )
+void psb_cmdbuf_next_segment(psb_cmdbuf_p cmdbuf)
 {
     uint32_t *next_segment_cmd = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx += 2;
-    uint32_t words_free = psb_cmdbuf_segment_space( cmdbuf );
-    
-    if (cmdbuf->last_next_segment_cmd)
-    {
-        psb_cmdbuf_close_segment( cmdbuf );
-    }
-    else
-    {
+    uint32_t words_free = psb_cmdbuf_segment_space(cmdbuf);
+
+    if (cmdbuf->last_next_segment_cmd) {
+        psb_cmdbuf_close_segment(cmdbuf);
+    } else {
         cmdbuf->first_segment_size = (void *) cmdbuf->cmd_idx - cmdbuf->cmd_start;
     }
 
     cmdbuf->cmd_idx += words_free; /* move pui32CmdBuffer to start of next segment */
-    
+
     cmdbuf->last_next_segment_cmd = next_segment_cmd;
 }
 
 /*
  * Create a conditional SKIP block
  */
-void psb_cmdbuf_skip_start_block( psb_cmdbuf_p cmdbuf, uint32_t skip_condition )
+void psb_cmdbuf_skip_start_block(psb_cmdbuf_p cmdbuf, uint32_t skip_condition)
 {
     ASSERT(NULL == cmdbuf->rendec_block_start); /* Can't be inside a rendec block */
     ASSERT(NULL == cmdbuf->reg_start); /* Can't be inside a reg block */
     ASSERT(NULL == cmdbuf->skip_block_start); /* Can't be inside another skip block (limitation of current sw design)*/
-    
+
     cmdbuf->skip_condition = skip_condition;
     cmdbuf->skip_block_start = cmdbuf->cmd_idx++;
 }
@@ -2019,7 +2021,7 @@ void psb_cmdbuf_skip_start_block( psb_cmdbuf_p cmdbuf, uint32_t skip_condition )
 /*
  * Terminate a conditional SKIP block
  */
-void psb_cmdbuf_skip_end_block( psb_cmdbuf_p cmdbuf )
+void psb_cmdbuf_skip_end_block(psb_cmdbuf_p cmdbuf)
 {
     ASSERT(NULL == cmdbuf->rendec_block_start); /* Rendec block must be closed */
     ASSERT(NULL == cmdbuf->reg_start); /* Reg block must be closed */
@@ -2027,6 +2029,6 @@ void psb_cmdbuf_skip_end_block( psb_cmdbuf_p cmdbuf )
 
     uint32_t block_size = cmdbuf->cmd_idx - (cmdbuf->skip_block_start + 1);
 
-    *cmdbuf->skip_block_start = CMD_CONDITIONAL_SKIP | (cmdbuf->skip_condition << 20 ) | block_size;
+    *cmdbuf->skip_block_start = CMD_CONDITIONAL_SKIP | (cmdbuf->skip_condition << 20) | block_size;
     cmdbuf->skip_block_start = NULL;
 }

@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -27,9 +27,9 @@
 
  @Title        Dxva Firmware Message Flags
 
- @Platform     
+ @Platform
 
- @Description  
+ @Description
 
 ******************************************************************************/
 #ifndef _DXVA_FW_FLAGS_H_
@@ -46,9 +46,9 @@
 
 #define FW_DXVA_RENDER_IS_VLD_NOT_MC						0x00000800
 
-#define FW_DXVA_LAST_SLICE_OF_EXT_DMA                                           0x00001000
+#define FW_ERROR_DETECTION_AND_RECOVERY						0x00000100
 #define FW_DXVA_RENDER_NO_RESPONCE_MSG						0x00002000  /* Cause no responce message to be sent, and no interupt generation on successfull completion */
-#define FW_DXVA_RENDER_HOST_INT								0x00004000	
-#define FW_DXVA_RENDER_VC1_BITPLANE_PRESENT				    0x00008000	
+#define FW_DXVA_RENDER_HOST_INT								0x00004000
+#define FW_DXVA_RENDER_VC1_BITPLANE_PRESENT				    0x00008000
 
 #endif /*_DXVA_FW_FLAGS_H_*/

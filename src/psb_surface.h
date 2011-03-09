@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -28,8 +28,7 @@
 //#include "xf86mm.h"
 
 /* MSVDX specific */
-typedef enum
-{
+typedef enum {
     STRIDE_352	= 0,
     STRIDE_720	= 1,
     STRIDE_1280	= 2,
@@ -57,56 +56,72 @@ struct psb_surface_s {
      * extra_info[4]: surface fourcc
      * extra_info[5]: surface skippeded or not for encode
      */
-    int extra_info[6];	
+    int extra_info[6];
     int size;
+    unsigned int bc_buffer;
 };
 
 /*
  * Create surface
  */
-VAStatus psb_surface_create( psb_driver_data_p driver_data,
-                             int width, int height, int fourcc, int protected,
-                             psb_surface_p psb_surface /* out */
+VAStatus psb_surface_create(psb_driver_data_p driver_data,
+                            int width, int height, int fourcc, int protected,
+                            psb_surface_p psb_surface /* out */
                            );
 
+VAStatus psb_surface_create_for_userptr(
+    psb_driver_data_p driver_data,
+    int width, int height,
+    unsigned size, /* total buffer size need to be allocated */
+    unsigned int fourcc, /* expected fourcc */
+    unsigned int luma_stride, /* luma stride, could be width aligned with a special value */
+    unsigned int chroma_u_stride, /* chroma stride */
+    unsigned int chroma_v_stride,
+    unsigned int luma_offset, /* could be 0 */
+    unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
+    unsigned int chroma_v_offset,
+    psb_surface_p psb_surface /* out */
+);
 
-VAStatus psb_surface_create_camera( psb_driver_data_p driver_data,
-                             int width, int height, int stride, int size,
-                             psb_surface_p psb_surface, /* out */
-                             int is_v4l2,
-                             unsigned int id_or_ofs
-                                    );
+
+
+VAStatus psb_surface_create_camera(psb_driver_data_p driver_data,
+                                   int width, int height, int stride, int size,
+                                   psb_surface_p psb_surface, /* out */
+                                   int is_v4l2,
+                                   unsigned int id_or_ofs
+                                  );
 
 /* id_or_ofs: it is frame ID or frame offset in camear device memory
  *     for CI frame: it it always frame offset currently
  *     for v4l2 buf: it is offset used in V4L2 buffer mmap
- * user_ptr: virtual address of user buffer.    
+ * user_ptr: virtual address of user buffer.
  */
-VAStatus psb_surface_create_camera_from_ub( psb_driver_data_p driver_data,
-                             int width, int height, int stride, int size,
-                             psb_surface_p psb_surface, /* out */
-                             int is_v4l2,
-                             unsigned int id_or_ofs,
-			     const unsigned long *user_ptr);
+VAStatus psb_surface_create_camera_from_ub(psb_driver_data_p driver_data,
+        int width, int height, int stride, int size,
+        psb_surface_p psb_surface, /* out */
+        int is_v4l2,
+        unsigned int id_or_ofs,
+        const unsigned long *user_ptr);
 
 /*
  * Temporarily map surface and set all chroma values of surface to 'chroma'
- */   
-VAStatus psb_surface_set_chroma( psb_surface_p psb_surface, int chroma );
+ */
+VAStatus psb_surface_set_chroma(psb_surface_p psb_surface, int chroma);
 
 /*
  * Destroy surface
- */   
-void psb_surface_destroy( psb_surface_p psb_surface );
+ */
+void psb_surface_destroy(psb_surface_p psb_surface);
 
 /*
  * Wait for surface to become idle
  */
-VAStatus psb_surface_sync( psb_surface_p psb_surface );
+VAStatus psb_surface_sync(psb_surface_p psb_surface);
 
 /*
  * Return surface status
  */
-VAStatus psb_surface_query_status( psb_surface_p psb_surface, VASurfaceStatus *status );
+VAStatus psb_surface_query_status(psb_surface_p psb_surface, VASurfaceStatus *status);
 
 #endif /* _PSB_SURFACE_H_ */

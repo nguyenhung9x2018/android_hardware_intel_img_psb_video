@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -27,7 +27,7 @@
 
  @Title        Dxva Firmware Control Allocation Commands
 
- @Platform     
+ @Platform
 
  @Description  Defined commands that may be placed int the Control Allocation
 
@@ -80,69 +80,60 @@
 #define CMD_PARSE_HEADER_NEWSLICE                       (0x00000001)
 
 
-typedef struct _RENDER_BUFFER_HEADER_VC1_TAG
-{
-	IMG_UINT32 ui32Cmd;
-	IMG_UINT32 ui32RangeMappingBase[2]; /* Store flags in bottom bits of [0] */
-	IMG_UINT32 ui32SliceParams;
-	union 
-	{
-		struct	_LLDMA_VC1_ 
-		{
-				IMG_UINT32		ui32PreloadSave;		
-				IMG_UINT32		ui32PreloadRestore;
-		}		LLDMA_VC1;
-	}	ui32LLDMAPointers;			
+typedef struct _RENDER_BUFFER_HEADER_VC1_TAG {
+    IMG_UINT32 ui32Cmd;
+    IMG_UINT32 ui32RangeMappingBase[2]; /* Store flags in bottom bits of [0] */
+    IMG_UINT32 ui32SliceParams;
+    union {
+        struct	_LLDMA_VC1_ {
+            IMG_UINT32		ui32PreloadSave;
+            IMG_UINT32		ui32PreloadRestore;
+        }		LLDMA_VC1;
+    }	ui32LLDMAPointers;
 
 } RENDER_BUFFER_HEADER_VC1;
 
-typedef struct _RENDER_BUFFER_HEADER_TAG
-{
-	IMG_UINT32 ui32Cmd;
-	IMG_UINT32 ui32Reserved; /* used as ui32SliceParams in MPEG4 */
-	union 
-	{
-		struct	_LLDMA_MPEG4_ 
-		{
-				IMG_UINT32		ui32FEStatesSave;
-				IMG_UINT32		ui32FEStatesRestore;
-		}		LLDMA_MPEG4;
+typedef struct _RENDER_BUFFER_HEADER_TAG {
+    IMG_UINT32 ui32Cmd;
+    IMG_UINT32 ui32Reserved; /* used as ui32SliceParams in MPEG4 */
+    union {
+        struct	_LLDMA_MPEG4_ {
+            IMG_UINT32		ui32FEStatesSave;
+            IMG_UINT32		ui32FEStatesRestore;
+        }		LLDMA_MPEG4;
 
-		struct _LLDMA_H264_
-		{
-				IMG_UINT32		ui32PreloadSave;		
-				IMG_UINT32		ui32PreloadRestore;
-	
-		}		LLDMA_H264;
-	}	ui32LLDMAPointers;			
+        struct _LLDMA_H264_ {
+            IMG_UINT32		ui32PreloadSave;
+            IMG_UINT32		ui32PreloadRestore;
+
+        }		LLDMA_H264;
+    }	ui32LLDMAPointers;
 
 } RENDER_BUFFER_HEADER;
 
 typedef struct _PARSE_HEADER_CMD_TAG {
-         IMG_UINT32      ui32Cmd;
-         IMG_UINT32      ui32SeqHdrData;
-         IMG_UINT32      ui32PicDimensions;
-         IMG_UINT32      ui32BitplaneAddr[3];
-         IMG_UINT32      ui32VLCTableAddr;
-         IMG_UINT32      ui32ICParamData[2];
+    IMG_UINT32      ui32Cmd;
+    IMG_UINT32      ui32SeqHdrData;
+    IMG_UINT32      ui32PicDimensions;
+    IMG_UINT32      ui32BitplaneAddr[3];
+    IMG_UINT32      ui32VLCTableAddr;
+    IMG_UINT32      ui32ICParamData[2];
 } PARSE_HEADER_CMD;
 
 /* Linked list DMA Command */
 #define CMD_LLDMA					(0xA0000000)
 #define CMD_SLLDMA					(0xC0000000)		/* Syncronose LLDMA */
-typedef struct
-{
-	IMG_UINT32 ui32CmdAndDevLinAddr;
+typedef struct {
+    IMG_UINT32 ui32CmdAndDevLinAddr;
 } LLDMA_CMD;
 
 /* Shift Register Setup Command */
 #define CMD_SR_SETUP				(0xB0000000)
 #define CMD_ENABLE_RBDU_EXTRACTION		(0x00000001)
-typedef struct
-{
-	IMG_UINT32 ui32Cmd;
-	IMG_UINT32 ui32BitstreamOffsetBits;
-	IMG_UINT32 ui32BitstreamSizeBytes;
+typedef struct {
+    IMG_UINT32 ui32Cmd;
+    IMG_UINT32 ui32BitstreamOffsetBits;
+    IMG_UINT32 ui32BitstreamSizeBytes;
 } SR_SETUP_CMD;
 
 /* Next Segment Command */

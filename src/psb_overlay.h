@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -259,9 +259,10 @@ typedef struct _PsbPortPrivRec {
     int is_mfld;
     /*subpicture*/
     int subpicture_enabled;
+    int subpic_clear_flag;
     unsigned int subpicture_enable_mask;
-    psb_subpictureKeyPtr subpicture_key;
-    
+    psb_subpictureKeyRec clear_key[6];
+
     /*overlay status*/
     int overlayA_pipeId;
     int overlayC_pipeId;
@@ -273,8 +274,10 @@ typedef struct _PsbPortPrivRec {
     VARectangle last_clipbox[16];
     int x11_window_width;
     int x11_window_height;
-    int create_window_flag;
-    int adjust_window_flag;
+    int display_width;
+    int display_height;
+    int extend_display_width;
+    int extend_display_height;
 
     /* used to check downscale*/
     short width_save;
@@ -285,9 +288,9 @@ typedef struct _PsbPortPrivRec {
     ov_psb_fixed32 contrast;
     ov_psb_fixed32 saturation;
     ov_psb_fixed32 hue;
-    
+
     void * p_iep_lite_context;
-    
+
     /* hwoverlay */
     uint32_t gamma0;
     uint32_t gamma1;
@@ -318,29 +321,29 @@ int psb_coverlay_exit(VADriverContextP ctx);
 
 VAStatus psb_putsurface_overlay(
     VADriverContextP ctx,
-    VASurfaceID surface,    
+    VASurfaceID surface,
     short srcx,
     short srcy,
     unsigned short srcw,
     unsigned short srch,
     short destx,
-    short desty,    
+    short desty,
     unsigned short destw,
     unsigned short desth,
     unsigned int flags, /* de-interlacing flags */
-    int overlayId, 
+    int overlayId,
     int pipeId
 );
 
-enum pipe_id_t{
-   PIPEA = 0,
-   PIPEB,
-   PIPEC,
+enum pipe_id_t {
+    PIPEA = 0,
+    PIPEB,
+    PIPEC,
 };
 
-enum overlay_id_t{
-   OVERLAY_A = 0,
-   OVERLAY_C,
+enum overlay_id_t {
+    OVERLAY_A = 0,
+    OVERLAY_C,
 };
 
 #endif /* _PSB_OVERLAY_H_ */

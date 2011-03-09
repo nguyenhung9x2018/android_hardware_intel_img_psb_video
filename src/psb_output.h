@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -43,7 +43,8 @@
 #define PSB_MAX_SUBPIC_FORMATS     3 /* sizeof(psb__SubpicFormat)/sizeof(VAImageFormat) */
 #define PSB_MAX_DISPLAY_ATTRIBUTES 6 /* sizeof(psb__DisplayAttribute)/sizeof(VADisplayAttribute) */
 
-#define PSB_SUPPORTED_SUBPIC_FLAGS	0 /* No alpha or chroma key support */
+#define VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD	0x0004
+#define PSB_SUPPORTED_SUBPIC_FLAGS	VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD /* No alpha or chroma key support */
 
 
 #define CLAMP(_X) ( (_X)= ((_X)<0?0:((_X)>255?255:(_X)) ) )
@@ -139,18 +140,18 @@ VAStatus psb__destroy_image(psb_driver_data_p driver_data, object_image_p obj_im
  * VAImage call these buffer routines
  */
 VAStatus psb__CreateBuffer(
-	psb_driver_data_p driver_data,
-	object_context_p obj_context,   /* in */
-	VABufferType type,      /* in */
-	unsigned int size,      /* in */
-	unsigned int num_elements, /* in */
-	void *data,             /* in */
-	VABufferID *buf_desc    /* out */
+    psb_driver_data_p driver_data,
+    object_context_p obj_context,   /* in */
+    VABufferType type,      /* in */
+    unsigned int size,      /* in */
+    unsigned int num_elements, /* in */
+    void *data,             /* in */
+    VABufferID *buf_desc    /* out */
 );
 
 VAStatus psb_DestroyBuffer(
-        VADriverContextP ctx,
-        VABufferID buffer_id
+    VADriverContextP ctx,
+    VABufferID buffer_id
 );
 
 VAStatus psb_initOutput(
@@ -222,15 +223,15 @@ VAStatus psb_DestroyImage(
     VAImageID image
 );
 
-VAStatus psb_SetImagePalette (
+VAStatus psb_SetImagePalette(
     VADriverContextP ctx,
     VAImageID image,
-    /* 
+    /*
      * pointer to an array holding the palette data.  The size of the array is
-     * num_palette_entries * entry_bytes in size.  The order of the components 
+     * num_palette_entries * entry_bytes in size.  The order of the components
      * in the palette is described by the component_order in VAImage struct
      */
-    unsigned char *palette 
+    unsigned char *palette
 );
 
 VAStatus psb_GetImage(
@@ -275,7 +276,7 @@ VAStatus psb_DestroySubpicture(
     VASubpictureID subpicture
 );
 
-VAStatus psb_SetSubpictureImage (
+VAStatus psb_SetSubpictureImage(
     VADriverContextP ctx,
     VASubpictureID subpicture,
     VAImageID image
@@ -293,7 +294,7 @@ VAStatus psb_SetSubpictureChromakey(
 VAStatus psb_SetSubpictureGlobalAlpha(
     VADriverContextP ctx,
     VASubpictureID subpicture,
-    float global_alpha 
+    float global_alpha
 );
 
 VAStatus psb_AssociateSubpicture(
@@ -328,37 +329,37 @@ void psb_SurfaceDeassociateSubpict(
     object_surface_p obj_surface
 );
 
-/* 
- * Query display attributes 
+/*
+ * Query display attributes
  * The caller must provide a "attr_list" array that can hold at
  * least vaMaxNumDisplayAttributes() entries. The actual number of attributes
  * returned in "attr_list" is returned in "num_attributes".
  */
-VAStatus psb_QueryDisplayAttributes (
+VAStatus psb_QueryDisplayAttributes(
     VADriverContextP ctx,
     VADisplayAttribute *attr_list,	/* out */
     int *num_attributes		/* out */
 );
 
-/* 
- * Get display attributes 
+/*
+ * Get display attributes
  * This function returns the current attribute values in "attr_list".
  * Only attributes returned with VA_DISPLAY_ATTRIB_GETTABLE set in the "flags" field
- * from vaQueryDisplayAttributes() can have their values retrieved.  
+ * from vaQueryDisplayAttributes() can have their values retrieved.
  */
-VAStatus psb_GetDisplayAttributes (
+VAStatus psb_GetDisplayAttributes(
     VADriverContextP ctx,
     VADisplayAttribute *attr_list,	/* in/out */
     int num_attributes
 );
 
-/* 
- * Set display attributes 
+/*
+ * Set display attributes
  * Only attributes returned with VA_DISPLAY_ATTRIB_SETTABLE set in the "flags" field
- * from vaQueryDisplayAttributes() can be set.  If the attribute is not settable or 
+ * from vaQueryDisplayAttributes() can be set.  If the attribute is not settable or
  * the value is out of range, the function returns VA_STATUS_ERROR_ATTR_NOT_SUPPORTED
  */
-VAStatus psb_SetDisplayAttributes (
+VAStatus psb_SetDisplayAttributes(
     VADriverContextP ctx,
     VADisplayAttribute *attr_list,
     int num_attributes

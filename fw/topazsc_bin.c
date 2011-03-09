@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -31,6 +31,7 @@
 #include "H263MasterFirmwareVBR_bin.h"
 #include "H264MasterFirmware_bin.h"
 #include "H264MasterFirmwareCBR_bin.h"
+#include "H264MasterFirmwareVCM_bin.h"
 #include "H264MasterFirmwareVBR_bin.h"
 #include "MPG4MasterFirmware_bin.h"
 #include "MPG4MasterFirmwareCBR_bin.h"
@@ -42,12 +43,13 @@
 #include "H264SlaveFirmware_bin.h"
 #include "H264SlaveFirmwareCBR_bin.h"
 #include "H264SlaveFirmwareVBR_bin.h"
+#include "H264SlaveFirmwareVCM_bin.h"
 #include "MPG4SlaveFirmware_bin.h"
 #include "MPG4SlaveFirmwareCBR_bin.h"
 #include "MPG4SlaveFirmwareVBR_bin.h"
 
 
-#define FW_VER 0x5B
+#define FW_VER 0x5D
 #define FW_FILE_NAME "topazsc_fw.bin"
 
 #define FW_MASTER_INFO(codec,prefix) \
@@ -74,14 +76,13 @@
 
 
 
-struct topaz_fw_info_item_s
-{
-	unsigned short ver;
-	unsigned short codec;
-    
-	unsigned int  text_size;
-	unsigned int data_size;
-	unsigned int data_location;
+struct topaz_fw_info_item_s {
+    unsigned short ver;
+    unsigned short codec;
+
+    unsigned int  text_size;
+    unsigned int data_size;
+    unsigned int data_location;
 };
 typedef struct topaz_fw_info_item_s topaz_fw_info_item_t;
 
@@ -106,12 +107,13 @@ enum topaz_fw_codec_e {
     FW_SLAVE_MPEG4_VBR,
     FW_MASTER_MPEG4_CBR,
     FW_SLAVE_MPEG4_CBR,
+    FW_MASTER_H264_VCM,
+    FW_SLAVE_H264_VCM,
     FW_NUM
 };
 typedef enum topaz_fw_codec_e topaz_fw_codec_t;
 
-struct fw_table_s
-{
+struct fw_table_s {
     topaz_fw_codec_t index;
     topaz_fw_info_item_t header;
     unsigned long *fw_text;
@@ -119,7 +121,7 @@ struct fw_table_s
 };
 typedef struct fw_table_s fw_table_t;
 
-int main ()
+int main()
 {
     FILE *fp = NULL;
     topaz_fw_codec_t iter = FW_MASTER_JPEG;
@@ -130,59 +132,62 @@ int main ()
         /* index   header
          * { ver, codec, text_size, data_size, date_location }
          * fw_text fw_data */
-	FW_MASTER_INFO(JPEG,JPEG),
-	FW_SLAVE_INFO(JPEG,JPEG),
+        FW_MASTER_INFO(JPEG, JPEG),
+        FW_SLAVE_INFO(JPEG, JPEG),
 
-	FW_MASTER_INFO(H264_NO_RC,H264),
-	FW_SLAVE_INFO(H264_NO_RC,H264),
-	FW_MASTER_INFO(H264_VBR,H264VBR),
-	FW_SLAVE_INFO(H264_VBR,H264VBR),
-	FW_MASTER_INFO(H264_CBR,H264CBR),
-	FW_SLAVE_INFO(H264_CBR,H264CBR),
+        FW_MASTER_INFO(H264_NO_RC, H264),
+        FW_SLAVE_INFO(H264_NO_RC, H264),
+        FW_MASTER_INFO(H264_VBR, H264VBR),
+        FW_SLAVE_INFO(H264_VBR, H264VBR),
+        FW_MASTER_INFO(H264_CBR, H264CBR),
+        FW_SLAVE_INFO(H264_CBR, H264CBR),
 
-	FW_MASTER_INFO(H263_NO_RC,H263),
-	FW_SLAVE_INFO(H263_NO_RC,H263),
-	FW_MASTER_INFO(H263_VBR,H263VBR),
-	FW_SLAVE_INFO(H263_VBR,H263VBR),
-	FW_MASTER_INFO(H263_CBR,H263CBR),
-	FW_SLAVE_INFO(H263_CBR,H263CBR),
+        FW_MASTER_INFO(H263_NO_RC, H263),
+        FW_SLAVE_INFO(H263_NO_RC, H263),
+        FW_MASTER_INFO(H263_VBR, H263VBR),
+        FW_SLAVE_INFO(H263_VBR, H263VBR),
+        FW_MASTER_INFO(H263_CBR, H263CBR),
+        FW_SLAVE_INFO(H263_CBR, H263CBR),
 
-	FW_MASTER_INFO(MPEG4_NO_RC,MPG4),
-	FW_SLAVE_INFO(MPEG4_NO_RC,MPG4),
-	FW_MASTER_INFO(MPEG4_VBR,MPG4VBR),
-	FW_SLAVE_INFO(MPEG4_VBR,MPG4VBR),
-	FW_MASTER_INFO(MPEG4_CBR,MPG4CBR),
-	FW_SLAVE_INFO(MPEG4_CBR,MPG4CBR),
+        FW_MASTER_INFO(MPEG4_NO_RC, MPG4),
+        FW_SLAVE_INFO(MPEG4_NO_RC, MPG4),
+        FW_MASTER_INFO(MPEG4_VBR, MPG4VBR),
+        FW_SLAVE_INFO(MPEG4_VBR, MPG4VBR),
+        FW_MASTER_INFO(MPEG4_CBR, MPG4CBR),
+        FW_SLAVE_INFO(MPEG4_CBR, MPG4CBR),
+
+        FW_MASTER_INFO(H264_VCM, H264VCM),
+        FW_SLAVE_INFO(H264_VCM, H264VCM),
     };
-    
+
     /* open file  */
-    fp = fopen (FW_FILE_NAME, "w");
+    fp = fopen(FW_FILE_NAME, "w");
 
     if (NULL == fp)
-	return -1;
+        return -1;
 
     /* write fw table into the file */
     while (iter < FW_NUM) {
-	/* record the size use bytes */
-	topaz_fw_table[iter].header.data_size *= 4;
-	topaz_fw_table[iter].header.text_size *= 4;
+        /* record the size use bytes */
+        topaz_fw_table[iter].header.data_size *= 4;
+        topaz_fw_table[iter].header.text_size *= 4;
 
-	/* write header */
-	fwrite (&(topaz_fw_table[iter].header), sizeof (topaz_fw_table[iter].header), 1, fp);
+        /* write header */
+        fwrite(&(topaz_fw_table[iter].header), sizeof(topaz_fw_table[iter].header), 1, fp);
 
-	/* write text */
-	size = topaz_fw_table[iter].header.text_size;
-	fwrite (topaz_fw_table[iter].fw_text, 1, size, fp);
+        /* write text */
+        size = topaz_fw_table[iter].header.text_size;
+        fwrite(topaz_fw_table[iter].fw_text, 1, size, fp);
 
-	/* write data */
-	size = topaz_fw_table[iter].header.data_size;
-        fwrite (topaz_fw_table[iter].fw_data, 1, size, fp);
+        /* write data */
+        size = topaz_fw_table[iter].header.data_size;
+        fwrite(topaz_fw_table[iter].fw_data, 1, size, fp);
 
         ++iter;
     }
-    
+
     /* close file */
-    fclose (fp);
+    fclose(fp);
 
     return 0;
 }

@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -48,46 +48,46 @@ typedef int object_heap_iterator;
 /*
  * Return 0 on success, -1 on error
  */
-int object_heap_init( object_heap_p heap, int object_size, int id_offset);
+int object_heap_init(object_heap_p heap, int object_size, int id_offset);
 
 /*
  * Allocates an object
  * Returns the object ID on success, returns -1 on error
  */
-int object_heap_allocate( object_heap_p heap );
+int object_heap_allocate(object_heap_p heap);
 
 /*
  * Lookup an allocated object by object ID
  * Returns a pointer to the object on success, returns NULL on error
  */
-object_base_p object_heap_lookup( object_heap_p heap, int id );
+object_base_p object_heap_lookup(object_heap_p heap, int id);
 
 /*
  * Iterate over all objects in the heap.
  * Returns a pointer to the first object on the heap, returns NULL if heap is empty.
  */
-object_base_p object_heap_first( object_heap_p heap, object_heap_iterator *iter );
+object_base_p object_heap_first(object_heap_p heap, object_heap_iterator *iter);
 
 /*
  * Iterate over all objects in the heap.
  * Returns a pointer to the next object on the heap, returns NULL if heap is empty.
  */
-object_base_p object_heap_next( object_heap_p heap, object_heap_iterator *iter );
+object_base_p object_heap_next(object_heap_p heap, object_heap_iterator *iter);
 
 /*
  * Frees an object
  */
-void object_heap_free( object_heap_p heap, object_base_p obj );
+void object_heap_free(object_heap_p heap, object_base_p obj);
 
 /*
  * Destroys a heap, the heap must be empty.
  */
-void object_heap_destroy( object_heap_p heap );
+void object_heap_destroy(object_heap_p heap);
 
 /*
  * Suspend an object
- * Suspended objects can not be looked up 
+ * Suspended objects can not be looked up
  */
-void object_heap_suspend_object( object_base_p obj, int suspend);
+void object_heap_suspend_object(object_base_p obj, int suspend);
 
 #endif /* _OBJECT_HEAP_H_ */

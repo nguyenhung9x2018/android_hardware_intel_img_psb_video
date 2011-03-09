@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -45,7 +45,7 @@ static void pnw_H263ES_QueryConfigAttributes(
     VAProfile profile,
     VAEntrypoint entrypoint,
     VAConfigAttrib *attrib_list,
-    int num_attribs )
+    int num_attribs)
 {
     int i;
     psb__information_message("pnw_H263ES_QueryConfigAttributes\n");
@@ -70,7 +70,7 @@ static void pnw_H263ES_QueryConfigAttributes(
 
 
 static VAStatus pnw_H263ES_ValidateConfig(
-    object_config_p obj_config )
+    object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     psb__information_message("pnw_H263ES_ValidateConfig\n");
@@ -81,7 +81,7 @@ static VAStatus pnw_H263ES_ValidateConfig(
 
 static VAStatus pnw_H263ES_CreateContext(
     object_context_p obj_context,
-    object_config_p obj_config )
+    object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int eRCmode;
@@ -92,35 +92,32 @@ static VAStatus pnw_H263ES_CreateContext(
 
     vaStatus = pnw_CreateContext(obj_context, obj_config, 0);/* alloc context_ENC_s and BO */
 
-    if(VA_STATUS_SUCCESS != vaStatus)
+    if (VA_STATUS_SUCCESS != vaStatus)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
     ctx = (context_ENC_p) obj_context->format_data;
 
-    for(i = 0; i < obj_config->attrib_count; i++) {
-        if(obj_config->attrib_list[i].type == VAConfigAttribRateControl)
+    for (i = 0; i < obj_config->attrib_count; i++) {
+        if (obj_config->attrib_list[i].type == VAConfigAttribRateControl)
             break;
     }
 
-    if(i >= obj_config->attrib_count)
+    if (i >= obj_config->attrib_count)
         eRCmode = VA_RC_NONE;
     else
         eRCmode = obj_config->attrib_list[i].value;
 
 
-    if( eRCmode == VA_RC_VBR) {
+    if (eRCmode == VA_RC_VBR) {
         ctx->eCodec = IMG_CODEC_H263_VBR;
         ctx->sRCParams.RCEnable = IMG_TRUE;
-    }
-    else if ( eRCmode == VA_RC_CBR) {
+    } else if (eRCmode == VA_RC_CBR) {
         ctx->eCodec = IMG_CODEC_H263_CBR;
         ctx->sRCParams.RCEnable = IMG_TRUE;
-    }
-    else if ( eRCmode == VA_RC_NONE) {
+    } else if (eRCmode == VA_RC_NONE) {
         ctx->eCodec = IMG_CODEC_H263_NO_RC;
         ctx->sRCParams.RCEnable = IMG_FALSE;
-    }
-    else
+    } else
         return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
     ctx->eFormat = IMG_CODEC_PL12;
 
@@ -128,7 +125,7 @@ static VAStatus pnw_H263ES_CreateContext(
     ctx->ParallelCores = 1; /* H263 encode use only one core from DDKv186 */
 
     ctx->IPEControl = pnw__get_ipe_control(ctx->eCodec);
-    
+
     return vaStatus;
 
 
@@ -172,8 +169,7 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH263));
 
     if ((obj_buffer->num_elements != 1) ||
-        (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH263) ) )
-    {
+            (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH263))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -181,29 +177,27 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
-    if (pSequenceParams->bits_per_second > TOPAZ_H263_MAX_BITRATE)
-    {
-	ctx->sRCParams.BitsPerSecond = TOPAZ_H263_MAX_BITRATE;
-	psb__information_message(" bits_per_second(%d) exceeds \
-		the maximum bitrate, set it with %d\n", 
-		pSequenceParams->bits_per_second,
-		TOPAZ_H263_MAX_BITRATE);
-    }
-    else
-	ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
+    if (pSequenceParams->bits_per_second > TOPAZ_H263_MAX_BITRATE) {
+        ctx->sRCParams.BitsPerSecond = TOPAZ_H263_MAX_BITRATE;
+        psb__information_message(" bits_per_second(%d) exceeds \
+		the maximum bitrate, set it with %d\n",
+                                 pSequenceParams->bits_per_second,
+                                 TOPAZ_H263_MAX_BITRATE);
+    } else
+        ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
 
     ctx->sRCParams.FrameRate = pSequenceParams->frame_rate;
     ctx->sRCParams.InitialQp = pSequenceParams->initial_qp;
     ctx->sRCParams.MinQP = pSequenceParams->min_qp;
     ctx->sRCParams.BUSize = 0; /* default 0, and will be set in pnw__setup_busize */
 
-/*
-    IMG_UINT16 MBRows = 0;
-    if(ctx->Height <= 400)
-        MBRows = 1;
-    else if (ctx->Height < 800)
-        MBRows = 2;
-*/
+    /*
+        IMG_UINT16 MBRows = 0;
+        if(ctx->Height <= 400)
+            MBRows = 1;
+        else if (ctx->Height < 800)
+            MBRows = 2;
+    */
     ctx->sRCParams.Slices = ctx->Slices;
     ctx->sRCParams.QCPOffset = 0;/* FIXME */
     ctx->sRCParams.IntraFreq = pSequenceParams->intra_period;
@@ -213,15 +207,14 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     /*if (ctx->sRCParams.BitsPerSecond < 256000)
         ctx->sRCParams.BufferSize = (9 * ctx->sRCParams.BitsPerSecond) >> 1;
     else
-        ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/ 
+        ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
 
     ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond;
-    if(ctx->obj_context->frame_count == 0)/* Add Register IO behind begin Picture */ 
-    {
-	pnw__UpdateRCBitsTransmitted(ctx);
-	for(i = (ctx->ParallelCores - 1); i >= 0; i--) {
-	    pnw_set_bias(ctx, i);
-	}
+    if (ctx->obj_context->frame_count == 0) { /* Add Register IO behind begin Picture */
+        pnw__UpdateRCBitsTransmitted(ctx);
+        for (i = (ctx->ParallelCores - 1); i >= 0; i--) {
+            pnw_set_bias(ctx, i);
+        }
     }
 
     free(pSequenceParams);
@@ -246,8 +239,7 @@ static VAStatus pnw__H263ES_process_picture_param(context_ENC_p ctx, object_buff
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
     if ((obj_buffer->num_elements != 1) ||
-        (obj_buffer->size != sizeof(VAEncPictureParameterBufferH263)))
-    {
+            (obj_buffer->size != sizeof(VAEncPictureParameterBufferH263))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -265,25 +257,24 @@ static VAStatus pnw__H263ES_process_picture_param(context_ENC_p ctx, object_buff
 
     /* Insert do_header command here */
 
-    if((ctx->Width == 128) && (ctx->Height == 96))
+    if ((ctx->Width == 128) && (ctx->Height == 96))
         SourceFormatType = _128x96_SubQCIF;
-    else if((ctx->Width == 176) && (ctx->Height == 144))
+    else if ((ctx->Width == 176) && (ctx->Height == 144))
         SourceFormatType = _176x144_QCIF;
-    else if((ctx->Width == 352) && (ctx->Height == 288))
+    else if ((ctx->Width == 352) && (ctx->Height == 288))
         SourceFormatType = _352x288_CIF;
-    else if((ctx->Width == 704) && (ctx->Height == 576))
+    else if ((ctx->Width == 704) && (ctx->Height == 576))
         SourceFormatType = _704x576_4CIF;
-    else if((ctx->Width <= 720) && (ctx->Height <= 576))
+    else if ((ctx->Width <= 720) && (ctx->Height <= 576))
         SourceFormatType = 7;
-    else
-    {
+    else {
         psb__information_message("Unsupported resolution!\n");
         return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
     }
 
     memset(cmdbuf->header_mem_p + ctx->pic_header_ofs,
-	    0,
-	    HEADER_SIZE);
+           0,
+           HEADER_SIZE);
     pnw__H263_prepare_picture_header(cmdbuf->header_mem_p + ctx->pic_header_ofs,
                                      ctx->obj_context->frame_count,
                                      pBuffer->picture_type,
@@ -291,7 +282,7 @@ static VAStatus pnw__H263ES_process_picture_param(context_ENC_p ctx, object_buff
                                      ctx->sRCParams.FrameRate,
                                      ctx->Width,
                                      ctx->Height);
-    
+
     pnw_cmdbuf_insert_command_package(ctx->obj_context,
                                       ctx->ParallelCores - 1, /* Send to the last core as this will complete first */
                                       MTX_CMDID_DO_HEADER,
@@ -301,7 +292,7 @@ static VAStatus pnw__H263ES_process_picture_param(context_ENC_p ctx, object_buff
 
     /* Prepare START_PICTURE params */
     /* Actually H263 only use 1 core from DDKv186 */
-    for(i = (ctx->ParallelCores - 1); i >= 0; i--)
+    for (i = (ctx->ParallelCores - 1); i >= 0; i--)
         vaStatus = pnw_RenderPictureParameter(ctx, i);
 
     free(pBuffer);
@@ -313,49 +304,45 @@ static VAStatus pnw__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
 {
     /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
     VAEncSliceParameterBuffer *pBuffer;
-    pnw_cmdbuf_p cmdbuf=ctx->obj_context->pnw_cmdbuf;
+    pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
     int i;
     int slice_param_idx;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
-    
+
     /* Transfer ownership of VAEncPictureParameterBufferH263 data */
     pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
     obj_buffer->size = 0;
-     
-    if (0 == pBuffer->start_row_number)
-    {
-	if (pBuffer->slice_flags.bits.is_intra) 
-	    RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_I);
-	else
-	    RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_P);
+
+    if (0 == pBuffer->start_row_number) {
+        if (pBuffer->slice_flags.bits.is_intra)
+            RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_I);
+        else
+            RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_P);
     }
-    
+
     /*In case the slice number changes*/
-    if ( (ctx->slice_param_cache != NULL ) && (obj_buffer->num_elements != ctx->slice_param_num))
-    {
-	psb__information_message("Slice number changes. Previous value is %d. Now it's %d\n", 
-		ctx->slice_param_num, obj_buffer->num_elements);
-	free(ctx->slice_param_cache);
-	ctx->slice_param_cache = NULL;
-	ctx->slice_param_num = 0;
-    }	
-
-    if (NULL == ctx->slice_param_cache)
-    {
-	ctx->slice_param_num = obj_buffer->num_elements;
-	psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num); 
-	ctx->slice_param_cache = calloc( 2*ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
-	if (NULL == ctx->slice_param_cache)
-	{
-	    psb__error_message("Run out of memory!\n");
-	    free(obj_buffer->buffer_data);
-	    return VA_STATUS_ERROR_ALLOCATION_FAILED;
-	}
+    if ((ctx->slice_param_cache != NULL) && (obj_buffer->num_elements != ctx->slice_param_num)) {
+        psb__information_message("Slice number changes. Previous value is %d. Now it's %d\n",
+                                 ctx->slice_param_num, obj_buffer->num_elements);
+        free(ctx->slice_param_cache);
+        ctx->slice_param_cache = NULL;
+        ctx->slice_param_num = 0;
     }
 
-    for(i = 0; i < obj_buffer->num_elements; i++) {
+    if (NULL == ctx->slice_param_cache) {
+        ctx->slice_param_num = obj_buffer->num_elements;
+        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num);
+        ctx->slice_param_cache = calloc(2 * ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
+        if (NULL == ctx->slice_param_cache) {
+            psb__error_message("Run out of memory!\n");
+            free(obj_buffer->buffer_data);
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        }
+    }
+
+    for (i = 0; i < obj_buffer->num_elements; i++) {
         /*Todo list:
          *1.Insert Do header command
          *2.setup InRowParams
@@ -366,21 +353,18 @@ static VAStatus pnw__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
 
         deblock_idc = pBuffer->slice_flags.bits.disable_deblocking_filter_idc;
 
-        if((ctx->NumCores > 1) && (deblock_idc == 0))
-            deblock_idc = 2;
-
         /* Insert Do Header command, relocation is needed */
-        if( ctx->obj_context->slice_count ) { /*First slice of a frame need not slice header*/
-	    memset(cmdbuf->header_mem_p + ctx->slice_header_ofs
-		    + ctx->obj_context->slice_count * HEADER_SIZE,                    
-		    0,
-		    HEADER_SIZE);
+        if (ctx->obj_context->slice_count) {  /*First slice of a frame need not slice header*/
+            memset(cmdbuf->header_mem_p + ctx->slice_header_ofs
+                   + ctx->obj_context->slice_count * HEADER_SIZE,
+                   0,
+                   HEADER_SIZE);
 
-	    pnw__H263_prepare_GOBslice_header(
-		    cmdbuf->header_mem_p + ctx->slice_header_ofs 
-		    + ctx->obj_context->slice_count * HEADER_SIZE,                    
-		    ctx->obj_context->slice_count,
-		    ctx->obj_context->frame_count);
+            pnw__H263_prepare_GOBslice_header(
+                cmdbuf->header_mem_p + ctx->slice_header_ofs
+                + ctx->obj_context->slice_count * HEADER_SIZE,
+                ctx->obj_context->slice_count,
+                ctx->obj_context->frame_count);
 
             ctx->LastSliceNum[ctx->SliceToCore] = ctx->obj_context->slice_count;
 
@@ -390,35 +374,34 @@ static VAStatus pnw__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
                                               &cmdbuf->header_mem,
                                               ctx->slice_header_ofs + ctx->obj_context->slice_count * HEADER_SIZE);
 
-            if ( 0 == ctx->SliceToCore )
-            {
+            if (0 == ctx->SliceToCore) {
                 ctx->SliceToCore = ctx->ParallelCores;
             }
             ctx->SliceToCore--;
 
         }
-    
-	if((pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra) {
-	    pnw_reset_encoder_params(ctx); /* originally do in BeginPicture, but beginpicture has no intra info */
+
+        if ((pBuffer->start_row_number == 0) && pBuffer->slice_flags.bits.is_intra) {
+            pnw_reset_encoder_params(ctx); /* originally do in BeginPicture, but beginpicture has no intra info */
             ctx->BelowParamsBufIdx = (ctx->BelowParamsBufIdx + 1) & 0x1;
         }
 
-	slice_param_idx = (pBuffer->slice_flags.bits.is_intra ? 0:1) * ctx->slice_param_num + i; 
-	if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[slice_param_idx], pBuffer) == 0) {
-	    /* cache current param parameters */
-	    memcpy(&ctx->slice_param_cache[slice_param_idx],
-		    pBuffer, sizeof(VAEncSliceParameterBuffer));
+        slice_param_idx = (pBuffer->slice_flags.bits.is_intra ? 0 : 1) * ctx->slice_param_num + i;
+        if (VAEncSliceParameter_Equal(&ctx->slice_param_cache[slice_param_idx], pBuffer) == 0) {
+            /* cache current param parameters */
+            memcpy(&ctx->slice_param_cache[slice_param_idx],
+                   pBuffer, sizeof(VAEncSliceParameterBuffer));
 
-	    /* Setup InParams value*/
-	    pnw_setup_slice_params(ctx,
-		    pBuffer->start_row_number * 16,
-		    pBuffer->slice_height*16,
-		    pBuffer->slice_flags.bits.is_intra,
-		    ctx->obj_context->frame_count > 0,
-		    psPicParams->sInParams.SeInitQP);
-	}
+            /* Setup InParams value*/
+            pnw_setup_slice_params(ctx,
+                                   pBuffer->start_row_number * 16,
+                                   pBuffer->slice_height*16,
+                                   pBuffer->slice_flags.bits.is_intra,
+                                   ctx->obj_context->frame_count > 0,
+                                   psPicParams->sInParams.SeInitQP);
+        }
 
-        /* Insert do slice command and setup related buffer value */ 
+        /* Insert do slice command and setup related buffer value */
         pnw__send_encode_slice_params(ctx,
                                       pBuffer->slice_flags.bits.is_intra,
                                       pBuffer->start_row_number * 16,
@@ -426,17 +409,17 @@ static VAStatus pnw__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
                                       ctx->obj_context->frame_count,
                                       pBuffer->slice_height*16,
                                       ctx->obj_context->slice_count);
-    
-        psb__information_message("Now frame_count/slice_count is %d/%d\n", 
+
+        psb__information_message("Now frame_count/slice_count is %d/%d\n",
                                  ctx->obj_context->frame_count, ctx->obj_context->slice_count);
 
         ctx->obj_context->slice_count++;
-	pBuffer++;        /*Move to the next buffer*/
+        pBuffer++;        /*Move to the next buffer*/
 
         ASSERT(ctx->obj_context->slice_count < MAX_SLICES_PER_PICTURE);
     }
 
-    free(obj_buffer->buffer_data );
+    free(obj_buffer->buffer_data);
     obj_buffer->buffer_data = NULL;
     return VA_STATUS_SUCCESS;
 }
@@ -454,12 +437,10 @@ static VAStatus pnw_H263ES_RenderPicture(
 
     psb__information_message("pnw_H263ES_RenderPicture\n");
 
-    for(i = 0; i < num_buffers; i++)
-    {
+    for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
 
-        switch( obj_buffer->type)
-        {
+        switch (obj_buffer->type) {
         case VAEncSequenceParameterBufferType:
             psb__information_message("pnw_H263_RenderPicture got VAEncSequenceParameterBufferType\n");
             vaStatus = pnw__H263ES_process_sequence_param(ctx, obj_buffer);
@@ -482,8 +463,7 @@ static VAStatus pnw_H263ES_RenderPicture(
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
         }
-        if (vaStatus != VA_STATUS_SUCCESS)
-        {
+        if (vaStatus != VA_STATUS_SUCCESS) {
             break;
         }
     }
@@ -507,11 +487,18 @@ static VAStatus pnw_H263ES_EndPicture(
 
 
 struct format_vtable_s pnw_H263ES_vtable = {
-  queryConfigAttributes: pnw_H263ES_QueryConfigAttributes,
-  validateConfig: pnw_H263ES_ValidateConfig,
-  createContext: pnw_H263ES_CreateContext,
-  destroyContext: pnw_H263ES_DestroyContext,
-  beginPicture: pnw_H263ES_BeginPicture,
-  renderPicture: pnw_H263ES_RenderPicture,
-  endPicture: pnw_H263ES_EndPicture
+queryConfigAttributes:
+    pnw_H263ES_QueryConfigAttributes,
+validateConfig:
+    pnw_H263ES_ValidateConfig,
+createContext:
+    pnw_H263ES_CreateContext,
+destroyContext:
+    pnw_H263ES_DestroyContext,
+beginPicture:
+    pnw_H263ES_BeginPicture,
+renderPicture:
+    pnw_H263ES_RenderPicture,
+endPicture:
+    pnw_H263ES_EndPicture
 };

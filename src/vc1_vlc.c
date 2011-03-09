@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -28,7 +28,7 @@
 #include <img_types.h>
 
 IMG_UINT16    gaui16vc1VlcTableData[] = {
-/* vc1DEC_Code_3x2_2x3_tiles.out */
+    /* vc1DEC_Code_3x2_2x3_tiles.out */
     0, 3, 16,
     1, 1, 31,
     4, 3, 1,
@@ -120,7 +120,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 23,
     4, 3, 15,
     3, 3, 0,
-/* vc1DEC_FourMV_Pattern_0.out */
+    /* vc1DEC_FourMV_Pattern_0.out */
     4, 2, 11,
     4, 2, 13,
     4, 2, 14,
@@ -140,7 +140,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 7,
     6, 0, 0,
     4, 1, 12,
-/* vc1DEC_FourMV_Pattern_1.out */
+    /* vc1DEC_FourMV_Pattern_1.out */
     4, 1, 15,
     4, 1, 15,
     4, 1, 15,
@@ -161,7 +161,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 8,
     4, 0, 6,
     4, 0, 9,
-/* vc1DEC_FourMV_Pattern_2.out */
+    /* vc1DEC_FourMV_Pattern_2.out */
     4, 2, 15,
     4, 2, 15,
     4, 3, 3,
@@ -180,7 +180,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 0,
     4, 0, 6,
     4, 0, 9,
-/* vc1DEC_FourMV_Pattern_3.out */
+    /* vc1DEC_FourMV_Pattern_3.out */
     4, 1, 0,
     4, 1, 0,
     4, 1, 0,
@@ -201,7 +201,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 11,
     4, 0, 6,
     4, 0, 9,
-/* vc1DEC_High_Mot_Chroma_DC_Diff_VLC.out */
+    /* vc1DEC_High_Mot_Chroma_DC_Diff_VLC.out */
     4, 1, 0,
     4, 1, 0,
     4, 1, 0,
@@ -279,7 +279,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 28,
     5, 0, 17,
     4, 0, 30,
-/* vc1DEC_High_Mot_Inter_VLC.out */
+    /* vc1DEC_High_Mot_Inter_VLC.out */
     4, 3, 0,
     4, 3, 0,
     4, 3, 1,
@@ -777,7 +777,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 4, 125,
     5, 0, 134,
     5, 0, 4,
-/* vc1DEC_High_Mot_Intra_VLC.out */
+    /* vc1DEC_High_Mot_Intra_VLC.out */
     4, 4, 38,
     4, 4, 39,
     0, 2, 30,
@@ -1046,7 +1046,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     5, 0, 183,
     5, 0, 150,
     5, 0, 16,
-/* vc1DEC_High_Mot_Luminance_DC_Diff_VLC.out */
+    /* vc1DEC_High_Mot_Luminance_DC_Diff_VLC.out */
     2, 1, 16,
     2, 2, 77,
     4, 3, 3,
@@ -1158,7 +1158,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 12,
     4, 0, 16,
     5, 0, 11,
-/* vc1DEC_High_Rate_Inter_VLC.out */
+    /* vc1DEC_High_Rate_Inter_VLC.out */
     4, 3, 2,
     4, 3, 2,
     4, 3, 3,
@@ -1405,7 +1405,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     5, 0, 151,
     5, 0, 104,
     5, 0, 149,
-/* vc1DEC_High_Rate_Intra_VLC.out */
+    /* vc1DEC_High_Rate_Intra_VLC.out */
     4, 2, 0,
     4, 2, 0,
     4, 2, 0,
@@ -1876,7 +1876,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 213,
     5, 0, 131,
     5, 0, 81,
-/* vc1DEC_High_Rate_SUBBLKPAT.out */
+    /* vc1DEC_High_Rate_SUBBLKPAT.out */
     4, 3, 11,
     4, 3, 11,
     4, 3, 13,
@@ -1911,7 +1911,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 15,
     4, 0, 6,
     4, 0, 9,
-/* vc1DEC_High_Rate_TTBLK.out */
+    /* vc1DEC_High_Rate_TTBLK.out */
     4, 1, 7,
     4, 1, 11,
     2, 2, 2,
@@ -1920,7 +1920,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     6, 0, 4,
     4, 2, 5,
     4, 2, 6,
-/* vc1DEC_High_Rate_TTMB.out */
+    /* vc1DEC_High_Rate_TTMB.out */
     4, 1, 11,
     4, 1, 11,
     4, 1, 19,
@@ -1943,7 +1943,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 13,
     4, 1, 23,
     6, 0, 10,
-/* vc1DEC_I_Picture_CBPCY_VLC.out */
+    /* vc1DEC_I_Picture_CBPCY_VLC.out */
     0, 1, 16,
     0, 0, 28,
     2, 2, 29,
@@ -2037,28 +2037,28 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 13,
     4, 1, 62,
     4, 1, 57,
-/* vc1DEC_Interlace_2_MVP_Pattern_0.out */
+    /* vc1DEC_Interlace_2_MVP_Pattern_0.out */
     4, 1, 2,
     4, 1, 1,
     4, 1, 0,
     4, 1, 3,
-/* vc1DEC_Interlace_2_MVP_Pattern_1.out */
+    /* vc1DEC_Interlace_2_MVP_Pattern_1.out */
     4, 0, 0,
     5, 0, 1,
     4, 1, 1,
-/* vc1DEC_Interlace_2_MVP_Pattern_2.out */
+    /* vc1DEC_Interlace_2_MVP_Pattern_2.out */
     4, 0, 3,
     0, 0, 2,
     4, 1, 1,
     4, 0, 0,
     4, 0, 2,
-/* vc1DEC_Interlace_2_MVP_Pattern_3.out */
+    /* vc1DEC_Interlace_2_MVP_Pattern_3.out */
     4, 0, 0,
     0, 0, 2,
     4, 1, 3,
     4, 0, 2,
     4, 0, 1,
-/* vc1DEC_Interlace_4MV_MB_0.out */
+    /* vc1DEC_Interlace_4MV_MB_0.out */
     4, 1, 32,
     4, 1, 32,
     4, 1, 32,
@@ -2102,7 +2102,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 8,
     4, 1, 19,
     4, 1, 11,
-/* vc1DEC_Interlace_4MV_MB_1.out */
+    /* vc1DEC_Interlace_4MV_MB_1.out */
     4, 2, 32,
     4, 2, 32,
     4, 2, 32,
@@ -2140,7 +2140,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 4,
     4, 0, 2,
     4, 0, 56,
-/* vc1DEC_Interlace_4MV_MB_2.out */
+    /* vc1DEC_Interlace_4MV_MB_2.out */
     4, 1, 27,
     4, 1, 27,
     4, 1, 27,
@@ -2176,7 +2176,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 19,
     4, 1, 24,
     4, 1, 2,
-/* vc1DEC_Interlace_4MV_MB_3.out */
+    /* vc1DEC_Interlace_4MV_MB_3.out */
     4, 1, 17,
     4, 1, 17,
     4, 1, 17,
@@ -2220,7 +2220,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 27,
     4, 4, 4,
     4, 4, 26,
-/* vc1DEC_Interlace_Non_4MV_MB_0.out */
+    /* vc1DEC_Interlace_Non_4MV_MB_0.out */
     4, 1, 32,
     4, 1, 25,
     1, 2, 2,
@@ -2232,7 +2232,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 40,
     4, 1, 8,
     4, 1, 24,
-/* vc1DEC_Interlace_Non_4MV_MB_1.out */
+    /* vc1DEC_Interlace_Non_4MV_MB_1.out */
     1, 1, 8,
     4, 2, 24,
     4, 1, 9,
@@ -2246,7 +2246,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 17,
     4, 0, 4,
     4, 0, 32,
-/* vc1DEC_Interlace_Non_4MV_MB_2.out */
+    /* vc1DEC_Interlace_Non_4MV_MB_2.out */
     4, 1, 56,
     4, 1, 40,
     0, 1, 2,
@@ -2258,7 +2258,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 8,
     4, 1, 4,
     4, 1, 24,
-/* vc1DEC_Interlace_Non_4MV_MB_3.out */
+    /* vc1DEC_Interlace_Non_4MV_MB_3.out */
     4, 0, 32,
     1, 1, 2,
     4, 1, 17,
@@ -2270,7 +2270,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 24,
     4, 3, 56,
     4, 3, 4,
-/* vc1DEC_Interlaced_CBPCY_0.out */
+    /* vc1DEC_Interlaced_CBPCY_0.out */
     4, 2, 61,
     4, 2, 62,
     0, 3, 6,
@@ -2337,7 +2337,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 43,
     4, 1, 39,
     4, 1, 27,
-/* vc1DEC_Interlaced_CBPCY_1.out */
+    /* vc1DEC_Interlaced_CBPCY_1.out */
     4, 2, 62,
     4, 2, 62,
     4, 2, 62,
@@ -2417,7 +2417,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 8,
     6, 0, 4,
     4, 1, 16,
-/* vc1DEC_Interlaced_CBPCY_2.out */
+    /* vc1DEC_Interlaced_CBPCY_2.out */
     4, 1, 63,
     4, 1, 63,
     4, 1, 63,
@@ -2499,7 +2499,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 24,
     4, 1, 35,
     4, 1, 19,
-/* vc1DEC_Interlaced_CBPCY_3.out */
+    /* vc1DEC_Interlaced_CBPCY_3.out */
     4, 3, 4,
     4, 3, 4,
     4, 3, 8,
@@ -2570,7 +2570,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 31,
     4, 0, 19,
     4, 0, 33,
-/* vc1DEC_Interlaced_CBPCY_4.out */
+    /* vc1DEC_Interlaced_CBPCY_4.out */
     1, 1, 32,
     2, 1, 34,
     0, 0, 36,
@@ -2648,7 +2648,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 57,
     4, 0, 55,
     4, 0, 59,
-/* vc1DEC_Interlaced_CBPCY_5.out */
+    /* vc1DEC_Interlaced_CBPCY_5.out */
     4, 2, 60,
     4, 2, 60,
     4, 2, 60,
@@ -2717,7 +2717,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 55,
     6, 0, 12,
     6, 0, 18,
-/* vc1DEC_Interlaced_CBPCY_6.out */
+    /* vc1DEC_Interlaced_CBPCY_6.out */
     4, 2, 4,
     4, 2, 4,
     4, 2, 4,
@@ -2796,7 +2796,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 27,
     4, 0, 43,
     4, 0, 29,
-/* vc1DEC_Interlaced_CBPCY_7.out */
+    /* vc1DEC_Interlaced_CBPCY_7.out */
     4, 4, 56,
     2, 2, 31,
     1, 1, 36,
@@ -2876,7 +2876,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 28,
     4, 0, 44,
     4, 0, 52,
-/* vc1DEC_Low_Mot_Chroma_DC_Diff_VLC.out */
+    /* vc1DEC_Low_Mot_Chroma_DC_Diff_VLC.out */
     4, 1, 0,
     4, 1, 0,
     4, 1, 0,
@@ -2969,7 +2969,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 19,
     4, 0, 28,
     4, 0, 27,
-/* vc1DEC_Low_Mot_Inter_VLC.out */
+    /* vc1DEC_Low_Mot_Inter_VLC.out */
     0, 4, 32,
     0, 4, 105,
     0, 4, 168,
@@ -3400,7 +3400,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 223,
     4, 3, 20,
     4, 3, 21,
-/* vc1DEC_Low_Mot_Intra_VLC.out */
+    /* vc1DEC_Low_Mot_Intra_VLC.out */
     0, 4, 32,
     0, 3, 73,
     4, 4, 32,
@@ -3721,7 +3721,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     5, 0, 57,
     5, 0, 95,
     5, 0, 72,
-/* vc1DEC_Low_Mot_Luminance_DC_Diff_VLC.out */
+    /* vc1DEC_Low_Mot_Luminance_DC_Diff_VLC.out */
     4, 0, 0,
     4, 1, 1,
     0, 1, 5,
@@ -3802,7 +3802,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     6, 0, 19,
     4, 0, 34,
     4, 0, 36,
-/* vc1DEC_Low_Rate_SUBBLKPAT.out */
+    /* vc1DEC_Low_Rate_SUBBLKPAT.out */
     0, 0, 16,
     4, 3, 12,
     4, 3, 3,
@@ -3825,7 +3825,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 13,
     4, 0, 7,
     4, 0, 11,
-/* vc1DEC_Low_Rate_TTBLK.out */
+    /* vc1DEC_Low_Rate_TTBLK.out */
     6, 0, 5,
     4, 1, 0,
     1, 1, 2,
@@ -3833,7 +3833,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 5,
     4, 1, 7,
     4, 1, 6,
-/* vc1DEC_Low_Rate_TTMB.out */
+    /* vc1DEC_Low_Rate_TTMB.out */
     4, 2, 9,
     2, 5, 7,
     4, 2, 17,
@@ -3854,7 +3854,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 28,
     4, 0, 10,
     4, 0, 24,
-/* vc1DEC_Medium_Rate_SUBBLKPAT.out */
+    /* vc1DEC_Medium_Rate_SUBBLKPAT.out */
     4, 2, 2,
     4, 2, 2,
     0, 0, 14,
@@ -3877,7 +3877,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 7,
     4, 0, 13,
     4, 0, 11,
-/* vc1DEC_Medium_Rate_TTBLK.out */
+    /* vc1DEC_Medium_Rate_TTBLK.out */
     4, 2, 9,
     4, 2, 10,
     4, 2, 12,
@@ -3886,7 +3886,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 11,
     4, 1, 0,
     4, 1, 0,
-/* vc1DEC_Medium_Rate_TTMB.out */
+    /* vc1DEC_Medium_Rate_TTMB.out */
     4, 2, 19,
     4, 2, 19,
     2, 3, 14,
@@ -3911,7 +3911,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 15,
     4, 1, 23,
     4, 1, 13,
-/* vc1DEC_Mid_Rate_Inter_VLC.out */
+    /* vc1DEC_Mid_Rate_Inter_VLC.out */
     0, 4, 32,
     0, 4, 76,
     0, 3, 107,
@@ -4063,7 +4063,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     5, 0, 31,
     5, 0, 13,
     5, 0, 2,
-/* vc1DEC_Mid_Rate_Intra_VLC.out */
+    /* vc1DEC_Mid_Rate_Intra_VLC.out */
     0, 4, 32,
     0, 4, 82,
     0, 3, 113,
@@ -4221,7 +4221,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     5, 0, 6,
     5, 0, 28,
     5, 0, 5,
-/* vc1DEC_Mixed_MV_MB_0.out */
+    /* vc1DEC_Mixed_MV_MB_0.out */
     4, 1, 8,
     4, 1, 8,
     4, 1, 8,
@@ -4256,7 +4256,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 0,
     4, 0, 4,
     4, 0, 12,
-/* vc1DEC_Mixed_MV_MB_1.out */
+    /* vc1DEC_Mixed_MV_MB_1.out */
     4, 1, 40,
     4, 1, 40,
     4, 1, 40,
@@ -4289,7 +4289,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 8,
     4, 2, 8,
     4, 2, 8,
-/* vc1DEC_Mixed_MV_MB_2.out */
+    /* vc1DEC_Mixed_MV_MB_2.out */
     4, 1, 8,
     4, 1, 8,
     4, 1, 8,
@@ -4324,7 +4324,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 40,
     4, 0, 4,
     4, 0, 12,
-/* vc1DEC_Mixed_MV_MB_3.out */
+    /* vc1DEC_Mixed_MV_MB_3.out */
     4, 0, 10,
     4, 0, 10,
     4, 0, 10,
@@ -4359,7 +4359,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 0,
     4, 0, 4,
     4, 0, 12,
-/* vc1DEC_Mixed_MV_MB_4.out */
+    /* vc1DEC_Mixed_MV_MB_4.out */
     4, 0, 10,
     4, 0, 10,
     4, 0, 10,
@@ -4394,7 +4394,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 8,
     4, 0, 4,
     4, 0, 12,
-/* vc1DEC_Mixed_MV_MB_5.out */
+    /* vc1DEC_Mixed_MV_MB_5.out */
     4, 0, 40,
     4, 0, 40,
     4, 0, 40,
@@ -4429,7 +4429,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 2,
     4, 0, 4,
     4, 0, 12,
-/* vc1DEC_Mixed_MV_MB_6.out */
+    /* vc1DEC_Mixed_MV_MB_6.out */
     4, 1, 8,
     4, 1, 8,
     4, 1, 8,
@@ -4462,7 +4462,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 32,
     4, 2, 32,
     4, 2, 32,
-/* vc1DEC_Mixed_MV_MB_7.out */
+    /* vc1DEC_Mixed_MV_MB_7.out */
     4, 0, 0,
     4, 0, 0,
     4, 0, 0,
@@ -4497,7 +4497,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 10,
     4, 0, 4,
     4, 0, 12,
-/* vc1DEC_Mot_Vector_Diff_VLC_0.out */
+    /* vc1DEC_Mot_Vector_Diff_VLC_0.out */
     0, 0, 32,
     2, 2, 33,
     4, 4, 6,
@@ -4587,7 +4587,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 65,
     4, 1, 67,
     4, 1, 69,
-/* vc1DEC_Mot_Vector_Diff_VLC_1.out */
+    /* vc1DEC_Mot_Vector_Diff_VLC_1.out */
     4, 4, 0,
     0, 0, 31,
     0, 0, 32,
@@ -4673,7 +4673,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 57,
     4, 2, 59,
     4, 2, 61,
-/* vc1DEC_Mot_Vector_Diff_VLC_2.out */
+    /* vc1DEC_Mot_Vector_Diff_VLC_2.out */
     4, 2, 0,
     4, 2, 0,
     4, 2, 0,
@@ -4726,7 +4726,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     6, 0, 19,
     4, 0, 41,
     4, 0, 44,
-/* vc1DEC_Mot_Vector_Diff_VLC_3.out */
+    /* vc1DEC_Mot_Vector_Diff_VLC_3.out */
     0, 2, 32,
     4, 4, 38,
     4, 3, 36,
@@ -4823,7 +4823,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     5, 0, 35,
     5, 0, 34,
     4, 1, 65,
-/* vc1DEC_One_Field_Ref_Ilace_MV_0.out */
+    /* vc1DEC_One_Field_Ref_Ilace_MV_0.out */
     4, 1, 8,
     4, 1, 8,
     4, 1, 8,
@@ -4922,7 +4922,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 43,
     4, 2, 46,
     4, 2, 59,
-/* vc1DEC_One_Field_Ref_Ilace_MV_1.out */
+    /* vc1DEC_One_Field_Ref_Ilace_MV_1.out */
     4, 4, 20,
     4, 4, 4,
     1, 3, 30,
@@ -5021,7 +5021,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     6, 0, 34,
     4, 1, 71,
     6, 0, 31,
-/* vc1DEC_One_Field_Ref_Ilace_MV_2.out */
+    /* vc1DEC_One_Field_Ref_Ilace_MV_2.out */
     4, 3, 9,
     4, 3, 9,
     4, 4, 26,
@@ -5123,7 +5123,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 51,
     5, 0, 19,
     4, 0, 28,
-/* vc1DEC_One_Field_Ref_Ilace_MV_3.out */
+    /* vc1DEC_One_Field_Ref_Ilace_MV_3.out */
     4, 3, 3,
     4, 3, 3,
     4, 3, 1,
@@ -5219,21 +5219,21 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 45,
     4, 1, 42,
     4, 1, 34,
-/* vc1DEC_One_MV_MB_0.out */
+    /* vc1DEC_One_MV_MB_0.out */
     4, 0, 0,
     4, 1, 8,
     4, 2, 32,
     4, 3, 40,
     4, 4, 12,
     4, 4, 4,
-/* vc1DEC_One_MV_MB_1.out */
+    /* vc1DEC_One_MV_MB_1.out */
     4, 0, 0,
     4, 1, 32,
     4, 2, 8,
     4, 3, 40,
     4, 4, 12,
     4, 4, 4,
-/* vc1DEC_One_MV_MB_2.out */
+    /* vc1DEC_One_MV_MB_2.out */
     4, 0, 32,
     4, 0, 32,
     4, 0, 32,
@@ -5266,7 +5266,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 0,
     4, 1, 0,
     4, 1, 0,
-/* vc1DEC_One_MV_MB_3.out */
+    /* vc1DEC_One_MV_MB_3.out */
     4, 0, 8,
     4, 0, 8,
     4, 0, 8,
@@ -5299,7 +5299,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 0,
     4, 1, 0,
     4, 1, 0,
-/* vc1DEC_One_MV_MB_4.out */
+    /* vc1DEC_One_MV_MB_4.out */
     4, 1, 40,
     4, 1, 40,
     4, 1, 40,
@@ -5316,7 +5316,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 8,
     4, 1, 8,
     4, 1, 8,
-/* vc1DEC_One_MV_MB_5.out */
+    /* vc1DEC_One_MV_MB_5.out */
     4, 1, 8,
     4, 1, 8,
     4, 1, 8,
@@ -5333,14 +5333,14 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 40,
     4, 1, 40,
     4, 1, 40,
-/* vc1DEC_One_MV_MB_6.out */
+    /* vc1DEC_One_MV_MB_6.out */
     4, 0, 8,
     4, 1, 40,
     4, 2, 0,
     4, 3, 32,
     4, 4, 12,
     4, 4, 4,
-/* vc1DEC_One_MV_MB_7.out */
+    /* vc1DEC_One_MV_MB_7.out */
     4, 0, 40,
     4, 0, 40,
     4, 0, 40,
@@ -5373,7 +5373,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 8,
     4, 1, 8,
     4, 1, 8,
-/* vc1DEC_P_Picture_CBPCY_VLC_0.out */
+    /* vc1DEC_P_Picture_CBPCY_VLC_0.out */
     2, 3, 32,
     4, 4, 16,
     0, 0, 59,
@@ -5469,7 +5469,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 59,
     4, 1, 47,
     4, 1, 31,
-/* vc1DEC_P_Picture_CBPCY_VLC_1.out */
+    /* vc1DEC_P_Picture_CBPCY_VLC_1.out */
     2, 2, 32,
     4, 4, 48,
     4, 3, 40,
@@ -5558,7 +5558,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 61,
     4, 1, 63,
     4, 1, 29,
-/* vc1DEC_P_Picture_CBPCY_VLC_2.out */
+    /* vc1DEC_P_Picture_CBPCY_VLC_2.out */
     2, 4, 32,
     4, 4, 32,
     4, 4, 16,
@@ -5649,7 +5649,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 55,
     4, 0, 15,
     4, 0, 47,
-/* vc1DEC_P_Picture_CBPCY_VLC_3.out */
+    /* vc1DEC_P_Picture_CBPCY_VLC_3.out */
     0, 4, 16,
     0, 4, 47,
     4, 2, 16,
@@ -5730,7 +5730,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 3, 31,
     4, 3, 63,
     4, 3, 63,
-/* vc1DEC_Two_Field_Ref_Ilace_MV_0.out */
+    /* vc1DEC_Two_Field_Ref_Ilace_MV_0.out */
     4, 4, 3,
     0, 1, 31,
     1, 1, 53,
@@ -5907,7 +5907,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 2, 14,
     4, 0, 38,
     4, 0, 46,
-/* vc1DEC_Two_Field_Ref_Ilace_MV_1.out */
+    /* vc1DEC_Two_Field_Ref_Ilace_MV_1.out */
     4, 1, 8,
     4, 1, 8,
     4, 1, 8,
@@ -6088,7 +6088,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 23,
     4, 1, 99,
     4, 1, 111,
-/* vc1DEC_Two_Field_Ref_Ilace_MV_2.out */
+    /* vc1DEC_Two_Field_Ref_Ilace_MV_2.out */
     0, 1, 32,
     4, 4, 44,
     4, 4, 9,
@@ -6262,7 +6262,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 76,
     4, 2, 24,
     4, 2, 82,
-/* vc1DEC_Two_Field_Ref_Ilace_MV_3.out */
+    /* vc1DEC_Two_Field_Ref_Ilace_MV_3.out */
     4, 2, 0,
     4, 2, 0,
     4, 2, 0,
@@ -6446,7 +6446,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 16,
     4, 1, 106,
     4, 1, 24,
-/* vc1DEC_Two_Field_Ref_Ilace_MV_4.out */
+    /* vc1DEC_Two_Field_Ref_Ilace_MV_4.out */
     4, 1, 8,
     4, 1, 8,
     4, 1, 8,
@@ -6626,7 +6626,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 0, 108,
     4, 0, 4,
     4, 0, 44,
-/* vc1DEC_Two_Field_Ref_Ilace_MV_5.out */
+    /* vc1DEC_Two_Field_Ref_Ilace_MV_5.out */
     4, 4, 10,
     0, 2, 31,
     4, 4, 62,
@@ -6805,7 +6805,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     4, 1, 118,
     4, 1, 111,
     4, 1, 108,
-/* vc1DEC_Two_Field_Ref_Ilace_MV_6.out */
+    /* vc1DEC_Two_Field_Ref_Ilace_MV_6.out */
     4, 3, 26,
     0, 1, 15,
     4, 2, 0,
@@ -6979,7 +6979,7 @@ IMG_UINT16    gaui16vc1VlcTableData[] = {
     5, 0, 61,
     4, 0, 15,
     4, 0, 31,
-/* vc1DEC_Two_Field_Ref_Ilace_MV_7.out */
+    /* vc1DEC_Two_Field_Ref_Ilace_MV_7.out */
     4, 4, 10,
     0, 2, 31,
     4, 3, 26,

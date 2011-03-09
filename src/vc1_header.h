@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -33,158 +33,154 @@
 
 
 /* Picture header parameters */
-typedef struct _vc1PicHeader_
-{
-	/* TTMBF signals whether transform type coding is enabled at the frame or macroblock level. */
-	IMG_UINT8	TTMBF;									/* PICTURE_LAYER::TTMBF - 1 bit */
-	/* TTFRM signals the transform type used to transform the 8x8 pixel error signal in predicted blocks. */
-	IMG_UINT8	TTFRM;									/* PICTURE_LAYER::TTFRM - 2 bits */
-	/*
-		BFRACTION signals a fraction that may take on a limited set of fractional values between 0 and 1,
-		denoting the relative temporal position of the B frame within the interval formed by its anchors.
-	*/
-	IMG_UINT8	BFRACTION;								/* PICTURE_LAYER::BFRACTION - 2 bits */
-	/*	
-		CONDOVER affects overlap smoothing in advanced profile.
-	*/
-	IMG_UINT8	CONDOVER;								/* PICTURE_LAYER::CONDOVER - 2 bits */
+typedef struct _vc1PicHeader_ {
+    /* TTMBF signals whether transform type coding is enabled at the frame or macroblock level. */
+    IMG_UINT8	TTMBF;									/* PICTURE_LAYER::TTMBF - 1 bit */
+    /* TTFRM signals the transform type used to transform the 8x8 pixel error signal in predicted blocks. */
+    IMG_UINT8	TTFRM;									/* PICTURE_LAYER::TTFRM - 2 bits */
+    /*
+    	BFRACTION signals a fraction that may take on a limited set of fractional values between 0 and 1,
+    	denoting the relative temporal position of the B frame within the interval formed by its anchors.
+    */
+    IMG_UINT8	BFRACTION;								/* PICTURE_LAYER::BFRACTION - 2 bits */
+    /*
+    	CONDOVER affects overlap smoothing in advanced profile.
+    */
+    IMG_UINT8	CONDOVER;								/* PICTURE_LAYER::CONDOVER - 2 bits */
 
-	/*
-		TRANSACFRM shall provide the index that selects the coding set used to decode the
-		Transform AC coefficients for the Cb, Cr blocks. 
-	*/
-	IMG_UINT8	TRANSACFRM;						/* PICTURE_LAYER::TRANSACFRM - 2 bits */
-	/*
-		TRANSACFRM2 shall provide the index that selects the coding set used to decode the
-		Transform AC coefficients for the Y blocks.
-	*/
-	IMG_UINT8	TRANSACFRM2;					/* PICTURE_LAYER::TRANSACFRM2 - 2 bits */
-	/*
-		MVMODE syntax element shall signal one of four motion vector coding modes,
-		or the intensity compensation mode.
-	*/
-	IMG_UINT8	MVMODE;							/* PICTURE_LAYER::MVMODE - 2 bits */
-	IMG_UINT8	MVMODE2;						/* PICTURE_LAYER::MVMODE2 - 2 bits */
+    /*
+    	TRANSACFRM shall provide the index that selects the coding set used to decode the
+    	Transform AC coefficients for the Cb, Cr blocks.
+    */
+    IMG_UINT8	TRANSACFRM;						/* PICTURE_LAYER::TRANSACFRM - 2 bits */
+    /*
+    	TRANSACFRM2 shall provide the index that selects the coding set used to decode the
+    	Transform AC coefficients for the Y blocks.
+    */
+    IMG_UINT8	TRANSACFRM2;					/* PICTURE_LAYER::TRANSACFRM2 - 2 bits */
+    /*
+    	MVMODE syntax element shall signal one of four motion vector coding modes,
+    	or the intensity compensation mode.
+    */
+    IMG_UINT8	MVMODE;							/* PICTURE_LAYER::MVMODE - 2 bits */
+    IMG_UINT8	MVMODE2;						/* PICTURE_LAYER::MVMODE2 - 2 bits */
 
-	/* These are needed just for finding out what VLC tables are used in the current picture */
-	IMG_UINT8	MV4SWITCH;						/* PICTURE_LAYER::MV4SWITCH - 1 bit */
-	IMG_UINT8	CBPTAB;							/* PICTURE_LAYER::CBPTAB - 2 bits */
-	IMG_UINT8	ICBPTAB;						/* PICTURE_LAYER::ICBPTAB - 3 bits */
-	IMG_UINT8	MVTAB;							/* PICTURE_LAYER::MVTAB - 2 bits */
-	IMG_UINT8	IMVTAB;							/* PICTURE_LAYER::IMVTAB - 3 bits */
-	IMG_UINT8	MV4BPTAB;						/* PICTURE_LAYER::4MVBPTAB - 2 bits */
-	IMG_UINT8	MV2BPTAB;						/* PICTURE_LAYER::2MVBPTAB - 2 bits */
-	IMG_UINT8	MBMODETAB;						/* PICTURE_LAYER::MBMODETAB - 3 bits */
-	IMG_UINT8	TRANSDCTAB;						/* PICTURE_LAYER::TRANSDCTAB - 1 bits */
-	
-	/* PQINDEX is used in VLD and the hardware actually only needs to know if it is greater than 8 or not. */
-	IMG_UINT8	PQINDEX;						/* PICTURE_LAYER::PQINDEX - 5 bits */							
-	/* 
-		HALFQP syntax element allows the picture quantizer to be expressed in half step increments.
-		If HALFQP == 1, then the picture quantizer step size shall be equal to PQUANT + 1/2. If
-		HALFQP == 0, then the picture quantizer step size shall be equal to PQUANT.
-	*/
-	IMG_UINT8	HALFQP;							/* PICTURE_LAYER::HALFQP - 1 bit */
+    /* These are needed just for finding out what VLC tables are used in the current picture */
+    IMG_UINT8	MV4SWITCH;						/* PICTURE_LAYER::MV4SWITCH - 1 bit */
+    IMG_UINT8	CBPTAB;							/* PICTURE_LAYER::CBPTAB - 2 bits */
+    IMG_UINT8	ICBPTAB;						/* PICTURE_LAYER::ICBPTAB - 3 bits */
+    IMG_UINT8	MVTAB;							/* PICTURE_LAYER::MVTAB - 2 bits */
+    IMG_UINT8	IMVTAB;							/* PICTURE_LAYER::IMVTAB - 3 bits */
+    IMG_UINT8	MV4BPTAB;						/* PICTURE_LAYER::4MVBPTAB - 2 bits */
+    IMG_UINT8	MV2BPTAB;						/* PICTURE_LAYER::2MVBPTAB - 2 bits */
+    IMG_UINT8	MBMODETAB;						/* PICTURE_LAYER::MBMODETAB - 3 bits */
+    IMG_UINT8	TRANSDCTAB;						/* PICTURE_LAYER::TRANSDCTAB - 1 bits */
 
-	IMG_UINT8	bNonUniformQuantizer;
-	IMG_UINT8	VOPDQUANT_Present;				
-	IMG_UINT8	bDQUANT_InFrame;	// Indicates whether quantisation can be specified at a MB level 
-	/* If DQUANTFRM == 0, then the current picture shall only be quantized with PQUANT. */
-	IMG_UINT8	DQUANTFRM;						/* VOPDQUANT::DQUANTFRM - 1 bit */
-	/* DQPROFILE specifies where it is allowable to change quantization step sizes within the current picture. */
-	IMG_UINT8	DQPROFILE;						/* VOPDQUANT::DQPROFILE - 2 bits */
-	/* 
-		DQBILEVEL determines the number of possible quantization step sizes which can be 
-		used by each macroblock in the frame.
-	*/
-	IMG_UINT8	DQBILEVEL;						/* VOPDQUANT::DQBILEVEL - 1 bit */
-	/* DQDBEDGE specifies which two edges will be quantized with ALTPQUANT when DQPROFILE == 'Double Edge'. */
-	IMG_UINT8	DQDBEDGE;						/* VOPDQUANT::DQDBEDGE - 2 bits */
-	/* DQSBEDGE specifies which edge will be quantized with ALTPQUANT when DQPROFILE == 'Single Edge'. */
-	IMG_UINT8	DQSBEDGE;						/* VOPDQUANT::DQSBEDGE - 2 bits */
-	IMG_UINT8	ALTPQUANT;						/* VOPDQUANT::ALTPQUANT - 5 bits */
+    /* PQINDEX is used in VLD and the hardware actually only needs to know if it is greater than 8 or not. */
+    IMG_UINT8	PQINDEX;						/* PICTURE_LAYER::PQINDEX - 5 bits */
+    /*
+    	HALFQP syntax element allows the picture quantizer to be expressed in half step increments.
+    	If HALFQP == 1, then the picture quantizer step size shall be equal to PQUANT + 1/2. If
+    	HALFQP == 0, then the picture quantizer step size shall be equal to PQUANT.
+    */
+    IMG_UINT8	HALFQP;							/* PICTURE_LAYER::HALFQP - 1 bit */
 
-	/* REFDIST defines the number of frames between the current frame and the reference frame. */
-	IMG_UINT8	REFDIST;						/* PICTURE_LAYER::REFDIST - 1 bit */
-	/* 
-		If NUMREF == 0, then the current interlace P field picture shall reference one field. If
-		NUMREF == 1, then the current interlace P field picture shall reference the two temporally
-		closest (in display order) I or P field pictures.
-	*/
-	IMG_UINT8	NUMREF;							/* PICTURE_LAYER::NUMREF - 1 bit */
-	/* 
-		If REFFIELD == 1, then the second most temporally recent interlace I or P field picture
-		shall be used as reference.
-	*/
-	IMG_UINT8	REFFIELD;						/* PICTURE_LAYER::REFFIELD - 1 bit */		
+    IMG_UINT8	bNonUniformQuantizer;
+    IMG_UINT8	VOPDQUANT_Present;
+    IMG_UINT8	bDQUANT_InFrame;	// Indicates whether quantisation can be specified at a MB level
+    /* If DQUANTFRM == 0, then the current picture shall only be quantized with PQUANT. */
+    IMG_UINT8	DQUANTFRM;						/* VOPDQUANT::DQUANTFRM - 1 bit */
+    /* DQPROFILE specifies where it is allowable to change quantization step sizes within the current picture. */
+    IMG_UINT8	DQPROFILE;						/* VOPDQUANT::DQPROFILE - 2 bits */
+    /*
+    	DQBILEVEL determines the number of possible quantization step sizes which can be
+    	used by each macroblock in the frame.
+    */
+    IMG_UINT8	DQBILEVEL;						/* VOPDQUANT::DQBILEVEL - 1 bit */
+    /* DQDBEDGE specifies which two edges will be quantized with ALTPQUANT when DQPROFILE == 'Double Edge'. */
+    IMG_UINT8	DQDBEDGE;						/* VOPDQUANT::DQDBEDGE - 2 bits */
+    /* DQSBEDGE specifies which edge will be quantized with ALTPQUANT when DQPROFILE == 'Single Edge'. */
+    IMG_UINT8	DQSBEDGE;						/* VOPDQUANT::DQSBEDGE - 2 bits */
+    IMG_UINT8	ALTPQUANT;						/* VOPDQUANT::ALTPQUANT - 5 bits */
 
-	/* MVRANGE specifies the motion vector range. */ 
-	IMG_UINT8	MVRANGE;						/* PICTURE_LAYER::MVRANGE - 2 bits */
-	/* 
-		DMVRANGE indicates if the extended range for motion vector differential is used in the
-		vertical, horizontal, both or none of the components of the motion vector.
-	*/
-	IMG_UINT8	DMVRANGE;						/* PICTURE_LAYER::DMVRANGE - 2 bits */
+    /* REFDIST defines the number of frames between the current frame and the reference frame. */
+    IMG_UINT8	REFDIST;						/* PICTURE_LAYER::REFDIST - 1 bit */
+    /*
+    	If NUMREF == 0, then the current interlace P field picture shall reference one field. If
+    	NUMREF == 1, then the current interlace P field picture shall reference the two temporally
+    	closest (in display order) I or P field pictures.
+    */
+    IMG_UINT8	NUMREF;							/* PICTURE_LAYER::NUMREF - 1 bit */
+    /*
+    	If REFFIELD == 1, then the second most temporally recent interlace I or P field picture
+    	shall be used as reference.
+    */
+    IMG_UINT8	REFFIELD;						/* PICTURE_LAYER::REFFIELD - 1 bit */
 
-	/* BitplanePresent indicates which bitplanes are present in the picture header */
-	IMG_UINT8	BP_PRESENT;
-	/* RawCodingFlag signals whether the bitplanes are coded in raw mode (bit set to 1) or not (set to 0) */
-	IMG_UINT8	RAWCODINGFLAG;		
+    /* MVRANGE specifies the motion vector range. */
+    IMG_UINT8	MVRANGE;						/* PICTURE_LAYER::MVRANGE - 2 bits */
+    /*
+    	DMVRANGE indicates if the extended range for motion vector differential is used in the
+    	vertical, horizontal, both or none of the components of the motion vector.
+    */
+    IMG_UINT8	DMVRANGE;						/* PICTURE_LAYER::DMVRANGE - 2 bits */
+
+    /* BitplanePresent indicates which bitplanes are present in the picture header */
+    IMG_UINT8	BP_PRESENT;
+    /* RawCodingFlag signals whether the bitplanes are coded in raw mode (bit set to 1) or not (set to 0) */
+    IMG_UINT8	RAWCODINGFLAG;
 
 } vc1PicHeader;
 
 /* Sequence header parameters */
-typedef struct _vc1SeqHeader_
-{
-	IMG_UINT8	POSTPROCFLAG;
-	IMG_UINT8	PULLDOWN;
-	IMG_UINT8	INTERLACE;
-	IMG_UINT8	TFCNTRFLAG;
-	IMG_UINT8	FINTERPFLAG;
-	IMG_UINT8	PSF;		
-	IMG_UINT8	EXTENDED_DMV;
+typedef struct _vc1SeqHeader_ {
+    IMG_UINT8	POSTPROCFLAG;
+    IMG_UINT8	PULLDOWN;
+    IMG_UINT8	INTERLACE;
+    IMG_UINT8	TFCNTRFLAG;
+    IMG_UINT8	FINTERPFLAG;
+    IMG_UINT8	PSF;
+    IMG_UINT8	EXTENDED_DMV;
 
-	IMG_UINT8	PANSCAN_FLAG;
-	IMG_UINT8	REFDIST_FLAG;
-	IMG_UINT8	LOOPFILTER;
-	IMG_UINT8	FASTUVMC;
-	IMG_UINT8	EXTENDED_MV;
-	IMG_UINT8	DQUANT;
-	IMG_UINT8	VSTRANSFORM;
+    IMG_UINT8	PANSCAN_FLAG;
+    IMG_UINT8	REFDIST_FLAG;
+    IMG_UINT8	LOOPFILTER;
+    IMG_UINT8	FASTUVMC;
+    IMG_UINT8	EXTENDED_MV;
+    IMG_UINT8	DQUANT;
+    IMG_UINT8	VSTRANSFORM;
 
-	IMG_UINT8	QUANTIZER;
-	IMG_UINT8	MULTIRES;
-	IMG_UINT8	SYNCMARKER;
-	IMG_UINT8	RANGERED;
-	IMG_UINT8	MAXBFRAMES;
+    IMG_UINT8	QUANTIZER;
+    IMG_UINT8	MULTIRES;
+    IMG_UINT8	SYNCMARKER;
+    IMG_UINT8	RANGERED;
+    IMG_UINT8	MAXBFRAMES;
 
-	IMG_UINT8	OVERLAP;
+    IMG_UINT8	OVERLAP;
 
-	IMG_UINT8	PROFILE;
+    IMG_UINT8	PROFILE;
 
 } vc1SeqHeader;
 
 //! Maximum number of VLC tables for MB/block layer decode
 #define MAX_VLC_TABLES  (12)
 
-typedef struct	//		Information about VLC tables
-{													
+typedef struct {	//		Information about VLC tables
     IMG_UINT16  aui16StartLocation;		//!<	Byte offset within the packed VLC tables array
     IMG_UINT16  aui16VLCTableLength;	//!<	Length of the table in number of bytes
-    IMG_UINT16  aui16RAMLocation;		//!<	Location of the VLC table in the destination buffer	
-    IMG_UINT16  aui16InitialWidth;		
-    IMG_UINT16  aui16InitialOpcode;		
-   
+    IMG_UINT16  aui16RAMLocation;		//!<	Location of the VLC table in the destination buffer
+    IMG_UINT16  aui16InitialWidth;
+    IMG_UINT16  aui16InitialOpcode;
+
 } sTableData;
 
-typedef struct	//		Information about the intensity compensation history of previous pictures 	
-{								
+typedef struct {	//		Information about the intensity compensation history of previous pictures
     IMG_UINT8   ui8LumaScale1;
     IMG_UINT8   ui8LumaShift1;
 
     IMG_UINT8   ui8LumaScale2;
     IMG_UINT8   ui8LumaShift2;
-	
+
     /* Indication of what fields undergo intensity compensation */
     IMG_UINT8	ui8IC1; // 1 - IC top field, 2 - IC bottom field, 3 - IC both fields
     IMG_UINT8	ui8IC2;
@@ -198,7 +194,7 @@ struct context_VC1_s {
     object_context_p obj_context; /* back reference */
 
     uint32_t profile;
-    
+
     /* Picture parameters */
     VAPictureParameterBufferVC1 *pic_params;
     object_surface_p forward_ref_surface;
@@ -234,22 +230,22 @@ struct context_VC1_s {
     /* TODO:
          LOOPFILTER
     */
-    
 
-	
-    /* 
-		CurrPic is the picture currently being decoded.
-		Ref0Pic is the most recent forward reference picture (only used when decoding interlaced field pictures and
-				the reference picture is in the same frame as the current picture).
-		Ref1Pic can either be the most recent forward reference picture (when decoding interlaced frame or 
-				progressive pictures) or the 2nd most recent reference picture (when decoding interlaced field pictures).
-		Ref2Pic is the most recent backward reference picture (only used when decoding B pictures).
+
+
+    /*
+    	CurrPic is the picture currently being decoded.
+    	Ref0Pic is the most recent forward reference picture (only used when decoding interlaced field pictures and
+    			the reference picture is in the same frame as the current picture).
+    	Ref1Pic can either be the most recent forward reference picture (when decoding interlaced frame or
+    			progressive pictures) or the 2nd most recent reference picture (when decoding interlaced field pictures).
+    	Ref2Pic is the most recent backward reference picture (only used when decoding B pictures).
     */
     IMG_UINT8				ui8FCM_Ref0Pic; /* Used */
     IMG_UINT8				ui8FCM_Ref1Pic;	/* Used */
     IMG_UINT8				ui8FCM_Ref2Pic;	/* Used */
 
-    IMG_BOOL				bTFF_FwRefFrm;	/* Used */				    
+    IMG_BOOL				bTFF_FwRefFrm;	/* Used */
     IMG_BOOL				bTFF_BwRefFrm;	/* Used */
     IMG_BOOL				bRef0RangeRed;						/* RangeRed flag								*/
     IMG_BOOL				bRef1RangeRed;
@@ -261,21 +257,21 @@ struct context_VC1_s {
     IMG_UINT32				ui32ScaleFactor; /* Used */
 
     /* IC parameters in current picture */
-    IMG_UINT8				ui8CurrLumaScale1; 
+    IMG_UINT8				ui8CurrLumaScale1;
     IMG_UINT8				ui8CurrLumaShift1;
     IMG_UINT8				ui8CurrLumaScale2;
     IMG_UINT8				ui8CurrLumaShift2;
     /* Information about the intensity compensation history of previous pictures */
     IC_PARAM				sICparams[2][2];
-        
+
 
     /* VLC table information */
-    IMG_UINT32				ui32NumTables;			/* VLC table accumulator */  
+    IMG_UINT32				ui32NumTables;			/* VLC table accumulator */
     sTableData				sTableInfo[MAX_VLC_TABLES];	/* structure of VLC table information */
 
-    /* Split buffers */    
+    /* Split buffers */
     int split_buffer_pending;
-    
+
     /* List of VASliceParameterBuffers */
     object_buffer_p *slice_param_list;
     int slice_param_list_size;
@@ -287,7 +283,7 @@ struct context_VC1_s {
 
     /* Preload buffer */
     struct psb_buffer_s preload_buffer;
-    
+
     /* CoLocated buffers */
     struct psb_buffer_s *colocated_buffers;
     int colocated_buffers_size;
@@ -340,50 +336,49 @@ typedef struct context_VC1_s *context_VC1_p;
 /*									Local Context										*/
 /****************************************************************************************/
 
-typedef struct
-{
-	DXVA_CONTEXT					sDXVAContext;  /* Must be the first Item */
+typedef struct {
+    DXVA_CONTEXT					sDXVAContext;  /* Must be the first Item */
 
-	const char						*pszHandleType;
+    const char						*pszHandleType;
 
     DXVA_PictureParameters			sPicParamVC1;
-	vc1PicHeader					sPicHdr;
-	vc1SeqHeader					sSeqHdr;
+    vc1PicHeader					sPicHdr;
+    vc1SeqHeader					sSeqHdr;
 
-	DXVA_SliceInfo					*pSliceCtrl;	
-	PVRSRV_CLIENT_MEM_INFO			*psAuxMSBBuffer;
-	PVRSRV_CLIENT_MEM_INFO			*hVlcPackedTableData;
-	PVRSRV_CLIENT_MEM_INFO			*psCoLocatedData;
-	PVRSRV_CLIENT_MEM_INFO			*psPreloadBuffer;
+    DXVA_SliceInfo					*pSliceCtrl;
+    PVRSRV_CLIENT_MEM_INFO			*psAuxMSBBuffer;
+    PVRSRV_CLIENT_MEM_INFO			*hVlcPackedTableData;
+    PVRSRV_CLIENT_MEM_INFO			*psCoLocatedData;
+    PVRSRV_CLIENT_MEM_INFO			*psPreloadBuffer;
 
-#if (!VC1_INTERLEAVED_BITPLANE || VC1_BITPLANE_HARDWARE) 
-	PVRSRV_CLIENT_MEM_INFO			*hBitplaneData[3];
-	IMG_UINT8						*pui8BitplaneData[3];
+#if (!VC1_INTERLEAVED_BITPLANE || VC1_BITPLANE_HARDWARE)
+    PVRSRV_CLIENT_MEM_INFO			*hBitplaneData[3];
+    IMG_UINT8						*pui8BitplaneData[3];
 #else
-	PVRSRV_CLIENT_MEM_INFO			*hBitplaneData;
-	IMG_UINT8						*pui8BitplaneData;
+    PVRSRV_CLIENT_MEM_INFO			*hBitplaneData;
+    IMG_UINT8						*pui8BitplaneData;
 #endif
 #ifdef VC1_LLDMA
-	CMD_BUFFER						sCmdBuff;
+    CMD_BUFFER						sCmdBuff;
 #else
-	PVRSRV_CLIENT_MEM_INFO          *psRenderCommandBuffer;
+    PVRSRV_CLIENT_MEM_INFO          *psRenderCommandBuffer;
 #endif
-	PVRSRV_CLIENT_MEM_INFO			*psStatusBuffer;
-	IMG_UINT32						*pui32CmdBuffer;
-	IMG_UINT32						*pui32CmdBufferBase;
-	IMG_UINT32						ui32CoLocatedSlot;
+    PVRSRV_CLIENT_MEM_INFO			*psStatusBuffer;
+    IMG_UINT32						*pui32CmdBuffer;
+    IMG_UINT32						*pui32CmdBufferBase;
+    IMG_UINT32						ui32CoLocatedSlot;
 
 
-	/* Status report */
-	IMG_BOOL				bBetweenBeginAndEnd;
-	IMG_UINT32				ui32StatusWof;
-	IMG_UINT32				ui32StatusRof;
-	IMG_UINT32				ui32DevPhysStatusAddr;
+    /* Status report */
+    IMG_BOOL				bBetweenBeginAndEnd;
+    IMG_UINT32				ui32StatusWof;
+    IMG_UINT32				ui32StatusRof;
+    IMG_UINT32				ui32DevPhysStatusAddr;
 
-	SGX_DDSURFDATA*			psDecodeSurfData;
-	SGX_DDSURFDATA*			psDeblockSurfData;
-	SGX_DDSURFDATA*			psForwardRefSurfData;
-	SGX_DDSURFDATA*			psBackwardRefSurfData;
+    SGX_DDSURFDATA*			psDecodeSurfData;
+    SGX_DDSURFDATA*			psDeblockSurfData;
+    SGX_DDSURFDATA*			psForwardRefSurfData;
+    SGX_DDSURFDATA*			psBackwardRefSurfData;
 
 
 } VC1VLDContext;
@@ -394,7 +389,7 @@ typedef struct
  Extern global variables
 ******************************************************************************/
 
-extern vc1PicHeader		*psPicHdr; 
-extern vc1SeqHeader		*psSeqHdr; 
+extern vc1PicHeader		*psPicHdr;
+extern vc1SeqHeader		*psSeqHdr;
 
 #endif /* _VC1_HEADER_H_ */

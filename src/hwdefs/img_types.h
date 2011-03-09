@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -61,13 +61,13 @@ typedef unsigned __int64	IMG_UINT64, *IMG_PUINT64;
 typedef __int64				IMG_INT64,  *IMG_PINT64;
 
 #else
-	#if defined(LINUX) || defined (__SYMBIAN32__) || defined(_UITRON_)
+#if defined(LINUX) || defined (__SYMBIAN32__) || defined(_UITRON_)
 
-	#else
+#else
 
-		#error("define an OS")
+#error("define an OS")
 
-	#endif
+#endif
 #endif
 
 #if !(defined(LINUX) && defined (__KERNEL__))
@@ -76,11 +76,10 @@ typedef float			IMG_FLOAT,	*IMG_PFLOAT;
 typedef double			IMG_DOUBLE, *IMG_PDOUBLE;
 #endif
 
-typedef	enum tag_img_bool
-{
-	IMG_FALSE		= 0,
-	IMG_TRUE		= 1,
-	IMG_FORCE_ALIGN = 0x7FFFFFFF
+typedef	enum tag_img_bool {
+    IMG_FALSE		= 0,
+    IMG_TRUE		= 1,
+    IMG_FORCE_ALIGN = 0x7FFFFFFF
 } IMG_BOOL, *IMG_PBOOL;
 
 typedef void			IMG_VOID,	*IMG_PVOID;
@@ -109,7 +108,7 @@ typedef IMG_UINT32      IMG_SIZE_T;
  * and a memory block is only mapped by the MMU once.
  *
  * Different devices could have offset views of the physical address space.
- * 
+ *
  */
 
 
@@ -122,19 +121,19 @@ typedef IMG_UINT32      IMG_SIZE_T;
  *       | PVOID           |IMG_DEV_VIRTADDR   |IMG_DEV_VIRTADDR     |
  *       |                 \-------------------/                     |
  *       |                          |                                |
- * +------------+             +------------+                         |     
+ * +------------+             +------------+                         |
  * |    MMU     |             |    MMU     |                         |
- * +------------+             +------------+                         | 
- *       |                          |                                | 
+ * +------------+             +------------+                         |
+ *       |                          |                                |
  *       |                          |                                |
  *       |                          |                                |
  *   +--------+                +---------+                      +--------+
  *   | Offset |                | (Offset)|                      | Offset |
- *   +--------+                +---------+                      +--------+    
- *       |                          |                IMG_DEV_PHYADDR | 
+ *   +--------+                +---------+                      +--------+
+ *       |                          |                IMG_DEV_PHYADDR |
  *       |                          |                                |
  *       |                          | IMG_DEV_PHYADDR                |
- * +---------------------------------------------------------------------+ 
+ * +---------------------------------------------------------------------+
  * |                         System Address bus                          |
  * +---------------------------------------------------------------------+
  *
@@ -143,42 +142,48 @@ typedef IMG_UINT32      IMG_SIZE_T;
 typedef IMG_PVOID IMG_CPU_VIRTADDR;
 
 /* cpu physical address */
-typedef struct {IMG_UINT32 uiAddr;} IMG_CPU_PHYADDR;
+typedef struct {
+    IMG_UINT32 uiAddr;
+} IMG_CPU_PHYADDR;
 
 /* device virtual address */
-typedef struct {IMG_UINT32 uiAddr;} IMG_DEV_VIRTADDR;
+typedef struct {
+    IMG_UINT32 uiAddr;
+} IMG_DEV_VIRTADDR;
 
 /* device physical address */
-typedef struct {IMG_UINT32 uiAddr;} IMG_DEV_PHYADDR;
+typedef struct {
+    IMG_UINT32 uiAddr;
+} IMG_DEV_PHYADDR;
 
 /* system physical address */
-typedef struct {IMG_UINT32 uiAddr;} IMG_SYS_PHYADDR;
+typedef struct {
+    IMG_UINT32 uiAddr;
+} IMG_SYS_PHYADDR;
 
-/* 
+/*
 	system physical structure.
 	specifies contiguous and non-contiguous system physical addresses
 */
-typedef struct _SYSTEM_ADDR_
-{
-	/* if zero this is contiguous */
-	IMG_UINT32	ui32PageCount;
-	union
-	{
-		/*	
-			contiguous address: 
-			basic system address  
-		*/
-		IMG_SYS_PHYADDR	sContig;		
+typedef struct _SYSTEM_ADDR_ {
+    /* if zero this is contiguous */
+    IMG_UINT32	ui32PageCount;
+    union {
+        /*
+        	contiguous address:
+        	basic system address
+        */
+        IMG_SYS_PHYADDR	sContig;
 
-		/* 
-			non-contiguous address:
-			multiple system page addresses representing system pages 
-			of which a single allocation is composed
-			Note: if non-contiguous allocations don't always start at a
-			page boundary then a page offset word is also required.
-		*/
-		IMG_SYS_PHYADDR	asNonContig[1];
-	} u;
+        /*
+        	non-contiguous address:
+        	multiple system page addresses representing system pages
+        	of which a single allocation is composed
+        	Note: if non-contiguous allocations don't always start at a
+        	page boundary then a page offset word is also required.
+        */
+        IMG_SYS_PHYADDR	asNonContig[1];
+    } u;
 } SYSTEM_ADDR;
 
 #endif	/* __IMG_TYPES_H__ */

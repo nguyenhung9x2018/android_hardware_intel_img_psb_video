@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -37,6 +37,33 @@
 #define USING_OVERLAY_PORT  1
 #define USING_TEXTURE_PORT  2
 
+typedef struct {
+    /*src coordinate*/
+    short srcx;
+    short srcy;
+    unsigned short sWidth;
+    unsigned short sHeight;
+    /*dest coordinate*/
+    short destx;
+    short desty;
+    unsigned short dWidth;
+    unsigned short dHeight;
+} psb_overlay_rect_t, *psb_overlay_rect_p;
+
+typedef struct {
+    int                 i32Left;
+    int                 i32Top;
+    int                 i32Right;
+    int                 i32Bottom;
+    unsigned int        ui32Width;
+    unsigned int        ui32Height;
+} psb_x11_win_t;
+
+typedef struct x11_rect_list {
+    psb_x11_win_t     rect;
+    struct x11_rect_list * next;
+} psb_x11_clip_list_t;
+
 typedef struct _psb_x11_output_s {
     /* information for xvideo */
     XvPortID textured_portID;
@@ -46,12 +73,19 @@ typedef struct _psb_x11_output_s {
     PsbXvVAPutSurfaceRec        imgdata_vasrf;
     GC                          gc;
     Drawable                    output_drawable;
+    int 			is_pixmap;
+    Drawable                    output_drawable_save;
     GC                          extend_gc;
     Drawable                    extend_drawable;
     unsigned short              output_width;
     unsigned short              output_height;
     int                         using_port;
 
+    int bIsVisible;
+    psb_x11_win_t winRect;
+    psb_x11_clip_list_t *pClipBoxList;
+    unsigned int ui32NumClipBoxList;
+    unsigned int frame_count;
 
     int ignore_dpm;
 
@@ -62,7 +96,6 @@ typedef struct _psb_x11_output_s {
     unsigned int sprite_enabled;
 
 } psb_x11_output_s, *psb_x11_output_p;
-
 
 VAStatus psb_putsurface_coverlay(
     VADriverContextP ctx,

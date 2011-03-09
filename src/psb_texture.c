@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -67,15 +67,13 @@
 #define OV_SATURATION_MIN             0
 #define OV_SATURATION_MAX             200
 
-typedef struct _psb_transform_coeffs_
-{
+typedef struct _psb_transform_coeffs_ {
     double rY, rCb, rCr;
     double gY, gCb, gCr;
     double bY, bCb, bCr;
 } psb_transform_coeffs;
 
-typedef enum _psb_videotransfermatrix
-{
+typedef enum _psb_videotransfermatrix {
     PSB_VideoTransferMatrixMask = 0x07,
     PSB_VideoTransferMatrix_Unknown = 0,
     PSB_VideoTransferMatrix_BT709 = 1,
@@ -83,8 +81,7 @@ typedef enum _psb_videotransfermatrix
     PSB_VideoTransferMatrix_SMPTE240M = 3
 } psb_videotransfermatrix;
 
-typedef enum _psb_nominalrange
-{
+typedef enum _psb_nominalrange {
     PSB_NominalRangeMask = 0x07,
     PSB_NominalRange_Unknown = 0,
     PSB_NominalRange_Normal = 1,
@@ -121,32 +118,32 @@ static psb_transform_coeffs s240M = {
 
 static void psb_setup_coeffs(struct psb_texture_s * pPriv);
 static void psb_scale_transfermatrix(psb_transform_coeffs * transfer_matrix,
-				     double YColumScale, double CbColumScale,
-				     double CrColumnScale);
+                                     double YColumScale, double CbColumScale,
+                                     double CrColumnScale);
 static void psb_select_transfermatrix(struct psb_texture_s * pPriv,
-				      psb_transform_coeffs * transfer_matrix,
-				      double *Y_offset, double *CbCr_offset,
-				      double *RGB_offset);
+                                      psb_transform_coeffs * transfer_matrix,
+                                      double *Y_offset, double *CbCr_offset,
+                                      double *RGB_offset);
 static void psb_create_coeffs(double yOff, double uOff, double vOff, double rgbOff,
-			      double yScale, double uScale, double vScale,
-			      double brightness, double contrast,
-			      double *pYCoeff, double *pUCoeff, double *pVCoeff,
-			      double *pConstant);
+                              double yScale, double uScale, double vScale,
+                              double brightness, double contrast,
+                              double *pYCoeff, double *pUCoeff, double *pVCoeff,
+                              double *pConstant);
 static void psb_convert_coeffs(double Ycoeff, double Ucoeff, double Vcoeff,
-			       double ConstantTerm, signed char *pY, signed char *pU,
-			       signed char *pV, signed short *constant,
-			       unsigned char *pShift);
+                               double ConstantTerm, signed char *pY, signed char *pU,
+                               signed char *pV, signed short *constant,
+                               unsigned char *pShift);
 static int psb_check_coeffs(double Ycoeff, double Ucoeff, double Vcoeff,
-			    double ConstantTerm, signed char byShift);
+                            double ConstantTerm, signed char byShift);
 static void
 psb_transform_sathuecoeffs(psb_transform_coeffs * dest,
-			   const psb_transform_coeffs * const source,
-			   double fHue, double fSat);
+                           const psb_transform_coeffs * const source,
+                           double fHue, double fSat);
 
 static unsigned long PVRCalculateStride(unsigned long widthInPixels, unsigned int bitsPerPixel, unsigned int stride_alignment)
 {
-    int ulActiveLinelenInPixels = (widthInPixels + (stride_alignment - 1)) & ~(stride_alignment - 1); 
-    return ((ulActiveLinelenInPixels * bitsPerPixel)+7) >> 3;
+    int ulActiveLinelenInPixels = (widthInPixels + (stride_alignment - 1)) & ~(stride_alignment - 1);
+    return ((ulActiveLinelenInPixels * bitsPerPixel) + 7) >> 3;
 }
 
 static int pvr_context_create(void **pvr_ctx)
@@ -154,7 +151,7 @@ static int pvr_context_create(void **pvr_ctx)
     int ret = 0;
     int pvr_devices = PVR2DEnumerateDevices(0);
     PVR2DDEVICEINFO *pvr_devs = NULL;
-        
+
     if ((pvr_devices < PVR2D_OK) || (pvr_devices == 0)) {
         psb__error_message("%s(): PowerVR device not found", __func__);
         goto out;
@@ -169,7 +166,7 @@ static int pvr_context_create(void **pvr_ctx)
     ret = PVR2DEnumerateDevices(pvr_devs);
     if (ret != PVR2D_OK) {
         psb__error_message("%s(): PVR2DEnumerateDevices() failed(%d)", __func__,
-             ret);
+                           ret);
         goto out;
     }
 
@@ -177,14 +174,14 @@ static int pvr_context_create(void **pvr_ctx)
     ret = PVR2DCreateDeviceContext(pvr_devs[0].ulDevID, (PVR2DCONTEXTHANDLE *)pvr_ctx, 0);
     if (ret != PVR2D_OK) {
         psb__error_message("%s(): PVR2DCreateDeviceContext() failed(%d)", __func__,
-             ret);
+                           ret);
         goto out;
     }
 
-  out:
+out:
     if (pvr_devs)
         free(pvr_devs);
-    
+
     return ret;
 }
 
@@ -214,10 +211,6 @@ void psb_ctexture_init(VADriverContextP ctx)
     texture_priv->saturation.Value = OV_SATURATION_DEFAULT_VALUE;
     texture_priv->saturation.Fraction = 0;
 
-    texture_priv->brightness.Value = -19; /* (255/219) * -16 */
-    texture_priv->contrast.Value = 75;  /* 255/219 * 64 */
-    texture_priv->saturation.Value = 146; /* 128/112 * 128 */
-
     texture_priv->gamma5 = 0xc0c0c0;
     texture_priv->gamma4 = 0x808080;
     texture_priv->gamma3 = 0x404040;
@@ -233,17 +226,30 @@ void psb_ctexture_init(VADriverContextP ctx)
     texture_priv->adjust_window_flag = 0;
     texture_priv->destw_save = 0;
     texture_priv->desth_save = 0;
+    texture_priv->local_rotation_save = -1;
+    texture_priv->extend_rotation_save = -1;
     output->output_drawable = 0;
     output->extend_drawable = 0;
+
     int i;
     for (i = 0; i < 6; i++)
-	texture_priv->pal_meminfo[i] = NULL;
+        texture_priv->pal_meminfo[i] = NULL;
+
+    for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
+        texture_priv->blt_meminfo[i] = NULL;
+        texture_priv->extend_blt_meminfo[i] = NULL;
+    }
+
+    for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++)
+        texture_priv->flip_meminfo[i] = NULL;
+
+    texture_priv->blt_meminfo_pixmap = NULL;
 #endif
 
     psb_setup_coeffs(texture_priv);
 }
 
-void psb_extend_ctexture_deinit(VADriverContextP ctx)
+void psb_ctexture_deinit(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
@@ -252,60 +258,89 @@ void psb_extend_ctexture_deinit(VADriverContextP ctx)
 
     struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
 #ifndef ANDROID
-    for(i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
-	ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->extend_blt_meminfo[i]);
-	if (ePVR2DStatus!= PVR2D_OK)
-	    psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+    if (texture_priv->blt_meminfo_pixmap) {
+        ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->blt_meminfo_pixmap);
+        if (ePVR2DStatus != PVR2D_OK)
+            psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
     }
-    XDestroyWindow(ctx->native_dpy, output->extend_drawable);
+
+    for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
+        if (texture_priv->blt_meminfo[i]) {
+            ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->blt_meminfo[i]);
+            if (ePVR2DStatus != PVR2D_OK)
+                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+            texture_priv->blt_meminfo[i] = NULL;
+        }
+    }
+
+    for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++) {
+        if (texture_priv->flip_meminfo[i]) {
+            ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->flip_meminfo[i]);
+            if (ePVR2DStatus != PVR2D_OK)
+                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+            texture_priv->flip_meminfo[i] = NULL;
+        }
+    }
+
     for (i = 0; i < 6; i++) {
-	if (texture_priv->pal_meminfo[i]) {
-	    ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->pal_meminfo[i]);
-	    if (ePVR2DStatus!= PVR2D_OK)
-	    psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
-	}
-    }
-#endif
-}
-
-void psb_ctexture_deinit(VADriverContextP ctx)
-{
-    INIT_DRIVER_DATA;
-    PVR2DERROR ePVR2DStatus;
-    int i;
-
-    struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
-#ifndef ANDROID
-    if (!texture_priv->dri_drawable->is_window) {
-	ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->blt_meminfo_pixmap);
-	if (ePVR2DStatus!= PVR2D_OK)
-	    psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+        if (texture_priv->pal_meminfo[i]) {
+            ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->pal_meminfo[i]);
+            if (ePVR2DStatus != PVR2D_OK)
+                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+            texture_priv->pal_meminfo[i] = NULL;
+        }
     }
 
-    if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS)
-	for(i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
-	    ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->blt_meminfo[i]);
-	    if (ePVR2DStatus!= PVR2D_OK)
-		psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
-	}
-    else if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN)
-	for(i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++) {
-	    ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->flip_meminfo[i]);
-	    if (ePVR2DStatus!= PVR2D_OK)
-		psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+    for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
+        if (texture_priv->extend_blt_meminfo[i]) {
+            ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->extend_blt_meminfo[i]);
+            if (ePVR2DStatus != PVR2D_OK)
+                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+            texture_priv->extend_blt_meminfo[i] = NULL;
+        }
     }
-    for (i = 0; i < 6; i++) {
-	if (texture_priv->pal_meminfo[i]) {
-	    ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, texture_priv->pal_meminfo[i]);
-	    if (ePVR2DStatus!= PVR2D_OK)
-	    psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
-	}
+
+    if (output->extend_drawable) {
+        XDestroyWindow(ctx->native_dpy, output->extend_drawable);
+        output->extend_drawable = 0;
     }
 #endif
 
     (void)texture_priv;
 
 }
+
+#ifndef ANDROID
+/* calculate subpicture size according to the downscale situation of both main and subpicture bitstream */
+static void psb_calculate_subpic_size(int surf_width, int surf_height, int dst_w, int dst_h, PsbVASurfaceRec *surface_subpic)
+{
+    float src_h_ratio, src_v_ratio;
+    float subpic_h_ratio, subpic_v_ratio;
+    float subpic_h_dest_ratio, subpic_v_dest_ratio;
+
+    src_h_ratio = (float)surf_width / dst_w;
+    src_v_ratio = (float)surf_height / dst_h;
+
+    subpic_h_ratio = (float)surface_subpic->subpic_srcw / surface_subpic->subpic_dstw;
+    subpic_v_ratio = (float)surface_subpic->subpic_srch / surface_subpic->subpic_dsth;
+
+    subpic_h_dest_ratio = (float)dst_w / surface_subpic->subpic_dstw;
+    subpic_v_dest_ratio = (float)dst_h / surface_subpic->subpic_dsth;
+
+    if (!(surface_subpic->subpic_flags & VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD)) {
+        /* If coordinates are video relative then scale subpicture with video */
+        surface_subpic->subpic_dstx /= src_h_ratio;
+        surface_subpic->subpic_dsty /= src_v_ratio;
+        surface_subpic->subpic_dstx /= subpic_h_ratio;
+        surface_subpic->subpic_dsty /= subpic_v_ratio;
+
+        surface_subpic->subpic_dstw /= src_h_ratio;
+        surface_subpic->subpic_dsth /= src_v_ratio;
+        surface_subpic->subpic_dstw /= subpic_h_ratio;
+        surface_subpic->subpic_dsth /= subpic_v_ratio;
+    }
+}
+#endif
 
 #ifndef ANDROID
 void psb_putsurface_textureblit(
@@ -325,7 +360,7 @@ void psb_putsurface_textureblit(
 {
 #ifndef ANDROID
     INIT_DRIVER_DATA;
-    int i, j, update_coeffs = 0;
+    int i, j;
     unsigned char tmp;
     unsigned char *tmp_buffer, *tmp_palette;
     struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
@@ -341,39 +376,38 @@ void psb_putsurface_textureblit(
 
     src_pitch = (src_pitch + 0x3) & ~0x3;
 
-    if (NULL == obj_surface)
-    {
-	psb__error_message("%s: Invalid surface ID 0x%08x!\n", __func__, surface);
-	return;
+    if (NULL == obj_surface) {
+        psb__error_message("%s: Invalid surface ID 0x%08x!\n", __func__, surface);
+        return;
     }
     surface_subpic = (PsbVASurfaceRec *)obj_surface->subpictures;
     /* check whether we need to update coeffs */
     if ((height > 576) &&
-        (texture_priv->video_transfermatrix != PSB_VideoTransferMatrix_BT709)) {
+            (texture_priv->video_transfermatrix != PSB_VideoTransferMatrix_BT709)) {
         texture_priv->video_transfermatrix = PSB_VideoTransferMatrix_BT709;
-        update_coeffs = 1;
+        texture_priv->update_coeffs = 1;
     } else if ((height <= 576) &&
                (texture_priv->video_transfermatrix != PSB_VideoTransferMatrix_BT601)) {
         texture_priv->video_transfermatrix = PSB_VideoTransferMatrix_BT601;
-        update_coeffs = 1;
+        texture_priv->update_coeffs = 1;
     }
 
     /* prepare coeffs if needed */
     memset(&sBltVP, 0, sizeof(PVR2D_VPBLT));
-    if (update_coeffs == 1) {
+    if (texture_priv->update_coeffs == 1) {
         psb_setup_coeffs(texture_priv);
-        sBltVP.psYUVCoeffs = (PPVR2D_YUVCOEFFS) &texture_priv->coeffs;
+        sBltVP.psYUVCoeffs = (PPVR2D_YUVCOEFFS) & texture_priv->coeffs;
         /* FIXME: is it right? */
         sBltVP.bCoeffsGiven  = 1;
     }
 
     /* now wrap the source wsbmBO */
     tmp_buffer = NULL;
-    tmp_buffer = wsbmBOMap (src_buf, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
+    tmp_buffer = wsbmBOMap(src_buf, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
     for (i = 0; i < height * src_pitch * 1.5; i = i + 4096) {
-	tmp = *(tmp_buffer + i);
-	if (tmp == 0)
-	    *(tmp_buffer + i) = 0;
+        tmp = *(tmp_buffer + i);
+        if (tmp == 0)
+            *(tmp_buffer + i) = 0;
     }
 
     ePVR2DStatus = PVR2DMemWrap(texture_priv->hPVR2DContext,
@@ -382,8 +416,7 @@ void psb_putsurface_textureblit(
                                 (src_pitch * height * 1.5),
                                 NULL,
                                 &pVaVideoMemInfo);
-    if (ePVR2DStatus != PVR2D_OK)
-    {
+    if (ePVR2DStatus != PVR2D_OK) {
         psb__error_message("%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
     }
 
@@ -397,8 +430,7 @@ void psb_putsurface_textureblit(
                                 (dst_w * dst_h * 2),
                                 NULL,
                                 &pDstMeminfo);
-    if (ePVR2DStatus!= PVR2D_OK)
-    {
+    if (ePVR2DStatus != PVR2D_OK) {
         psb__error_message("%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
     }
 #endif
@@ -406,10 +438,10 @@ void psb_putsurface_textureblit(
     sBltVP.sDst.SurfOffset   = 0;
 #ifndef ANDROID
     if (IS_MFLD(driver_data))
-	//FIXME: zhaohan, mdfld gfx driver requires 8 bits aligned in the future, use 32 bits temporary
-	sBltVP.sDst.Stride = PVRCalculateStride(dst_w, 32, 8);
+        //FIXME: zhaohan, mdfld gfx driver requires 8 bits aligned in the future, use 32 bits temporary
+        sBltVP.sDst.Stride = PVRCalculateStride(dst_w, 32, 8);
     if (IS_MRST(driver_data))
-	sBltVP.sDst.Stride = PVRCalculateStride(dst_w, 32, 32);
+        sBltVP.sDst.Stride = PVRCalculateStride(dst_w, 32, 32);
     sBltVP.sDst.Format = PVR2D_ARGB8888;
 #else
     /* FIXME: this wrong, how to get system pitch */
@@ -418,9 +450,9 @@ void psb_putsurface_textureblit(
 #endif
     sBltVP.sDst.SurfWidth = dst_w;
     sBltVP.sDst.SurfHeight = dst_h;
-     
-    /* Y plane UV plane */       
-    sBltVP.uiNumLayers = 1; 
+
+    /* Y plane UV plane */
+    sBltVP.uiNumLayers = 1;
     sBltVP.sSrc->Stride = src_pitch;
     sBltVP.sSrc->Format = VA_FOURCC_NV12;
     sBltVP.sSrc->SurfWidth = width;
@@ -445,115 +477,99 @@ void psb_putsurface_textureblit(
     sBltVP.rcSource->top = src_y;
     sBltVP.rcSource->bottom = src_y + src_h;
 
-    if (subtitle == 0 && obj_surface->subpic_count) {
-	for (i = 0; i < obj_surface->subpic_count; i++) {
-	    tmp_subpic_buffer = NULL;
-	    tmp_subpic_buffer = wsbmBOMap (surface_subpic->bo, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
-	    for (j = 0; j < surface_subpic->stride * surface_subpic->subpic_srch * 4; j = j + 4096) {
-		tmp = *(tmp_subpic_buffer + j);
-		if (tmp == 0)
-		    *(tmp_subpic_buffer + j) = 0;
-	    }
+    if (subtitle == 1 && obj_surface->subpic_count) {
+        for (i = 0; i < obj_surface->subpic_count; i++) {
+            tmp_subpic_buffer = NULL;
+            tmp_subpic_buffer = wsbmBOMap(surface_subpic->bo, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
+            for (j = 0; j < surface_subpic->stride * surface_subpic->subpic_srch * 4; j = j + 4096) {
+                tmp = *(tmp_subpic_buffer + j);
+                if (tmp == 0)
+                    *(tmp_subpic_buffer + j) = 0;
+            }
 
-	    ePVR2DStatus = PVR2DMemWrap(texture_priv->hPVR2DContext,
-					tmp_subpic_buffer,
-					0,
-					(surface_subpic->subpic_srcw * surface_subpic->subpic_srch * 4),
-					NULL,
-					&pVaVideoSubpicMemInfo[i]);
-	    if (ePVR2DStatus!= PVR2D_OK)
-		psb__error_message("%s: PVR2DMemWrap subpic error %d\n", __FUNCTION__, ePVR2DStatus);
+            ePVR2DStatus = PVR2DMemWrap(texture_priv->hPVR2DContext,
+                                        tmp_subpic_buffer,
+                                        0,
+                                        (surface_subpic->subpic_srcw * surface_subpic->subpic_srch * 4),
+                                        NULL,
+                                        &pVaVideoSubpicMemInfo[i]);
+            if (ePVR2DStatus != PVR2D_OK)
+                psb__error_message("%s: PVR2DMemWrap subpic error %d\n", __FUNCTION__, ePVR2DStatus);
 
-	    sBltVP.uiNumLayers += 1; 
+            sBltVP.uiNumLayers += 1;
 
-	    float h_ratio, v_ratio;
-	    if (src_w > dst_w) {
-		h_ratio = (float)src_w / dst_w;
-		surface_subpic->subpic_dstx /= h_ratio;
-		surface_subpic->subpic_dstw /= h_ratio;
-	    } else if (src_w < dst_w) {
-		h_ratio = (float)dst_w / src_w;
-		surface_subpic->subpic_dstx *= h_ratio;
-		surface_subpic->subpic_dstw *= h_ratio;
-	    }
+            psb_calculate_subpic_size(obj_surface->width, obj_surface->height, dst_w, dst_h, surface_subpic);
 
-	    if (src_h > dst_h) {
-		v_ratio = (float)src_h / dst_h;
-		surface_subpic->subpic_dsty /= v_ratio;
-		surface_subpic->subpic_dsth /= v_ratio;
-	    } else if (src_h < dst_h) {
-		v_ratio = (float)dst_h / src_h;
-		surface_subpic->subpic_dsty *= v_ratio;
-		surface_subpic->subpic_dsth *= v_ratio;
-	    }
+            sBltVP.sSrcSubpic[i].pSurfMemInfo = pVaVideoSubpicMemInfo[i];
+            sBltVP.sSrcSubpic[i].SurfOffset = 0;
+            sBltVP.sSrcSubpic[i].Stride = surface_subpic->stride;
 
-	    sBltVP.sSrcSubpic[i].pSurfMemInfo = pVaVideoSubpicMemInfo[i];
-	    sBltVP.sSrcSubpic[i].SurfOffset = 0;
-	    sBltVP.sSrcSubpic[i].Stride = surface_subpic->stride;
-	    sBltVP.sSrcSubpic[i].Format = surface_subpic->fourcc;
-	    sBltVP.sSrcSubpic[i].SurfWidth = surface_subpic->subpic_srcw;
-	    sBltVP.sSrcSubpic[i].SurfHeight = surface_subpic->subpic_srch;
+            if (surface_subpic->fourcc == VA_FOURCC_AI44)
+                sBltVP.sSrcSubpic[i].Format = MAKEFOURCC('A', 'I' , '4', '4');
+            else
+                sBltVP.sSrcSubpic[i].Format = surface_subpic->fourcc;
 
-	    sBltVP.rcSubpicSource[i].left = surface_subpic->subpic_srcx;
-	    sBltVP.rcSubpicSource[i].right = surface_subpic->subpic_srcx + surface_subpic->subpic_srcw;
-	    sBltVP.rcSubpicSource[i].top = surface_subpic->subpic_srcy;
-	    sBltVP.rcSubpicSource[i].bottom = surface_subpic->subpic_srcy + surface_subpic->subpic_srch;
+            sBltVP.sSrcSubpic[i].SurfWidth = surface_subpic->subpic_srcw;
+            sBltVP.sSrcSubpic[i].SurfHeight = surface_subpic->subpic_srch;
 
-	    sBltVP.rcSubpicDest[i].left = surface_subpic->subpic_dstx;
-	    sBltVP.rcSubpicDest[i].right = surface_subpic->subpic_dstx + surface_subpic->subpic_dstw;
-	    sBltVP.rcSubpicDest[i].top = surface_subpic->subpic_dsty;
-	    sBltVP.rcSubpicDest[i].bottom = surface_subpic->subpic_dsty + surface_subpic->subpic_dsth;
+            sBltVP.rcSubpicSource[i].left = surface_subpic->subpic_srcx;
+            sBltVP.rcSubpicSource[i].right = surface_subpic->subpic_srcx + surface_subpic->subpic_srcw;
+            sBltVP.rcSubpicSource[i].top = surface_subpic->subpic_srcy;
+            sBltVP.rcSubpicSource[i].bottom = surface_subpic->subpic_srcy + surface_subpic->subpic_srch;
 
-	    //only allocate memory once for palette
-	    if ((surface_subpic->fourcc == MAKEFOURCC('A', 'I' , '4', '4')) && !texture_priv->pal_meminfo[i]) {
-		ePVR2DStatus = PVR2DMemAlloc(texture_priv->hPVR2DContext, 16 * sizeof(unsigned int), 0, 0, &texture_priv->pal_meminfo[i]);
-		if (ePVR2DStatus!= PVR2D_OK) {
-		    psb__error_message("%s: PVR2DMemAlloc error %d\n", __FUNCTION__, ePVR2DStatus);
-		    return;
-		}
+            sBltVP.rcSubpicDest[i].left = surface_subpic->subpic_dstx;
+            sBltVP.rcSubpicDest[i].right = surface_subpic->subpic_dstx + surface_subpic->subpic_dstw;
+            sBltVP.rcSubpicDest[i].top = surface_subpic->subpic_dsty;
+            sBltVP.rcSubpicDest[i].bottom = surface_subpic->subpic_dsty + surface_subpic->subpic_dsth;
 
-		sBltVP.pPalMemInfo[i] = texture_priv->pal_meminfo[i];
-		tmp_palette = sBltVP.pPalMemInfo[i]->pBase;
-		memcpy(tmp_palette, surface_subpic->palette_ptr, 16 * sizeof(unsigned int));
-		sBltVP.PalOffset[i] = 0;
-	    }
-	    surface_subpic = surface_subpic->next;
-	}
+            //only allocate memory once for palette
+            if (surface_subpic->fourcc == VA_FOURCC_AI44) {
+                if (!texture_priv->pal_meminfo[i]) {
+                    ePVR2DStatus = PVR2DMemAlloc(texture_priv->hPVR2DContext, 16 * sizeof(unsigned int), 0, 0, &texture_priv->pal_meminfo[i]);
+                    if (ePVR2DStatus != PVR2D_OK) {
+                        psb__error_message("%s: PVR2DMemAlloc error %d\n", __FUNCTION__, ePVR2DStatus);
+                        return;
+                    }
+                }
+
+                sBltVP.pPalMemInfo[i] = texture_priv->pal_meminfo[i];
+                tmp_palette = sBltVP.pPalMemInfo[i]->pBase;
+                memcpy(tmp_palette, surface_subpic->palette_ptr, 16 * sizeof(unsigned int));
+                sBltVP.PalOffset[i] = 0;
+            }
+            surface_subpic = surface_subpic->next;
+        }
     }
 
     ePVR2DStatus = PVR2DBltVideo(texture_priv->hPVR2DContext, &sBltVP);
-    if (ePVR2DStatus != PVR2D_OK) 
-    {
-        psb__error_message("%s: failed to do PVR2DBltVideo with error code %d\n", 
-             __FUNCTION__, ePVR2DStatus);
+    if (ePVR2DStatus != PVR2D_OK) {
+        psb__error_message("%s: failed to do PVR2DBltVideo with error code %d\n",
+                           __FUNCTION__, ePVR2DStatus);
     }
 
     ePVR2DStatus = PVR2DQueryBlitsComplete(texture_priv->hPVR2DContext, pDstMeminfo, 1);
-    if (ePVR2DStatus!= PVR2D_OK)
-    {
+    if (ePVR2DStatus != PVR2D_OK) {
         psb__error_message("%s: PVR2DQueryBlitsComplete error %d\n", __FUNCTION__, ePVR2DStatus);
     }
 
     ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pVaVideoMemInfo);
-    if (ePVR2DStatus!= PVR2D_OK)
-    {
+    if (ePVR2DStatus != PVR2D_OK) {
         psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
     }
 
     surface_subpic = (PsbVASurfaceRec *)obj_surface->subpictures;
-    for (i = 0; i < obj_surface->subpic_count; i++) {
-	ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pVaVideoSubpicMemInfo[i]);
-	if (ePVR2DStatus!= PVR2D_OK)
-	    psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+    for (i = 0; (subtitle == 1) && (i < obj_surface->subpic_count); i++) {
+        ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pVaVideoSubpicMemInfo[i]);
+        if (ePVR2DStatus != PVR2D_OK)
+            psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
 
-	wsbmBOUnmap(surface_subpic->bo);
-	surface_subpic = surface_subpic->next;
+        wsbmBOUnmap(surface_subpic->bo);
+        surface_subpic = surface_subpic->next;
     }
 
 #ifdef ANDROID
     ePVR2DStatus = PVR2DMemFree(texture_priv->hPVR2DContext, pDstMeminfo);
-    if (ePVR2DStatus!= PVR2D_OK)
-    {
+    if (ePVR2DStatus != PVR2D_OK) {
         psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
     }
 #endif
@@ -576,7 +592,7 @@ psb_setup_coeffs(struct psb_texture_s * pPriv)
      * included in the constant of the transform equation
      */
     psb_select_transfermatrix(pPriv, &transfer_matrix,
-			      &Y_offset, &CbCr_offset, &RGB_offset);
+                              &Y_offset, &CbCr_offset, &RGB_offset);
 
     /*
      * It is at this point we should adjust the parameters for the procamp:
@@ -591,53 +607,53 @@ psb_setup_coeffs(struct psb_texture_s * pPriv)
 
     /* Apply hue and saturation correction to transfer matrix */
     psb_transform_sathuecoeffs(&coeffs,
-			       &transfer_matrix,
-			       pPriv->hue.Value * Degree,
-			       pPriv->saturation.Value / 100.0);
+                               &transfer_matrix,
+                               pPriv->hue.Value * Degree,
+                               pPriv->saturation.Value / 100.0);
 
     /* Create coefficients to get component R
      * (including brightness and contrast correction)
      */
     psb_create_coeffs(-1 * Y_offset, -1 * CbCr_offset, -1 * CbCr_offset,
-		      RGB_offset, coeffs.rY, coeffs.rCb, coeffs.rCr,
-		      bright_off, fContrast, &yCoeff, &uCoeff, &vCoeff,
-		      &Constant);
+                      RGB_offset, coeffs.rY, coeffs.rCb, coeffs.rCr,
+                      bright_off, fContrast, &yCoeff, &uCoeff, &vCoeff,
+                      &Constant);
 
     /* Convert transform operation from floating point to fixed point */
     psb_convert_coeffs(yCoeff, uCoeff, vCoeff, Constant,	/* input coefficients */
-		       &pPriv->coeffs.rY, &pPriv->coeffs.rU,
-		       &pPriv->coeffs.rV, &pPriv->coeffs.rConst,
-		       &pPriv->coeffs.rShift);
+                       &pPriv->coeffs.rY, &pPriv->coeffs.rU,
+                       &pPriv->coeffs.rV, &pPriv->coeffs.rConst,
+                       &pPriv->coeffs.rShift);
 
     /* Create coefficients to get component G
      * (including brightness and contrast correction)
      */
     psb_create_coeffs(-1 * Y_offset, -1 * CbCr_offset, -1 * CbCr_offset,
-		      RGB_offset, coeffs.gY, coeffs.gCb, coeffs.gCr,
-		      bright_off, fContrast, &yCoeff, &uCoeff, &vCoeff,
-		      &Constant);
+                      RGB_offset, coeffs.gY, coeffs.gCb, coeffs.gCr,
+                      bright_off, fContrast, &yCoeff, &uCoeff, &vCoeff,
+                      &Constant);
 
     /* Convert transform operation from floating point to fixed point */
     psb_convert_coeffs(yCoeff, uCoeff, vCoeff, Constant,
-		       /* tranfer matrix coefficients for G */
-		       &pPriv->coeffs.gY, &pPriv->coeffs.gU,
-		       &pPriv->coeffs.gV, &pPriv->coeffs.gConst,
-		       &pPriv->coeffs.gShift);
+                       /* tranfer matrix coefficients for G */
+                       &pPriv->coeffs.gY, &pPriv->coeffs.gU,
+                       &pPriv->coeffs.gV, &pPriv->coeffs.gConst,
+                       &pPriv->coeffs.gShift);
 
     /* Create coefficients to get component B
      * (including brightness and contrast correction)
      */
     psb_create_coeffs(-1 * Y_offset, -1 * CbCr_offset, -1 * CbCr_offset,
-		      RGB_offset, coeffs.bY, coeffs.bCb, coeffs.bCr,
-		      bright_off, fContrast, &yCoeff, &uCoeff, &vCoeff,
-		      &Constant);
+                      RGB_offset, coeffs.bY, coeffs.bCb, coeffs.bCr,
+                      bright_off, fContrast, &yCoeff, &uCoeff, &vCoeff,
+                      &Constant);
 
     /* Convert transform operation from floating point to fixed point */
     psb_convert_coeffs(yCoeff, uCoeff, vCoeff, Constant,
-		       /* tranfer matrix coefficients for B */
-		       &pPriv->coeffs.bY, &pPriv->coeffs.bU,
-		       &pPriv->coeffs.bV, &pPriv->coeffs.bConst,
-		       &pPriv->coeffs.bShift);
+                       /* tranfer matrix coefficients for B */
+                       &pPriv->coeffs.bY, &pPriv->coeffs.bU,
+                       &pPriv->coeffs.bV, &pPriv->coeffs.bConst,
+                       &pPriv->coeffs.bShift);
 }
 
 /*
@@ -668,9 +684,9 @@ psb_setup_coeffs(struct psb_texture_s * pPriv)
  */
 static void
 psb_select_transfermatrix(struct psb_texture_s * pPriv,
-			  psb_transform_coeffs * transfer_matrix,
-			  double *Y_offset, double *CbCr_offset,
-			  double *RGB_offset)
+                          psb_transform_coeffs * transfer_matrix,
+                          double *Y_offset, double *CbCr_offset,
+                          double *RGB_offset)
 {
     double RGB_scale, Y_scale, Cb_scale, Cr_scale;
 
@@ -710,7 +726,7 @@ psb_select_transfermatrix(struct psb_texture_s * pPriv,
 
     switch (pPriv->src_nominalrange) {
     case PSB_NominalRange_0_255:
-	/* Y has a range of [0, 255], U and V have a range of [0, 255] */
+        /* Y has a range of [0, 255], U and V have a range of [0, 255] */
     {
         double tmp = 0.0;
 
@@ -723,27 +739,27 @@ psb_select_transfermatrix(struct psb_texture_s * pPriv,
     break;
     case PSB_NominalRange_16_235:
     case PSB_NominalRange_Unknown:
-	/* Y has a range of [16, 235] and Cb, Cr have a range of [16, 240] */
-	Y_scale = 219;
-	*Y_offset = 16;
-	Cb_scale = Cr_scale = 224;
-	*CbCr_offset = 128;
-	break;
+        /* Y has a range of [16, 235] and Cb, Cr have a range of [16, 240] */
+        Y_scale = 219;
+        *Y_offset = 16;
+        Cb_scale = Cr_scale = 224;
+        *CbCr_offset = 128;
+        break;
     case PSB_NominalRange_48_208:
-	/* Y has a range of [48, 208] and Cb, Cr have a range of [48, 208] */
-	Y_scale = 160;
-	*Y_offset = 48;
-	Cb_scale = Cr_scale = 160;
-	*CbCr_offset = 128;
-	break;
+        /* Y has a range of [48, 208] and Cb, Cr have a range of [48, 208] */
+        Y_scale = 160;
+        *Y_offset = 48;
+        Cb_scale = Cr_scale = 160;
+        *CbCr_offset = 128;
+        break;
 
     default:
-	/* Y has a range of [0, 1], U and V have a range of [-0.5, 0.5] */
-	Y_scale = 1;
-	*Y_offset = 0;
-	Cb_scale = Cr_scale = 1;
-	*CbCr_offset = 0;
-	break;
+        /* Y has a range of [0, 1], U and V have a range of [-0.5, 0.5] */
+        Y_scale = 1;
+        *Y_offset = 0;
+        Cb_scale = Cr_scale = 1;
+        *CbCr_offset = 0;
+        break;
     }
 
     /*
@@ -761,73 +777,73 @@ psb_select_transfermatrix(struct psb_texture_s * pPriv,
     switch (pPriv->dst_nominalrange) {
     case PSB_NominalRange_0_255:      // for sRGB
     case PSB_NominalRange_Unknown:
-	/* R, G and B have a range of [0, 255] */
-	RGB_scale = 255;
-	*RGB_offset = 0;
-	break;
+        /* R, G and B have a range of [0, 255] */
+        RGB_scale = 255;
+        *RGB_offset = 0;
+        break;
     case PSB_NominalRange_16_235:     // for stRGB
-	/* R, G and B have a range of [16, 235] */
-	RGB_scale = 219;
-	*RGB_offset = 16;
-	break;
+        /* R, G and B have a range of [16, 235] */
+        RGB_scale = 219;
+        *RGB_offset = 16;
+        break;
     case PSB_NominalRange_48_208:     // for Bt.1361 RGB
-	/* R, G and B have a range of [48, 208] */
-	RGB_scale = 160;
-	*RGB_offset = 48;
-	break;
+        /* R, G and B have a range of [48, 208] */
+        RGB_scale = 160;
+        *RGB_offset = 48;
+        break;
     default:
-	/* R, G and B have a range of [0, 1] */
-	RGB_scale = 1;
-	*RGB_offset = 0;
-	break;
+        /* R, G and B have a range of [0, 1] */
+        RGB_scale = 1;
+        *RGB_offset = 0;
+        break;
     }
 
     switch (pPriv->video_transfermatrix) {
     case PSB_VideoTransferMatrix_BT709:
-	memcpy(transfer_matrix, &s709, sizeof(psb_transform_coeffs));
-	break;
+        memcpy(transfer_matrix, &s709, sizeof(psb_transform_coeffs));
+        break;
     case PSB_VideoTransferMatrix_BT601:
-	memcpy(transfer_matrix, &s601, sizeof(psb_transform_coeffs));
-	break;
+        memcpy(transfer_matrix, &s601, sizeof(psb_transform_coeffs));
+        break;
     case PSB_VideoTransferMatrix_SMPTE240M:
-	memcpy(transfer_matrix, &s240M, sizeof(psb_transform_coeffs));
-	break;
+        memcpy(transfer_matrix, &s240M, sizeof(psb_transform_coeffs));
+        break;
     case PSB_VideoTransferMatrix_Unknown:
-	/*
-	 * Specifies that the video transfer matrix is not specified.
-	 * The default value is BT601 for standard definition (SD) video and BT709
-	 * for high definition (HD) video.
-	 */
-	if (1 /*pPriv->sVideoDesc.SampleWidth < 720 */ ) {	/* TODO, width selection */
-	    memcpy(transfer_matrix, &s601, sizeof(psb_transform_coeffs));
-	} else {
-	    memcpy(transfer_matrix, &s709, sizeof(psb_transform_coeffs));
-	}
-	break;
+        /*
+         * Specifies that the video transfer matrix is not specified.
+         * The default value is BT601 for standard definition (SD) video and BT709
+         * for high definition (HD) video.
+         */
+        if (1 /*pPriv->sVideoDesc.SampleWidth < 720 */) {	/* TODO, width selection */
+            memcpy(transfer_matrix, &s601, sizeof(psb_transform_coeffs));
+        } else {
+            memcpy(transfer_matrix, &s709, sizeof(psb_transform_coeffs));
+        }
+        break;
     default:
-	break;
+        break;
     }
 
     if (Y_scale != 1 || Cb_scale != 1 || Cr_scale != 1) {
-	/* Each column of the transfer matrix has to
-	 * be scaled by the excursion of each component
-	 */
-	psb_scale_transfermatrix(transfer_matrix, 1 / Y_scale, 1 / Cb_scale,
-				 1 / Cr_scale);
+        /* Each column of the transfer matrix has to
+         * be scaled by the excursion of each component
+         */
+        psb_scale_transfermatrix(transfer_matrix, 1 / Y_scale, 1 / Cb_scale,
+                                 1 / Cr_scale);
     }
     if (RGB_scale != 1) {
-	/* All the values in the transfer matrix have to be multiplied
-	 * by the excursion of the RGB components
-	 */
-	psb_scale_transfermatrix(transfer_matrix, RGB_scale, RGB_scale,
-				 RGB_scale);
+        /* All the values in the transfer matrix have to be multiplied
+         * by the excursion of the RGB components
+         */
+        psb_scale_transfermatrix(transfer_matrix, RGB_scale, RGB_scale,
+                                 RGB_scale);
     }
 }
 
 static void
 psb_scale_transfermatrix(psb_transform_coeffs * transfer_matrix,
-			 double YColumScale, double CbColumScale,
-			 double CrColumnScale)
+                         double YColumScale, double CbColumScale,
+                         double CrColumnScale)
 {
     /* First column of the transfer matrix */
     transfer_matrix->rY *= YColumScale;
@@ -853,17 +869,17 @@ psb_scale_transfermatrix(psb_transform_coeffs * transfer_matrix,
  */
 static void
 psb_create_coeffs(double yOff, double uOff, double vOff, double rgbOff,
-		  double yScale, double uScale, double vScale,
-		  double brightness, double contrast,
-		  double *pYCoeff, double *pUCoeff, double *pVCoeff,
-		  double *pConstant)
+                  double yScale, double uScale, double vScale,
+                  double brightness, double contrast,
+                  double *pYCoeff, double *pUCoeff, double *pVCoeff,
+                  double *pConstant)
 {
     *pYCoeff = yScale * contrast;
     *pUCoeff = uScale * contrast;
     *pVCoeff = vScale * contrast;
 
     *pConstant = (((yOff + brightness) * yScale)
-		  + (uOff * uScale) + (vOff * vScale)) * contrast + rgbOff;
+                  + (uOff * uScale) + (vOff * vScale)) * contrast + rgbOff;
 }
 
 /*
@@ -874,9 +890,9 @@ psb_create_coeffs(double yOff, double uOff, double vOff, double rgbOff,
  */
 static void
 psb_convert_coeffs(double Ycoeff, double Ucoeff, double Vcoeff,
-		   double ConstantTerm, signed char *pY, signed char *pU,
-		   signed char *pV, signed short *constant,
-		   unsigned char *pShift)
+                   double ConstantTerm, signed char *pY, signed char *pU,
+                   signed char *pV, signed short *constant,
+                   unsigned char *pShift)
 {
     *pShift = 0;
 
@@ -895,11 +911,11 @@ psb_convert_coeffs(double Ycoeff, double Ucoeff, double Vcoeff,
      * and divide. Until something fits.
      */
     while (psb_check_coeffs(Ycoeff, Ucoeff, Vcoeff, ConstantTerm, *pShift)) {
-	Ycoeff /= 2;
-	Ucoeff /= 2;
-	Vcoeff /= 2;
-	ConstantTerm /= 2;
-	(*pShift)--;
+        Ycoeff /= 2;
+        Ucoeff /= 2;
+        Vcoeff /= 2;
+        ConstantTerm /= 2;
+        (*pShift)--;
     }
     *pY = (signed char)(Ycoeff + 0.5);
     *pU = (signed char)(Ucoeff + 0.5);
@@ -913,27 +929,27 @@ psb_convert_coeffs(double Ycoeff, double Ucoeff, double Vcoeff,
  */
 static int
 psb_check_coeffs(double Ycoeff, double Ucoeff, double Vcoeff,
-		 double ConstantTerm, signed char byShift)
+                 double ConstantTerm, signed char byShift)
 {
     if ((Ycoeff > 127) || (Ycoeff < -128)) {
-	return 1;
+        return 1;
     }
     if ((Ucoeff > 127) || (Ucoeff < -128)) {
-	return 1;
+        return 1;
     }
     if ((Vcoeff > 127) || (Vcoeff < -128)) {
-	return 1;
+        return 1;
     }
     if ((ConstantTerm > 32766) || (ConstantTerm < -32767)) {
-	return 1;
+        return 1;
     }
     return 0;
 }
 
 static void
 psb_transform_sathuecoeffs(psb_transform_coeffs * dest,
-			   const psb_transform_coeffs * const source,
-			   double fHue, double fSat)
+                           const psb_transform_coeffs * const source,
+                           double fHue, double fSat)
 {
     double fHueSatSin, fHueSatCos;
 

@@ -3,13 +3,14 @@ LOCAL_PATH := $(call my-dir)
 # For msvdx_bin
 # =====================================================
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES := msvdx_bin.c thread0_bin.c thread1_bin.c thread2_bin.c thread3_bin.c
+LOCAL_SRC_FILES := msvdx_bin.c thread0_ss_bin.c thread0_bin.c thread1_bin.c thread2_bin.c thread3_bin.c
  
-LOCAL_CFLAGS +=
+LOCAL_CFLAGS += -DFRAME_SWITCHING_VARIANT=1 -DSLICE_SWITCHING_VARIANT=1
 
 LOCAL_C_INCLUDES :=
 
 LOCAL_SHARED_LIBRARIES :=
+
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := msvdx_bin
 
@@ -26,7 +27,25 @@ LOCAL_CFLAGS +=
 LOCAL_C_INCLUDES :=
 
 LOCAL_SHARED_LIBRARIES :=
+
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := topaz_bin
+
+include $(BUILD_EXECUTABLE)
+
+# For fwinfo
+# =====================================================
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES := fwinfo.c
+
+LOCAL_CFLAGS +=
+
+LOCAL_C_INCLUDES :=
+
+LOCAL_SHARED_LIBRARIES :=
+
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE := imginfo
 
 include $(BUILD_EXECUTABLE)

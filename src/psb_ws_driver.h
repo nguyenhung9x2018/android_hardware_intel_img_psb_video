@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -28,8 +28,7 @@
 #include <wsbm/wsbm_driver.h>
 #include "psb_drm.h"
 
-struct _PsbDrmValidateNode
-{
+struct _PsbDrmValidateNode {
     struct _ValidateNode base;
     struct psb_validate_arg val_arg;
 };
@@ -37,10 +36,9 @@ struct _PsbDrmValidateNode
 extern struct _WsbmVNodeFuncs *psbVNodeFuncs(void);
 
 static inline struct psb_validate_req *
-psbValReq(struct _ValidateNode *node)
-{
+            psbValReq(struct _ValidateNode *node) {
     return &(containerOf(node, struct _PsbDrmValidateNode, base)->
-            val_arg.d.req);
+             val_arg.d.req);
 }
 
 

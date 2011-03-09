@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -23,10 +23,11 @@
 #define _LNC_OSPM_EVENT_H_
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #include "psb_drv_video.h"
-    
+
 #define OSPM_DBUS_MAX_OBJ_NAME_LEN  64
 
 #define OSPM_EVENT_APP_LAUNCH         "launch"
@@ -43,11 +44,11 @@ extern "C" {
 #define OSPM_DBUS_EVENT_ALERT         "alert"
 #define OSPM_DBUS_EVENT_CRITICAL      "critical"
 
-int lnc_ospm_start(psb_driver_data_p driver_data, int encode);
-int lnc_ospm_stop(psb_driver_data_p driver_data, int encode);
+    int lnc_ospm_start(psb_driver_data_p driver_data, int encode);
+    int lnc_ospm_stop(psb_driver_data_p driver_data, int encode);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _LNC_OSPM_EVENT_H_ */ 
+#endif /* _LNC_OSPM_EVENT_H_ */

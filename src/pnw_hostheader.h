@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -33,8 +33,7 @@
 #include "img_types.h"
 
 /* Structure contains QP parameters, used with the DoHeader() routine */
-typedef struct
-{
+typedef struct {
     IMG_UINT32 H264_QP;
     IMG_UINT32 H263_MPG4_FrameQ_scale;
     IMG_UINT32 H263_MPG4_SliceQ_scale;
@@ -45,9 +44,8 @@ typedef struct
 /* Allocating 32 words (128 bytes aligned to 8 bytes) */
 #define MAX_HEADERSIZEWORDS (32)
 
-typedef enum
-{
-    ELEMENT_STARTCODE_RAWDATA=0,/* Rawdata that includes a start code */
+typedef enum {
+    ELEMENT_STARTCODE_RAWDATA = 0,/* Rawdata that includes a start code */
     ELEMENT_RAWDATA,		/* Rawdata */
     ELEMENT_QP,			/* Insert the H264 Picture Header QP parameter (no rawdata) */
     ELEMENT_SQP,		/* Insert the H264 Slice Header QP parameter (no rawdata) */
@@ -64,16 +62,14 @@ typedef enum
 } HEADER_ELEMENT_TYPE;
 
 
-typedef struct _MTX_HEADER_ELEMENT_
-{
+typedef struct _MTX_HEADER_ELEMENT_ {
     HEADER_ELEMENT_TYPE Element_Type;
     IMG_UINT8 Size;
     IMG_UINT8 Bits;
 } MTX_HEADER_ELEMENT;
 
 
-typedef struct _MTX_HEADER_PARAMS_
-{
+typedef struct _MTX_HEADER_PARAMS_ {
     IMG_UINT32 Elements;
     MTX_HEADER_ELEMENT asElementStream[MAX_HEADERSIZEWORDS-1];
 } MTX_HEADER_PARAMS;
@@ -84,37 +80,34 @@ typedef struct _MTX_HEADER_PARAMS_
  */
 
 /* Define some constants for the variable elements in the header stream */
-typedef enum _SHPROFILES
-{
-    SH_PROFILE_BP=0,
-    SH_PROFILE_MP=1,
-    SH_PROFILE_HP=2,
+typedef enum _SHPROFILES {
+    SH_PROFILE_BP = 0,
+    SH_PROFILE_MP = 1,
+    SH_PROFILE_HP = 2,
 } SH_PROFILE_TYPE;
 
 /* Level number definitions (integer level numbers, non-intermediary only.. except level 1b) */
-typedef enum _SHLEVELS
-{
-    SH_LEVEL_1=10,
-    SH_LEVEL_1B=111,
-    SH_LEVEL_11=11,
-    SH_LEVEL_12=12,
-    SH_LEVEL_13=13,
-    SH_LEVEL_2=20,
-    SH_LEVEL_21=21,
-    SH_LEVEL_22=22,
-    SH_LEVEL_3=30,
-    SH_LEVEL_31=31,
-    SH_LEVEL_32=32,
-    SH_LEVEL_4=40,
-    SH_LEVEL_41=41,
-    SH_LEVEL_42=42,
-    SH_LEVEL_5=50,
-    SH_LEVEL_51=51
+typedef enum _SHLEVELS {
+    SH_LEVEL_1 = 10,
+    SH_LEVEL_1B = 111,
+    SH_LEVEL_11 = 11,
+    SH_LEVEL_12 = 12,
+    SH_LEVEL_13 = 13,
+    SH_LEVEL_2 = 20,
+    SH_LEVEL_21 = 21,
+    SH_LEVEL_22 = 22,
+    SH_LEVEL_3 = 30,
+    SH_LEVEL_31 = 31,
+    SH_LEVEL_32 = 32,
+    SH_LEVEL_4 = 40,
+    SH_LEVEL_41 = 41,
+    SH_LEVEL_42 = 42,
+    SH_LEVEL_5 = 50,
+    SH_LEVEL_51 = 51
 } SH_LEVEL_TYPE;
 
 
-typedef enum _SLHP_SLICEFRAME_TYPE_
-{
+typedef enum _SLHP_SLICEFRAME_TYPE_ {
     SLHP_P_SLICEFRAME_TYPE,
     SLHP_B_SLICEFRAME_TYPE,
     SLHP_I_SLICEFRAME_TYPE,
@@ -130,8 +123,7 @@ typedef enum _SLHP_SLICEFRAME_TYPE_
  * Some of the following data structures may have fields that are actually static..
  * may want to prune them down a bit later.
  */
-typedef struct _H264_VUI_PARAMS_STRUC
-{
+typedef struct _H264_VUI_PARAMS_STRUC {
     IMG_UINT32 Time_Scale;
     IMG_UINT32 bit_rate_value_minus1; /* bitrate/64)-1 */
     IMG_UINT32 cbp_size_value_minus1; /* (bitrate*1.5)/16 */
@@ -142,8 +134,7 @@ typedef struct _H264_VUI_PARAMS_STRUC
     IMG_UINT8 time_offset_length;
 } H264_VUI_PARAMS;
 
-typedef struct _H264_CROP_PARAMS_STRUCT_
-{
+typedef struct _H264_CROP_PARAMS_STRUCT_ {
     IMG_BOOL bClip;
     IMG_UINT16 LeftCropOffset;
     IMG_UINT16 RightCropOffset;
@@ -151,8 +142,7 @@ typedef struct _H264_CROP_PARAMS_STRUCT_
     IMG_UINT16 BottomCropOffset;
 }H264_CROP_PARAMS;
 
-typedef struct _H264_SEQUENCE_HEADER_PARAMS_STRUC
-{
+typedef struct _H264_SEQUENCE_HEADER_PARAMS_STRUC {
     SH_PROFILE_TYPE ucProfile;
     SH_LEVEL_TYPE ucLevel;
     IMG_UINT8 ucWidth_in_mbs_minus1;
@@ -164,13 +154,14 @@ typedef struct _H264_SEQUENCE_HEADER_PARAMS_STRUC
 } H264_SEQUENCE_HEADER_PARAMS;
 
 
-typedef struct _H264_SLICE_HEADER_PARAMS_STRUC
-{
+typedef struct _H264_SLICE_HEADER_PARAMS_STRUC {
     IMG_UINT8 Start_Code_Prefix_Size_Bytes;
     SLHP_SLICEFRAME_TYPE SliceFrame_Type;
     IMG_UINT32 First_MB_Address;
     IMG_UINT8 Frame_Num_DO;
     IMG_UINT8 Picture_Num_DO;
+    IMG_BOOL UsesLongTermRef;
+    IMG_BOOL IsLongTermRef;
     IMG_UINT8 Disable_Deblocking_Filter_Idc;
     IMG_INT8 iDebAlphaOffsetDiv2;
     IMG_INT8 iDebBetaOffsetDiv2;
@@ -180,21 +171,18 @@ typedef struct _H264_SLICE_HEADER_PARAMS_STRUC
 
 /* MPEG4 Structures
  */
-typedef enum _MPEG4_PROFILE
-{
-    SP=1,
-    ASP=3
+typedef enum _MPEG4_PROFILE {
+    SP = 1,
+    ASP = 3
 } MPEG4_PROFILE_TYPE;
 
-typedef enum _FIXED_VOP_TIME_ENUM
-{
+typedef enum _FIXED_VOP_TIME_ENUM {
     _30FPS = 1,
     _15FPS = 2,
     _10FPS = 3
 } FIXED_VOP_TIME_TYPE;
 
-typedef struct _VBVPARAMS_STRUC
-{
+typedef struct _VBVPARAMS_STRUC {
     IMG_UINT32	First_half_bit_rate;
     IMG_UINT32	Latter_half_bit_rate;
     IMG_UINT32	First_half_vbv_buffer_size;
@@ -208,25 +196,22 @@ typedef struct _VBVPARAMS_STRUC
  * H263 Structures
  */
 
-typedef enum _VOP_CODING_ENUM
-{
+typedef enum _VOP_CODING_ENUM {
     I_FRAME = 0,
     P_FRAME = 1
 } VOP_CODING_TYPE, H263_PICTURE_CODING_TYPE;
 
-typedef enum _SEARCH_RANGE_ENUM
-{
-    PLUSMINUS_32= 2,
-    PLUSMINUS_64= 3,
-    FCODE_EQ_4= 4
+typedef enum _SEARCH_RANGE_ENUM {
+    PLUSMINUS_32 = 2,
+    PLUSMINUS_64 = 3,
+    FCODE_EQ_4 = 4
 }  SEARCH_RANGE_TYPE;
 
-typedef enum _H263_SOURCE_FORMAT_ENUM
-{
-    _128x96_SubQCIF= 1,
-    _176x144_QCIF= 2,
-    _352x288_CIF= 3,
-    _704x576_4CIF= 4
+typedef enum _H263_SOURCE_FORMAT_ENUM {
+    _128x96_SubQCIF = 1,
+    _176x144_QCIF = 2,
+    _352x288_CIF = 3,
+    _704x576_4CIF = 4
 } H263_SOURCE_FORMAT_TYPE;
 
 
@@ -237,7 +222,7 @@ void pnw__H264_prepare_sequence_header(
     IMG_UINT32 *pHeaderMemory,
     IMG_UINT32 uiPicWidthInMbs,
     IMG_UINT32 uiPicHeightInMbs,
-    IMG_BOOL VUI_present,H264_VUI_PARAMS *VUI_params,
+    IMG_BOOL VUI_present, H264_VUI_PARAMS *VUI_params,
     H264_CROP_PARAMS *psCropParams,
     IMG_UINT8 uiLevel,
     IMG_UINT8 uiProfile);
@@ -252,7 +237,10 @@ void pnw__H264_prepare_slice_header(
     IMG_UINT32 uiFirst_MB_Address,
     IMG_UINT32 uiMBSkipRun,
     IMG_BOOL bCabacEnabled,
-    IMG_BOOL bForceIDR);
+    IMG_BOOL bForceIDR,
+    IMG_BOOL bUsesLongTermRef,
+    IMG_BOOL bIsLOngTermRef,
+    IMG_UINT16 uiIdrPicId);
 
 void pnw__H264_prepare_eodofstream_header(IMG_UINT32 *pHeaderMemory);
 void pnw__H264_prepare_endofpicture_header(IMG_UINT32 *pHeaderMemory);
@@ -301,7 +289,7 @@ void pnw__H263_prepare_GOBslice_header(
 
 
 #endif /* _PNW_HOSTHEADER_H_ */
-							
+
 
 
 

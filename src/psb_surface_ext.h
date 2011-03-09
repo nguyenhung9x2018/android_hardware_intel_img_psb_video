@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -74,7 +74,7 @@ typedef struct _VaClipBox {
 
 struct _PsbVASurface {
     struct _PsbVASurface *next; /* next subpicture, only used by client */
-    
+
     struct _WsbmBufferObject *bo;
     uint32_t bufid;
     uint64_t pl_flags; /* placement */
@@ -92,9 +92,10 @@ struct _PsbVASurface {
     unsigned int clear_color;
 
     unsigned int subpic_id; /* subpic id, only used by client */
-    unsigned int subpic_flags;/* flags for subpictures 
+    unsigned int subpic_flags;/* flags for subpictures
                                * #define VA_SUBPICTURE_CHROMA_KEYING	0x0001
                                * #define VA_SUBPICTURE_GLOBAL_ALPHA	0x0002
+				*#define VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD 0x0004
                                */
     float global_alpha;
     unsigned int chromakey_min;
@@ -119,7 +120,7 @@ struct _PsbVASurface {
     /* only used by server side */
     unsigned int num_constant;
     unsigned int *constants;
-    
+
     unsigned int mem_layout;
     unsigned int tex_fmt;
     unsigned int pack_mode;
@@ -132,13 +133,13 @@ typedef struct _PsbVASurface PsbVASurfaceRec;
 typedef struct _PsbVASurface *PsbVASurfacePtr;
 
 
-#ifndef VA_FRAME_PICTURE 
+#ifndef VA_FRAME_PICTURE
 
 /* de-interlace flags for vaPutSurface */
-#define VA_FRAME_PICTURE        0x00000000 
+#define VA_FRAME_PICTURE        0x00000000
 #define VA_TOP_FIELD            0x00000001
 #define VA_BOTTOM_FIELD         0x00000002
-/* 
+/*
  * clears the drawable with background color.
  * for hardware overlay based implementation this flag
  * can be used to turn off the overlay

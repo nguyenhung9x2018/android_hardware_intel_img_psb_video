@@ -33,9 +33,9 @@ typedef enum _psb_output_device_mode {
 } psb_output_device_mode;
 
 typedef enum _psb_hdmi_mode {
-    CLONE, 
+    CLONE,
     EXTENDED,
-    EXTENDEDVIDEO, 
+    EXTENDEDVIDEO,
     SINGLE,
     UNKNOWNVIDEOMODE,
 } psb_hdmi_mode;
@@ -47,13 +47,12 @@ typedef enum _psb_extvideo_center {
 } psb_extvideo_center;
 
 typedef enum _psb_extvideo_subtitle {
-    BOTH, 
-    ONLY_HDMI, 
+    BOTH,
+    ONLY_HDMI,
     NOSUBTITLE,
 } psb_extvideo_subtitle;
 
-typedef enum _psb_xrandr_location
-{
+typedef enum _psb_xrandr_location {
     NORMAL, ABOVE, BELOW, LEFT_OF, RIGHT_OF,
 } psb_xrandr_location;
 
@@ -91,8 +90,7 @@ typedef struct _psb_xrandr_crtc_s {
 
 } psb_xrandr_crtc_s, *psb_xrandr_crtc_p;
 
-typedef struct _psb_xrandr_output_s
-{
+typedef struct _psb_xrandr_output_s {
     RROutput output_id;
     char name[10];
     struct _psb_xrandr_output_s *next;
@@ -103,8 +101,7 @@ typedef struct _psb_xrandr_output_s
 
 } psb_xrandr_output_s, *psb_xrandr_output_p;
 
-typedef struct _psb_xrandr_info_s
-{
+typedef struct _psb_xrandr_info_s {
     psb_xrandr_crtc_p local_crtc[2];
     psb_xrandr_crtc_p extend_crtc;
 
@@ -147,18 +144,17 @@ int psb_xrandr_extvideo_mode();
 int psb_xrandr_outputchanged();
 
 Window psb_xrandr_create_full_screen_window(unsigned int destx, unsigned int desty, unsigned int destw, unsigned int desth);
-VAStatus psb_xrandr_extvideo_prop(unsigned int *xres, unsigned int *yres, unsigned int *xoffset, 
-				  unsigned int *yoffset, psb_extvideo_center *center, psb_extvideo_subtitle *subtitle,
-				  unsigned int *overscanmode, unsigned int *pannelfitting);
+VAStatus psb_xrandr_extvideo_prop(unsigned int *xres, unsigned int *yres, unsigned int *xoffset,
+                                  unsigned int *yoffset, psb_extvideo_center *center, psb_extvideo_subtitle *subtitle,
+                                  unsigned int *overscanmode, unsigned int *pannelfitting);
 VAStatus psb_xrandr_local_crtc_coordinate(psb_output_device *local_device_enabled, int *x, int *y, int *width, int *height, Rotation *rotation);
 VAStatus psb_xrandr_extend_crtc_coordinate(psb_output_device *extend_device_enabled, int *x, int *y, int *width, int *height, psb_xrandr_location *location, Rotation *rotation);
-VAStatus psb_xrandr_get_output_rotation(int *mipi0_rotation, int *mipi1_rotation, int *hdmi_rotation);
 
 void psb_xrandr_refresh(VADriverContextP ctx);
 void psb_xrandr_thread();
 VAStatus psb_xrandr_thread_create(VADriverContextP ctx);
-VAStatus psb_xrandr_thread_exit(Drawable draw);
-VAStatus psb_xrandr_init (VADriverContextP ctx);
+VAStatus psb_xrandr_thread_exit();
+VAStatus psb_xrandr_init(VADriverContextP ctx);
 VAStatus psb_xrandr_deinit();
 
 #endif /* _PSB_XRANDR_H_ */

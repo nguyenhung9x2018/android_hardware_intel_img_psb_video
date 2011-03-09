@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -64,8 +64,7 @@ enum drm_lnc_topaz_codec {
     IMG_CODEC_NUM
 };
 
-typedef enum _img_format_
-{
+typedef enum _img_format_ {
     IMG_CODEC_IYUV, /* IYUV */
     IMG_CODEC_IMC2, /* IMC2 */
     IMG_CODEC_PL8,
@@ -74,8 +73,7 @@ typedef enum _img_format_
 } IMG_FORMAT;
 
 
-typedef struct _RC_PARAMS_
-{
+typedef struct _RC_PARAMS_ {
     IMG_UINT32	BitsPerSecond;
     IMG_UINT32	InitialQp;
     IMG_UINT32	BUSize;
@@ -84,7 +82,7 @@ typedef struct _RC_PARAMS_
     IMG_UINT32	BitsConsumed;
     IMG_UINT32	IntraFreq;
     IMG_UINT16	IDRFreq;
-    
+
     IMG_INT16	MinQP;
     IMG_BOOL	RCEnable;
     IMG_BOOL	FrameSkip;
@@ -103,12 +101,11 @@ typedef struct _RC_PARAMS_
 * @Brief          Rate control input parameters
 *
 ****************************************************************************/
-typedef struct
-{
+typedef struct {
     IMG_UINT8	SeInitQP;		//!< Initial QP for Sequence
     IMG_UINT8	MinQPVal;		//!< Minimum QP value to use
     IMG_UINT8	MaxQPVal;		//!< Maximum QP value to use
-	
+
     IMG_UINT8	MBPerRow;		/* Number of MBs Per Row */
     IMG_UINT16	MBPerFrm;		/* Number of MBs Per Frame */
     IMG_UINT16	MBPerBU;		/* Number of MBs Per BU */
@@ -144,8 +141,7 @@ typedef struct
     IMG_UINT32  RCScaleFactor;  /* A constant used in rate control = (GopSize/(BufferSize-InitialLevel))*256 */
 } IN_RC_PARAMS;
 
-struct coded_buf_aux_info
-{
+struct coded_buf_aux_info {
     object_buffer_p buf;
     uint32_t aux_flag;		/*Indicate which operation should be applied when map coded buffer.*/
     struct coded_buf_aux_info *next;
@@ -185,7 +181,7 @@ struct context_ENC_s {
     /* point to the place in cmdbuf following START_PIC, the initial_qp will fill into it later */
     uint32_t *initial_qp_in_cmdbuf;
 
-    
+
     /* global topaz_params buffer shared by every cmdbuffer
      * it is because filling InParams for every MB is very time-consuming
      * and in most cases, we can reuse previous frames buffer
@@ -198,16 +194,16 @@ struct context_ENC_s {
     uint32_t in_params_size;
     uint32_t bellow_params_size;
     uint32_t above_params_size;
-    
+
     /* offset in topaz_param buffer */
     uint32_t in_params_ofs;
     uint32_t bellow_params_ofs;
     uint32_t above_params_ofs;
 
     uint32_t pic_params_size;
-    
+
     uint32_t header_buffer_size;
-    
+
     uint32_t seq_header_ofs;
     uint32_t pic_header_ofs;
     uint32_t eoseq_header_ofs;
@@ -217,12 +213,12 @@ struct context_ENC_s {
     uint32_t sliceparam_buffer_size;
 
     IN_RC_PARAMS in_params_cache; /* following frames reuse the first frame's IN_RC_PARAMS, cache it */
-    
+
     VAEncSliceParameterBuffer *slice_param_cache;
     uint16_t slice_param_num;
 
     IMG_UINT16 MPEG4_vop_time_increment_resolution;
-    
+
     /* saved information for FrameSkip redo */
     uint32_t MPEG4_vop_time_increment_frameskip;
     uint32_t MPEG4_picture_type_frameskip;
@@ -234,8 +230,13 @@ struct context_ENC_s {
     uint16_t num_air_mbs;
     uint16_t air_threshold;
     uint32_t autotune_air_flag;
+    uint32_t delta_change;
 
     struct coded_buf_aux_info *p_coded_buf_info;
+    unsigned char *save_seq_header_p;
+
+    /*For H264 only.*/
+    uint16_t idr_pic_id;
 };
 
 typedef struct context_ENC_s *context_ENC_p;
@@ -270,8 +271,7 @@ typedef struct context_ENC_s *context_ENC_p;
 #define SPE_EDGE_TOP	4   /* ->bMinYRealEdge*/
 #define SPE_EDGE_BOTTOM 8	/* ->bMaxYRealEdge*/
 
-typedef struct
-{
+typedef struct {
     /* Transferred into the input params area of the macroblock parameter structure*/
     IMG_BYTE    CurBlockAddr;
     IMG_BYTE    IPEMin[2];
@@ -295,8 +295,7 @@ typedef struct
     IMG_UINT32 	 VLCControl;
 }MTX_CURRENT_IN_PARAMS;
 
-typedef struct /* corresponding bytes inside the MB_IN structure: */
-{
+typedef struct { /* corresponding bytes inside the MB_IN structure: */
     IMG_BYTE    BlockSizes;	         /****************/
     IMG_BYTE    IntraMode;               /*              */
     IMG_BYTE    Intra4x4ModesBottom[2];  /*              */
@@ -324,15 +323,13 @@ typedef struct /* corresponding bytes inside the MB_IN structure: */
 
 
 
-typedef enum _TH_SKIP_SCALE_
-{
-    TH_SKIP_0=0,
+typedef enum _TH_SKIP_SCALE_ {
+    TH_SKIP_0 = 0,
     TH_SKIP_12 = 1,
     TH_SKIP_24 = 2
 }TH_SKIP_SCALE;
 
-typedef struct _PIC_PARAMS_
-{
+typedef struct _PIC_PARAMS_ {
     IMG_UINT32		SrcYBase;
     IMG_UINT32		SrcUBase;
     IMG_UINT32		SrcVBase;
@@ -373,8 +370,7 @@ typedef struct _PIC_PARAMS_
 
 /* This holds the data that is needed at the start of a slice
  */
-typedef struct _SLICE_PARAMS_
-{
+typedef struct _SLICE_PARAMS_ {
 
     IMG_UINT16	SliceStartRowNum;
     IMG_UINT16	SliceHeight;
@@ -399,8 +395,7 @@ typedef struct _SLICE_PARAMS_
 }SLICE_PARAMS;
 
 
-typedef struct _ROW_PARAMS_
-{
+typedef struct _ROW_PARAMS_ {
     IMG_UINT32	TargetYBase;
     IMG_UINT32	TargetYStride;
     IMG_UINT32	TargetUBase;
@@ -449,8 +444,7 @@ typedef struct _ROW_PARAMS_
 
 #define ROW_PARAMS_TDMA_DIMENSIONS  16,16,sizeof(ROW_PARAMS)
 
-typedef struct _ENCODER_VARIABLES_
-{
+typedef struct _ENCODER_VARIABLES_ {
     IMG_UINT32        ActionFlags;
 
     IMG_UINT32        SrcYCurrent;
@@ -514,22 +508,22 @@ enum {
 #define SET_SURFACE_INFO_skipped_flag(psb_surface, value) psb_surface->extra_info[5] = (SURFACE_INFO_SKIP_FLAG_SETTLED | value)
 #define CLEAR_SURFACE_INFO_skipped_flag(psb_surface) psb_surface->extra_info[5] = 0
 
-VAStatus lnc_CreateContext( object_context_p obj_context,
-                            object_config_p obj_config );
+VAStatus lnc_CreateContext(object_context_p obj_context,
+                           object_config_p obj_config);
 
 
-void lnc__setup_rcdata(context_ENC_p ctx, PIC_PARAMS *psPicParams,IMG_RC_PARAMS *rc_params);
+void lnc__setup_rcdata(context_ENC_p ctx, PIC_PARAMS *psPicParams, IMG_RC_PARAMS *rc_params);
 void lnc__update_rcdata(context_ENC_p ctx, PIC_PARAMS *psPicParams, IMG_RC_PARAMS *rc_params);
 
 void lnc_DestroyContext(
     object_context_p obj_context
-                        );
+);
 
 VAStatus lnc_BeginPicture(context_ENC_p ctx);
 VAStatus lnc_EndPicture(context_ENC_p ctx);
 
 void lnc_setup_slice_params(
-    context_ENC_p  ctx,IMG_UINT16 YSliceStartPos,
+    context_ENC_p  ctx, IMG_UINT16 YSliceStartPos,
     IMG_UINT16 SliceHeight, IMG_BOOL IsIntra,
     IMG_BOOL  VectorsValid, int bySliceQP);
 

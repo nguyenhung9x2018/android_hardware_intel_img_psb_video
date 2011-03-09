@@ -27,6 +27,7 @@
 #include <surfaceflinger/SurfaceComposerClient.h>
 #include <binder/MemoryHeapBase.h>
 #include "psb_android_glue.h"
+#include "psb_texstreaming.h"
 #include <cutils/log.h>
 
 using namespace android;
@@ -73,19 +74,21 @@ void psb_android_clearHeap()
 
 void psb_android_register_isurface(void** android_isurface, int bcd_id, int srcw, int srch)
 {
-    isurface = static_cast<ISurface*>(*android_isurface);
-    isurface->createTextureStreamSource();
-    LOGD("In psb_android_register_isurface: buffer_device_id is %d.\n", bcd_id);
-    isurface->setTextureStreamID(bcd_id);
-    /*
-    Resolve issue - Green line in the bottom of display while video is played
-    This issue is caused by the buffer size larger than video size and texture linear filtering.
-    The pixels of last line will computed from the pixels out of video picture
-    */
-    if ((srch  & 0x1f) == 0)
-        isurface->setTextureStreamDim(srcw, srch);
-    else
-        isurface->setTextureStreamDim(srcw, srch-1);
+    if (isurface != *android_isurface) {
+        isurface = static_cast<ISurface*>(*android_isurface);
+        isurface->createTextureStreamSource();
+        LOGD("In psb_android_register_isurface: buffer_device_id is %d.\n", bcd_id);
+        isurface->setTextureStreamID(bcd_id);
+        /*
+        Resolve issue - Green line in the bottom of display while video is played
+        This issue is caused by the buffer size larger than video size and texture linear filtering.
+        The pixels of last line will computed from the pixels out of video picture
+        */
+        if ((srch  & 0x1f) == 0)
+            isurface->setTextureStreamDim(srcw, srch);
+        else
+            isurface->setTextureStreamDim(srcw, srch-1);
+    }
 }
 
 void psb_android_texture_streaming_set_crop( short srcx,
@@ -102,7 +105,6 @@ void psb_android_texture_streaming_set_blend( short destx,
                                                             short desty,
                                                             unsigned short destw,
                                                             unsigned short desth,
-                                                            unsigned int blend_enabled,
                                                             unsigned int background_color,
                                                             unsigned int blend_color,
                                                             unsigned short blend_mode )
@@ -120,13 +122,10 @@ void psb_android_texture_streaming_set_blend( short destx,
     blend_blue = blend_color & 0xff;
 
     if (isurface.get()) {
-        if (blend_enabled) {
-            isurface->setTextureStreamPosRect(destx, desty, destw, desth);
-            isurface->setTextureStreamBorderColor(bg_red, bg_green, bg_blue, bg_alpha);
-            isurface->setTextureStreamVideoColor(blend_red, blend_green, blend_blue, blend_alpha);
-            isurface->setTextureStreamBlendMode(blend_mode);
-        } else
-            isurface->resetTextureStreamParams();
+        isurface->setTextureStreamPosRect(destx, desty, destw, desth);
+        isurface->setTextureStreamBorderColor(bg_red, bg_green, bg_blue, bg_alpha);
+        isurface->setTextureStreamVideoColor(blend_red, blend_green, blend_blue, blend_alpha);
+        isurface->setTextureStreamBlendMode(blend_mode);
     }
 }
 

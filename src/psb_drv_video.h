@@ -11,8 +11,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -62,18 +62,25 @@
 #define WORKAROUND_DMA_OFF_BY_ONE
 #define FOURCC_XVVA     (('A' << 24) + ('V' << 16) + ('V' << 8) + 'X')
 
-#define PSB_MAX_PROFILES				13
+#define PSB_MAX_PROFILES				14
 #define PSB_MAX_ENTRYPOINTS				8
 #define PSB_MAX_CONFIG_ATTRIBUTES		10
 #define PSB_MAX_BUFFERTYPES			32
 
 /* Max # of command submission buffers */
-#define PSB_MAX_CMDBUFS				10	
+#define PSB_MAX_CMDBUFS				10
 #define LNC_MAX_CMDBUFS_ENCODE			4
 #define PNW_MAX_CMDBUFS_ENCODE			4
 
 #define PSB_SURFACE_DISPLAYING_F (0x1U<<0)
 #define PSB_SURFACE_IS_FLAG_SET(flags, mask) (((flags)& PSB_SURFACE_DISPLAYING_F) != 0)
+
+/*xrandr dirty flag*/
+#define PSB_NEW_ROTATION        1
+#define PSB_NEW_EXTVIDEO        2
+
+#define MAX_SLICES_PER_PICTURE 72
+#define MAX_MB_ERRORS 72
 
 typedef struct object_config_s *object_config_p;
 typedef struct object_context_s *object_context_p;
@@ -84,7 +91,7 @@ typedef struct object_subpic_s *object_subpic_p;
 typedef struct format_vtable_s *format_vtable_p;
 typedef struct psb_driver_data_s *psb_driver_data_p;
 
-    /* post-processing data structure */
+/* post-processing data structure */
 enum psb_output_method_t {
     PSB_PUTSURFACE_NONE = 0,
     PSB_PUTSURFACE_X11,/* use x11 method */
@@ -93,13 +100,19 @@ enum psb_output_method_t {
     PSB_PUTSURFACE_COVERLAY,/* client overlay */
     PSB_PUTSURFACE_CTEXTURE,/* client textureblit */
     PSB_PUTSURFACE_TEXSTREAMING,/* texsteaming */
-    
+
     PSB_PUTSURFACE_FORCE_TEXTURE,/* force texture xvideo */
     PSB_PUTSURFACE_FORCE_OVERLAY,/* force overlay xvideo */
     PSB_PUTSURFACE_FORCE_CTEXTURE,/* force client textureblit */
     PSB_PUTSURFACE_FORCE_COVERLAY,/* force client overlay */
     PSB_PUTSURFACE_FORCE_TEXSTREAMING,/* force texstreaming */
 };
+
+typedef struct psb_decode_info {
+    uint32_t num_surface;
+    uint32_t surface_id;
+} psb_decode_info_t;
+typedef struct msvdx_decode_info *psb_decode_info_p;
 
 struct psb_driver_data_s {
     struct object_heap_s	config_heap;
@@ -139,39 +152,39 @@ struct psb_driver_data_s {
 
     int execIoctlOffset;
     int getParamIoctlOffset;
-    
+
     struct _WsbmBufferPool *main_pool;
     struct _WsbmFenceMgr *fence_mgr;
 
     enum psb_output_method_t output_method;
-    
+
     /* whether the post-processing use client overlay or not */
     int coverlay;
     PsbPortPrivRec coverlay_priv;
-    
-    
+
+
     /* whether the post-processing use client textureblit or not */
     int ctexture;
-    struct psb_texture_s ctexture_priv;    
+    struct psb_texture_s ctexture_priv;
 
     /*
     //whether the post-processing use texstreaing or not
     int ctexstreaing;
-    struct psb_texstreaing ctexstreaing_priv;    
+    struct psb_texstreaing ctexstreaing_priv;
     */
-    
+
     void *ws_priv; /* window system related data structure */
-    
+
 
     VASurfaceID cur_displaying_surface;
     VASurfaceID last_displaying_surface;
 
     VADisplayAttribute ble_black_mode;
     VADisplayAttribute ble_white_mode;
-    
+
     VADisplayAttribute blueStretch_gain;
     VADisplayAttribute skinColorCorrection_gain;
-    
+
     VADisplayAttribute brightness;
     VADisplayAttribute hue;
     VADisplayAttribute contrast;
@@ -180,15 +193,20 @@ struct psb_driver_data_s {
 
     int  is_oold;
 
+    unsigned int load_csc_matrix;
+    signed int   csc_matrix[3][3];
+
     /* subpic number current buffers support */
     unsigned int max_subpic;
-    
+
     /* for multi-thread safe */
     int use_xrandr_thread;
     pthread_mutex_t output_mutex;
     pthread_t xrandr_thread_id;
+    int extend_fullscreen;
 
     int rotate;
+    int video_rotate;
     int drawable_info;
     int dummy_putsurface;
     int fixed_fps;
@@ -197,6 +215,25 @@ struct psb_driver_data_s {
     uint32_t blend_mode;
     uint32_t blend_color;
     uint32_t color_key;
+
+    /*output rotation info*/
+    int mipi0_rotation;
+    int mipi1_rotation;
+    int hdmi_rotation;
+    int local_rotation;
+    int extend_rotation;
+    uint32_t bcd_id;
+    uint32_t bcd_ioctrl_num;
+    uint32_t bcd_registered;
+    uint32_t xrandr_dirty;
+    uint32_t xrandr_update;
+    /*only VAProfileH264ConstrainedBaseline profile enable error concealment*/
+    uint32_t ec_enabled;
+
+    uint32_t pre_surfaceid;
+    psb_decode_info_t decode_info;
+    drm_psb_msvdx_decode_status_t *msvdx_decode_status;
+    VASurfaceDecodeMBErrors *surface_mb_error;
 };
 
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)
@@ -223,19 +260,20 @@ struct object_context_s {
     int va_flags;
 
     object_surface_p current_render_target;
+    VASurfaceID current_render_surface_id;
     psb_driver_data_p driver_data;
     format_vtable_p format_vtable;
     void *format_data;
     struct psb_cmdbuf_s *cmdbuf_list[PSB_MAX_CMDBUFS];
     struct lnc_cmdbuf_s *lnc_cmdbuf_list[LNC_MAX_CMDBUFS_ENCODE];
     struct pnw_cmdbuf_s *pnw_cmdbuf_list[PNW_MAX_CMDBUFS_ENCODE];
-    
+
     struct psb_cmdbuf_s *cmdbuf; /* Current cmd buffer */
     struct lnc_cmdbuf_s *lnc_cmdbuf;
     struct pnw_cmdbuf_s *pnw_cmdbuf;
-    
+
     int cmdbuf_current;
-    
+
     /* Buffers */
     object_buffer_p buffers_unused[PSB_MAX_BUFFERTYPES]; /* Linked lists (HEAD) of unused buffers for each buffer type */
     int buffers_unused_count[PSB_MAX_BUFFERTYPES]; /* Linked lists (HEAD) of unused buffers for each buffer type */
@@ -261,7 +299,7 @@ struct object_context_s {
     int rotate;
 
     uint32_t msvdx_context;
-    
+
     /* Debug */
     uint32_t frame_count;
     uint32_t slice_count;
@@ -313,7 +351,7 @@ struct object_subpic_s {
     VASubpictureID subpic_id;
 
     VAImageID image_id;
-    
+
     /* chromakey range */
     unsigned int chromakey_min;
     unsigned int chromakey_max;
@@ -334,33 +372,33 @@ struct object_subpic_s {
 	       sizeof(data_struct) - sizeof(struct object_base_s))
 
 struct format_vtable_s {
-    void (*queryConfigAttributes) (
+    void (*queryConfigAttributes)(
         VAProfile profile,
         VAEntrypoint entrypoint,
         VAConfigAttrib *attrib_list,
         int num_attribs
-                                   );
-    VAStatus (*validateConfig) (
+    );
+    VAStatus(*validateConfig)(
         object_config_p obj_config
-                                );
-    VAStatus (*createContext) (
+    );
+    VAStatus(*createContext)(
         object_context_p obj_context,
         object_config_p obj_config
-                               );
-    void (*destroyContext) (
+    );
+    void (*destroyContext)(
         object_context_p obj_context
-                            );
-    VAStatus (*beginPicture) (
+    );
+    VAStatus(*beginPicture)(
         object_context_p obj_context
-                              );
-    VAStatus (*renderPicture) (
+    );
+    VAStatus(*renderPicture)(
         object_context_p obj_context,
         object_buffer_p *buffers,
         int num_buffers
-                               );
-    VAStatus (*endPicture) (
+    );
+    VAStatus(*endPicture)(
         object_context_p obj_context
-                            );
+    );
 };
 
 
@@ -372,28 +410,44 @@ static inline unsigned long GetTickCount()
     struct timeval tv;
     if (gettimeofday(&tv, NULL))
         return 0;
-    return tv.tv_usec/1000+tv.tv_sec*1000;
+    return tv.tv_usec / 1000 + tv.tv_sec*1000;
 }
 
 inline static char * buffer_type_to_string(int type)
 {
     switch (type) {
-    case VAPictureParameterBufferType: return "VAPictureParameterBufferType";
-    case VAIQMatrixBufferType: return "VAIQMatrixBufferType";
-    case VABitPlaneBufferType: return "VABitPlaneBufferType";
-    case VASliceGroupMapBufferType: return "VASliceGroupMapBufferType";
-    case VASliceParameterBufferType: return "VASliceParameterBufferType";
-    case VASliceDataBufferType: return "VASliceDataBufferType";
-    case VAProtectedSliceDataBufferType: return "VAProtectedSliceDataBufferType";
-    case VAMacroblockParameterBufferType: return "VAMacroblockParameterBufferType";
-    case VAResidualDataBufferType: return "VAResidualDataBufferType";
-    case VADeblockingParameterBufferType: return "VADeblockingParameterBufferType";
-    case VAImageBufferType: return "VAImageBufferType";
-    case VAEncCodedBufferType: return "VAEncCodedBufferType";
-    case VAEncSequenceParameterBufferType: return "VAEncSequenceParameterBufferType";
-    case VAEncPictureParameterBufferType: return "VAEncPictureParameterBufferType";
-    case VAEncSliceParameterBufferType: return "VAEncSliceParameterBufferType";
-    default: return "UnknowBuffer";
+    case VAPictureParameterBufferType:
+        return "VAPictureParameterBufferType";
+    case VAIQMatrixBufferType:
+        return "VAIQMatrixBufferType";
+    case VABitPlaneBufferType:
+        return "VABitPlaneBufferType";
+    case VASliceGroupMapBufferType:
+        return "VASliceGroupMapBufferType";
+    case VASliceParameterBufferType:
+        return "VASliceParameterBufferType";
+    case VASliceDataBufferType:
+        return "VASliceDataBufferType";
+    case VAProtectedSliceDataBufferType:
+        return "VAProtectedSliceDataBufferType";
+    case VAMacroblockParameterBufferType:
+        return "VAMacroblockParameterBufferType";
+    case VAResidualDataBufferType:
+        return "VAResidualDataBufferType";
+    case VADeblockingParameterBufferType:
+        return "VADeblockingParameterBufferType";
+    case VAImageBufferType:
+        return "VAImageBufferType";
+    case VAEncCodedBufferType:
+        return "VAEncCodedBufferType";
+    case VAEncSequenceParameterBufferType:
+        return "VAEncSequenceParameterBufferType";
+    case VAEncPictureParameterBufferType:
+        return "VAEncPictureParameterBufferType";
+    case VAEncSliceParameterBufferType:
+        return "VAEncSliceParameterBufferType";
+    default:
+        return "UnknowBuffer";
     }
 }
 

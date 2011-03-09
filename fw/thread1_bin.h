@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -24,19 +24,19 @@
 
  @File         thread0_bin.h
 
- @Title        
+ @Title
 
  @Copyright    Copyright (C)  Imagination Technologies Limited. All Rights Reserved. Strictly Confidential.
 
- @Platform     
+ @Platform
 
- @Description  
+ @Description
 
 ******************************************************************************/
-#ifdef DE_ENV 
-#include "global.h" 
-#endif 
-//#if SLICE_SWITCHING_VARIANT 
+#ifdef DE_ENV
+#include "global.h"
+#endif
+//#if SLICE_SWITCHING_VARIANT
 // This file was automatically generated from ../release/thread0.dnl using dnl2c.
 
 /*
@@ -48,8 +48,7 @@ extern unsigned long ui32MTXDXVAFWDataSize;
 
 extern unsigned long ui32MTXDXVAFWDataLocation;
 */
-typedef struct
-{
+typedef struct {
     const char* psVersion;
     const char* psBuildDate;
     unsigned int uiTextSize;
@@ -65,7 +64,7 @@ extern const FIRMWARE sSliceSwitchingFirmware;
 extern const FIRMWARE sFirmware1100_SS;
 extern const FIRMWARE sFirmware1133_SS;
 extern const FIRMWARE sFirmware1133_FS;
-extern const FIRMWARE sFirmware1163_SS; 
-#define FIRMWARE_VERSION_DEFINED 
-#define FIRMWARE_BUILDDATE_DEFINED 
+extern const FIRMWARE sFirmware1163_SS;
+#define FIRMWARE_VERSION_DEFINED
+#define FIRMWARE_BUILDDATE_DEFINED
 //#endif /* SLICE_SWITCHING_VARIANT */

@@ -12,8 +12,8 @@
  * secret laws and treaty provisions. No part of the Material may be used,
  * copied, reproduced, modified, published, uploaded, posted, transmitted,
  * distributed, or disclosed in any way without Intel's prior express written
- * permission. 
- * 
+ * permission.
+ *
  * No license under any patent, copyright, trade secret or other intellectual
  * property right is granted to or conferred upon you by disclosure or delivery
  * of the Materials, either expressly, by implication, inducement, estoppel or
@@ -21,78 +21,80 @@
  * express and approved by Intel in writing.
  */
 
- /******************************************************************************
+/******************************************************************************
 
- @File         dxva_msg.h
+@File         dxva_msg.h
 
- @Title        Dxva Firmware Message Flags
+@Title        Dxva Firmware Message Flags
 
- @Platform     Independent 
+@Platform     Independent
 
- @Description  </b>\n This file contains the header file information for the DXVA
-               specific MTX/Host messages
+@Description  </b>\n This file contains the header file information for the DXVA
+              specific MTX/Host messages
 
 ******************************************************************************/
 #if !defined (__DXVA_MSG_H__)
 #define __DXVA_MSG_H__
 
 #if (__cplusplus)
-extern "C" {
+extern "C"
+{
 #endif
 
-/* These come from fwrk_api.h */
-/* #include <fwrk_api.h>  */
+    /* These come from fwrk_api.h */
+    /* #include <fwrk_api.h>  */
 #define	FWRK_MSGID_START_PSR_HOSTMTX_MSG	(0x80)	//!< Start of parser specific Host->MTX messages.
 #define	FWRK_MSGID_START_PSR_MTXHOST_MSG	(0xC0)	//!< Start of parser specific MTX->Host messages.
+#define	FWRK_MSGID_START_USER_DEFINED_MSG	(0xF0)	//!< Start of parser user defined messages.
 #define FWRK_MSGID_PADDING					( 0 )
 
 #define FWRK_MSGID_HOST_EMULATED                (0x40)
 
 
-/*!
-******************************************************************************
- This type defines the framework specified message ids
+    /*!
+    ******************************************************************************
+     This type defines the framework specified message ids
 
- The messages are packed memory based structures accessed using the mem_io.h
- macros.  The control values for these are generated from a file called
- dxva_cmdseq_msg.def using the "regdef" tool.
+     The messages are packed memory based structures accessed using the mem_io.h
+     macros.  The control values for these are generated from a file called
+     dxva_cmdseq_msg.def using the "regdef" tool.
 
-******************************************************************************/
-enum
-{
-	/*! Sent by the DXVA driver on the host to the mtx firmware.
-	 */
-	DXVA_MSGID_INIT				= FWRK_MSGID_START_PSR_HOSTMTX_MSG, 
-	DXVA_MSGID_RENDER, 
-	DXVA_MSGID_DEBLOCK, 
-	DXVA_MSGID_OOLD, 
+    ******************************************************************************/
+    enum {
+        /*! Sent by the DXVA driver on the host to the mtx firmware.
+         */
+        DXVA_MSGID_INIT				= FWRK_MSGID_START_PSR_HOSTMTX_MSG,
+        DXVA_MSGID_RENDER,
+        DXVA_MSGID_DEBLOCK,
+        DXVA_MSGID_OOLD,
 
-	/* Test Messages */
-	DXVA_MSGID_TEST1,
-	DXVA_MSGID_TEST2,
+        /* Test Messages */
+        DXVA_MSGID_TEST1,
+        DAVA_MSGID_HOST_BE_OPP,
 
-	/*! Sent by the mtx firmware to itself.
-	 */
-	DXVA_MSGID_RENDER_MC_INTERRUPT, 
+        /*! Sent by the mtx firmware to itself.
+         */
+        DXVA_MSGID_RENDER_MC_INTERRUPT,
 
-	VA_MSGID_DEBLOCK_MFLD = FWRK_MSGID_HOST_EMULATED,
-	VA_MSGID_OOLD_MFLD,
+        VA_MSGID_DEBLOCK_MFLD = FWRK_MSGID_HOST_EMULATED,
+        VA_MSGID_OOLD_MFLD,
 
-	/*! Sent by the DXVA firmware on the MTX to the host.
-	 */
-	DXVA_MSGID_CMD_COMPLETED	= FWRK_MSGID_START_PSR_MTXHOST_MSG, 
-	DXVA_MSGID_CMD_COMPLETED_BATCH,
-	DXVA_MSGID_DEBLOCK_REQUIRED,
-	DXVA_MSGID_TEST_RESPONCE,
-	DXVA_MSGID_ACK,
+        /*! Sent by the DXVA firmware on the MTX to the host.
+         */
+        DXVA_MSGID_CMD_COMPLETED	= FWRK_MSGID_START_PSR_MTXHOST_MSG,
+        DXVA_MSGID_CMD_COMPLETED_BATCH,
+        DXVA_MSGID_DEBLOCK_REQUIRED,
+        DXVA_MSGID_TEST_RESPONCE,
+        DXVA_MSGID_ACK,
 
-	DXVA_MSGID_CMD_FAILED,
-	DXVA_MSGID_CMD_UNSUPPORTED,
-	DXVA_MSGID_CMD_HW_PANIC,
-};
+        DXVA_MSGID_CMD_FAILED,
+        DXVA_MSGID_CMD_UNSUPPORTED,
+        DXVA_MSGID_CMD_HW_PANIC,
+        DXVA_MSGID_FRAME_INFO = FWRK_MSGID_START_USER_DEFINED_MSG,
+    };
 
 #if (__cplusplus)
 }
 #endif
- 
+
 #endif
