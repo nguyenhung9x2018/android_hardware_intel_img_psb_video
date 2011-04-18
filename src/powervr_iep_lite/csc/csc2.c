@@ -14,19 +14,19 @@
 
  <b>Description:</b>\n
          This module contains functions for calculating a 3x3 colour
-		 space conversion matrix.
+                 space conversion matrix.
 
 ******************************************************************************/
 
 /********************************************************************
-	DISCLAIMER:
-	This code is provided for demonstration purposes only. It has
-	been ported from other projects and has not been tested with
-	real hardware. It is not provided in a state that can be run
-	with real hardware - this is not intended as the basis for a
-	production driver. This code should only be used as an example
-	of the algorithms to be used for setting up the IEP lite
-	hardware.
+        DISCLAIMER:
+        This code is provided for demonstration purposes only. It has
+        been ported from other projects and has not been tested with
+        real hardware. It is not provided in a state that can be run
+        with real hardware - this is not intended as the basis for a
+        production driver. This code should only be used as an example
+        of the algorithms to be used for setting up the IEP lite
+        hardware.
  ********************************************************************/
 
 #include <memory.h>
@@ -38,103 +38,103 @@
 
 /*************************************************************************************************************
 
-	The combined equations for a general purpose transfer (CSC combined with Procamp) are shown below:
-	(matrices in CAPITALS, scaler multiplies in lower case).
+        The combined equations for a general purpose transfer (CSC combined with Procamp) are shown below:
+        (matrices in CAPITALS, scaler multiplies in lower case).
 
-	As the colour primary conversions needs to be performed on RGB data, and the procamp (H/S/C) adjustment
-	needs to be performed on YUV data,  there are 4 cases to consider. All cases have the same input and
-	output offsets shown in YUV to RGB.
+        As the colour primary conversions needs to be performed on RGB data, and the procamp (H/S/C) adjustment
+        needs to be performed on YUV data,  there are 4 cases to consider. All cases have the same input and
+        output offsets shown in YUV to RGB.
 
-	If no HSBC adjustment is required, leave out the conSatHue matrix, though see the RGB-RGB case
-	for the exception. If no primary adjustment is required, leave out the inoutPrimaries matrix,
-	though see YUV-YUV case for the exception.
+        If no HSBC adjustment is required, leave out the conSatHue matrix, though see the RGB-RGB case
+        for the exception. If no primary adjustment is required, leave out the inoutPrimaries matrix,
+        though see YUV-YUV case for the exception.
 
-	Where a matrix name begins with 'INOUT_', the matrix has been pre-generated to convert from one
-	thing to another (e.g.: from an input colour space to an output colour space, or from an input primary
-	to an output primary) - the 'INOUT_' matrix is just chosen from a table of pregenerated matrices
-	based on the user's input and output selections.
+        Where a matrix name begins with 'INOUT_', the matrix has been pre-generated to convert from one
+        thing to another (e.g.: from an input colour space to an output colour space, or from an input primary
+        to an output primary) - the 'INOUT_' matrix is just chosen from a table of pregenerated matrices
+        based on the user's input and output selections.
 
-	Input and output offsets
-	In all cases, the input offsets are negative and account for differences in range. As the internal
-	range for these calculations is always 0-255 (the pre-calculated matrices are based on this internal
-	range), the input offsets are always either 0 (for input range 0->255), -16 (for input range 16->235),
-	or -48 (for input range 48->208). The same principle applies to the output ranges, but the output
-	offsets based on the output range are positive rather than negative (0, +16 or +48). In addition, the
-	user can specify a brightness value in the range -50 -> +50, which is added to the output offsets
-	(only the Y offset in the case of YUV output).
+        Input and output offsets
+        In all cases, the input offsets are negative and account for differences in range. As the internal
+        range for these calculations is always 0-255 (the pre-calculated matrices are based on this internal
+        range), the input offsets are always either 0 (for input range 0->255), -16 (for input range 16->235),
+        or -48 (for input range 48->208). The same principle applies to the output ranges, but the output
+        offsets based on the output range are positive rather than negative (0, +16 or +48). In addition, the
+        user can specify a brightness value in the range -50 -> +50, which is added to the output offsets
+        (only the Y offset in the case of YUV output).
 
-	-------------------------------------------------------------------------------------------------------
-	CASE 1) Input YUV and output YUV:
+        -------------------------------------------------------------------------------------------------------
+        CASE 1) Input YUV and output YUV:
 
-	combinedMatrix = (outputrangeScale*OUT_TRANSFER_RGB_TO_YUV)*INOUT_PRIMARIES*
-						(inputrangeScale*IN_TRANSFER_YUV_TO_RGB)*CON_SAT_HUE
+        combinedMatrix = (outputrangeScale*OUT_TRANSFER_RGB_TO_YUV)*INOUT_PRIMARIES*
+                                                (inputrangeScale*IN_TRANSFER_YUV_TO_RGB)*CON_SAT_HUE
 
-	An arbitrary intermediate RGB format is used to perform the primary conversion
-	(colour space=RGB, range=0-255). Note: The pregenerated primary conversion matrices are created
-	based on this arbitrary intermediate format.
+        An arbitrary intermediate RGB format is used to perform the primary conversion
+        (colour space=RGB, range=0-255). Note: The pregenerated primary conversion matrices are created
+        based on this arbitrary intermediate format.
 
-	So IN_TRANSFER_YUV_TO_RGB is the same as  INOUT_TRANSFER[(user defined input colour space) to RGB]
-	And OUT_TRANSFER_RGB_TO_YUV is the same as  INOUT_TRANSFER[RGB to (user defined output colour space)]
+        So IN_TRANSFER_YUV_TO_RGB is the same as  INOUT_TRANSFER[(user defined input colour space) to RGB]
+        And OUT_TRANSFER_RGB_TO_YUV is the same as  INOUT_TRANSFER[RGB to (user defined output colour space)]
 
-	OPTIMISATION FOR CASE 1)
-		If no primaries adjustment is required (i.e.:input primary = output primary), then the equation
-		simplifies to:
+        OPTIMISATION FOR CASE 1)
+                If no primaries adjustment is required (i.e.:input primary = output primary), then the equation
+                simplifies to:
 
-		combinedMatrix = CON_SAT_HUE*(outputrangeScale*inputrangeScale*INOUT_TRANSFER_YUV_TO_YUV)
-	-------------------------------------------------------------------------------------------------------
+                combinedMatrix = CON_SAT_HUE*(outputrangeScale*inputrangeScale*INOUT_TRANSFER_YUV_TO_YUV)
+        -------------------------------------------------------------------------------------------------------
 
-	-------------------------------------------------------------------------------------------------------
-	CASE 2) Input YUV and output RGB:
+        -------------------------------------------------------------------------------------------------------
+        CASE 2) Input YUV and output RGB:
 
-	combinedMatrix = INOUT_PRIMARIES*(outputrangeScale*inputrangeScale*INOUT_TRANSFER_YUV_TO_RGB)
-						*CON_SAT_HUE
-	-------------------------------------------------------------------------------------------------------
+        combinedMatrix = INOUT_PRIMARIES*(outputrangeScale*inputrangeScale*INOUT_TRANSFER_YUV_TO_RGB)
+                                                *CON_SAT_HUE
+        -------------------------------------------------------------------------------------------------------
 
-	-------------------------------------------------------------------------------------------------------
-	CASE 3) Input RGB and output YUV
+        -------------------------------------------------------------------------------------------------------
+        CASE 3) Input RGB and output YUV
 
-	combinedMatrix = CON_SAT_HUE*(outputrangeScale*inputrangeScale*INOUT_TRANSFER_RGB_TO_YUV)
-						*INOUT_PRIMARIES
-	-------------------------------------------------------------------------------------------------------
+        combinedMatrix = CON_SAT_HUE*(outputrangeScale*inputrangeScale*INOUT_TRANSFER_RGB_TO_YUV)
+                                                *INOUT_PRIMARIES
+        -------------------------------------------------------------------------------------------------------
 
-	-------------------------------------------------------------------------------------------------------
-	CASE 4) Input RGB and output RGB:
+        -------------------------------------------------------------------------------------------------------
+        CASE 4) Input RGB and output RGB:
 
-	combinedMatrix = OUT_PRIMARY_BT709_TO_USER*(outputrangeScale*OUT_TRANSFER_YUV_TO_RGB)*
-						CON_SAT_HUE*(inputrangeScale*IN_TRANSFER_RGB_TO_YUV)
-							*IN_PRIMARY_USER_TO_BT709
+        combinedMatrix = OUT_PRIMARY_BT709_TO_USER*(outputrangeScale*OUT_TRANSFER_YUV_TO_RGB)*
+                                                CON_SAT_HUE*(inputrangeScale*IN_TRANSFER_RGB_TO_YUV)
+                                                        *IN_PRIMARY_USER_TO_BT709
 
-	An arbitrary intermediate YUV format is used to perform the H/S/C operation
-	(colour space=BT709, range=0-255, primary=BT709).
+        An arbitrary intermediate YUV format is used to perform the H/S/C operation
+        (colour space=BT709, range=0-255, primary=BT709).
 
-	So	OUT_TRANSFER_YUV_TO_RGB is the same as INOUT_TRANSFER[BT709 to RGB]
-	And IN_TRANSFER_RGB_TO_YUV is the same as INOUT_TRANSFER[RGB to BT709]
+        So      OUT_TRANSFER_YUV_TO_RGB is the same as INOUT_TRANSFER[BT709 to RGB]
+        And IN_TRANSFER_RGB_TO_YUV is the same as INOUT_TRANSFER[RGB to BT709]
 
-	In addition, the primary conversion is split into two separate matrices. This is because it was
-	found that when doing an HSC adjustment, combining the primaries conversion in to one matrix at
-	either end of the equation gives slightly different results, the correct way is to convert to
-	the  primaries used for the intermediate YUV format (BT709).
+        In addition, the primary conversion is split into two separate matrices. This is because it was
+        found that when doing an HSC adjustment, combining the primaries conversion in to one matrix at
+        either end of the equation gives slightly different results, the correct way is to convert to
+        the  primaries used for the intermediate YUV format (BT709).
 
-	OPTIMISATION FOR CASE 4)
-		If no HSBC adjustment is required the conversion to the intermediate YUV format is not
-		required, the two primaries matrices can be combined into one, and the equation simplifies to:
+        OPTIMISATION FOR CASE 4)
+                If no HSBC adjustment is required the conversion to the intermediate YUV format is not
+                required, the two primaries matrices can be combined into one, and the equation simplifies to:
 
-		combinedMatrix = outputrangeScale*inputrangeScale*INOUT_PRIMARIES
-	-------------------------------------------------------------------------------------------------------
+                combinedMatrix = outputrangeScale*inputrangeScale*INOUT_PRIMARIES
+        -------------------------------------------------------------------------------------------------------
 
 *************************************************************************************************************/
 
-static	img_bool		CSC_bAPIInitialised = IMG_FALSE;
+static  img_bool                CSC_bAPIInitialised = IMG_FALSE;
 
-#define	CSC_PRINT_DEBUG_INFO		0
+#define CSC_PRINT_DEBUG_INFO            0
 
-#define CSC_MULTIPLY_MATRICES(pIn_a,pIn_b,pResult)		FIXEDPT_MatrixMultiply(3,3,3,3,3,3,(img_int32*)&((pIn_a)->ai32Coefficients),(img_int32*)&((pIn_b)->ai32Coefficients),(img_int32*)&((pResult)->ai32Coefficients),CSC_FRACTIONAL_BITS)
+#define CSC_MULTIPLY_MATRICES(pIn_a,pIn_b,pResult)              FIXEDPT_MatrixMultiply(3,3,3,3,3,3,(img_int32*)&((pIn_a)->ai32Coefficients),(img_int32*)&((pIn_b)->ai32Coefficients),(img_int32*)&((pResult)->ai32Coefficients),CSC_FRACTIONAL_BITS)
 
-img_result	CSC_GenerateHSCMatrix(CSC_psHSBCSettings	psHSBCSettings,
-                                 CSC_ps3x3Matrix		psHSCMatrix);
+img_result      CSC_GenerateHSCMatrix(CSC_psHSBCSettings        psHSBCSettings,
+                                      CSC_ps3x3Matrix               psHSCMatrix);
 
 #if CSC_PRINT_DEBUG_INFO
-img_void CSC_PRINT_3x3_MATRIX(CSC_ps3x3Matrix		psMatrix)
+img_void CSC_PRINT_3x3_MATRIX(CSC_ps3x3Matrix           psMatrix)
 {
     img_uint32 ui32Row;
     img_uint32 ui32Column;
@@ -156,43 +156,43 @@ img_void CSC_PRINT_3x3_MATRIX(CSC_ps3x3Matrix		psMatrix)
 }
 #endif
 
-img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
-                              CSC_eColourSpace		eOutputColourSpace,
-                              CSC_eRange				eInputRange,
-                              CSC_eRange				eOutputRange,
-                              CSC_eColourPrimary		eInputPrimary,
-                              CSC_eColourPrimary		eOutputPrimary,
-                              CSC_psHSBCSettings		psHSBCSettings,
-                              CSC_psConfiguration		psResultantConfigurationData)
+img_result      CSC_GenerateMatrix(CSC_eColourSpace             eInputColourSpace,
+                                   CSC_eColourSpace         eOutputColourSpace,
+                                   CSC_eRange                               eInputRange,
+                                   CSC_eRange                               eOutputRange,
+                                   CSC_eColourPrimary               eInputPrimary,
+                                   CSC_eColourPrimary               eOutputPrimary,
+                                   CSC_psHSBCSettings               psHSBCSettings,
+                                   CSC_psConfiguration              psResultantConfigurationData)
 {
-    CSC_s3x3Matrix	sCombinedRangeScaleMatrix;
-    CSC_s3x3Matrix	sInputRangeScaleMatrix;
-    CSC_s3x3Matrix	sOutputRangeScaleMatrix;
-    CSC_s3x3Matrix	sScaledMatrix;
-    CSC_s3x3Matrix	sHSCMatrix;
-    img_int32		i32InvertedScaleFactor;
-    img_int32		i32FirstColumnValue_In;
-    img_int32		i32SecondAndThirdColumnValue_In;
-    img_int32		i32FirstColumnValue_Out;
-    img_int32		i32SecondAndThirdColumnValue_Out;
-    img_int32		i32InputYOffset;
-    img_int32		i32InputUVOffset;
-    img_int32		i32OutputYOffset;
-    img_int32		i32OutputUVOffset;
+    CSC_s3x3Matrix      sCombinedRangeScaleMatrix;
+    CSC_s3x3Matrix      sInputRangeScaleMatrix;
+    CSC_s3x3Matrix      sOutputRangeScaleMatrix;
+    CSC_s3x3Matrix      sScaledMatrix;
+    CSC_s3x3Matrix      sHSCMatrix;
+    img_int32           i32InvertedScaleFactor;
+    img_int32           i32FirstColumnValue_In;
+    img_int32           i32SecondAndThirdColumnValue_In;
+    img_int32           i32FirstColumnValue_Out;
+    img_int32           i32SecondAndThirdColumnValue_Out;
+    img_int32           i32InputYOffset;
+    img_int32           i32InputUVOffset;
+    img_int32           i32OutputYOffset;
+    img_int32           i32OutputUVOffset;
 
-    CSC_sColourSpaceConversionMatrix *		psThisColourSpaceConversion;
-    CSC_sColourPrimaryConversionMatrix *	psThisColourPrimaryConversion;
-    CSC_s3x3Matrix *						psCombinedRangeScaleMatrix;
-    CSC_s3x3Matrix *						psInputRangeScaleMatrix;
-    CSC_s3x3Matrix *						psOutputRangeScaleMatrix;
-    CSC_s3x3Matrix *						psScaledMatrix;
+    CSC_sColourSpaceConversionMatrix *          psThisColourSpaceConversion;
+    CSC_sColourPrimaryConversionMatrix *        psThisColourPrimaryConversion;
+    CSC_s3x3Matrix *                                            psCombinedRangeScaleMatrix;
+    CSC_s3x3Matrix *                                            psInputRangeScaleMatrix;
+    CSC_s3x3Matrix *                                            psOutputRangeScaleMatrix;
+    CSC_s3x3Matrix *                                            psScaledMatrix;
 
-    /* We need to keep two result matrices, as the matrix multiply function will not allow us to use a given	*/
-    /* matrix as both an input and an output.																		*/
-    CSC_s3x3Matrix	sResultMatrices [2];
+    /* We need to keep two result matrices, as the matrix multiply function will not allow us to use a given    */
+    /* matrix as both an input and an output.                                                                                                                                           */
+    CSC_s3x3Matrix      sResultMatrices [2];
 
-    CSC_ps3x3Matrix	psLatestResult		= IMG_NULL;
-    img_uint8		ui8FreeResultMatrix = 0;	/* Index to currently unused member of 'sResultMatrices' */
+    CSC_ps3x3Matrix     psLatestResult          = IMG_NULL;
+    img_uint8           ui8FreeResultMatrix = 0;        /* Index to currently unused member of 'sResultMatrices' */
 
     IMG_ASSERT(psResultantConfigurationData != IMG_NULL);
     IMG_ASSERT(eInputColourSpace < CSC_NO_OF_COLOURSPACES);
@@ -208,10 +208,10 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
     /* Calculate scaling matrices */
 
     /* For both input and output ranges, if we are dealing with RGB */
-    /* then all columns of the scalar matrix are set to identical	*/
-    /* values. If we are dealing with YUV, then the left hand		*/
-    /* column is the Y scaling value, while the middle and right	*/
-    /* hand columns are the UV scaling values.						*/
+    /* then all columns of the scalar matrix are set to identical       */
+    /* values. If we are dealing with YUV, then the left hand           */
+    /* column is the Y scaling value, while the middle and right        */
+    /* hand columns are the UV scaling values.                                          */
 
     /* Input range scaling */
     if (asColourspaceInfo [eInputColourSpace].bIsYUV == IMG_TRUE) {
@@ -223,7 +223,7 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
     }
 
     if ((i32FirstColumnValue_In == CSC_FP(1.0)) &&
-            (i32SecondAndThirdColumnValue_In == CSC_FP(1.0))) {
+        (i32SecondAndThirdColumnValue_In == CSC_FP(1.0))) {
         psInputRangeScaleMatrix = IMG_NULL;
     } else {
         /* Complete input scaling matrix */
@@ -240,10 +240,10 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
         psInputRangeScaleMatrix = &sInputRangeScaleMatrix;
     }
 
-    /* Output range scaling - output scale values are inverted (e.g.:	*/
-    /* if a given range requires that RGB values be scaled by a factor	*/
-    /* of 255/219 on the inputs, then the scaling range for the same	*/
-    /* range selected as an output will be 219/255).					*/
+    /* Output range scaling - output scale values are inverted (e.g.:   */
+    /* if a given range requires that RGB values be scaled by a factor  */
+    /* of 255/219 on the inputs, then the scaling range for the same    */
+    /* range selected as an output will be 219/255).                                    */
     if (asColourspaceInfo [eOutputColourSpace].bIsYUV == IMG_TRUE) {
         if (asCSC_RangeInfo [eOutputRange].i32YScale == CSC_FP(1.0)) {
             i32InvertedScaleFactor = asCSC_RangeInfo [eOutputRange].i32YScale;
@@ -278,7 +278,7 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
     }
 
     if ((i32FirstColumnValue_Out == CSC_FP(1.0)) &&
-            (i32SecondAndThirdColumnValue_Out == CSC_FP(1.0))) {
+        (i32SecondAndThirdColumnValue_Out == CSC_FP(1.0))) {
         psOutputRangeScaleMatrix = IMG_NULL;
     } else {
         /* Complete output scaling matrix */
@@ -305,7 +305,7 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
         psCombinedRangeScaleMatrix = psInputRangeScaleMatrix;
     } else if ((eInputRange != eOutputRange)
                ||
-               (asColourspaceInfo [eInputColourSpace].bIsYUV != asColourspaceInfo [eOutputColourSpace].bIsYUV)) {	/* Scale factors for YUV and RGB can be different */
+               (asColourspaceInfo [eInputColourSpace].bIsYUV != asColourspaceInfo [eOutputColourSpace].bIsYUV)) {       /* Scale factors for YUV and RGB can be different */
         /* Now combine the input and output scaling values */
         sCombinedRangeScaleMatrix.ai32Coefficients [0][0] =
             FIXEDPT_64BitMultiply_Signed(i32FirstColumnValue_In,
@@ -348,8 +348,8 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
     if (asColourspaceInfo [eInputColourSpace].bIsYUV == IMG_TRUE) {
         if (asColourspaceInfo [eOutputColourSpace].bIsYUV == IMG_TRUE) {
             /****************************/
-            /* CASE 1					*/
-            /* Input YUV, Output YUV	*/
+            /* CASE 1                                   */
+            /* Input YUV, Output YUV    */
             /****************************/
             if (psThisColourPrimaryConversion->bIsIdentityMatrix == IMG_TRUE) {
 #if CSC_PRINT_DEBUG_INFO
@@ -405,7 +405,7 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
                 psThisColourSpaceConversion = &(asCSC_ColourSpaceConversionMatrices[eInputColourSpace][CSC_COLOURSPACE_RGB]);
                 IMG_ASSERT(psThisColourSpaceConversion->bIsSupported == IMG_TRUE);
                 if ((psThisColourSpaceConversion->bIsIdentityMatrix == IMG_FALSE) ||
-                        (psInputRangeScaleMatrix != IMG_NULL)) {
+                    (psInputRangeScaleMatrix != IMG_NULL)) {
                     if (psInputRangeScaleMatrix != IMG_NULL) {
                         /* Produce scaled version of IN_TRANSFER_YUV_TO_RGB matrix */
                         FIXEDPT_ScalarMatrixMultiply(3, 3,
@@ -444,7 +444,7 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
                 psThisColourSpaceConversion = &(asCSC_ColourSpaceConversionMatrices[CSC_COLOURSPACE_RGB][eOutputColourSpace]);
                 IMG_ASSERT(psThisColourSpaceConversion->bIsSupported == IMG_TRUE);
                 if ((psThisColourSpaceConversion->bIsIdentityMatrix == IMG_FALSE) ||
-                        (psOutputRangeScaleMatrix != IMG_NULL)) {
+                    (psOutputRangeScaleMatrix != IMG_NULL)) {
                     if (psOutputRangeScaleMatrix != IMG_NULL) {
                         /* Produce scaled version of OUT_TRANSFER_RGB_TO_YUV matrix */
                         FIXEDPT_ScalarMatrixMultiply(3, 3,
@@ -465,8 +465,8 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
             }
         } else {
             /****************************/
-            /* CASE 2					*/
-            /* Input YUV, Output RGB	*/
+            /* CASE 2                                   */
+            /* Input YUV, Output RGB    */
             /****************************/
 #if CSC_PRINT_DEBUG_INFO
             printf("\nCSC - Case 2, Input YUV/Output RGB\n");
@@ -481,7 +481,7 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
             psThisColourSpaceConversion = &(asCSC_ColourSpaceConversionMatrices[eInputColourSpace][eOutputColourSpace]);
             IMG_ASSERT(psThisColourSpaceConversion->bIsSupported == IMG_TRUE);
             if ((psThisColourSpaceConversion->bIsIdentityMatrix == IMG_FALSE) ||
-                    (psCombinedRangeScaleMatrix != IMG_NULL)) {
+                (psCombinedRangeScaleMatrix != IMG_NULL)) {
                 if (psCombinedRangeScaleMatrix != IMG_NULL) {
                     /* Produce scaled version of IN_TRANSFER_YUV_TO_RGB matrix */
                     FIXEDPT_ScalarMatrixMultiply(3, 3,
@@ -518,8 +518,8 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
     } else {
         if (asColourspaceInfo [eOutputColourSpace].bIsYUV == IMG_TRUE) {
             /****************************/
-            /* CASE 3					*/
-            /* Input RGB, Output YUV	*/
+            /* CASE 3                                   */
+            /* Input RGB, Output YUV    */
             /****************************/
 #if CSC_PRINT_DEBUG_INFO
             printf("\nCSC - Case 3, Input RGB/Output YUV\n");
@@ -534,7 +534,7 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
             psThisColourSpaceConversion = &(asCSC_ColourSpaceConversionMatrices[eInputColourSpace][eOutputColourSpace]);
             IMG_ASSERT(psThisColourSpaceConversion->bIsSupported == IMG_TRUE);
             if ((psThisColourSpaceConversion->bIsIdentityMatrix == IMG_FALSE) ||
-                    (psCombinedRangeScaleMatrix != IMG_NULL)) {
+                (psCombinedRangeScaleMatrix != IMG_NULL)) {
                 if (psCombinedRangeScaleMatrix != IMG_NULL) {
                     /* Produce scaled version of IN_TRANSFER_YUV_TO_RGB matrix */
                     FIXEDPT_ScalarMatrixMultiply(3, 3,
@@ -569,8 +569,8 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
             }
         } else {
             /****************************/
-            /* CASE 4					*/
-            /* Input RGB, Output RGB	*/
+            /* CASE 4                                   */
+            /* Input RGB, Output RGB    */
             /****************************/
 
             /* If no HSBC modification, then the equation can be simplified */
@@ -607,9 +607,9 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
                 printf("\nCSC - Case 4, Input RGB/Output RGB\n");
 #endif
 
-                /* Perform colour primary conversion - when HSBC modification is also being performed,	*/
-                /* this must be performed in two steps, so that the HSBC modification is performed in	*/
-                /* a fixed format (BT709 in the case of this algorithm).								*/
+                /* Perform colour primary conversion - when HSBC modification is also being performed,  */
+                /* this must be performed in two steps, so that the HSBC modification is performed in   */
+                /* a fixed format (BT709 in the case of this algorithm).                                                                */
                 psThisColourPrimaryConversion = &(asCSCColourPrimaryConversionMatrices[eInputPrimary][CSC_COLOUR_PRIMARY_BT709]);
                 IMG_ASSERT(psThisColourPrimaryConversion->bIsSupported == IMG_TRUE);
 
@@ -621,7 +621,7 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
                 psThisColourSpaceConversion = &(asCSC_ColourSpaceConversionMatrices[eInputColourSpace][CSC_COLOURSPACE_YCC_BT709]);
                 IMG_ASSERT(psThisColourSpaceConversion->bIsSupported == IMG_TRUE);
                 if ((psThisColourSpaceConversion->bIsIdentityMatrix == IMG_FALSE) ||
-                        (psInputRangeScaleMatrix != IMG_NULL)) {
+                    (psInputRangeScaleMatrix != IMG_NULL)) {
                     if (psInputRangeScaleMatrix != IMG_NULL) {
                         /* Produce scaled version of IN_TRANSFER_YUV_TO_RGB matrix */
                         FIXEDPT_ScalarMatrixMultiply(3, 3,
@@ -662,7 +662,7 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
                 psThisColourSpaceConversion = &(asCSC_ColourSpaceConversionMatrices[CSC_COLOURSPACE_YCC_BT709][eOutputColourSpace]);
                 IMG_ASSERT(psThisColourSpaceConversion->bIsSupported == IMG_TRUE);
                 if ((psThisColourSpaceConversion->bIsIdentityMatrix == IMG_FALSE) ||
-                        (psOutputRangeScaleMatrix != IMG_NULL)) {
+                    (psOutputRangeScaleMatrix != IMG_NULL)) {
                     if (psOutputRangeScaleMatrix != IMG_NULL) {
                         /* Produce scaled version of OUT_TRANSFER_RGB_TO_YUV matrix */
                         FIXEDPT_ScalarMatrixMultiply(3, 3,
@@ -767,13 +767,13 @@ img_result	CSC_GenerateMatrix(CSC_eColourSpace		eInputColourSpace,
     return IMG_SUCCESS;
 };
 
-img_result	CSC_GenerateHSCMatrix(CSC_psHSBCSettings	psHSBCSettings,
-                                 CSC_ps3x3Matrix		psHSCMatrix)
+img_result      CSC_GenerateHSCMatrix(CSC_psHSBCSettings        psHSBCSettings,
+                                      CSC_ps3x3Matrix               psHSCMatrix)
 {
-    img_int32	i32CosHue;
-    img_int32	i32SinHue;
-    img_int32	i32HueInRadians;
-    img_int32	i32ContrastTimesSaturation;
+    img_int32   i32CosHue;
+    img_int32   i32SinHue;
+    img_int32   i32HueInRadians;
+    img_int32   i32ContrastTimesSaturation;
 
     IMG_ASSERT(psHSBCSettings != IMG_NULL);
     IMG_ASSERT(psHSCMatrix != IMG_NULL);
@@ -788,22 +788,22 @@ img_result	CSC_GenerateHSCMatrix(CSC_psHSBCSettings	psHSBCSettings,
     IMG_ASSERT(psHSBCSettings->i32Contrast <= CSC_MAX_CONTRAST);
     IMG_ASSERT(psHSBCSettings->i32Contrast >= CSC_MIN_CONTRAST);
 
-    /* conSatHue matrix is constructed as follows :						*/
-    /*																	*/
-    /* [ con,		0,							0					]	*/
-    /* [ 0,			(con*sat*cos(hue)),			(con*sat*sin(hue))	]	*/
-    /* [ 0,			-(con*sat*cos(hue)),		(con*sat*cos(hue))	]	*/
+    /* conSatHue matrix is constructed as follows :                                             */
+    /*                                                                                                                                  */
+    /* [ con,           0,                                                      0                                       ]       */
+    /* [ 0,                     (con*sat*cos(hue)),                     (con*sat*sin(hue))      ]       */
+    /* [ 0,                     -(con*sat*cos(hue)),            (con*sat*cos(hue))      ]       */
 
     /* Generate some useful values */
     i32HueInRadians = psHSBCSettings->i32Hue;
     if (i32HueInRadians < 0) {
         i32HueInRadians = i32HueInRadians * -1;
     }
-    i32HueInRadians = FIXEDPT_64BitMultiply_Signed((img_int32) FIXEDPT_ONE_DEGREE_IN_RADIANS,		/* x.FIXEDPT_TRIG_INPUT_FRACTIONAL_BITS */
-                      i32HueInRadians,			/* x.CSC_HSC_FRACTIONAL_BITS			*/
+    i32HueInRadians = FIXEDPT_64BitMultiply_Signed((img_int32) FIXEDPT_ONE_DEGREE_IN_RADIANS,           /* x.FIXEDPT_TRIG_INPUT_FRACTIONAL_BITS */
+                      i32HueInRadians,                  /* x.CSC_HSC_FRACTIONAL_BITS                    */
                       CSC_HSC_FRACTIONAL_BITS);  /* Result is in x.FIXEDPT_TRIG_INPUT_FRACTIONAL_BITS format */
 
-    i32CosHue = FIXEDPT_Cosine((img_uint32) i32HueInRadians);	/* Cosine is symmetrical about 0 degrees, hence cos(theta)=cos(-theta) */
+    i32CosHue = FIXEDPT_Cosine((img_uint32) i32HueInRadians);   /* Cosine is symmetrical about 0 degrees, hence cos(theta)=cos(-theta) */
     i32CosHue = FIXEDPT_CONVERT_FRACTIONAL_BITS(i32CosHue, FIXEDPT_TRIG_OUTPUT_FRACTIONAL_BITS, CSC_FRACTIONAL_BITS);
 
     i32SinHue = FIXEDPT_Sine((img_uint32) i32HueInRadians);   /* Sine is not symmetrical, however sin(theta)=-1 * sin(-theta) */
@@ -814,7 +814,7 @@ img_result	CSC_GenerateHSCMatrix(CSC_psHSBCSettings	psHSBCSettings,
 
     i32ContrastTimesSaturation = FIXEDPT_64BitMultiply_Signed(psHSBCSettings->i32Contrast,
                                  psHSBCSettings->i32Saturation,
-                                 ((2 * CSC_HSC_FRACTIONAL_BITS) - CSC_FRACTIONAL_BITS));	/* Result is in x.CSC_FRACTIONAL_BITS format */
+                                 ((2 * CSC_HSC_FRACTIONAL_BITS) - CSC_FRACTIONAL_BITS));        /* Result is in x.CSC_FRACTIONAL_BITS format */
 
     /* Now complete matrix */
     /* Row 0 */
@@ -826,10 +826,10 @@ img_result	CSC_GenerateHSCMatrix(CSC_psHSBCSettings	psHSBCSettings,
     psHSCMatrix->ai32Coefficients [1][0] = 0;
     psHSCMatrix->ai32Coefficients [1][1] = FIXEDPT_64BitMultiply_Signed(i32ContrastTimesSaturation,
                                            i32CosHue,
-                                           CSC_FRACTIONAL_BITS);		/* Result is in x.CSC_FRACTIONAL_BITS format */
+                                           CSC_FRACTIONAL_BITS);                /* Result is in x.CSC_FRACTIONAL_BITS format */
     psHSCMatrix->ai32Coefficients [1][2] = FIXEDPT_64BitMultiply_Signed(i32ContrastTimesSaturation,
                                            i32SinHue,
-                                           CSC_FRACTIONAL_BITS);		/* Result is in x.CSC_FRACTIONAL_BITS format */
+                                           CSC_FRACTIONAL_BITS);                /* Result is in x.CSC_FRACTIONAL_BITS format */
 
     /* Row 2 */
     psHSCMatrix->ai32Coefficients [2][0] = 0;

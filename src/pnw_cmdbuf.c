@@ -21,6 +21,14 @@
  */
 
 
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
+
 #include "pnw_cmdbuf.h"
 
 #include <unistd.h>
@@ -215,8 +223,8 @@ int pnw_cmdbuf_buffer_ref(pnw_cmdbuf_p cmdbuf, psb_buffer_p buf)
 
     /*Reserve the same TTM BO twice will cause kernel lock up*/
     while ((item_loc < cmdbuf->buffer_refs_count)
-            && (wsbmKBufHandle(wsbmKBuf(cmdbuf->buffer_refs[item_loc]->drm_buf))
-                != wsbmKBufHandle(wsbmKBuf(buf->drm_buf))))
+           && (wsbmKBufHandle(wsbmKBuf(cmdbuf->buffer_refs[item_loc]->drm_buf))
+               != wsbmKBufHandle(wsbmKBuf(buf->drm_buf))))
         //while( (item_loc < cmdbuf->buffer_refs_count) && (cmdbuf->buffer_refs[item_loc] != buf) )
     {
         item_loc++;
@@ -496,8 +504,8 @@ out:
 
 #if 0
 static struct _WsbmFenceObject *
-            lnc_fence_wait(psb_driver_data_p driver_data,
-                           struct psb_ttm_fence_rep *fence_rep, int *status)
+lnc_fence_wait(psb_driver_data_p driver_data,
+               struct psb_ttm_fence_rep *fence_rep, int *status)
 
 {
     struct _WsbmFenceObject *fence = NULL;

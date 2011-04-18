@@ -22,14 +22,20 @@
  */
 
 
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *
+ */
+
 /*#include <string.h>*/
 #include <stdio.h>
 
 #include <pnw_hostcode.h>
 #include <pnw_hostjpeg.h>
 
-#define TRACK_FREE(ptr) 		free(ptr)
-#define TRACK_MALLOC(ptr) 		malloc(ptr)
+#define TRACK_FREE(ptr)                 free(ptr)
+#define TRACK_MALLOC(ptr)               malloc(ptr)
 #define TRACK_DEVICE_MEMORY_INIT
 #define TRACK_DEVICE_MEMORY_SHOW
 #define TIMER_INIT
@@ -463,7 +469,7 @@ void fPutBitsToBuffer(STREAMTYPEW *BitStream, IMG_UINT8 NoOfBytes, IMG_UINT32 Ac
     pui8S = (IMG_UINT8 *)BitStream->Buffer;
     pui8S += BitStream->Offset;
 
-    for (ui8Lp = NoOfBytes;ui8Lp > 0;ui8Lp--)
+    for (ui8Lp = NoOfBytes; ui8Lp > 0; ui8Lp--)
         *(pui8S++) = ((IMG_UINT8 *) & ActualBits)[ui8Lp-1];
 
     BitStream->Offset += NoOfBytes;
@@ -483,7 +489,7 @@ IMG_ERRORCODE AllocateCodedDataBuffers(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext)
 {
     IMG_UINT8 ui8Loop;
 
-    for (ui8Loop = 0 ;ui8Loop < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers;ui8Loop ++)
+    for (ui8Loop = 0 ; ui8Loop < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers; ui8Loop ++)
         if (pContext->sScan_Encode_Info.aBufferTable[ui8Loop].pMemInfo == NULL) {
             pContext->sScan_Encode_Info.aBufferTable[ui8Loop].ui32DataBufferSizeBytes = ((DATA_BUFFER_SIZE(pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan) + sizeof(BUFFER_HEADER)) + 3) & ~3;
             pContext->sScan_Encode_Info.aBufferTable[ui8Loop].ui32DataBufferUsedBytes = 0;
@@ -514,7 +520,7 @@ IMG_UINT32 FreeCodedDataBuffers(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext)
     /* Spin through and remove */
     while (ui8Loop--)
         if (pContext->sScan_Encode_Info.aBufferTable[ui8Loop].pMemInfo != NULL) {
-            /*	    MMFreeDeviceMemory( &(pContext->sScan_Encode_Info.aBufferTable[ui8Loop].pMemInfo));*/
+            /*      MMFreeDeviceMemory( &(pContext->sScan_Encode_Info.aBufferTable[ui8Loop].pMemInfo));*/
             pContext->sScan_Encode_Info.aBufferTable[ui8Loop].pMemInfo = NULL;
         }
 
@@ -554,9 +560,9 @@ void SetupMCUDetails(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
 /* Function Name : InitializeJpegEncode                                      */
 /*                                                                           */
 /* Description   : The function initializes an instance of the JPEG encoder  */
-/* Inputs/Outputs: Pointer to the JPEG Host context							 */
-/*		   Pointer to a IMG_FRAME type which will be created to be filled	 */
-/*			with the source image data										 */
+/* Inputs/Outputs: Pointer to the JPEG Host context                                                      */
+/*                 Pointer to a IMG_FRAME type which will be created to be filled        */
+/*                      with the source image data                                                                               */
 /*****************************************************************************/
 
 IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, object_surface_p pTFrame)
@@ -630,8 +636,8 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
 
     for (uc_i = 0; uc_i < pContext->pMTXSetup->ui32ComponentsInScan; uc_i++) {
 
-        /*	ui16_comp_width  = pTFrame->aui32ComponentInfo[uc_i].ui32Width;
-        	ui16_comp_height = pTFrame->aui32ComponentInfo[uc_i].ui32Height;*/
+        /*      ui16_comp_width  = pTFrame->aui32ComponentInfo[uc_i].ui32Width;
+                ui16_comp_height = pTFrame->aui32ComponentInfo[uc_i].ui32Height;*/
         /*Support NV12, YV12, YV16 here. uc_h/v_scale should be
          * 2x2(Y) or 1x1(U/V)*/
         if (0 == uc_i) {
@@ -884,16 +890,16 @@ IMG_UINT32 EncodeMarkerSegment(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
 
 /***********************************************************************************
   Function Name      : JPGEncodeMarker
-Inputs             :	Pointer to JPEG Encoder context
+Inputs             :    Pointer to JPEG Encoder context
 Pointer to coded buffer stream
 Pointer to pui32BytesWritten value
 Outputs            : ui8BitStreamBuffer,pui32BytesWritten
 Description        : Writes a JPEG marker segment to the bit stream
  ************************************************************************************/
 
-IMG_UINT32 Legacy_JPGEncodeMarker(/*in */		LEGACY_JPEG_ENCODER_CONTEXT *pContext ,
-        /*in */		IMG_UINT8* pui8BitStreamBuffer ,
-        /*out*/		IMG_UINT32 *pui32BytesWritten)
+IMG_UINT32 Legacy_JPGEncodeMarker(/*in */               LEGACY_JPEG_ENCODER_CONTEXT *pContext ,
+        /*in */         IMG_UINT8* pui8BitStreamBuffer ,
+        /*out*/         IMG_UINT32 *pui32BytesWritten)
 {
 #ifdef JPEG_VERBOSE
     printf("PVRJPGEncodeMarker");
@@ -911,7 +917,7 @@ IMG_UINT32 Legacy_JPGEncodeMarker(/*in */		LEGACY_JPEG_ENCODER_CONTEXT *pContext
 
 /***********************************************************************************
   Function Name      : JPGEncodeMarker
-Inputs             :	Pointer to JPEG Encoder context
+Inputs             :    Pointer to JPEG Encoder context
 Pointer to coded buffer stream
 Pointer to Byteswritten value
 bIncludeHuffmanTables - Set to true to include the huffman tables in the stream
@@ -919,9 +925,9 @@ Outputs            : ui8BitStreamBuffer,pui32BytesWritten
 Description        : Writes a JPEG marker segment to the bit stream
  ************************************************************************************/
 
-IMG_UINT32 JPGEncodeMarker(/*in */		TOPAZSC_JPEG_ENCODER_CONTEXT *pContext ,
-                                    /*in */		IMG_UINT8* pui8BitStreamBuffer ,
-                                    /*out*/		IMG_UINT32 *pui32BytesWritten, IMG_BOOL bIncludeHuffmanTables)
+IMG_UINT32 JPGEncodeMarker(/*in */              TOPAZSC_JPEG_ENCODER_CONTEXT *pContext ,
+        /*in */         IMG_UINT8* pui8BitStreamBuffer ,
+        /*out*/         IMG_UINT32 *pui32BytesWritten, IMG_BOOL bIncludeHuffmanTables)
 {
 #ifdef JPEG_VERBOSE
     printf("PVRJPGEncodeMarker");
@@ -1018,9 +1024,9 @@ IMG_UINT32 Legacy_EncodeFrameHeader(LEGACY_JPEGENC_ITTIAM_PARAMS *ps_jpeg_params
 /*                 ISO/IEC 10918-1:1994E .                                   */
 /*                                                                           */
 /* Inputs        :                                                           */
-/*					pContext			- Ptr to the JPEG encoder context	 */
-/*					puc_stream_buff		- Ptr to the bistream buffer from	 */
-/*											where to start writing			 */
+/*                                      pContext                        - Ptr to the JPEG encoder context        */
+/*                                      puc_stream_buff         - Ptr to the bistream buffer from        */
+/*                                                                                      where to start writing                   */
 /*                                                                           */
 /* Processing    : Writes each of the following into the frame header of     */
 /*                 the JPEG stream                                           */
@@ -1113,9 +1119,9 @@ Description        : Writes a frame header to the bit stream
 Max written 21 bytes
  ************************************************************************************/
 
-IMG_UINT32 Legacy_JPGEncodeHeader(/*in */		LEGACY_JPEG_ENCODER_CONTEXT *pContext,
-        /*out */	IMG_UINT8*		pui8BitStreamBuffer ,
-        /*out*/		IMG_UINT32*		pui32BytesWritten)
+IMG_UINT32 Legacy_JPGEncodeHeader(/*in */               LEGACY_JPEG_ENCODER_CONTEXT *pContext,
+        /*out */        IMG_UINT8*              pui8BitStreamBuffer ,
+        /*out*/         IMG_UINT32*             pui32BytesWritten)
 {
 #ifdef JPEG_VERBOSE
     printf("PVRJPGEncodeHeader");
@@ -1140,9 +1146,9 @@ Description        : Writes a frame header to the bit stream
 Max written 21 bytes
  ************************************************************************************/
 
-IMG_UINT32 JPGEncodeHeader(/*in */		TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
-                                    /*out */	IMG_UINT8*		pui8BitStreamBuffer ,
-                                    /*out*/		IMG_UINT32*		pui32BytesWritten)
+IMG_UINT32 JPGEncodeHeader(/*in */              TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
+        /*out */        IMG_UINT8*              pui8BitStreamBuffer ,
+        /*out*/         IMG_UINT32*             pui32BytesWritten)
 {
 #ifdef JPEG_VERBOSE
     printf("JPGEncodeHeader");
@@ -1205,7 +1211,7 @@ IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UIN
                              &pTFrame->psb_surface->buf);
         RELOC_PIC_PARAMS_PNW(&pContext->pMTXSetup->ComponentPlane[2].ui32PhysAddr,
                              srf_buf_offset + pTFrame->psb_surface->stride * pTFrame->height
-                             + (pTFrame->psb_surface->stride / 2) * (pTFrame->height / 2),
+                             + (pTFrame->psb_surface->stride / 2) *(pTFrame->height / 2),
                              &pTFrame->psb_surface->buf);
         break;
     case IMG_CODEC_IMC2:
@@ -1229,7 +1235,7 @@ IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UIN
         /*U*/
         RELOC_PIC_PARAMS_PNW(&pContext->pMTXSetup->ComponentPlane[1].ui32PhysAddr,
                              srf_buf_offset + pTFrame->psb_surface->stride * pTFrame->height
-                             + (pTFrame->psb_surface->stride) * (pTFrame->height) / 2,
+                             + (pTFrame->psb_surface->stride) *(pTFrame->height) / 2,
                              &pTFrame->psb_surface->buf);
         break;
     default:
@@ -1251,12 +1257,12 @@ IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UIN
     i32Lp = ctx->NumCores;
     while (--i32Lp > -1) {
         /*TOPAZ_InsertCommand(
-        	pEncContext,
-        	i32Lp,
-        	MTX_CMDID_SETUP,
-        	IMG_FALSE,
-        	IMG_NULL,
-        	pContext->pMemInfoMTXSetup );*/
+                pEncContext,
+                i32Lp,
+                MTX_CMDID_SETUP,
+                IMG_FALSE,
+                IMG_NULL,
+                pContext->pMemInfoMTXSetup );*/
 
         pnw_cmdbuf_insert_command_package(ctx->obj_context,
                                           i32Lp,
@@ -1271,7 +1277,7 @@ IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UIN
 
 IMG_UINT32 Legacy_JPGEncodeSOSHeader(LEGACY_JPEG_ENCODER_CONTEXT *pContext, IMG_CODED_BUFFER *pCBuffer)
 {
-    IMG_UINT32	ui32TableIndex ;
+    IMG_UINT32  ui32TableIndex ;
     IMG_UINT8 uc_comp_id, ui8Comp;
     STREAMTYPEW s_streamW;
     IMG_UINT8 *puc_stream_buff;
@@ -1333,9 +1339,9 @@ IMG_UINT32 Legacy_JPGEncodeSOSHeader(LEGACY_JPEG_ENCODER_CONTEXT *pContext, IMG_
  * Description        : This function writes the Start of Scan Header
  ************************************************************************************/
 
-IMG_UINT32 JPGEncodeSOSHeader(/*in */		TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
-                                       /*out */	IMG_UINT8*		pui8BitStreamBuffer ,
-                                       /*out*/		IMG_UINT32*		pui32BytesWritten)
+IMG_UINT32 JPGEncodeSOSHeader(/*in */           TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
+        /*out */        IMG_UINT8*              pui8BitStreamBuffer ,
+        /*out*/         IMG_UINT32*             pui32BytesWritten)
 {
     IMG_UINT8 uc_comp_id, ui8Comp;
     STREAMTYPEW s_streamW;
@@ -1378,14 +1384,14 @@ IMG_UINT32 JPGEncodeSOSHeader(/*in */		TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
 /*                                                                           */
 /* Function Name : EncodeMJPEGAPP1Marker                                     */
 /*                                                                           */
-/* Description   : Writes a Quicktime MJPEG (A) marker					     */
+/* Description   : Writes a Quicktime MJPEG (A) marker                                       */
 /*                                                                           */
 /* Inputs        :                                                           */
-/*					pContext			- Ptr to the JPEG encoder context	 */
-/*					puc_stream_buff		- Ptr to the bistream buffer from	 */
-/*											where to start writing			 */
+/*                                      pContext                        - Ptr to the JPEG encoder context        */
+/*                                      puc_stream_buff         - Ptr to the bistream buffer from        */
+/*                                                                                      where to start writing                   */
 /*                                                                           */
-/* Processing    :															 */
+/* Processing    :                                                                                                                       */
 /*                                                                           */
 /* Returns       : Number of bytes written into the stream                   */
 /*                                                                           */
@@ -1480,7 +1486,7 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
     /*Use slice parameter buffer*/
     if (AllocateCodedDataBuffers(pContext) != IMG_ERR_OK) return IMG_ERR_MEMORY;
     // Send Setup message to MTX to initialise it
-    /*EncodeInitMTX(pEncContext);	 Set predictors to zero */
+    /*EncodeInitMTX(pEncContext);        Set predictors to zero */
 
     for (i = ctx->NumCores - 1; i >= 0; i--) {
         pnw_cmdbuf_insert_command_package(
@@ -1513,13 +1519,13 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
     case IMG_CODEC_IMC2:
         /*case IMG_CODEC_422_IMC2:
             SetupYUVPlaneDetails(&(pContext->pMTXSetup->ComponentPlane[0]),
-        	    &(pTFrame->aui32ComponentInfo[0]));
+                    &(pTFrame->aui32ComponentInfo[0]));
 
             SetupYUVPlaneDetails(&(pContext->pMTXSetup->ComponentPlane[2]),
-        	    &(pTFrame->aui32ComponentInfo[1]));
+                    &(pTFrame->aui32ComponentInfo[1]));
 
             SetupYUVPlaneDetails(&(pContext->pMTXSetup->ComponentPlane[1]),
-        	    &(pTFrame->aui32ComponentInfo[2]));*/
+                    &(pTFrame->aui32ComponentInfo[2]));*/
         pContext->pMTXSetup->ComponentPlane[0].ui32Stride = pTFrame->psb_surface->stride;
         pContext->pMTXSetup->ComponentPlane[1].ui32Stride = pTFrame->psb_surface->stride / 2;
         pContext->pMTXSetup->ComponentPlane[2].ui32Stride = pTFrame->psb_surface->stride / 2;
@@ -1565,12 +1571,12 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
         return IMG_ERR_UNDEFINED;
     }
 
-    if ((pCBuffer->ui32Size - pCBuffer->ui32BytesWritten) < 9 + 6 + (4*(IMG_UINT32)pContext->pMTXSetup->ui32ComponentsInScan)) {
-        return 	IMG_ERR_MEMORY;
+    if ((pCBuffer->ui32Size - pCBuffer->ui32BytesWritten) < 9 + 6 + (4 *(IMG_UINT32)pContext->pMTXSetup->ui32ComponentsInScan)) {
+        return  IMG_ERR_MEMORY;
     }
 
     // Reset Scan Encode structures - just in case
-    for (ui16Lp = 0;ui16Lp < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers;ui16Lp++) {
+    for (ui16Lp = 0; ui16Lp < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers; ui16Lp++) {
         BUFFER_HEADER *pbh;
 
         pContext->sScan_Encode_Info.aBufferTable[ui16Lp].i8MTXNumber = 0; // Indicates buffer is idle
@@ -1585,7 +1591,7 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
     }
 
     //Prefill out MTXIdleTable with MTX references (0 is the Master, and will be the last sent)
-    for (pContext->sScan_Encode_Info.ui8MTXIdleCnt = 0;pContext->sScan_Encode_Info.ui8MTXIdleCnt < ctx->NumCores;pContext->sScan_Encode_Info.ui8MTXIdleCnt++) {
+    for (pContext->sScan_Encode_Info.ui8MTXIdleCnt = 0; pContext->sScan_Encode_Info.ui8MTXIdleCnt < ctx->NumCores; pContext->sScan_Encode_Info.ui8MTXIdleCnt++) {
         pContext->sScan_Encode_Info.aui8MTXIdleTable[pContext->sScan_Encode_Info.ui8MTXIdleCnt] = pContext->sScan_Encode_Info.ui8MTXIdleCnt + 1;
     }
 
@@ -1621,7 +1627,7 @@ IMG_ERRORCODE Legacy_PrepareHeader(LEGACY_JPEG_ENCODER_CONTEXT * pContext, IMG_C
     rc = Legacy_JPGEncodeHeader(pContext , (IMG_UINT8 *) ui8OutputBuffer ,  &pCBuffer->ui32BytesWritten);
     if (rc) return rc;
 
-    //	JPGEncodeDRIMarker(pContext,pCBuffer);
+    //  JPGEncodeDRIMarker(pContext,pCBuffer);
     Legacy_JPGEncodeSOSHeader(pContext, pCBuffer);
 
     //IMG_JPEG_ReleaseBuffer( pCBuffer);
@@ -1705,9 +1711,9 @@ IMG_ERRORCODE IssueBufferToHW(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, TOPAZSC_JP
     psBufferCmd = (MTX_ISSUE_BUFFERS *)(pWriteBuf->pMemInfo);
 
     // We've disabled size bound checking in firmware, so can use the full 31 bits for NoMCUsToEncode instead
-    //psBufferCmd->ui32MCUCntAndResetFlag	= ( DATA_BUFFER_SIZE(pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan) << 16) | (ui32NoMCUsToEncode << 1) | 0x1;
+    //psBufferCmd->ui32MCUCntAndResetFlag       = ( DATA_BUFFER_SIZE(pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan) << 16) | (ui32NoMCUsToEncode << 1) | 0x1;
 
-    psBufferCmd->ui32MCUCntAndResetFlag	= (ui32NoMCUsToEncode << 1) | 0x1;
+    psBufferCmd->ui32MCUCntAndResetFlag = (ui32NoMCUsToEncode << 1) | 0x1;
     psBufferCmd->ui32CurrentMTXScanMCUPosition = pContext->sScan_Encode_Info.ui32CurMCUsOffset;
     psb__information_message("TOPAZ_PDUMP: ui32MCUCntAndResetFlag 0x%x\n", psBufferCmd->ui32MCUCntAndResetFlag);
     psb__information_message("TOPAZ_PDUMP: ui32CurrentMTXScanMCUPosition 0x%x\n", psBufferCmd->ui32CurrentMTXScanMCUPosition);
@@ -1733,13 +1739,13 @@ IMG_ERRORCODE IssueBufferToHW(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, TOPAZSC_JP
 /***********************************************************************************
  * Function Name      : SubmitScanToMTX
  * Inputs             :
- *						pContext - Pointer to JPEG context
- *						ui16BCnt - Index of the buffer to associate with the MTX
- *						i8MTXNumber - The ID number of the MTX that will have a scan sent to it
+ *                                              pContext - Pointer to JPEG context
+ *                                              ui16BCnt - Index of the buffer to associate with the MTX
+ *                                              i8MTXNumber - The ID number of the MTX that will have a scan sent to it
  * Outputs            : Status update to current buffer, MTX is activated
  * Returns            : Errorcode
  * Description        : Associates the empty buffer with the inactive MTX and then
- *						starts a scan, with output to be sent to the buffer.
+ *                                              starts a scan, with output to be sent to the buffer.
  ************************************************************************************/
 
 IMG_ERRORCODE SubmitScanToMTX(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
@@ -1758,7 +1764,7 @@ IMG_ERRORCODE SubmitScanToMTX(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
     if (pContext->sScan_Encode_Info.ui16SScan == 0) {
         // Final scan, may need fewer MCUs than buffer size, calculate the remainder
         ui32NoMCUsToEncode = pContext->sScan_Encode_Info.ui32NumberMCUsToEncode % pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan;
-        if (ui32NoMCUsToEncode == 0) 	ui32NoMCUsToEncode = pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan;
+        if (ui32NoMCUsToEncode == 0)    ui32NoMCUsToEncode = pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan;
     } else
         ui32NoMCUsToEncode = pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan;
 #endif

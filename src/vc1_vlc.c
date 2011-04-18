@@ -21,6 +21,14 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
+
 /* format is: opcode, width, symbol */
 /* all VLC tables are concatenated */
 /* index infomation is stored in gui16vc1VlcIndexData[][] */

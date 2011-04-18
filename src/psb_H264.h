@@ -21,6 +21,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #ifndef _PSB_H264_H_
 #define _PSB_H264_H_
 

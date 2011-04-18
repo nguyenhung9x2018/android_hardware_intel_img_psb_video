@@ -20,6 +20,15 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *    Jason Hu <jason.hu@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
 #ifndef _PSB_OVERLAY_H_
 #define _PSB_OVERLAY_H_
 

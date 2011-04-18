@@ -21,6 +21,14 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
+
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -36,7 +44,7 @@
 
 #define TOPAZ_H264_MAX_BITRATE 50000000
 
-#define INIT_CONTEXT_H264ES	context_ENC_p ctx = (context_ENC_p) obj_context->format_data
+#define INIT_CONTEXT_H264ES     context_ENC_p ctx = (context_ENC_p) obj_context->format_data
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
@@ -123,7 +131,7 @@ static VAStatus pnw_H264ES_CreateContext(
         ctx->sRCParams.RCEnable = IMG_TRUE;
     } else
         return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
-    ctx->eFormat = IMG_CODEC_PL12;	/* use default */
+    ctx->eFormat = IMG_CODEC_PL12;      /* use default */
 
     ctx->Slices = 1;
     ctx->idr_pic_id = 1;
@@ -186,7 +194,7 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH264));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH264))) {
+        (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH264))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -327,7 +335,7 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264))) {
+        (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -557,7 +565,7 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
 
     if (NULL == ctx->slice_param_cache) {
         ctx->slice_param_num = obj_buffer->num_elements;
-        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num);
+        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2 * ctx->slice_param_num);
         ctx->slice_param_cache = calloc(2 * ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
         if (NULL == ctx->slice_param_cache) {
             psb__error_message("Run out of memory!\n");
@@ -656,7 +664,7 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
         rate_control_param = (VAEncMiscParameterRateControl *)pBuffer->data;
 
         if (rate_control_param->initial_qp > 51 ||
-                rate_control_param->min_qp > 51) {
+            rate_control_param->min_qp > 51) {
             psb__error_message("Initial_qp(%d) and min_qpinitial_qp(%d) "
                                "are invalid.\nQP shouldn't be larger than 51 for H264\n",
                                rate_control_param->initial_qp, rate_control_param->min_qp);
@@ -669,9 +677,9 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
                                  rate_control_param->bits_per_second);
 
         if ((rate_control_param->bits_per_second == ctx->sRCParams.BitsPerSecond) &&
-                (ctx->sRCParams.BufferSize == ctx->sRCParams.BitsPerSecond / 1000 * rate_control_param->window_size) &&
-                (ctx->sRCParams.MinQP == rate_control_param->min_qp) &&
-                (ctx->sRCParams.InitialQp == rate_control_param->initial_qp))
+            (ctx->sRCParams.BufferSize == ctx->sRCParams.BitsPerSecond / 1000 * rate_control_param->window_size) &&
+            (ctx->sRCParams.MinQP == rate_control_param->min_qp) &&
+            (ctx->sRCParams.InitialQp == rate_control_param->initial_qp))
             break;
         else
             ctx->sRCParams.bBitrateChanged = IMG_TRUE;
@@ -710,7 +718,7 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
         air_param = (VAEncMiscParameterAIR *)pBuffer->data;
 
         if (air_param->air_num_mbs > 65535 ||
-                air_param->air_threshold > 65535) {
+            air_param->air_threshold > 65535) {
             vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
             break;
         }

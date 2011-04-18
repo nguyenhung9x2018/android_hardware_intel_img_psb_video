@@ -19,27 +19,26 @@
 ******************************************************************************/
 
 /********************************************************************
-	DISCLAIMER:
-	This code is provided for demonstration purposes only. It has
-	been ported from other projects and has not been tested with
-	real hardware. It is not provided in a state that can be run
-	with real hardware - this is not intended as the basis for a
-	production driver. This code should only be used as an example
-	of the algorithms to be used for setting up the IEP lite
-	hardware.
+        DISCLAIMER:
+        This code is provided for demonstration purposes only. It has
+        been ported from other projects and has not been tested with
+        real hardware. It is not provided in a state that can be run
+        with real hardware - this is not intended as the basis for a
+        production driver. This code should only be used as an example
+        of the algorithms to be used for setting up the IEP lite
+        hardware.
  ********************************************************************/
 
 #if !defined (__FIXEDPOINTSINETABLE_H__)
 #define __FIXEDPOINTSINETABLE_H__
 
 #if (__cplusplus)
-extern "C"
-{
+extern "C" {
 #endif
 
-    /* Table should be referenced using a 1.8 fixed point index, in the range 0->PI/2 	*/
-    /* Values of Sine (x) are in 1.30 fixed point format.								*/
-    img_uint32	FIXEDPT_aui32FixedPointSineTable [] = {
+    /* Table should be referenced using a 1.8 fixed point index, in the range 0->PI/2   */
+    /* Values of Sine (x) are in 1.30 fixed point format.                                                               */
+    img_uint32  FIXEDPT_aui32FixedPointSineTable [] = {
         0x00000000, /* 0) Sine 0.000000 = 0.000000 */
         0x003ffff5, /* 1) Sine 0.003906 = 0.003906 */
         0x007fffaa, /* 2) Sine 0.007813 = 0.007812 */
@@ -450,5 +449,5 @@ extern "C"
 }
 #endif
 
-#endif	/* __FIXEDPOINTSINETABLE_H__ */
+#endif  /* __FIXEDPOINTSINETABLE_H__ */
 

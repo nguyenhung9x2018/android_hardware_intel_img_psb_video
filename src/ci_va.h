@@ -25,6 +25,15 @@
  *  This program can be used and distributed without restrictions.
  */
 
+
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *
+ */
+
+
+
 /* Most of the codes are copied from  V4L2 sample capture.c, see
  * Video for Linux Two API Specification
  * http://v4l2spec.bytesex.org/spec-single/v4l2.html#CAPTURE-EXAMPLE
@@ -38,7 +47,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>		/* low-level i/o */
+#include <fcntl.h>              /* low-level i/o */
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>

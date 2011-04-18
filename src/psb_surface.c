@@ -20,6 +20,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #include <wsbm/wsbm_manager.h>
 
 #include "psb_def.h"

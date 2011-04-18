@@ -20,6 +20,12 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
+
 #ifndef _PSB_WS_DRIVER_H_
 #define _PSB_WS_DRIVER_H_
 
@@ -36,10 +42,10 @@ struct _PsbDrmValidateNode {
 extern struct _WsbmVNodeFuncs *psbVNodeFuncs(void);
 
 static inline struct psb_validate_req *
-            psbValReq(struct _ValidateNode *node) {
+psbValReq(struct _ValidateNode *node) {
     return &(containerOf(node, struct _PsbDrmValidateNode, base)->
              val_arg.d.req);
 }
 
 
-#endif	/* _PSB_WS_DRIVER_H_ */
+#endif  /* _PSB_WS_DRIVER_H_ */

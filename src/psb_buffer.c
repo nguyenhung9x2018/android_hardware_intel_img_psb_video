@@ -20,6 +20,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #include "psb_buffer.h"
 
 #include <errno.h>
@@ -340,7 +347,7 @@ int psb_codedbuf_map_mangle(
         /* one segment */
         p->size = *((unsigned long *) raw_codedbuf); /* 1st DW is the size */
         p->status = *((unsigned long *) raw_codedbuf + 1); /* 2nd DW
-							* is rc status */
+                                                        * is rc status */
         p->reserved = 0;
         p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
         lnc_H264_append_aux_info(obj_context,
@@ -361,7 +368,7 @@ int psb_codedbuf_map_mangle(
         }
 
         if (VAProfileJPEGBaseline != obj_config->profile
-                && (*((unsigned long *) raw_codedbuf + 1) & SKIP_NEXT_FRAME) != 0) {
+            && (*((unsigned long *) raw_codedbuf + 1) & SKIP_NEXT_FRAME) != 0) {
             /*Set frame skip flag*/
             pnw_set_frame_skip_flag(obj_context);
         }

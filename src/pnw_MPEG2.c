@@ -21,6 +21,12 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
 
 #include "pnw_MPEG2.h"
 #include "psb_def.h"
@@ -452,8 +458,8 @@ const static IMG_UINT16 gaui16mpeg2VlcTableDataPacked[] = {
 
 #define MAX_QUANT_TABLES    (2) /* only 2 tables for 4:2:0 decode */
 
-static int scan0[64] = // spec, fig 7-2
-{/*u 0  .....                   7*/
+static int scan0[64] = { // spec, fig 7-2
+    /*u 0  .....                   7*/
     0,  1,  5,  6,  14, 15, 27, 28,  /* v = 0 */
     2,  4,  7,  13, 16, 26, 29, 42,
     3,  8,  12, 17, 25, 30, 41, 43,
@@ -580,14 +586,14 @@ static VAStatus psb__MPEG2_check_legal_picture(object_context_p obj_context, obj
     switch (obj_config->profile) {
     case VAProfileMPEG2Simple:
         if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 352)
-                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 288)) {
+            || (obj_context->picture_height <= 0) || (obj_context->picture_height > 288)) {
             vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
         }
         break;
 
     case VAProfileMPEG2Main:
         if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 1920)
-                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 1088)) {
+            || (obj_context->picture_height <= 0) || (obj_context->picture_height > 1088)) {
             vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
         }
         break;
@@ -698,7 +704,7 @@ static VAStatus psb__MPEG2_process_picture_param(context_MPEG2_p ctx, object_buf
     ASSERT(obj_buffer->size == sizeof(VAPictureParameterBufferMPEG2));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAPictureParameterBufferMPEG2))) {
+        (obj_buffer->size != sizeof(VAPictureParameterBufferMPEG2))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -729,7 +735,7 @@ static VAStatus psb__MPEG2_process_picture_param(context_MPEG2_p ctx, object_buf
         ctx->forward_ref_surface = SURFACE(ctx->pic_params->forward_reference_picture);
         ctx->backward_ref_surface = SURFACE(ctx->pic_params->backward_reference_picture);
         if ((NULL == ctx->forward_ref_surface) ||
-                (NULL == ctx->backward_ref_surface)) {
+            (NULL == ctx->backward_ref_surface)) {
             return VA_STATUS_ERROR_INVALID_SURFACE;
         }
         break;
@@ -844,7 +850,7 @@ static VAStatus psb__MPEG2_process_iq_matrix(context_MPEG2_p ctx, object_buffer_
     ASSERT(obj_buffer->size == sizeof(VAIQMatrixBufferMPEG2));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAIQMatrixBufferMPEG2))) {
+        (obj_buffer->size != sizeof(VAIQMatrixBufferMPEG2))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -1296,7 +1302,7 @@ static VAStatus psb__MPEG2_process_slice(context_MPEG2_p ctx,
     psb__information_message("    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-            (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
+        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
         if (0 == slice_param->slice_data_size) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
@@ -1333,7 +1339,7 @@ static VAStatus psb__MPEG2_process_slice(context_MPEG2_p ctx,
     }
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-            (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
+        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
         if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
             ASSERT(ctx->split_buffer_pending);
         }
@@ -1354,7 +1360,7 @@ static VAStatus psb__MPEG2_process_slice(context_MPEG2_p ctx,
 
         ctx->split_buffer_pending = FALSE;
         ctx->obj_context->video_op = psb_video_vld;
-        ctx->obj_context->flags = FW_DXVA_RENDER_IS_VLD_NOT_MC;
+        ctx->obj_context->flags = FW_VA_RENDER_IS_VLD_NOT_MC;
         ctx->obj_context->first_mb = 0;
 
         if (ctx->pic_params->picture_coding_extension.bits.progressive_frame)
@@ -1389,7 +1395,7 @@ static VAStatus psb__MPEG2_process_slice_data(context_MPEG2_p ctx, object_buffer
         return VA_STATUS_ERROR_UNKNOWN;
     }
     if ((NULL == obj_buffer->psb_buffer) ||
-            (0 == obj_buffer->size)) {
+        (0 == obj_buffer->size)) {
         /* We need to have data in the bitstream buffer */
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -1521,7 +1527,7 @@ static void psb__MPEG2_insert_blit_cmd_to_rotate(context_MPEG2_p ctx)
     psb__MEPG2_send_blit_cmd(ctx);
 
     ctx->obj_context->video_op = psb_video_mc;
-    ctx->obj_context->flags = FW_DXVA_RENDER_IS_LAST_SLICE;
+    ctx->obj_context->flags = FW_VA_RENDER_IS_LAST_SLICE;
 
     if (psb_context_submit_cmdbuf(ctx->obj_context)) {
         ASSERT(0);
@@ -1604,7 +1610,7 @@ static VAStatus pnw_MPEG2_EndPicture(
 
     if (ctx->obj_context->rotate != VA_ROTATION_NONE) {
         if (!(ctx->pic_params->picture_coding_extension.bits.progressive_frame) &&
-                !(ctx->pic_params->picture_coding_extension.bits.is_first_field))
+            !(ctx->pic_params->picture_coding_extension.bits.is_first_field))
             psb__MPEG2_insert_blit_cmd_to_rotate(ctx);
     }
 

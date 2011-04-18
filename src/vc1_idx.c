@@ -24,6 +24,13 @@
 /* format is: inital_opcode, initial_width, address */
 /* for each table in gui16vc1VlcTableData[] */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #include <img_types.h>
 
 IMG_UINT16    gaui16vc1VlcIndexData[83][3] = {

@@ -20,6 +20,14 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *
+ */
+
 #ifndef _PSB_XVVA_H
 #define _PSB_XVVA_H
 
@@ -47,15 +55,15 @@
 #endif
 
 /* XvDrawable information */
-#define XVDRAWABLE_NORMAL	0x00
-#define XVDRAWABLE_PIXMAP	0x01
-#define XVDRAWABLE_ROTATE_90	0x02
-#define XVDRAWABLE_ROTATE_180	0x04
-#define XVDRAWABLE_ROTATE_270	0x08
+#define XVDRAWABLE_NORMAL       0x00
+#define XVDRAWABLE_PIXMAP       0x01
+#define XVDRAWABLE_ROTATE_90    0x02
+#define XVDRAWABLE_ROTATE_180   0x04
+#define XVDRAWABLE_ROTATE_270   0x08
 #define XVDRAWABLE_REDIRECT_WINDOW 0x10
-#define XVDRAWABLE_SCALE	0x20
+#define XVDRAWABLE_SCALE        0x20
 
-#define XVDRAWABLE_INVALID_DRAWABLE	0x8000
+#define XVDRAWABLE_INVALID_DRAWABLE     0x8000
 
 typedef struct _PsbAYUVSample8 {
     unsigned char     Cr;
@@ -93,9 +101,9 @@ struct _PsbVASurface {
 
     unsigned int subpic_id; /* subpic id, only used by client */
     unsigned int subpic_flags;/* flags for subpictures
-                               * #define VA_SUBPICTURE_CHROMA_KEYING	0x0001
-                               * #define VA_SUBPICTURE_GLOBAL_ALPHA	0x0002
-				*#define VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD 0x0004
+                               * #define VA_SUBPICTURE_CHROMA_KEYING    0x0001
+                               * #define VA_SUBPICTURE_GLOBAL_ALPHA     0x0002
+                                *#define VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD 0x0004
                                */
     float global_alpha;
     unsigned int chromakey_min;
@@ -147,15 +155,15 @@ typedef struct _PsbVASurface *PsbVASurfacePtr;
 #define VA_CLEAR_DRAWABLE       0x00000008
 
 /* color space conversion flags for vaPutSurface */
-#define VA_SRC_BT601		0x00000010
-#define VA_SRC_BT709		0x00000020
+#define VA_SRC_BT601            0x00000010
+#define VA_SRC_BT709            0x00000020
 
 #endif /* end for _VA_X11_H_ */
 
 
 
-#define PSB_SUBPIC_MAX_NUM	6
-#define PSB_CLIPBOX_MAX_NUM	6
+#define PSB_SUBPIC_MAX_NUM      6
+#define PSB_CLIPBOX_MAX_NUM     6
 
 typedef struct _PsbXvVAPutSurface {
     uint32_t flags;/* #define VA_FRAME_PICTURE 0x00000000

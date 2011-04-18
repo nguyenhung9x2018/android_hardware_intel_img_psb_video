@@ -21,6 +21,15 @@
  * express and approved by Intel in writing.
  */
 
+
+
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Fei Jiang  <fei.jiang@intel.com>
+ *
+ */
+
 #include <stdio.h>
 #define TOPAZ_FW_FILE_NAME_ANDROID "/etc/firmware/topaz_fw.bin"
 #define MSVDX_FW_FILE_NAME_ANDROID "/etc/firmware/msvdx_fw.bin"

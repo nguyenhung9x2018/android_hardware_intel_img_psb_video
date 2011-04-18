@@ -21,6 +21,14 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
+
 
 
 #include "psb_drv_video.h"
@@ -242,7 +250,7 @@ VAStatus lnc_BeginPicture(context_ENC_p ctx)
 
 VAStatus lnc_RenderPictureParameter(context_ENC_p ctx)
 {
-    PIC_PARAMS *psPicParams;	/* PIC_PARAMS has been put in lnc_hostcode.h */
+    PIC_PARAMS *psPicParams;    /* PIC_PARAMS has been put in lnc_hostcode.h */
     object_surface_p src_surface;
     unsigned int srf_buf_offset;
     object_surface_p rec_surface;
@@ -304,7 +312,7 @@ VAStatus lnc_RenderPictureParameter(context_ENC_p ctx)
 
     psPicParams->SrcYStride = src_surface->psb_surface->stride;
     switch (ctx->eFormat) {
-    case IMG_CODEC_IYUV:	/* IYUV */
+    case IMG_CODEC_IYUV:        /* IYUV */
     case IMG_CODEC_PL8:
         psPicParams->SrcUVStride = src_surface->psb_surface->stride / 2;
         psPicParams->SrcUVRowStride = src_surface->psb_surface->stride * 16 / 2;
@@ -461,6 +469,7 @@ static VAStatus lnc__PatchBitsConsumedInRCParam(context_ENC_p ctx)
     /* PIC_PARAMS  *psPicParams = cmdbuf->pic_params_p; */
     VAStatus vaStatus;
 
+    (void)cmdbuf;
     /* it will wait until last encode session is done */
     /* now it just wait the last session is done and the frame skip
      * is  */
@@ -496,7 +505,7 @@ static VAStatus lnc_RedoRenderPictureSkippedFrame(context_ENC_p ctx)
         int deblock_on;
 
         if ((pBuffer->slice_flags.bits.disable_deblocking_filter_idc == 0)
-                || (pBuffer->slice_flags.bits.disable_deblocking_filter_idc == 2))
+            || (pBuffer->slice_flags.bits.disable_deblocking_filter_idc == 2))
             deblock_on = IMG_TRUE;
         else
             deblock_on = IMG_FALSE;
@@ -685,14 +694,14 @@ static void lnc__setup_busize(context_ENC_p ctx)
         IMG_UINT32 BUs;
         IMG_INT32  SliceHeight;
 
-        MBs	= ctx->Height * ctx->Width / (16 * 16);
+        MBs     = ctx->Height * ctx->Width / (16 * 16);
 
-        SliceHeight	= ctx->Height / ctx->Slices;
+        SliceHeight     = ctx->Height / ctx->Slices;
         /* SliceHeight += 15; */
         SliceHeight &= ~15;
 
-        MBsperSlice	= (SliceHeight * ctx->Width) / (16 * 16);
-        MBsLastSlice	= MBs - (MBsperSlice * (ctx->Slices - 1));
+        MBsperSlice     = (SliceHeight * ctx->Width) / (16 * 16);
+        MBsLastSlice    = MBs - (MBsperSlice * (ctx->Slices - 1));
 
         /* they have given us a basic unit so validate it */
         if (ctx->sRCParams.BUSize < 6) {
@@ -728,13 +737,13 @@ static void lnc__setup_busize(context_ENC_p ctx)
         IMG_UINT32 BUs, BUsperSlice, BUsLastSlice;
         IMG_INT32  SliceHeight;
 
-        MBs	= ctx->Height * ctx->Width / (16 * 16);
+        MBs     = ctx->Height * ctx->Width / (16 * 16);
 
-        SliceHeight	= ctx->Height / ctx->Slices;
+        SliceHeight     = ctx->Height / ctx->Slices;
         /* SliceHeight += 15; */
         SliceHeight &= ~15;
 
-        MBsperSlice	= (SliceHeight * ctx->Width) / (16 * 16);
+        MBsperSlice     = (SliceHeight * ctx->Width) / (16 * 16);
         MBsLastSlice = MBs - (MBsperSlice * (ctx->Slices - 1));
 
         /* we have to verify that MBs is divisiable by BU AND that BU is > pipeline length */
@@ -751,7 +760,7 @@ static void lnc__setup_busize(context_ENC_p ctx)
         /* Check number of BUs in the pipe is less than maximum number allowed 200  */
         BUsperSlice = MBsperSlice / ctx->sRCParams.BUSize;
         BUsLastSlice = MBsLastSlice / ctx->sRCParams.BUSize;
-        while ((BUsperSlice  * (ctx->Slices - 1) + BUsLastSlice) > 200)  {
+        while ((BUsperSlice  *(ctx->Slices - 1) + BUsLastSlice) > 200)  {
             ctx->sRCParams.BUSize++;
             BUsperSlice = MBsperSlice / ctx->sRCParams.BUSize;
             BUsLastSlice = MBsLastSlice / ctx->sRCParams.BUSize;
@@ -761,7 +770,7 @@ static void lnc__setup_busize(context_ENC_p ctx)
         BUsperSlice = MBsperSlice / ctx->sRCParams.BUSize;
         BUsLastSlice = MBsLastSlice / ctx->sRCParams.BUSize;
         while ((BUsperSlice*ctx->sRCParams.BUSize != MBsperSlice) ||
-                (BUsLastSlice*ctx->sRCParams.BUSize != MBsLastSlice))   {
+               (BUsLastSlice*ctx->sRCParams.BUSize != MBsLastSlice))   {
             ctx->sRCParams.BUSize++;
             BUsperSlice = MBsperSlice / ctx->sRCParams.BUSize;
             BUsLastSlice = MBsLastSlice / ctx->sRCParams.BUSize;
@@ -814,8 +823,8 @@ void lnc__setup_rcdata(
 
     psPicParams->sInParams.MBPerRow = (psContext->Width >> 4);
     psPicParams->sInParams.MBPerBU = psRCParams->BUSize;
-    psPicParams->sInParams.MBPerFrm	= (psContext->Width >> 4) * (psContext->Height >> 4);
-    psPicParams->sInParams.BUPerFrm	= (psPicParams->sInParams.MBPerFrm) / psRCParams->BUSize;
+    psPicParams->sInParams.MBPerFrm     = (psContext->Width >> 4) * (psContext->Height >> 4);
+    psPicParams->sInParams.BUPerFrm     = (psPicParams->sInParams.MBPerFrm) / psRCParams->BUSize;
 
     InitialSeInitQP = psPicParams->sInParams.SeInitQP;
 
@@ -836,24 +845,24 @@ void lnc__update_rcdata(context_ENC_p psContext,
                         PIC_PARAMS *psPicParams,
                         IMG_RC_PARAMS *psRCParams)
 {
-    double		L1, L2, L3, L4, L5, flBpp;
-    INT16		i16TempQP;
+    double              L1, L2, L3, L4, L5, flBpp;
+    INT16               i16TempQP;
     IMG_INT32   i32BufferSizeInFrames;
 
-    flBpp									= 1.0 * psRCParams->BitsPerSecond / (psRCParams->FrameRate * psContext->Width * psContext->Height);
+    flBpp                                                                       = 1.0 * psRCParams->BitsPerSecond / (psRCParams->FrameRate * psContext->Width * psContext->Height);
 
     /* recalculate for small frames */
     if (psContext->Width <= 176)
         flBpp = flBpp / 2.0;
 
-    psPicParams->sInParams.IntraPeriod	= psRCParams->IntraFreq;
-    psPicParams->sInParams.BitRate		= psRCParams->BitsPerSecond;
-    psPicParams->sInParams.IntraPeriod	= psRCParams->IntraFreq;
+    psPicParams->sInParams.IntraPeriod  = psRCParams->IntraFreq;
+    psPicParams->sInParams.BitRate              = psRCParams->BitsPerSecond;
+    psPicParams->sInParams.IntraPeriod  = psRCParams->IntraFreq;
 
-    psPicParams->sInParams.BitsPerFrm	= psRCParams->BitsPerSecond / psRCParams->FrameRate;
-    psPicParams->sInParams.BitsPerGOP	= psPicParams->sInParams.BitsPerFrm * psRCParams->IntraFreq;
-    psPicParams->sInParams.BitsPerBU		= psPicParams->sInParams.BitsPerFrm / (4 * psPicParams->sInParams.BUPerFrm);
-    psPicParams->sInParams.BitsPerMB		= psPicParams->sInParams.BitsPerBU / psRCParams->BUSize;
+    psPicParams->sInParams.BitsPerFrm   = psRCParams->BitsPerSecond / psRCParams->FrameRate;
+    psPicParams->sInParams.BitsPerGOP   = psPicParams->sInParams.BitsPerFrm * psRCParams->IntraFreq;
+    psPicParams->sInParams.BitsPerBU            = psPicParams->sInParams.BitsPerFrm / (4 * psPicParams->sInParams.BUPerFrm);
+    psPicParams->sInParams.BitsPerMB            = psPicParams->sInParams.BitsPerBU / psRCParams->BUSize;
 
     i32BufferSizeInFrames = psRCParams->BufferSize / psPicParams->sInParams.BitsPerFrm;
 
@@ -917,7 +926,7 @@ void lnc__update_rcdata(context_ENC_p psContext,
 
     case IMG_CODEC_MPEG4_CBR:
     case IMG_CODEC_MPEG4_VBR:
-        psPicParams->sInParams.MaxQPVal	 = 31;
+        psPicParams->sInParams.MaxQPVal  = 31;
 
         if (psContext->Width == 176) {
             L1 = 0.1;
@@ -952,7 +961,7 @@ void lnc__update_rcdata(context_ENC_p psContext,
 
     case IMG_CODEC_H263_CBR:
     case IMG_CODEC_H263_VBR:
-        psPicParams->sInParams.MaxQPVal	 = 31;
+        psPicParams->sInParams.MaxQPVal  = 31;
 
         if (psContext->Width == 176) {
             L1 = 0.1;
@@ -995,7 +1004,7 @@ void lnc__update_rcdata(context_ENC_p psContext,
         return;
 
     case IMG_CODEC_H264_VCM:
-        psPicParams->Flags				|= ISVCM_FLAGS | ISCBR_FLAGS;
+        psPicParams->Flags                              |= ISVCM_FLAGS | ISCBR_FLAGS;
         /* drop through to CBR case */
         /* for SD and above we can target 95% (122/128) of maximum bitrate */
         if (psRCParams->VCMBitrateMargin) {
@@ -1027,7 +1036,7 @@ void lnc__update_rcdata(context_ENC_p psContext,
         break;
 
     case IMG_CODEC_H264_CBR:
-        psPicParams->Flags				|= ISCBR_FLAGS;
+        psPicParams->Flags                              |= ISCBR_FLAGS;
         // ------------------- H264 CBR RC ------------------- //
         // Initialize the parameters of fluid flow traffic model.
         psPicParams->sInParams.BufferSize = psRCParams->BufferSize;
@@ -1048,7 +1057,7 @@ void lnc__update_rcdata(context_ENC_p psContext,
 
     case IMG_CODEC_MPEG4_CBR:
     case IMG_CODEC_H263_CBR:
-        psPicParams->Flags					|= ISCBR_FLAGS;
+        psPicParams->Flags                                      |= ISCBR_FLAGS;
 
         flBpp  = 256 * (psRCParams->BitsPerSecond / psContext->Width);
         flBpp /= (psContext->Height * psRCParams->FrameRate);
@@ -1073,18 +1082,18 @@ void lnc__update_rcdata(context_ENC_p psContext,
     case IMG_CODEC_MPEG4_VBR:
     case IMG_CODEC_H263_VBR:
     case IMG_CODEC_H264_VBR:
-        psPicParams->Flags				|= ISVBR_FLAGS;
+        psPicParams->Flags                              |= ISVBR_FLAGS;
 
-        psPicParams->sInParams.MBPerBU	= psPicParams->sInParams.MBPerFrm;
-        psPicParams->sInParams.BUPerFrm	= 1;
+        psPicParams->sInParams.MBPerBU  = psPicParams->sInParams.MBPerFrm;
+        psPicParams->sInParams.BUPerFrm = 1;
 
         // Initialize the parameters of fluid flow traffic model.
-        psPicParams->sInParams.BufferSize	= ((5 * psRCParams->BitsPerSecond) >> 1);
+        psPicParams->sInParams.BufferSize       = ((5 * psRCParams->BitsPerSecond) >> 1);
 
         // These scale factor are used only for rate control to avoid overflow
         // in fixed-point calculation these scale factors are decided by bit rate
         if (psRCParams->BitsPerSecond < 640000) {
-            psPicParams->sInParams.ScaleFactor  = 2;						// related to complexity
+            psPicParams->sInParams.ScaleFactor  = 2;                                            // related to complexity
         } else if (psRCParams->BitsPerSecond < 2000000) {
             psPicParams->sInParams.ScaleFactor  = 4;
         } else {
@@ -1095,10 +1104,10 @@ void lnc__update_rcdata(context_ENC_p psContext,
         break;
     }
 
-    psPicParams->sInParams.MyInitQP		= psPicParams->sInParams.SeInitQP;
-    psPicParams->sInParams.InitialDelay	= psRCParams->InitialDelay;
-    psPicParams->sInParams.InitialLevel	= psRCParams->InitialLevel;
-    psRCParams->InitialQp				= psPicParams->sInParams.SeInitQP;
+    psPicParams->sInParams.MyInitQP             = psPicParams->sInParams.SeInitQP;
+    psPicParams->sInParams.InitialDelay = psRCParams->InitialDelay;
+    psPicParams->sInParams.InitialLevel = psRCParams->InitialLevel;
+    psRCParams->InitialQp                               = psPicParams->sInParams.SeInitQP;
 }
 
 
@@ -1124,7 +1133,7 @@ static void lnc__setup_qpvalues_mpeg4(
     MTX_CURRENT_IN_PARAMS * psCurrent,
     IMG_BYTE bySliceQP)
 {
-    psCurrent->bySliceQP =	bySliceQP;
+    psCurrent->bySliceQP =      bySliceQP;
 }
 
 
@@ -1140,10 +1149,10 @@ static void lnc__setup_slice_row_params(
     /* Note: CurrentRowY and SliceStartRowY are now in pixels (not MacroBlocks)
      * - saves needless multiplications and divisions
      */
-    IMG_INT16	Pos, YPos, srcY;
+    IMG_INT16   Pos, YPos, srcY;
     MTX_CURRENT_IN_PARAMS *psCurrent;
     lnc_cmdbuf_p cmdbuf = ctx->obj_context->lnc_cmdbuf;
-    IMG_UINT16	tmp;
+    IMG_UINT16  tmp;
 
     if (IsIntra && cmdbuf->topaz_in_params_I_p == NULL) {
         VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_in_params_I, &cmdbuf->topaz_in_params_I_p);
@@ -1434,9 +1443,9 @@ IMG_UINT32 lnc__send_encode_slice_params(
                        psRef);
     RELOC_SLICE_PARAMS(&(psSliceParams->CodedData), 0, psCoded);
 
-    lnc_cmdbuf_insert_command(cmdbuf, MTX_CMDID_ENCODE_SLICE, 2, (CurrentSlice << 2) | (IsIntra&0x3));
+    lnc_cmdbuf_insert_command(cmdbuf, MTX_CMDID_ENCODE_SLICE, 2, (CurrentSlice << 2) | (IsIntra & 0x3));
     RELOC_CMDBUF(cmdbuf->cmd_idx++,
-                 CurrentSlice * ((sizeof(SLICE_PARAMS) + 15) & 0xfff0),
+                 CurrentSlice *((sizeof(SLICE_PARAMS) + 15) & 0xfff0),
                  &cmdbuf->slice_params);
 
     return 0;

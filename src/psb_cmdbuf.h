@@ -20,6 +20,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #ifndef _PSB_CMDBUF_H_
 #define _PSB_CMDBUF_H_
 
@@ -140,10 +147,10 @@ void psb_cmdbuf_add_relocation(psb_cmdbuf_p cmdbuf,
                                uint32_t align_shift,
                                uint32_t dst_buffer);
 
-#define RELOC(dest, offset, buf)	psb_cmdbuf_add_relocation(cmdbuf, (uint32_t*) &dest, buf, offset, 0XFFFFFFFF, 0, 0, 1)
-#define RELOC_MSG(dest, offset, buf)	psb_cmdbuf_add_relocation(cmdbuf, (uint32_t*) &dest, buf, offset, 0XFFFFFFFF, 0, 0, 0)
-#define RELOC_SHIFT4(dest, offset, background, buf)	psb_cmdbuf_add_relocation(cmdbuf, (uint32_t*) &dest, buf, offset, 0X0FFFFFFF, background, 4, 1)
-#define RELOC_REGIO(dest, offset, buf, dst)	psb_cmdbuf_add_relocation(cmdbuf, (uint32_t*) &dest, buf, offset, 0XFFFFFFFF, 0, 0, dst)
+#define RELOC(dest, offset, buf)        psb_cmdbuf_add_relocation(cmdbuf, (uint32_t*) &dest, buf, offset, 0XFFFFFFFF, 0, 0, 1)
+#define RELOC_MSG(dest, offset, buf)    psb_cmdbuf_add_relocation(cmdbuf, (uint32_t*) &dest, buf, offset, 0XFFFFFFFF, 0, 0, 0)
+#define RELOC_SHIFT4(dest, offset, background, buf)     psb_cmdbuf_add_relocation(cmdbuf, (uint32_t*) &dest, buf, offset, 0X0FFFFFFF, background, 4, 1)
+#define RELOC_REGIO(dest, offset, buf, dst)     psb_cmdbuf_add_relocation(cmdbuf, (uint32_t*) &dest, buf, offset, 0XFFFFFFFF, 0, 0, dst)
 
 /*
  * Advances "obj_context" to the next cmdbuf
@@ -331,7 +338,7 @@ void psb_cmdbuf_rendec_end(psb_cmdbuf_p cmdbuf);
  */
 int psb_cmdbuf_second_pass(object_context_p obj_context,
                            uint32_t OperatingModeCmd,
-                           void	* pvParamBase,
+                           void * pvParamBase,
                            uint32_t PicWidthInMbs,
                            uint32_t FrameHeightInMbs,
                            psb_buffer_p target_buffer,

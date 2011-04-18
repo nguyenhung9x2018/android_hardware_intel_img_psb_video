@@ -20,11 +20,18 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #ifndef _OBJECT_HEAP_H_
 #define _OBJECT_HEAP_H_
 
-#define OBJECT_HEAP_OFFSET_MASK		0x7F000000
-#define OBJECT_HEAP_ID_MASK			0x00FFFFFF
+#define OBJECT_HEAP_OFFSET_MASK         0x7F000000
+#define OBJECT_HEAP_ID_MASK                     0x00FFFFFF
 
 typedef struct object_base_s *object_base_p;
 typedef struct object_heap_s *object_heap_p;
@@ -35,7 +42,7 @@ struct object_base_s {
 };
 
 struct object_heap_s {
-    int	object_size;
+    int object_size;
     int id_offset;
     object_base_p *heap_index;
     int next_free;

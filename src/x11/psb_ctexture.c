@@ -21,6 +21,14 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *
+ */
+
 #include <stdio.h>
 #include <math.h>
 
@@ -76,7 +84,7 @@ static VAStatus psb_extend_dri_init(VADriverContextP ctx, unsigned int destx, un
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
-    ret = PVR2DMemMap(texture_priv->hPVR2DContext, 0, (PVR2D_HANDLE)extend_dri_buffer->dri2.name, &dri2_bb_export_meminfo);
+    ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)extend_dri_buffer->dri2.name, &dri2_bb_export_meminfo);
     if (ret != PVR2D_OK) {
         psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
         return VA_STATUS_ERROR_UNKNOWN;
@@ -85,7 +93,7 @@ static VAStatus psb_extend_dri_init(VADriverContextP ctx, unsigned int destx, un
     memcpy(&texture_priv->extend_dri2_bb_export, dri2_bb_export_meminfo->pBase, sizeof(PVRDRI2BackBuffersExport));
 
     for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
-        ret = PVR2DMemMap(texture_priv->hPVR2DContext, 0, texture_priv->extend_dri2_bb_export.hBuffers[i], &texture_priv->extend_blt_meminfo[i]);
+        ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->extend_dri2_bb_export.hBuffers[i], &texture_priv->extend_blt_meminfo[i]);
         if (ret != PVR2D_OK) {
             psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
@@ -101,19 +109,19 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
 {
     INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
+    union dri_buffer *dri_buffer;
+    PPVR2DMEMINFO dri2_bb_export_meminfo;
+    struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
+    struct dri_drawable *tmp_drawable;
     int i, ret;
 
-    union dri_buffer *dri_buffer;
-
-    PPVR2DMEMINFO dri2_bb_export_meminfo;
-
-    struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
-
+    
     texture_priv->dri_drawable = dri_get_drawable(ctx, output->output_drawable);
     if (!texture_priv->dri_drawable) {
         psb__error_message("%s(): Failed to get dri_drawable\n", __func__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
+    tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;    
 
     dri_buffer = dri_get_rendering_buffer(ctx, texture_priv->dri_drawable);
     if (!dri_buffer) {
@@ -122,8 +130,8 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
     }
 
     /* pixmap */
-    if (!texture_priv->dri_drawable->is_window) {
-        ret = PVR2DMemMap(texture_priv->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &texture_priv->blt_meminfo_pixmap);
+    if (!tmp_drawable->is_window) {
+        ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &texture_priv->blt_meminfo_pixmap);
         if (ret != PVR2D_OK) {
             psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
@@ -133,7 +141,7 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
         return VA_STATUS_SUCCESS;
     }
 
-    ret = PVR2DMemMap(texture_priv->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &dri2_bb_export_meminfo);
+    ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &dri2_bb_export_meminfo);
     if (ret != PVR2D_OK) {
         psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
         return VA_STATUS_ERROR_UNKNOWN;
@@ -145,7 +153,7 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
         psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS\n");
 
         for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
-            ret = PVR2DMemMap(texture_priv->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->blt_meminfo[i]);
+            ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->blt_meminfo[i]);
             if (ret != PVR2D_OK) {
                 psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
                 return VA_STATUS_ERROR_UNKNOWN;
@@ -155,7 +163,7 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
         psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN\n");
 
         for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++) {
-            ret = PVR2DMemMap(texture_priv->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->flip_meminfo[i]);
+            ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->flip_meminfo[i]);
             if (ret != PVR2D_OK) {
                 psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
                 return VA_STATUS_ERROR_UNKNOWN;
@@ -165,7 +173,7 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
 
     texture_priv->dri_init_flag = 1;
 
-    PVR2DMemFree(texture_priv->hPVR2DContext, dri2_bb_export_meminfo);
+    PVR2DMemFree(driver_data->hPVR2DContext, dri2_bb_export_meminfo);
     return VA_STATUS_SUCCESS;
 }
 
@@ -198,6 +206,7 @@ VAStatus psb_putsurface_ctexture(
     psb_output_device local_device, extend_device;
     unsigned short tmp;
     struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
+    struct dri_drawable *tmp_drawable;
 
 
     obj_surface = SURFACE(surface);
@@ -295,11 +304,6 @@ VAStatus psb_putsurface_ctexture(
         }
 
         psb__information_message("psb_putsurface_ctexture: Clone Mode\n");
-
-        if (destw > display_width)
-            destw = display_width;
-        if (desth > display_height)
-            desth = display_height;
     } else if (psb_xrandr_extend_mode()) {
         if (output->extend_drawable) {
             XDestroyWindow(ctx->native_dpy, output->extend_drawable);
@@ -363,17 +367,17 @@ VAStatus psb_putsurface_ctexture(
                                  srcx, srcy, srcw, srch, xoffset, yoffset, xres, yres, texture_priv->extend_current_blt_buffer);
 
         if (subtitle == BOTH || subtitle == ONLY_HDMI)
-            psb_putsurface_textureblit(ctx, texture_priv->extend_blt_meminfo[texture_priv->extend_current_blt_buffer], surface, srcx, srcy, srcw, srch, 0, 0,
+            psb_putsurface_textureblit(ctx, (unsigned char *)texture_priv->extend_blt_meminfo[texture_priv->extend_current_blt_buffer], surface, srcx, srcy, srcw, srch, 0, 0,
                                        xres, yres, 1,
                                        surface_width, surface_height,
                                        psb_surface->stride, psb_surface->buf.drm_buf,
-                                       psb_surface->buf.pl_flags);
+                                       psb_surface->buf.pl_flags, 0 /* no wrap for dst */);
         else
-            psb_putsurface_textureblit(ctx, texture_priv->extend_blt_meminfo[texture_priv->extend_current_blt_buffer], surface, srcx, srcy, srcw, srch, 0, 0,
+            psb_putsurface_textureblit(ctx, (unsigned char *)texture_priv->extend_blt_meminfo[texture_priv->extend_current_blt_buffer], surface, srcx, srcy, srcw, srch, 0, 0,
                                        xres, yres, 0,
                                        surface_width, surface_height,
                                        psb_surface->stride, psb_surface->buf.drm_buf,
-                                       psb_surface->buf.pl_flags);
+                                       psb_surface->buf.pl_flags, 0 /* no wrap for dst */);
 
         dri_swap_buffer(ctx, texture_priv->extend_dri_drawable);
         texture_priv->extend_current_blt_buffer = (texture_priv->extend_current_blt_buffer + 1) & 0x01;
@@ -417,21 +421,21 @@ VAStatus psb_putsurface_ctexture(
     }
 
     /* Main Video for pixmap*/
-    if (!texture_priv->dri_drawable->is_window) {
+    tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;    
+    if (!tmp_drawable->is_window) {
         psb__information_message("psb_putsurface_ctexture: Main video Pixmap, coordinate: srcx= %d, srcy=%d, srcw=%d, srch=%d, destx=%d, desty=%d, destw=%d, desth=%d, cur_buffer=%d\n",
                                  srcx, srcy, srcw, srch, destx, desty, destw, desth, texture_priv->current_blt_buffer);
         if (subtitle == BOTH || (subtitle == NOSUBTITLE && obj_surface->subpic_count))
-            psb_putsurface_textureblit(ctx, texture_priv->blt_meminfo_pixmap, surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 1,
+            psb_putsurface_textureblit(ctx, (unsigned char *)texture_priv->blt_meminfo_pixmap, surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 1,
                                        surface_width, surface_height,
                                        psb_surface->stride, psb_surface->buf.drm_buf,
-                                       psb_surface->buf.pl_flags);
+                                       psb_surface->buf.pl_flags, 0 /* no wrap for dst */);
         else
-            psb_putsurface_textureblit(ctx, texture_priv->blt_meminfo_pixmap, surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 0,
+            psb_putsurface_textureblit(ctx, (unsigned char *)texture_priv->blt_meminfo_pixmap, surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 0,
                                        surface_width, surface_height,
                                        psb_surface->stride, psb_surface->buf.drm_buf,
-                                       psb_surface->buf.pl_flags);
+                                       psb_surface->buf.pl_flags, 0 /* no wrap for dst */);
 
-        dri_swap_buffer(ctx, texture_priv->dri_drawable);
         return VA_STATUS_SUCCESS;
     }
 
@@ -441,15 +445,15 @@ VAStatus psb_putsurface_ctexture(
                                  srcx, srcy, srcw, srch, destx, desty, destw, desth, texture_priv->current_blt_buffer);
 
         if (subtitle == BOTH || (subtitle == NOSUBTITLE && obj_surface->subpic_count))
-            psb_putsurface_textureblit(ctx, texture_priv->blt_meminfo[texture_priv->current_blt_buffer], surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 1,
+            psb_putsurface_textureblit(ctx, (unsigned char *)texture_priv->blt_meminfo[texture_priv->current_blt_buffer], surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 1,
                                        surface_width, surface_height,
                                        psb_surface->stride, psb_surface->buf.drm_buf,
-                                       psb_surface->buf.pl_flags);
+                                       psb_surface->buf.pl_flags, 0 /* no wrap for dst */);
         else
-            psb_putsurface_textureblit(ctx, texture_priv->blt_meminfo[texture_priv->current_blt_buffer], surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 0,
+            psb_putsurface_textureblit(ctx, (unsigned char *)texture_priv->blt_meminfo[texture_priv->current_blt_buffer], surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 0,
                                        surface_width, surface_height,
                                        psb_surface->stride, psb_surface->buf.drm_buf,
-                                       psb_surface->buf.pl_flags);
+                                       psb_surface->buf.pl_flags, 0 /* no wrap for dst */);
 
         dri_swap_buffer(ctx, texture_priv->dri_drawable);
         texture_priv->current_blt_buffer = (texture_priv->current_blt_buffer + 1) & 0x01;
@@ -459,15 +463,15 @@ VAStatus psb_putsurface_ctexture(
                                  srcx, srcy, srcw, srch, destx, desty, display_width, display_height, texture_priv->current_blt_buffer);
 
         if (subtitle == BOTH || (subtitle == NOSUBTITLE && obj_surface->subpic_count))
-            psb_putsurface_textureblit(ctx, texture_priv->flip_meminfo[texture_priv->current_blt_buffer], surface, srcx, srcy, srcw, srch, destx, desty,
+            psb_putsurface_textureblit(ctx, (unsigned char *)texture_priv->flip_meminfo[texture_priv->current_blt_buffer], surface, srcx, srcy, srcw, srch, destx, desty,
                                        display_width, display_height, 1, surface_width, surface_height,
                                        psb_surface->stride, psb_surface->buf.drm_buf,
-                                       psb_surface->buf.pl_flags);
+                                       psb_surface->buf.pl_flags, 0 /* no wrap for dst */);
         else
-            psb_putsurface_textureblit(ctx, texture_priv->flip_meminfo[texture_priv->current_blt_buffer], surface, srcx, srcy, srcw, srch, destx, desty,
+            psb_putsurface_textureblit(ctx, (unsigned char *)texture_priv->flip_meminfo[texture_priv->current_blt_buffer], surface, srcx, srcy, srcw, srch, destx, desty,
                                        display_width, display_height, 0, surface_width, surface_height,
                                        psb_surface->stride, psb_surface->buf.drm_buf,
-                                       psb_surface->buf.pl_flags);
+                                       psb_surface->buf.pl_flags, 0 /* no wrap for dst */);
 
         dri_swap_buffer(ctx, texture_priv->dri_drawable);
         texture_priv->current_blt_buffer++;

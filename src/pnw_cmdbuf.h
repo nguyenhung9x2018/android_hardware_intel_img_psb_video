@@ -20,6 +20,14 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
 #ifndef _PNW_CMDBUF_H_
 #define _PNW_CMDBUF_H_
 
@@ -150,13 +158,13 @@ void pnw_cmdbuf_add_relocation(pnw_cmdbuf_p cmdbuf,
                                uint32_t dst_buffer, /*Index of the list refered by cmdbuf->buffer_refs */
                                uint32_t *start_of_dst_buffer);
 
-#define RELOC_CMDBUF_PNW(dest, offset, buf)	pnw_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, cmdbuf->cmd_start)
+#define RELOC_CMDBUF_PNW(dest, offset, buf)     pnw_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, cmdbuf->cmd_start)
 
 /* do relocation in PIC_PARAMS: src/dst Y/UV base, InParamsBase, CodeBase, BellowParamsBase, AboveParamsBase */
-#define RELOC_PIC_PARAMS_PNW(dest, offset, buf)	pnw_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (uint32_t *)cmdbuf->pic_params_p)
+#define RELOC_PIC_PARAMS_PNW(dest, offset, buf) pnw_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (uint32_t *)cmdbuf->pic_params_p)
 
 /* do relocation in SLICE_PARAMS: reference Y/UV base,CodedData */
-#define RELOC_SLICE_PARAMS_PNW(dest, offset, buf)	pnw_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 2,(uint32_t *)cmdbuf->slice_params_p)
+#define RELOC_SLICE_PARAMS_PNW(dest, offset, buf)       pnw_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 2,(uint32_t *)cmdbuf->slice_params_p)
 
 /* operation number is inserted by DRM */
 /*
@@ -168,7 +176,7 @@ void pnw_cmdbuf_add_relocation(pnw_cmdbuf_p cmdbuf,
     do { *cmdbuf->cmd_idx++ = param; } while(0)
 
 
-#define pnw_cmdbuf_insert_reg_write(base, offset, value)	\
+#define pnw_cmdbuf_insert_reg_write(base, offset, value)        \
     do { *cmdbuf->cmd_idx++ = base + offset; *cmdbuf->cmd_idx++ = value; count++; } while(0)
 
 void pnw_cmdbuf_insert_command_package(object_context_p obj_context,

@@ -22,6 +22,14 @@
  */
 
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
+
 #include "psb_VC1.h"
 #include "psb_def.h"
 #include "psb_surface.h"
@@ -263,11 +271,11 @@ extern IMG_UINT16        gaui16vc1VlcIndexData[VLC_INDEX_TABLE_SIZE][3];
 extern const IMG_UINT8    gui8vc1VlcIndexSize;
 
 
-static IMG_UINT16	gaui16Inverse[] = {256, 128, 85, 64, 51, 43, 37, 32};    /* figure 66 */
-static IMG_BOOL		gDMVRANGE_ExtHorizontal_RemapTable[] = {0, 1, 0, 1};
-static IMG_BOOL		gDMVRANGE_ExtVertical_RemapTable[] = {0, 0, 1, 1};
-static IMG_BYTE		gBFRACTION_DenRemapTable[] = {2, 3, 3, 4, 4, 5, 5, 5, 5, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 255, 255};
-static IMG_BYTE		gBFRACTION_NumRemapTable[] = {1, 1, 2, 1, 3, 1, 2, 3, 4, 1, 5, 1, 2, 3, 4, 5, 6, 1, 3, 5, 7, 255, 255};
+static IMG_UINT16       gaui16Inverse[] = {256, 128, 85, 64, 51, 43, 37, 32};    /* figure 66 */
+static IMG_BOOL         gDMVRANGE_ExtHorizontal_RemapTable[] = {0, 1, 0, 1};
+static IMG_BOOL         gDMVRANGE_ExtVertical_RemapTable[] = {0, 0, 1, 1};
+static IMG_BYTE         gBFRACTION_DenRemapTable[] = {2, 3, 3, 4, 4, 5, 5, 5, 5, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 255, 255};
+static IMG_BYTE         gBFRACTION_NumRemapTable[] = {1, 1, 2, 1, 3, 1, 2, 3, 4, 1, 5, 1, 2, 3, 4, 5, 6, 1, 3, 5, 7, 255, 255};
 
 
 #define INIT_CONTEXT_VC1    context_VC1_p ctx = (context_VC1_p) obj_context->format_data;
@@ -339,7 +347,7 @@ static void psb__VC1_pack_index_table_info(uint32_t *packed_index_table,
         width = index_data[i][1];
         opcode = index_data[i][0];
 
-        psb__information_message("packed_index_table[%02d]->start = %08x length = %08x (%d)\n", i, start*2, length*2, length*2);
+        psb__information_message("packed_index_table[%02d]->start = %08x length = %08x (%d)\n", i, start * 2, length * 2, length * 2);
 
         packed_index_table[i] = opcode;
         packed_index_table[i] <<= 3;
@@ -377,21 +385,21 @@ static VAStatus psb__VC1_check_legal_picture(object_context_p obj_context, objec
     switch (obj_config->profile) {
     case VAProfileVC1Simple:
         if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 352)
-                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 288)) {
+            || (obj_context->picture_height <= 0) || (obj_context->picture_height > 288)) {
             vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
         }
         break;
 
     case VAProfileVC1Main:
         if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 1920)
-                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 1088)) {
+            || (obj_context->picture_height <= 0) || (obj_context->picture_height > 1088)) {
             vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
         }
         break;
 
     case VAProfileVC1Advanced:
         if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 2048)
-                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 2048)) {
+            || (obj_context->picture_height <= 0) || (obj_context->picture_height > 2048)) {
             vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
         }
         break;
@@ -590,7 +598,7 @@ static uint32_t psb__vc1_get_izz_scan_index(context_VC1_p ctx)
     } else {
         /* Assume P frame */
         if ((ctx->profile == WMF_PROFILE_SIMPLE) ||
-                (ctx->profile == WMF_PROFILE_MAIN)) {
+            (ctx->profile == WMF_PROFILE_MAIN)) {
             // P-picture Simple/Main tables
             return 0;
         } else { /* Advanced profile */
@@ -609,10 +617,10 @@ static uint32_t psb__vc1_get_izz_scan_index(context_VC1_p ctx)
 #ifdef DEBUG_TRACE
 #define psb__trace_message(...)
 
-#define P(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->x)
+#define P(x)    psb__trace_message("PARAMS: " #x "\t= %d\n", p->x)
 static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
 {
-#define P0(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->sequence_fields.bits.x)
+#define P0(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->sequence_fields.bits.x)
     P0(interlace);
     P0(syncmarker);
     P0(overlap);
@@ -620,7 +628,7 @@ static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
     P(coded_width);
     P(coded_height);
 
-#define P2(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->picture_fields.bits.x)
+#define P2(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->picture_fields.bits.x)
     /* picture_fields */
     P2(picture_type);
     P2(frame_coding_mode);
@@ -628,7 +636,7 @@ static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
     P2(is_first_field);
     P2(intensity_compensation);
 
-#define P4(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->entrypoint_fields.bits.x)
+#define P4(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->entrypoint_fields.bits.x)
     P4(closed_entry);
     P4(broken_link);
     P4(loopfilter);
@@ -636,7 +644,7 @@ static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
     P(conditional_overlap_flag);
     P(fast_uvmc_flag);
 
-#define P3(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->range_mapping_fields.bits.x)
+#define P3(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->range_mapping_fields.bits.x)
     /* range_mapping_fields */
     P3(luma_flag);
     P3(luma);
@@ -656,13 +664,13 @@ static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
     P(raw_coding.value);
     P(bitplane_present.value);
 
-#define P4(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->reference_fields.bits.x)
+#define P4(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->reference_fields.bits.x)
     P4(reference_distance_flag);
     P4(reference_distance);
     P4(num_reference_pictures);
     P4(reference_field_pic_indicator);
 
-#define P5(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->mv_fields.bits.x)
+#define P5(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->mv_fields.bits.x)
     P5(mv_mode);
     P5(mv_mode2);
 
@@ -675,7 +683,7 @@ static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
     P5(extended_dmv_flag);
     P5(extended_dmv_range);
 
-#define P6(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->pic_quantizer_fields.bits.x)
+#define P6(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->pic_quantizer_fields.bits.x)
 
     P6(dquant);
     P6(quantizer);
@@ -689,7 +697,7 @@ static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
     P6(dq_binary_level);
     P6(alt_pic_quantizer);
 
-#define P7(x)	psb__trace_message("PARAMS: " #x "\t= %d\n", p->transform_fields.bits.x)
+#define P7(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->transform_fields.bits.x)
 
     P7(variable_sized_transform_flag);
     P7(mb_level_transform_type_flag);
@@ -704,14 +712,14 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
 {
     VAStatus vaStatus;
     VAPictureParameterBufferVC1 *pic_params;
-    IMG_UINT8	ui8LumaScale1 = 0, ui8LumaShift1 = 0, ui8LumaScale2 = 0, ui8LumaShift2 = 0;
+    IMG_UINT8   ui8LumaScale1 = 0, ui8LumaShift1 = 0, ui8LumaScale2 = 0, ui8LumaShift2 = 0;
 
     ASSERT(obj_buffer->type == VAPictureParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
     ASSERT(obj_buffer->size == sizeof(VAPictureParameterBufferVC1));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAPictureParameterBufferVC1))) {
+        (obj_buffer->size != sizeof(VAPictureParameterBufferVC1))) {
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         DEBUG_FAILURE;
         return vaStatus;
@@ -950,24 +958,24 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     /*
        MODE_CONFIG[1:0] =
         VC-1 intensity compensation flag, derived from MVMODE = Intensity compensation, and INTCOMPFIELD
-    	00 – No intensity compensation
-    	01 – Intensity compensation for top field
-    	10 – Intensity compensation for bottom field
-    	11 – Intensity compensation for the frame
+        00 – No intensity compensation
+        01 – Intensity compensation for top field
+        10 – Intensity compensation for bottom field
+        11 – Intensity compensation for the frame
 
        MODE_CONFIG[3:2] =
-    	VC-1 reference range scaling, derived from RANGERED, RANGEREDFRM for current frame and reference frame.
-    	00 – No scaling
-    	01 – Scale down
-    	10 – Scale up
-    	11 – No scaling
+        VC-1 reference range scaling, derived from RANGERED, RANGEREDFRM for current frame and reference frame.
+        00 – No scaling
+        01 – Scale down
+        10 – Scale up
+        11 – No scaling
      */
 
     /****************************** INTENSITY COMPENSATION ******************************/
     /* For each NEW reference frame, rotate IC history */
     if (PIC_TYPE_IS_REF(pic_params->picture_fields.bits.picture_type) &&
-            pic_params->picture_fields.bits.is_first_field &&
-            (pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI)) {
+        pic_params->picture_fields.bits.is_first_field &&
+        (pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI)) {
         /*
            This is the first field picture of a new frame, so move the IC params for both field
            pictures of the last frame (from position [1][0] for the first field and position [1][1] for
@@ -1066,22 +1074,22 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     }
 
     /*
-    	10.3.8 Intensity Compensation:
-    	If intensity compensation is performed on a reference field, then after decoding the field,
-    	the post-compensated pixel values shall be retained and shall be used when decoding the next
-    	field. If the next field indicates that the field that was intensity compensated by the
-    	previous field is to have intensity compensation performed again then the post-compensated
-    	field shall be used. Therefore, when a reference field has intensity compensation performed
-    	twice, the result of the first intensity compensation operation shall be used as input
-    	for the second intensity compensation.
+        10.3.8 Intensity Compensation:
+        If intensity compensation is performed on a reference field, then after decoding the field,
+        the post-compensated pixel values shall be retained and shall be used when decoding the next
+        field. If the next field indicates that the field that was intensity compensated by the
+        previous field is to have intensity compensation performed again then the post-compensated
+        field shall be used. Therefore, when a reference field has intensity compensation performed
+        twice, the result of the first intensity compensation operation shall be used as input
+        for the second intensity compensation.
     */
     /*
-    	Don't forget point 9.1.1.4 in VC1 Spec:
+        Don't forget point 9.1.1.4 in VC1 Spec:
 
-    	If the current frame, coded as two interlace field pictures, contains at least one P or B
-    	field, and if this P or B field uses one or both field in another frame as a reference, where
-    	the reference frame was also coded as a interlace field pictue, then the TFF of the current
-    	frame and reference frame shall be the same.
+        If the current frame, coded as two interlace field pictures, contains at least one P or B
+        field, and if this P or B field uses one or both field in another frame as a reference, where
+        the reference frame was also coded as a interlace field pictue, then the TFF of the current
+        frame and reference frame shall be the same.
     */
     if ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P) && (pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI)) {
         if (pic_params->picture_fields.bits.top_field_first) { // top field first
@@ -1207,7 +1215,7 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     /********************************** Slice structure *********************************/
     if (VC1_FCM_FLDI == pic_params->picture_fields.bits.frame_coding_mode) {
         if ((pic_params->picture_fields.bits.top_field_first && pic_params->picture_fields.bits.is_first_field) ||
-                (!pic_params->picture_fields.bits.top_field_first && !pic_params->picture_fields.bits.is_first_field)) {
+            (!pic_params->picture_fields.bits.top_field_first && !pic_params->picture_fields.bits.is_first_field)) {
             // Top field
             ctx->slice_field_type = 0;
             ctx->bottom_field = 0;
@@ -1225,9 +1233,9 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
 
     /************************* FCM for the reference pictures ***************************/
     if (PIC_TYPE_IS_REF(pic_params->picture_fields.bits.picture_type) ||
-            ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) &&	/* The second B field picture in an		*/
-             (ctx->pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI) &&	/* interlaced field coded frame shall	*/
-             !pic_params->picture_fields.bits.is_first_field)) {		/* reference the first field picture.	*/
+        ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) &&       /* The second B field picture in an             */
+         (ctx->pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI) &&    /* interlaced field coded frame shall   */
+         !pic_params->picture_fields.bits.is_first_field)) {            /* reference the first field picture.   */
         if (ctx->pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI && !pic_params->picture_fields.bits.is_first_field) {
             /* The current picture is the second field of the frame, then the previous field picture
                is in the same frame. Therefore the FCM of the first field is the same as the FCM of the
@@ -1245,8 +1253,8 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
 
     /************************* TFF for the reference pictures ***************************/
     if (PIC_TYPE_IS_REF(pic_params->picture_fields.bits.picture_type) &&
-            ((ctx->pic_params->picture_fields.bits.frame_coding_mode != VC1_FCM_FLDI) ||
-             pic_params->picture_fields.bits.is_first_field)) {
+        ((ctx->pic_params->picture_fields.bits.frame_coding_mode != VC1_FCM_FLDI) ||
+         pic_params->picture_fields.bits.is_first_field)) {
         ctx->bTFF_FwRefFrm = ctx->bTFF_BwRefFrm;
     }
     /************************************************************************************/
@@ -1261,7 +1269,7 @@ static VAStatus psb__VC1_process_bitplane(context_VC1_p ctx, object_buffer_p obj
     ASSERT(ctx->pic_params);
 
     if ((NULL == obj_buffer->psb_buffer) ||
-            (0 == obj_buffer->size)) {
+        (0 == obj_buffer->size)) {
         /* We need to have data in the bitplane buffer */
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         return vaStatus;
@@ -1317,8 +1325,8 @@ static void psb__VC1_extract_table_info(context_VC1_p ctx, sTableData *psInfo, i
 static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
 {
     VAPictureParameterBufferVC1 *pic_params = ctx->pic_params;
-    IMG_UINT16		ui16Table = 0, ui16IntraTable = 0, ui16InterTable = 0, aui16Table[3];
-    IMG_UINT32		i, ui32TableNum = 0;
+    IMG_UINT16          ui16Table = 0, ui16IntraTable = 0, ui16InterTable = 0, aui16Table[3];
+    IMG_UINT32          i, ui32TableNum = 0;
 
     /* select the required table from the n different types
             A - vc1DEC_I_Picture_CBPCY_VLC            (1)       ¬
@@ -1347,19 +1355,19 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
     ***********************************************************************************
     @ Table A,B,C  VLC CBPCY Tables
 
-        [VC1]	7.1.3.1	Coded Block Pattern (CBPCY) (Variable size)[I, P,B]
+        [VC1]   7.1.3.1 Coded Block Pattern (CBPCY) (Variable size)[I, P,B]
 
-    	    CBPCY is a variable-sized syntax element that shall be present in all
-    	    I and BI picture macroblocks, and may be present in P and B picture
-    	    macroblocks. In P and B pictures, CBPCY shall be decoded using
-    	    the VLC table specified by the CBPTAB syntax element as described in
-    	    section 7.1.1.39. The CBP tables for P and B pictures are listed in
-    	    section 11.6.
+            CBPCY is a variable-sized syntax element that shall be present in all
+            I and BI picture macroblocks, and may be present in P and B picture
+            macroblocks. In P and B pictures, CBPCY shall be decoded using
+            the VLC table specified by the CBPTAB syntax element as described in
+            section 7.1.1.39. The CBP tables for P and B pictures are listed in
+            section 11.6.
 
 
-        [VC1]	9.1.3.2	Coded Block Pattern (CBPCY) (Variable size)[I, P,B]
+        [VC1]   9.1.3.2 Coded Block Pattern (CBPCY) (Variable size)[I, P,B]
 
-    	    Table 102: ICBPTAB code-table
+            Table 102: ICBPTAB code-table
 
             A  vc1DEC_I_Picture_CBPCY_VLC            (1)
             B  vc1DEC_P_Picture_CBPCY_VLC_N          (4)
@@ -1390,7 +1398,7 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
     ************************************************************
     @ Table D   VLC 4MV Pattern
 
-    [VC1]	Table 104: 4MVBP code-table
+    [VC1]       Table 104: 4MVBP code-table
 
             Tables 116-119
 
@@ -1423,9 +1431,9 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
     ************************************************************************************
     @ Table F,G,H  VLC MV Tables
 
-        [VC1]	MVDATA					Variable size	vlclbf	7.1.3.8
+        [VC1]   MVDATA                                  Variable size   vlclbf  7.1.3.8
 
-        7.1.3.8	Motion Vector Data (MVDATA)(Variable size)[P]
+        7.1.3.8 Motion Vector Data (MVDATA)(Variable size)[P]
 
         MVDATA is a variable sized syntax element that may be present in P picture
         macroblocks. This syntax element decodes to the motion vector(s) for the
@@ -1434,29 +1442,29 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
 
         F   vc1DEC_Mot_Vector_Diff_VLC_N          (4)
 
-        [VC1]	9.1.1.34	INTERLACE Motion Vector Table (IMVTAB) (2 or 3 bits)
+        [VC1]   9.1.1.34        INTERLACE Motion Vector Table (IMVTAB) (2 or 3 bits)
 
-        Table 100:	IMVTAB code-table for P INTERLACE field picture with NUMREF = 0,
-    			    and for P/B INTERLACE frame pictures
+        Table 100:      IMVTAB code-table for P INTERLACE field picture with NUMREF = 0,
+                            and for P/B INTERLACE frame pictures
 
-    	    IMVTAB	Motion Vector Table
-    	    00		1-Reference Table 0
-    	    01		1-Reference Table 1
-    	    10		1-Reference Table 2
-    	    11		1-Reference Table 3
+            IMVTAB      Motion Vector Table
+            00          1-Reference Table 0
+            01          1-Reference Table 1
+            10          1-Reference Table 2
+            11          1-Reference Table 3
 
-        Table 101:	IMVTAB code-table for P INTERLACE field pictures with NUMREF = 1,
-    			    and for B INTERLACE field pictures
+        Table 101:      IMVTAB code-table for P INTERLACE field pictures with NUMREF = 1,
+                            and for B INTERLACE field pictures
 
-    	    IMVTAB	Motion Vector Table
-    	    000		2-Reference Table 0
-    	    001		2-Reference Table 1
-    	    010		2-Reference Table 2
-    	    011		2-Reference Table 3
-    	    100		2-Reference Table 4
-    	    101		2-Reference Table 5
-    	    110		2-Reference Table 6
-    	    111		2-Reference Table 7
+            IMVTAB      Motion Vector Table
+            000         2-Reference Table 0
+            001         2-Reference Table 1
+            010         2-Reference Table 2
+            011         2-Reference Table 3
+            100         2-Reference Table 4
+            101         2-Reference Table 5
+            110         2-Reference Table 6
+            111         2-Reference Table 7
 
         G   vc1DEC_One_Field_Ref_Ilace_MV_N       (4)
         H   vc1DEC_Two_Field_Ref_Ilace_MV_N       (8)
@@ -1522,10 +1530,10 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
     ************************************************************************************
     @ Table M,N,O  VLC PQUANT Tables
 
-    [WMV9]	3.2.2.10	MB-level Transform Type (TTMB)(Variable size)[P,B]
-    [WMV9]	3.2.3.15	Block-level Transform Type (TTBLK)(Variable size)[inter]
+    [WMV9]      3.2.2.10        MB-level Transform Type (TTMB)(Variable size)[P,B]
+    [WMV9]      3.2.3.15        Block-level Transform Type (TTBLK)(Variable size)[inter]
 
-    [WMV9]	3.2.3.16	Transform sub-block pattern (SUBBLKPAT)(Variable size)[inter]
+    [WMV9]      3.2.3.16        Transform sub-block pattern (SUBBLKPAT)(Variable size)[inter]
 
             M vc1DEC_X_Rate_TTMB                    (3)
             N vc1DEC_X_Rate_TTBLK                   (3)
@@ -1566,18 +1574,18 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
         Table 54: Index/Coding Set Correspondence for PQINDEX <= 7
             Y, Cb and Cr blocks
 
-            Index	Table
-            0		High Rate Inter
-            1		High Motion Inter
-            2		Mid Rate Inter
+            Index       Table
+            0           High Rate Inter
+            1           High Motion Inter
+            2           Mid Rate Inter
 
         Table 55: Index/Coding Set Correspondence for PQINDEX > 7
             Y, Cb and Cr blocks
 
-            Index	Table
-            0		Low Motion Inter
-            1		High Motion Inter
-            2		Mid Rate Inter
+            Index       Table
+            0           Low Motion Inter
+            1           High Motion Inter
+            2           Mid Rate Inter
 
         ----------------------------------------------------------------------------------
         Intra Blocks
@@ -1589,19 +1597,19 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
 
         Table 38: Coding Set Correspondence for PQINDEX <= 7
 
-            Y blocks						Cb and Cr blocks
-            Index	Table					Index	Table
-            0		High Rate Intra			0		High Rate Inter
-            1		High Motion Intra		1		High Motion Inter
-            2		Mid Rate Intra			2		Mid Rate Inter
+            Y blocks                                            Cb and Cr blocks
+            Index       Table                                   Index   Table
+            0           High Rate Intra                 0               High Rate Inter
+            1           High Motion Intra               1               High Motion Inter
+            2           Mid Rate Intra                  2               Mid Rate Inter
 
         Table 39: Coding Set Correspondence for PQINDEX > 7
 
-            Y blocks						Cb and Cr blocks
-            Index	Table					Index	Table
-            0		Low Motion Intra		0		Low Motion Inter
-            1		High Motion Intra		1		High Motion Inter
-            2		Mid Rate Intra			2		Mid Rate Inter
+            Y blocks                                            Cb and Cr blocks
+            Index       Table                                   Index   Table
+            0           Low Motion Intra                0               Low Motion Inter
+            1           High Motion Intra               1               High Motion Inter
+            2           Mid Rate Intra                  2               Mid Rate Inter
 
         The value decoded from the DCTACFRM2 syntax element shall be used
         as the coding set index for Y blocks and the value decoded from the
@@ -1648,17 +1656,17 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
                 R vc1DEC_X_Mot_Luminance_DC_Diff_VLC    (2)
                 S vc1DEC_X_Mot_Chroma_DC_Diff_VLC       (2)
 
-    [VC1]	8.1.1.2	Intra Transform DC Table
-    	    TRANSDCTAB is a one-bit syntax element that shall specify which of two
-    	    tables is used to decode the Transform DC coefficients in intra-coded blocks.
-    	    If TRANSDCTAB = 0, then the low motion table of Section 11.7 shall be used.
-    	    If TRANSDCTAB = 1, then the high motion table of Section 11.7 shall be used.
+    [VC1]       8.1.1.2 Intra Transform DC Table
+            TRANSDCTAB is a one-bit syntax element that shall specify which of two
+            tables is used to decode the Transform DC coefficients in intra-coded blocks.
+            If TRANSDCTAB = 0, then the low motion table of Section 11.7 shall be used.
+            If TRANSDCTAB = 1, then the high motion table of Section 11.7 shall be used.
 
-    [VC1]	8.1.1.2	Intra Transform DC Table
-    	    TRANSDCTAB is a one-bit syntax element that shall specify which of two
-    	    tables is used to decode the Transform DC coefficients in intra-coded blocks.
-    	    If TRANSDCTAB = 0, then the low motion table of Section 11.7 shall be used.
-    	    If TRANSDCTAB = 1, then the high motion table of Section 11.7 shall be used.
+    [VC1]       8.1.1.2 Intra Transform DC Table
+            TRANSDCTAB is a one-bit syntax element that shall specify which of two
+            tables is used to decode the Transform DC coefficients in intra-coded blocks.
+            If TRANSDCTAB = 0, then the low motion table of Section 11.7 shall be used.
+            If TRANSDCTAB = 1, then the high motion table of Section 11.7 shall be used.
 
     ***********************************************************************************/
     if (pic_params->transform_fields.bits.intra_transform_dc_table == 0) {
@@ -1931,7 +1939,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
                     ui8PrevBotIC = 2;
                 }
                 if (ctx->sICparams[0][0].ui8IC1 == 1) {
-                    /* The first and bottom field of the second reference frame	intensity
+                    /* The first and bottom field of the second reference frame intensity
                        compensates the second and top field of the first reference frame. */
                     ui8PrevLumaScale = ctx->sICparams[0][0].ui8LumaScale1;
                     ui8PrevLumaShift = ctx->sICparams[0][0].ui8LumaShift1;
@@ -1950,20 +1958,20 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     /* CHUNK: 1 - VC1SEQUENCE00 */
     psb_cmdbuf_rendec_start_chunk(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE));
 
-    /* VC1SEQUENCE00	Command: Display Picture Size (sequence) */
+    /* VC1SEQUENCE00    Command: Display Picture Size (sequence) */
     cmd = 0;
     /* TODO: Can "display size" and "coded size" be different? */
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE00, PICTURE_HEIGHT, (ctx->display_picture_height - 1)); /* display picture size - 1 */
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE00, PICTURE_WIDTH, (ctx->display_picture_width - 1));
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
-    /* VC1SEQUENCE00	Command: Coded Picture Size  (sequence) */
+    /* VC1SEQUENCE00    Command: Coded Picture Size  (sequence) */
     cmd = 0;
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE00, PICTURE_HEIGHT, (ctx->coded_picture_height - 1)); /* coded picture size - 1 */
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE00, PICTURE_WIDTH, (ctx->coded_picture_width - 1));
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
-    /* VC1SEQUENCE01	Command: Operating Mode (sequence) */
+    /* VC1SEQUENCE01    Command: Operating Mode (sequence) */
     cmd = 0;
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE01, CHROMA_INTERLEAVED,   0); /* 0 = CbCr - MSVDX default */
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SEQUENCE01, ROW_STRIDE,           target_surface->stride_mode);
@@ -1992,13 +2000,13 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     /* CHUNK: 2 - VC1SLICE00 */
     psb_cmdbuf_rendec_start_chunk(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, MC_CACHE_CONFIGURATION));
 
-    /* VC1SLICE00	    Command: Cache Configuration (picture?) */
+    /* VC1SLICE00           Command: Cache Configuration (picture?) */
     cmd = 0;
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE00, CONFIG_REF_OFFSET,  72);
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE00, CONFIG_ROW_OFFSET,  4);
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
-    /* VC1SLICE01	    Command: VC1 Intensity Compensation Parameter (picture or slice) */
+    /* VC1SLICE01           Command: VC1 Intensity Compensation Parameter (picture or slice) */
     cmd = 0;
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE01, VC1_LUMSHIFT2,  ctx->ui8CurrLumaShift2); /* INTERLACE field P pictures */
     REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE01, VC1_LUMSCALE2,  ctx->ui8CurrLumaScale2); /* INTERLACE field P pictures */
@@ -2029,7 +2037,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     /* VC1 Luma Range Mapping Base Address */
     RELOC(*ctx->p_range_mapping_base, cmd + deblock_surface->buf.buffer_ofs, &deblock_surface->buf);
 
-    /* VC1 Intensity Compensation Backward/Previous	*/
+    /* VC1 Intensity Compensation Backward/Previous     */
     /*
             3.3.10 VC1 Intensity Compensation Backward/Previous:
             The parameters applied in VC1 Intensity Compensation Parameters are the Intensity Compensation
@@ -2111,7 +2119,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     /* CHUNK: 5 - VC1SLICE02 */
     psb_cmdbuf_rendec_start_chunk(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS));
 
-    /* VC1SLICE02	    Command: Slice Params (picture or slice) */
+    /* VC1SLICE02           Command: Slice Params (picture or slice) */
     cmd = 0;
 
     //REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, SLICE_PARAMS, VC1_PREV_BOT_INT_COMP,  ui8PrevBotIC);
@@ -2178,7 +2186,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_HALFQP,            pic_params->pic_quantizer_fields.bits.half_qp);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_BFRACTION,         pic_params->b_picture_fraction);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_FCM,               pic_params->picture_fields.bits.frame_coding_mode);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_RNDCTRL,		pic_params->rounding_control);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS0, VC1_BE_RNDCTRL,           pic_params->rounding_control);
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
     /* CR_VEC_VC1_BE_PPS1 */
@@ -2220,15 +2228,15 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     /* CR_VEC_VC1_BE_MVD5 */
     cmd = 0;
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_REFDIST,		pic_params->reference_fields.bits.reference_distance);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_NUMREF,		pic_params->reference_fields.bits.num_reference_pictures);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_REFFIELD,		pic_params->reference_fields.bits.reference_field_pic_indicator);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_MVRANGE,		pic_params->mv_fields.bits.extended_mv_range);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_HALFPEL_FLAG,	ctx->half_pel);
-    //REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_FRAME_CODING_MODE,	pic_params->picture_fields.bits.frame_coding_mode);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_REFDIST,           pic_params->reference_fields.bits.reference_distance);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_NUMREF,            pic_params->reference_fields.bits.num_reference_pictures);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_REFFIELD,          pic_params->reference_fields.bits.reference_field_pic_indicator);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_MVRANGE,           pic_params->mv_fields.bits.extended_mv_range);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_HALFPEL_FLAG,      ctx->half_pel);
+    //REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_FRAME_CODING_MODE,       pic_params->picture_fields.bits.frame_coding_mode);
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_BOTTOM_FIELD_FLAG, ctx->bottom_field);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_ADVANCED_PROFILE,	(ctx->profile == WMF_PROFILE_ADVANCED) ? 1 : 0);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_SCAN_INDEX,	ctx->scan_index);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_ADVANCED_PROFILE, (ctx->profile == WMF_PROFILE_ADVANCED) ? 1 : 0);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_MVD5, VC1_BE_SCAN_INDEX,        ctx->scan_index);
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
     psb_cmdbuf_rendec_end_chunk(cmdbuf);
@@ -2361,7 +2369,7 @@ static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterB
     reg_value = 0;
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_PIC_WIDTH_IN_MBS_LESS1,  ctx->picture_width_mb - 1);
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_PIC_HEIGHT_IN_MBS_LESS1, ctx->picture_height_mb - 1);
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_FIRST_MB_IN_SLICE_Y,	    slice_param->slice_vertical_position);
+    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_FIRST_MB_IN_SLICE_Y,     slice_param->slice_vertical_position);
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_PTYPE,                   pic_params->picture_fields.bits.picture_type);
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0, VC1_FE_FCM,                     pic_params->picture_fields.bits.frame_coding_mode);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS0), reg_value);
@@ -2373,7 +2381,7 @@ static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterB
 #else
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BP_FORMAT,     IMG_TRUE); // non-interleaved format
 #endif
-    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BP_PRESENT,	ctx->bitplane_present);
+    REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_BP_PRESENT,  ctx->bitplane_present);
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_RAWCODINGFLAG, (pic_params->raw_coding.value & 0x7F)); /* 7-bits */
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_MVMODE,      pic_params->mv_fields.bits.mv_mode);
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS1, VC1_FE_MVMODE2,     pic_params->mv_fields.bits.mv_mode2);
@@ -2394,7 +2402,7 @@ static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterB
     /* Is this correct? */
     // Write to the VC1_FE_VOPDQUANT_PRESENT register according to PowerVR decoder's implementation.
     if (((ctx->profile == WMF_PROFILE_ADVANCED) && (pic_params->pic_quantizer_fields.bits.dquant != 0))
-            || (((ctx->profile != WMF_PROFILE_ADVANCED) && ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) || (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P))) && (pic_params->pic_quantizer_fields.bits.dquant != 0))) {
+        || (((ctx->profile != WMF_PROFILE_ADVANCED) && ((pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) || (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P))) && (pic_params->pic_quantizer_fields.bits.dquant != 0))) {
         REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_VOPDQUANT_PRESENT, 1);
     } else {
         REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VC1, CR_VEC_VC1_FE_PPS2, VC1_FE_VOPDQUANT_PRESENT, 0);
@@ -2501,7 +2509,7 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
     psb__information_message("    slice_data_flag = %d\n", slice_param->slice_data_flag);
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-            (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
+        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
         if (0 == slice_param->slice_data_size) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
@@ -2542,7 +2550,7 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
     }
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-            (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
+        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
         if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
             ASSERT(ctx->split_buffer_pending);
         }
@@ -2562,10 +2570,10 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
         ctx->obj_context->first_mb = 0;
         ctx->obj_context->flags = 0;
         if (ctx->is_first_slice) {
-            ctx->obj_context->flags |= FW_DXVA_RENDER_IS_FIRST_SLICE;
+            ctx->obj_context->flags |= FW_VA_RENDER_IS_FIRST_SLICE;
         }
         if (ctx->bitplane_present) {
-            ctx->obj_context->flags |= FW_DXVA_RENDER_VC1_BITPLANE_PRESENT;
+            ctx->obj_context->flags |= FW_VA_RENDER_VC1_BITPLANE_PRESENT;
         }
         ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
 
@@ -2603,7 +2611,7 @@ static VAStatus psb__VC1_process_slice_data(context_VC1_p ctx, object_buffer_p o
         return vaStatus;
     }
     if ((NULL == obj_buffer->psb_buffer) ||
-            (0 == obj_buffer->size)) {
+        (0 == obj_buffer->size)) {
         /* We need to have data in the bitstream buffer */
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         DEBUG_FAILURE;

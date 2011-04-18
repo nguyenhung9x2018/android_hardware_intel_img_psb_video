@@ -20,6 +20,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Fei Jiang <fei.jiang@intel.com>
+ *
+ */
+
 #ifndef _PSB_TEXSTREAMING_H_
 #define _PSB_TEXSTREAMING_H_
 #include <va/va.h>
@@ -38,7 +45,7 @@ typedef struct BC_Video_ioctl_package_TAG {
     int device_id;
     int inputparam;
     int outputparam;
-}BC_Video_ioctl_package;
+} BC_Video_ioctl_package;
 
 typedef struct bc_buf_ptr {
     unsigned int index;
@@ -47,10 +54,10 @@ typedef struct bc_buf_ptr {
     unsigned long handle;
 } bc_buf_ptr_t;
 
-#define BC_Video_ioctl_fill_buffer		    0
-#define BC_Video_ioctl_get_buffer_count	    1
+#define BC_Video_ioctl_fill_buffer                  0
+#define BC_Video_ioctl_get_buffer_count     1
 #define BC_Video_ioctl_get_buffer_phyaddr   2  /*get physical address by index*/
-#define BC_Video_ioctl_get_buffer_index 	3  /*get index by physical address*/
+#define BC_Video_ioctl_get_buffer_index         3  /*get index by physical address*/
 #define BC_Video_ioctl_request_buffers      4
 #define BC_Video_ioctl_set_buffer_phyaddr   5
 #define BC_Video_ioctl_release_buffer_device  6

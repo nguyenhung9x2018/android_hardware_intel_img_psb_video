@@ -21,6 +21,12 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
 
 #include "pnw_MPEG4.h"
 #include "psb_def.h"
@@ -61,7 +67,7 @@
 
 
 #define FE_STATE_BUFFER_SIZE    4096
-#define FE_STATE_SAVE_SIZE	( 0xB40 - 0x700 )
+#define FE_STATE_SAVE_SIZE      ( 0xB40 - 0x700 )
 
 #define MPEG4_PROFILE_SIMPLE    0
 #define MPEG4_PROFILE_ASP    2
@@ -76,8 +82,8 @@ typedef enum {
 
 #define MAX_QUANT_TABLES    (2) /* only 2 tables for 4:2:0 decode */
 
-static int scan0[64] = // spec, fig 7-2
-{/*u 0  .....                   7*/
+static int scan0[64] = { // spec, fig 7-2
+    /*u 0  .....                   7*/
     0,  1,  5,  6,  14, 15, 27, 28,  /* v = 0 */
     2,  4,  7,  13, 16, 26, 29, 42,
     3,  8,  12, 17, 25, 30, 41, 43,
@@ -589,7 +595,7 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
     ASSERT(obj_buffer->size == sizeof(VAPictureParameterBufferMPEG4));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAPictureParameterBufferMPEG4))) {
+        (obj_buffer->size != sizeof(VAPictureParameterBufferMPEG4))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -628,7 +634,7 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
         ctx->forward_ref_surface = SURFACE(ctx->pic_params->forward_reference_picture);
         ctx->backward_ref_surface = SURFACE(ctx->pic_params->backward_reference_picture);
         if ((NULL == ctx->forward_ref_surface) ||
-                (NULL == ctx->backward_ref_surface)) {
+            (NULL == ctx->backward_ref_surface)) {
             return VA_STATUS_ERROR_INVALID_SURFACE;
         }
         psb__information_message("PICTURE_CODING_B\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
@@ -805,7 +811,7 @@ static VAStatus psb__MPEG4_process_iq_matrix(context_MPEG4_p ctx, object_buffer_
     ASSERT(obj_buffer->size == sizeof(VAIQMatrixBufferMPEG4));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAIQMatrixBufferMPEG4))) {
+        (obj_buffer->size != sizeof(VAIQMatrixBufferMPEG4))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -1113,7 +1119,7 @@ static void psb__MPEG4_set_backend_registers(context_MPEG4_p ctx, VASliceParamet
 
     if (0 == ctx->pic_params->vol_fields.bits.short_video_header) {
         if ((GMC == ctx->pic_params->vol_fields.bits.sprite_enable) &&
-                (PICTURE_CODING_S == ctx->pic_params->vop_fields.bits.vop_coding_type)) {
+            (PICTURE_CODING_S == ctx->pic_params->vop_fields.bits.vop_coding_type)) {
             psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, MPEG4_CR_VEC_MPEG4_BE_GMC_X));
 
             /* TODO: GMC Motion Vectors */
@@ -1305,7 +1311,7 @@ static VAStatus psb__MPEG4_process_slice(context_MPEG4_p ctx,
     psb__information_message("    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-            (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
+        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
         if (0 == slice_param->slice_data_size) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
@@ -1341,7 +1347,7 @@ static VAStatus psb__MPEG4_process_slice(context_MPEG4_p ctx,
     }
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-            (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
+        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
         if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
             ASSERT(ctx->split_buffer_pending);
         }
@@ -1389,7 +1395,7 @@ static VAStatus psb__MPEG4_process_slice_data(context_MPEG4_p ctx, object_buffer
         return VA_STATUS_ERROR_UNKNOWN;
     }
     if ((NULL == obj_buffer->psb_buffer) ||
-            (0 == obj_buffer->size)) {
+        (0 == obj_buffer->size)) {
         /* We need to have data in the bitstream buffer */
         return VA_STATUS_ERROR_UNKNOWN;
     }

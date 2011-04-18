@@ -20,6 +20,14 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *
+ */
+
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/dpms.h>
@@ -39,11 +47,14 @@
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 #define INIT_OUTPUT_PRIV    psb_x11_output_p output = (psb_x11_output_p)(((psb_driver_data_p)ctx->pDriverData)->ws_priv)
 
-#define SURFACE(id)	((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
+#define SURFACE(id)     ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &driver_data->buffer_heap, id ))
 #define IMAGE(id)  ((object_image_p) object_heap_lookup( &driver_data->image_heap, id ))
 #define SUBPIC(id)  ((object_subpic_p) object_heap_lookup( &driver_data->subpic_heap, id ))
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
+
+
+void psb_x11_freeWindowClipBoxList(psb_x11_clip_list_t * pHead);
 
 
 //X error trap
@@ -187,7 +198,7 @@ static VAStatus psb_putsurface_x11(
         goto out;
     }
 
-    void yuv2pixel(uint32_t *pixel, int y, int u, int v) {
+    void yuv2pixel(uint32_t * pixel, int y, int u, int v) {
         int r, g, b;
         /* Warning, magic values ahead */
         r = y + ((351 * (v - 128)) >> 8);
@@ -270,17 +281,20 @@ void *psb_x11_output_init(VADriverContextP ctx)
 
     psb_init_xvideo(ctx, output);
 
+    output->output_drawable = 0;
+    output->extend_drawable = 0;
+    
+    /* always init CTEXTURE and COVERLAY */
+    driver_data->coverlay = 1;
     driver_data->color_key = 0x11;
+    driver_data->ctexture = 1;
+
     if (IS_MFLD(driver_data) && /* force MFLD to use COVERLAY */
-            (driver_data->output_method == PSB_PUTSURFACE_OVERLAY)) {
+        (driver_data->output_method == PSB_PUTSURFACE_OVERLAY)) {
         psb__information_message("Use client overlay mode for post-processing\n");
 
-        driver_data->coverlay = 1;
         driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
     }
-
-    /* always init CTEXTURE on MRST and MDFLD*/
-    driver_data->ctexture = 1;
 
     if (getenv("PSB_VIDEO_TEXTURE") && output->textured_portID) {
         psb__information_message("Putsurface force to use Textured Xvideo\n");
@@ -316,6 +330,16 @@ error_handler(Display *dpy, XErrorEvent *error)
 
 void psb_x11_output_deinit(VADriverContextP ctx)
 {
+    INIT_OUTPUT_PRIV;
+
+    psb_x11_freeWindowClipBoxList(output->pClipBoxList);
+    output->pClipBoxList = NULL;
+
+    if (output->extend_drawable) {
+        XDestroyWindow(ctx->native_dpy, output->extend_drawable);
+        output->extend_drawable = 0;
+    }
+    
     psb_deinit_xvideo(ctx);
 }
 
@@ -349,25 +373,32 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
     INIT_OUTPUT_PRIV;
 
     if (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXTURE ||
-            driver_data->output_method == PSB_PUTSURFACE_FORCE_OVERLAY ||
-            driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE ||
-            driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) {
+        driver_data->output_method == PSB_PUTSURFACE_FORCE_OVERLAY ||
+        driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE ||
+        driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) {
         psb__information_message("Force to use %08x for PutSurface\n", driver_data->output_method);
         return 0;
     }
 
+    if (driver_data->overlay_auto_paint_color_key)
+	driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
+
     /* Avoid call is_window()/XGetWindowAttributes() every frame */
     if (output->output_drawable_save != draw) {
-	output->output_drawable_save = draw;
-	if (!is_window(ctx->native_dpy, draw))
-	    output->is_pixmap = 1;
-	else
-	    output->is_pixmap = 0;
+        output->output_drawable_save = draw;
+        if (!is_window(ctx->native_dpy, draw))
+            output->is_pixmap = 1;
+        else
+            output->is_pixmap = 0;
     }
 
-    if (output->is_pixmap == 1 || (IS_MRST(driver_data) && obj_surface->subpic_count > 0) || width >= 2048 || height >= 2048 ||
-            /*FIXME: overlay path can't handle subpicture scaling. when surface size > dest box, fallback to texblit.*/
-            (IS_MFLD(driver_data) && obj_surface->subpic_count && ((width > destw) || (height > desth)))) {
+    /*FIXME: overlay path can't handle subpicture scaling. when surface size > dest box, fallback to texblit.*/    
+    if ((output->is_pixmap == 1)
+        || (IS_MRST(driver_data) && obj_surface->subpic_count > 0)
+        || (IS_MFLD(driver_data) && obj_surface->subpic_count && ((width > destw) || (height > desth)))
+        || (width >= 2048)
+        || (height >= 2048)
+        ) {        
         psb__information_message("Putsurface fall back to use Client Texture\n");
 
         driver_data->output_method = PSB_PUTSURFACE_CTEXTURE;
@@ -428,7 +459,7 @@ VAStatus psb_PutSurface(
     pthread_mutex_lock(&driver_data->output_mutex);
 
     if ((driver_data->output_method == PSB_PUTSURFACE_CTEXTURE) ||
-            (driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE)) {
+        (driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE)) {
         psb__information_message("Using client Texture for PutSurface\n");
         psb_putsurface_ctexture(ctx, surface, draw,
                                 srcx, srcy, srcw, srch,

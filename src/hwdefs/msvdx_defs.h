@@ -22,17 +22,17 @@
  */
 
 /*!****************************************************************************
-@File			msvdx_defs.h
+@File                   msvdx_defs.h
 
-@Title			System Description Header
+@Title                  System Description Header
 
-@Author			Imagination Technologies
+@Author                 Imagination Technologies
 
-@date   		20 Decemner 2006
+@date                   20 Decemner 2006
 
-@Platform		generic
+@Platform               generic
 
-@Description	This header provides hardware-specific declarations and macros
+@Description    This header provides hardware-specific declarations and macros
 
 @DoxygenVer
 
@@ -47,29 +47,29 @@ $Log: msvdx_defs.h $
 #ifndef _MSVDX_DEFS_H_
 #define _MSVDX_DEFS_H_
 
-#define MSVDX_REG_SIZE 	0x4000
+#define MSVDX_REG_SIZE  0x4000
 
-/* MSVDX Register base definitions														*/
-#define REG_MSVDX_MTX_OFFSET		0x00000000
-#define REG_MSVDX_VDMC_OFFSET		0x00000400
-#define REG_MSVDX_VDEB_OFFSET		0x00000480
-#define REG_MSVDX_DMAC_OFFSET		0x00000500
-#define REG_MSVDX_SYS_OFFSET		0x00000600
-#define REG_MSVDX_VEC_IQRAM_OFFSET	0x00000700
-#define REG_MSVDX_VEC_OFFSET		0x00000800
-#define REG_MSVDX_CMD_OFFSET		0x00001000
-#define REG_MSVDX_VEC_RAM_OFFSET	0x00002000
-#define REG_MSVDX_VEC_VLC_OFFSET	0x00003000
+/* MSVDX Register base definitions                                                                                                              */
+#define REG_MSVDX_MTX_OFFSET            0x00000000
+#define REG_MSVDX_VDMC_OFFSET           0x00000400
+#define REG_MSVDX_VDEB_OFFSET           0x00000480
+#define REG_MSVDX_DMAC_OFFSET           0x00000500
+#define REG_MSVDX_SYS_OFFSET            0x00000600
+#define REG_MSVDX_VEC_IQRAM_OFFSET      0x00000700
+#define REG_MSVDX_VEC_OFFSET            0x00000800
+#define REG_MSVDX_CMD_OFFSET            0x00001000
+#define REG_MSVDX_VEC_RAM_OFFSET        0x00002000
+#define REG_MSVDX_VEC_VLC_OFFSET        0x00003000
 
-#define REG_MSVDX_MTX_SIZE			0x00000400
-#define REG_MSVDX_VDMC_SIZE			0x00000080
-#define REG_MSVDX_VDEB_SIZE			0x00000080
-#define REG_MSVDX_DMAC_SIZE			0x00000100
-#define REG_MSVDX_SYS_SIZE			0x00000100
-#define REG_MSVDX_VEC_IQRAM_SIZE	0x00000100
-#define REG_MSVDX_VEC_SIZE			0x00000800
-#define REG_MSVDX_CMD_SIZE			0x00001000
-#define REG_MSVDX_VEC_RAM_SIZE		0x00001000
-#define REG_MSVDX_VEC_VLC_SIZE		0x00002000
+#define REG_MSVDX_MTX_SIZE                      0x00000400
+#define REG_MSVDX_VDMC_SIZE                     0x00000080
+#define REG_MSVDX_VDEB_SIZE                     0x00000080
+#define REG_MSVDX_DMAC_SIZE                     0x00000100
+#define REG_MSVDX_SYS_SIZE                      0x00000100
+#define REG_MSVDX_VEC_IQRAM_SIZE        0x00000100
+#define REG_MSVDX_VEC_SIZE                      0x00000800
+#define REG_MSVDX_CMD_SIZE                      0x00001000
+#define REG_MSVDX_VEC_RAM_SIZE          0x00001000
+#define REG_MSVDX_VEC_VLC_SIZE          0x00002000
 
 #endif /* _MSVDX_DEFS_H_ */

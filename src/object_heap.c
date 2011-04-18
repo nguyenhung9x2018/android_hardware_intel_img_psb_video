@@ -20,6 +20,14 @@
  * express and approved by Intel in writing.
  */
 
+
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #include "object_heap.h"
 
 #include <stdlib.h>

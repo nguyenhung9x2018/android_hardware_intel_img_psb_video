@@ -19,12 +19,20 @@
  * otherwise. Any license under such intellectual property rights must be
  * express and approved by Intel in writing.
  */
+
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Forrest Zhang  <forrest.zhang@intel.com>
+ *
+ */
+
+
 #ifndef _LNC_OSPM_EVENT_H_
 #define _LNC_OSPM_EVENT_H_
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 #include "psb_drv_video.h"
 

@@ -20,9 +20,15 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *
+ */
+
+
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
     unsigned char* psb_android_registerBuffers(void** surface, int pid, int width, int height);
@@ -32,6 +38,9 @@ extern "C"
     void psb_android_clearHeap();
 
     void psb_android_texture_streaming_display(int buffer_index);
+
+    void psb_android_texture_streaming_set_texture_dim(unsigned short srcw,
+            unsigned short srch);
 
     void psb_android_texture_streaming_set_crop(short srcx,
             short srcy,
@@ -48,7 +57,7 @@ extern "C"
 
     void psb_android_texture_streaming_destroy();
 
-    void psb_android_register_isurface(void** surface, int bcd_id, int srcw, int srch);
+    int psb_android_register_isurface(void** surface, int bcd_id, int srcw, int srch);
 
 #ifdef __cplusplus
 }

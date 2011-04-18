@@ -46,6 +46,7 @@ LOCAL_SRC_FILES :=		\
     psb_drv_video.c         \
     psb_output.c		\
     psb_texstreaming.c            \
+    psb_texture.c            \
     android/psb_output_android.c            \
     android/psb_android_glue.cpp            \
     psb_surface.c           \
@@ -91,7 +92,7 @@ LOCAL_C_INCLUDES :=			\
     $(LOCAL_PATH)/powervr_iep_lite/iep_lite		\
     $(LOCAL_PATH)/powervr_iep_lite/fixedpointmaths
 
-LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := pvr_drv_video
 
 LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libmemrar libpvr2d libcutils \

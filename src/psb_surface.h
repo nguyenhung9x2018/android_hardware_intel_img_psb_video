@@ -20,6 +20,12 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #ifndef _PSB_SURFACE_H_
 #define _PSB_SURFACE_H_
 
@@ -29,12 +35,12 @@
 
 /* MSVDX specific */
 typedef enum {
-    STRIDE_352	= 0,
-    STRIDE_720	= 1,
-    STRIDE_1280	= 2,
+    STRIDE_352  = 0,
+    STRIDE_720  = 1,
+    STRIDE_1280 = 2,
     STRIDE_1920 = 3,
-    STRIDE_512	= 4,
-    STRIDE_1024	= 5,
+    STRIDE_512  = 4,
+    STRIDE_1024 = 5,
     STRIDE_2048 = 6,
     STRIDE_4096 = 7,
     STRIDE_NA,
@@ -48,7 +54,7 @@ struct psb_surface_s {
     struct psb_buffer_s *in_loop_buf;
     struct psb_buffer_s *ref_buf;
     psb_surface_stride_t stride_mode;
-    int	stride;
+    int stride;
     unsigned int luma_offset;
     unsigned int chroma_offset;
     /* Used to store driver private data, e.g. decoder specific intermediate status data

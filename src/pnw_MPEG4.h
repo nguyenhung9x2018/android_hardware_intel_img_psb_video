@@ -21,6 +21,13 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
 #ifndef _PNW_MPEG4_H_
 #define _PNW_MPEG4_H_
 

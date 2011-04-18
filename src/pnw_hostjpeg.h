@@ -21,15 +21,21 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *
+ */
+
 
 #ifndef _PNW_HOST_JPEG_H_
 #define _PNW_HOST_JPEG_H_
 
 #include <img_types.h>
 
-#define QUANT_TABLE_SIZE_BYTES	(64)             //!<JPEG input quantization table size
+#define QUANT_TABLE_SIZE_BYTES  (64)             //!<JPEG input quantization table size
 
-#define MTX_MAX_COMPONENTS		(3)				//<!JPEG input parameter sizes
+#define MTX_MAX_COMPONENTS              (3)                             //<!JPEG input parameter sizes
 
 #define PNW_JPEG_COMPONENTS_NUM (3)
 
@@ -77,18 +83,18 @@
 
 
 typedef struct {
-    unsigned int	ui32Width;		//!< Width of the image component
-    unsigned int	ui32Stride;		//!< Stride of the image component
-    unsigned int	ui32Step;		//!< Step of the image component
-    unsigned int	ui32Height;		//!< Height of the image component
+    unsigned int        ui32Width;              //!< Width of the image component
+    unsigned int        ui32Stride;             //!< Stride of the image component
+    unsigned int        ui32Step;               //!< Step of the image component
+    unsigned int        ui32Height;             //!< Height of the image component
 
 } COMP_INFO;
 
 typedef struct {
-    unsigned int	ui32OutputWidth;		//!< Width of the JPEG image
-    unsigned int	ui32OutputHeight;		//!< Height of the JPEG image
-    unsigned int	ui32Components;			//!< Number of components in the image ( 1 or 3 )
-    COMP_INFO	sCompInfo[3];			//!< Array containing component info
+    unsigned int        ui32OutputWidth;                //!< Width of the JPEG image
+    unsigned int        ui32OutputHeight;               //!< Height of the JPEG image
+    unsigned int        ui32Components;                 //!< Number of components in the image ( 1 or 3 )
+    COMP_INFO   sCompInfo[3];                   //!< Array containing component info
 
 } IMG_JPEG_INFO;
 
@@ -102,24 +108,24 @@ typedef enum _img_format_ {
 } IMG_FORMAT;
 
 typedef struct {
-    IMG_UINT32	ui32BytesUsed;		//!<
-    IMG_UINT32	ui32BytesEncoded;	//!<
-    IMG_UINT32	ui32BytesToEncode;	//!<
-    IMG_UINT32	ui32Reserved3;		//!<
+    IMG_UINT32  ui32BytesUsed;          //!<
+    IMG_UINT32  ui32BytesEncoded;       //!<
+    IMG_UINT32  ui32BytesToEncode;      //!<
+    IMG_UINT32  ui32Reserved3;          //!<
 
 } BUFFER_HEADER;
 
 typedef enum {
-    IMG_ERR_OK					= 0,	//!< OK
-    IMG_ERR_SURFACE_LOCKED		= 1,	//!< The requested surface was locked
-    IMG_ERR_MEMORY				= 2,	//!< A memory error occured
-    IMG_ERR_FILE				= 3,	//!< A file error occured
-    IMG_ERR_NOBUFFERAVAILABLE	= 4,	//!< No buffer was available
-    IMG_ERR_COMPLETE			= 5,	//!< Command is complete
-    IMG_ERR_INVALID_CONTEXT		= 6,	//!< An invalid context was given
-    IMG_ERR_INVALID_SIZE		= 7,	//!< An invalid size was given
-    IMG_ERR_TIMEOUT				= 8,	//!< Timeout
-    IMG_ERR_UNDEFINED			= -1
+    IMG_ERR_OK                                  = 0,    //!< OK
+    IMG_ERR_SURFACE_LOCKED              = 1,    //!< The requested surface was locked
+    IMG_ERR_MEMORY                              = 2,    //!< A memory error occured
+    IMG_ERR_FILE                                = 3,    //!< A file error occured
+    IMG_ERR_NOBUFFERAVAILABLE   = 4,    //!< No buffer was available
+    IMG_ERR_COMPLETE                    = 5,    //!< Command is complete
+    IMG_ERR_INVALID_CONTEXT             = 6,    //!< An invalid context was given
+    IMG_ERR_INVALID_SIZE                = 7,    //!< An invalid size was given
+    IMG_ERR_TIMEOUT                             = 8,    //!< Timeout
+    IMG_ERR_UNDEFINED                   = -1
 
 } IMG_ERRORCODE;
 
@@ -127,15 +133,15 @@ typedef enum {
  *  *****************************************************************************
  *
  * @details    Struct sent with the MTX_CMDID_ISSUEBUFF command detailing
- *				   where a scan encode should begin (calculated from the total count of MCUs)
- *				   and how many MCU's should be processed in this scan.
+ *                                 where a scan encode should begin (calculated from the total count of MCUs)
+ *                                 and how many MCU's should be processed in this scan.
  *
  * @brief          JPEG structure defining scan start position and how many MCUs to process
  *
  ****************************************************************************/
 typedef struct {
-    IMG_UINT32	ui32CurrentMTXScanMCUPosition;	//!< Scan start position in MCUs
-    IMG_UINT32	ui32MCUCntAndResetFlag;		//!< [32:2] Number of MCU's to encode or decode, [1] Reset predictors (1=Reset, 0=No Reset)
+    IMG_UINT32  ui32CurrentMTXScanMCUPosition;  //!< Scan start position in MCUs
+    IMG_UINT32  ui32MCUCntAndResetFlag;         //!< [32:2] Number of MCU's to encode or decode, [1] Reset predictors (1=Reset, 0=No Reset)
 
 } MTX_ISSUE_BUFFERS;
 /*!
@@ -164,10 +170,10 @@ typedef struct {
  *
  ****************************************************************************/
 typedef enum {
-    BUFFER_FREE	= 1,  //!< Buffer is not locked
+    BUFFER_FREE = 1,  //!< Buffer is not locked
     HW_LOCK,          //!< Buffer is locked by hardware
     SW_LOCK,          //!< Buffer is locked by software
-    NOTDEVICEMEMORY,	//!< Buffer is not a device memory buffer
+    NOTDEVICEMEMORY,    //!< Buffer is not a device memory buffer
 } LOCK_STATUS;
 
 
@@ -181,9 +187,9 @@ typedef enum {
  * ****************************************************************************/
 typedef struct {
     void* pMemInfo;   //!< Pointer to the memory handle for the buffer
-    LOCK_STATUS	sLock;                  //!< Lock status for the buffer
-    IMG_UINT32	ui32Size;               //!< Size in bytes of the buffer
-    IMG_UINT32	ui32BytesWritten;       //!< Number of bytes written into buffer
+    LOCK_STATUS sLock;                  //!< Lock status for the buffer
+    IMG_UINT32  ui32Size;               //!< Size in bytes of the buffer
+    IMG_UINT32  ui32BytesWritten;       //!< Number of bytes written into buffer
 } IMG_BUFFER, IMG_CODED_BUFFER;
 
 
@@ -198,14 +204,14 @@ typedef struct {
  ****************************************************************************/
 typedef struct {
     IMG_BUFFER *psBuffer;                           //!< pointer to the image buffer
-    IMG_UINT32 ui32Width;							//!< stride of pBuffer
-    IMG_UINT32 ui32Height;							//!< height of picture in pBuffer
+    IMG_UINT32 ui32Width;                                                       //!< stride of pBuffer
+    IMG_UINT32 ui32Height;                                                      //!< height of picture in pBuffer
 
-    IMG_UINT32 ui32ComponentCount;					//!< number of colour components used
-    IMG_FORMAT eFormat;								//!< Format of the surface
+    IMG_UINT32 ui32ComponentCount;                                      //!< number of colour components used
+    IMG_FORMAT eFormat;                                                         //!< Format of the surface
 
-    IMG_UINT32	aui32ComponentOffset[3];			//!< Offset of the planes within the surface
-    IMG_SURF_COMPONENT_INFO	aui32ComponentInfo[3];	//!< Component plane information
+    IMG_UINT32  aui32ComponentOffset[3];                        //!< Offset of the planes within the surface
+    IMG_SURF_COMPONENT_INFO     aui32ComponentInfo[3];  //!< Component plane information
 
 } IMG_FRAME, JPEG_SOURCE_SURFACE;
 #define MAX_NUMBER_OF_MTX_UNITS 4 // Number of MTX units
@@ -213,9 +219,9 @@ typedef struct {
 #define NUMBER_OF_BUFFS 3 // Should be at least equal to number of MTX's for optimal performance
 #define SIM_TEST_NUMBER_OF_BUFFS 3 // Should be at least equal to number of MTX's for optimal performance
 #define BLOCKCOUNTMAXPERCOLOURPLANE 6 // Would be 10 for max theoretically possible.. 6 is our actual max
-#define MAX_MCU_SIZE			(((8*8)+1)*3 * BLOCKCOUNTMAXPERCOLOURPLANE)
+#define MAX_MCU_SIZE                    (((8*8)+1)*3 * BLOCKCOUNTMAXPERCOLOURPLANE)
 #define SIM_TEST_MCUS_IN_BUFFER 22
-#define RL_END_OF_BLOCK		0xff
+#define RL_END_OF_BLOCK         0xff
 #define DATA_BUFFER_SIZE(mcus_in_buffer) (MAX_MCU_SIZE*mcus_in_buffer)
 #define DMEMORYMCUSATSIXSEVENTY_ESTIMATE 55488
 
@@ -233,9 +239,9 @@ typedef struct {
 /*  JPEG specification.                                                      */
 /*****************************************************************************/
 #define MAX_COMP_IN_SCAN                4
-//#define MTX_CMD_BUF_SIZE	(32)
-//#define MTX_MAX_COMPONENTS	(3)
-#define PERF		1
+//#define MTX_CMD_BUF_SIZE      (32)
+//#define MTX_MAX_COMPONENTS    (3)
+#define PERF            1
 
 /******************************************************************************
   General definitions for static header offsets (used for MJPEG A headers)
@@ -260,7 +266,7 @@ typedef struct {
 /******************************************************************************
   MJPEG A marker definitions
  ******************************************************************************/
-#define MJPEG_APP1					0xFFE1
+#define MJPEG_APP1                                      0xFFE1
 
 /******************************************************************************
   JPEG marker definitions
@@ -288,8 +294,8 @@ typedef struct {
 #define QMAX                        255
 #define CLIP(Number,Max,Min)    if((Number) > (Max)) (Number) = (Max); \
     else if((Number) < (Min)) (Number) = (Min)
-#define AVAILABLE			( 0 )
-#define JPEG_ENCODE_LOCK	( 0x20 )
+#define AVAILABLE                       ( 0 )
+#define JPEG_ENCODE_LOCK        ( 0x20 )
 
 
 
@@ -299,14 +305,14 @@ typedef struct {
 
 //typedef struct
 //{
-//	IMG_UINT32 ui32BytesUsed;
-//	IMG_UINT32 ui32BytesEncoded;
-//	IMG_UINT32 ui32Reserved2;
-//	IMG_UINT32 ui32Reserved3;
+//      IMG_UINT32 ui32BytesUsed;
+//      IMG_UINT32 ui32BytesEncoded;
+//      IMG_UINT32 ui32Reserved2;
+//      IMG_UINT32 ui32Reserved3;
 //} BUFFER_HEADER;
 
 /*****************************************************************************/
-/*  STREAMTYPEW				                                                 */
+/*  STREAMTYPEW                                                                          */
 /*  Container to store the stream context                                    */
 /*****************************************************************************/
 typedef struct {
@@ -317,37 +323,37 @@ typedef struct {
 
 //typedef struct
 //{
-//	IMG_UINT32 ui32WidthBlocks ;	/* Width in pixels, shall be a multiple of 8*/
-//	IMG_UINT32 ui32HeightBlocks ;   /* Height in pixels, shall be a multiple of 8*/
-//	IMG_UINT32 ui32XLimit;			/* Blocks will not be encoded beyond this */
-//	IMG_UINT32 ui32YLimit;			/* Blocks will not be encoded beyond this */
+//      IMG_UINT32 ui32WidthBlocks ;    /* Width in pixels, shall be a multiple of 8*/
+//      IMG_UINT32 ui32HeightBlocks ;   /* Height in pixels, shall be a multiple of 8*/
+//      IMG_UINT32 ui32XLimit;                  /* Blocks will not be encoded beyond this */
+//      IMG_UINT32 ui32YLimit;                  /* Blocks will not be encoded beyond this */
 //} MCUCOMPONENT;
 //
 //typedef struct
 //{
-//	IMG_UINT32 ui32PhysAddr;		/* Physical address Component plane in shared memory*/
-//	IMG_UINT32 ui32Stride;			/* Stride of source plane */
-//	IMG_UINT32 ui32Height;			/* Height of avaliable data in plane.  shall be a minumum of one MCU high */
+//      IMG_UINT32 ui32PhysAddr;                /* Physical address Component plane in shared memory*/
+//      IMG_UINT32 ui32Stride;                  /* Stride of source plane */
+//      IMG_UINT32 ui32Height;                  /* Height of avaliable data in plane.  shall be a minumum of one MCU high */
 //} COMPONENTPLANE;
 //
 //
 //typedef struct
 //{
 ///// The following values are DMA'd straight across from host
-//	COMPONENTPLANE	ComponentPlane[MTX_MAX_COMPONENTS];
-//	MCUCOMPONENT	MCUComponent[MTX_MAX_COMPONENTS];
-//	IMG_UINT32 ui32ComponentsInScan;	/* Number of compnents */
-//	IMG_UINT32 ui32TableA;		/* Quantisation table for Luma component*/
-//	IMG_UINT32 ui32DataInterleaveStatus; /*What kind of interleaving is required*/
+//      COMPONENTPLANE  ComponentPlane[MTX_MAX_COMPONENTS];
+//      MCUCOMPONENT    MCUComponent[MTX_MAX_COMPONENTS];
+//      IMG_UINT32 ui32ComponentsInScan;        /* Number of compnents */
+//      IMG_UINT32 ui32TableA;          /* Quantisation table for Luma component*/
+//      IMG_UINT32 ui32DataInterleaveStatus; /*What kind of interleaving is required*/
 //} JPEG_MTX_DMA_SETUP;
 
 
 //typedef struct
 //{
-////    IMG_UINT32  ui32BufferPhysAddr;		/*  Physical address of buffer table in shared memory*/
-//	IMG_UINT32  ui32CurrentMTXScanMCUPosition; // Scan start position in MCUs
-//    IMG_UINT32  ui32SizeAndProcMCUCount;/*	[31:16] Valid data in bytes
-//											[15:0] Number of MCU's to encode or decode */
+////    IMG_UINT32  ui32BufferPhysAddr;         /*  Physical address of buffer table in shared memory*/
+//      IMG_UINT32  ui32CurrentMTXScanMCUPosition; // Scan start position in MCUs
+//    IMG_UINT32  ui32SizeAndProcMCUCount;/*    [31:16] Valid data in bytes
+//                                                                                      [15:0] Number of MCU's to encode or decode */
 //} MTX_ISSUE_BUFFERS;
 
 
@@ -364,9 +370,9 @@ typedef struct {
 } LEGACY_ENCODE_HEADER;
 
 typedef enum {
-    BUFF_BUSY_IN_HW_0,	/* Indicates that this buffer is in use by the hardware */
-    BUFF_BUSY_IN_SW,	/* Indicates that this buffer is in use by sw */
-    BUFF_AVALIABLE,		/* Indicates this buffer can be submitted to hw */
+    BUFF_BUSY_IN_HW_0,  /* Indicates that this buffer is in use by the hardware */
+    BUFF_BUSY_IN_SW,    /* Indicates that this buffer is in use by sw */
+    BUFF_AVALIABLE,             /* Indicates this buffer can be submitted to hw */
 } LEGACY_BUFFER_STATUS;
 
 /*****************************************************************************/
@@ -389,24 +395,24 @@ typedef struct {
 } LEGACY_ENCTYPE;
 
 typedef struct {
-    IMG_UINT8*	pData;
-    IMG_UINT32	ui32DataBufferSize;
-    IMG_UINT32	OpNum;
-    IMG_UINT32	ui32numberOfMCUs;
-    LEGACY_BUFFER_STATUS	eBufferStatus;
+    IMG_UINT8*  pData;
+    IMG_UINT32  ui32DataBufferSize;
+    IMG_UINT32  OpNum;
+    IMG_UINT32  ui32numberOfMCUs;
+    LEGACY_BUFFER_STATUS        eBufferStatus;
     struct MEMORY_INFO_TAG* pMemInfo;
 
-    IMG_UINT32	ui32CurrentIndexAccessPos;
-    IMG_UINT32	ui32CurrentIndexHeaderPos;
+    IMG_UINT32  ui32CurrentIndexAccessPos;
+    IMG_UINT32  ui32CurrentIndexHeaderPos;
 #ifdef PERF
-    IMG_UINT32	ui32IssueTime;
+    IMG_UINT32  ui32IssueTime;
 #endif
 
 } LEGACY_BUFFERINFO;
 
 
 /*****************************************************************************/
-/*  LEGACY_JPEGENC_ITTIAM_PARAMS	                                         */
+/*  LEGACY_JPEGENC_ITTIAM_PARAMS                                                 */
 /*                                                                           */
 /*  Pointer to the JPEG encoder parameter context. This structure is used by */
 /*  the sample application to pass configuration parameters to the encoder.  */
@@ -421,7 +427,7 @@ typedef struct {
     IMG_UINT8  puc_comp_id[MAX_COMP_IN_SCAN]; /*!< Component identifier */
     IMG_UINT16 ui16_width;             /*!< Width of the JPEG image */
     IMG_UINT16 ui16_height;            /*!< Height of the JPEG image */
-}LEGACY_JPEGENC_ITTIAM_PARAMS;
+} LEGACY_JPEGENC_ITTIAM_PARAMS;
 
 typedef struct {
     IMG_UINT8  uc_num_comp_in_img;    /*!< Number of components in image */
@@ -457,10 +463,10 @@ typedef enum {
  *
  *****************************************************************************/
 typedef struct {
-    IMG_UINT32	ui32WidthBlocks;	//!< Width in pixels, shall be a multiple of 8
-    IMG_UINT32	ui32HeightBlocks;	//!< Height in pixels, shall be a multiple of 8
-    IMG_UINT32	ui32XLimit;			//!< Blocks will not be encoded beyond this
-    IMG_UINT32	ui32YLimit;			//!< Blocks will not be encoded beyond this
+    IMG_UINT32  ui32WidthBlocks;        //!< Width in pixels, shall be a multiple of 8
+    IMG_UINT32  ui32HeightBlocks;       //!< Height in pixels, shall be a multiple of 8
+    IMG_UINT32  ui32XLimit;                     //!< Blocks will not be encoded beyond this
+    IMG_UINT32  ui32YLimit;                     //!< Blocks will not be encoded beyond this
 
 } MCUCOMPONENT;
 
@@ -469,16 +475,16 @@ typedef struct {
  *  *****************************************************************************
  *
  *   @details    Struct describing essential information about a single JPEG component plane, defines the
- *  	   Physical address of the colour plane, its stride and its height.
+ *         Physical address of the colour plane, its stride and its height.
  *      Send to firmware in the MTX_CMDID_SETUP command as part of the JPEG_MTX_DMA_SETUP structure.
  *
  *   @brief          Basic information for a single JPEG component plane, passed to firmware.
  *
  *****************************************************************************/
 typedef struct {
-    IMG_UINT32	ui32PhysAddr;	//!< Physical address Component plane in shared memory
-    IMG_UINT32	ui32Stride;		//!< Stride of source plane */
-    IMG_UINT32	ui32Height;		//!< Height of avaliable data in plane.  shall be a minumum of one MCU high
+    IMG_UINT32  ui32PhysAddr;   //!< Physical address Component plane in shared memory
+    IMG_UINT32  ui32Stride;             //!< Stride of source plane */
+    IMG_UINT32  ui32Height;             //!< Height of avaliable data in plane.  shall be a minumum of one MCU high
 
 } COMPONENTPLANE;
 
@@ -487,45 +493,45 @@ typedef struct {
  *  *****************************************************************************
  *
  *  @details    Struct describing essential information required by firmware to encode a scan.
- * 	   Send to firmware in the MTX_CMDID_SETUP command.
+ *         Send to firmware in the MTX_CMDID_SETUP command.
  *
  *  @brief          Setup information for a single JPEG scan.
  *
  *****************************************************************************/
 typedef struct {
-    COMPONENTPLANE	ComponentPlane[MTX_MAX_COMPONENTS];	//!< Array of component plane source information (detailing physical address, stride and height)
-    MCUCOMPONENT	MCUComponent[MTX_MAX_COMPONENTS];	//!< Array of Minimum Coded Unit information for each component plane
-    IMG_UINT32		ui32ComponentsInScan;				//!< Number of components
-    IMG_UINT32		ui32TableA;							//!< Quantisation table for Luma component
-    IMG_UINT32		ui32DataInterleaveStatus;			//!< Source component interleave status (0, C_INTERLEAVE, LC_UVINTERLEAVE or LC_VUINTERLEAVE)
+    COMPONENTPLANE      ComponentPlane[MTX_MAX_COMPONENTS];     //!< Array of component plane source information (detailing physical address, stride and height)
+    MCUCOMPONENT        MCUComponent[MTX_MAX_COMPONENTS];       //!< Array of Minimum Coded Unit information for each component plane
+    IMG_UINT32          ui32ComponentsInScan;                           //!< Number of components
+    IMG_UINT32          ui32TableA;                                                     //!< Quantisation table for Luma component
+    IMG_UINT32          ui32DataInterleaveStatus;                       //!< Source component interleave status (0, C_INTERLEAVE, LC_UVINTERLEAVE or LC_VUINTERLEAVE)
 
 } JPEG_MTX_DMA_SETUP;
 
 /* JPEG HW Interface state structure */
 typedef struct {
     struct MEMORY_INFO_TAG* pMemInfoMTXSetup;
-    JPEG_MTX_DMA_SETUP*	pMTXSetup;
+    JPEG_MTX_DMA_SETUP* pMTXSetup;
 
     struct MEMORY_INFO_TAG* pMemInfoTableBlock;
-    IMG_UINT8		*pui8TablesBlock;
+    IMG_UINT8           *pui8TablesBlock;
 
     LEGACY_ENCODE_HEADER* pLastEncodeHeader;
 
-    LEGACY_BUFFERINFO		asRLCBuffers[SIM_TEST_NUMBER_OF_BUFFS];
+    LEGACY_BUFFERINFO           asRLCBuffers[SIM_TEST_NUMBER_OF_BUFFS];
 
-    IMG_UINT8*		pLocalMemBuffer;
+    IMG_UINT8*          pLocalMemBuffer;
 
-    IMG_UINT32		ui32CurrentIndex;
+    IMG_UINT32          ui32CurrentIndex;
 
     /* These are used by by encode */
-    IMG_UINT32		rlcWriteIndex;
-    IMG_UINT32		rlcReadIndex;
+    IMG_UINT32          rlcWriteIndex;
+    IMG_UINT32          rlcReadIndex;
 
     /* It would be nice to get rid of this */
-    LEGACY_BUFFERINFO*	pCurrBuff;
-    IMG_UINT8*		pReadFromRLE;
+    LEGACY_BUFFERINFO*  pCurrBuff;
+    IMG_UINT8*          pReadFromRLE;
 
-    IMG_UINT32		uiLastDCValue;
+    IMG_UINT32          uiLastDCValue;
 
     IMG_BOOL bNeedRestart;
 
@@ -543,9 +549,9 @@ typedef struct {
     LEGACY_JPEGENC_ITTIAM_COMPONENT sJPEGEncoderComp;
     IMG_UINT32 BytesUsed;
     IMG_UINT8* pui8ByteBuffer;
-    IMG_JPEG_INFO	sJpegInfo ;
-    LEGACY_ENCTYPE*	pvLowLevelEncContext;
-    LEGACY_JPEG_API_CURRENT_ACTIVE	eCurrentActive;
+    IMG_JPEG_INFO       sJpegInfo ;
+    LEGACY_ENCTYPE*     pvLowLevelEncContext;
+    LEGACY_JPEG_API_CURRENT_ACTIVE      eCurrentActive;
     struct MEMORY_INFO_TAG *pHWSync;
     LEGACY_MTXJPEG_HOST_STATE* gpMTXHostState;
     IMG_UINT32 ui32MCUsWaitingToBeSentToHW;
@@ -571,7 +577,7 @@ typedef struct {
     IMG_UINT16 ui16ScanNumber;
     IMG_UINT32 ui32WriteBackVal;
     IMG_INT8 i8MTXNumber; // Doubles as status indicator ( <0 = Awaiting output to CB, 0 = Idle, >0 = Being filled by MTX)
-    IMG_UINT32	MTXOpNum; // Handle returned from MTX issuebuff command, can be used to check for completion
+    IMG_UINT32  MTXOpNum; // Handle returned from MTX issuebuff command, can be used to check for completion
     IMG_UINT32 ui32DataBufferSizeBytes;
     IMG_UINT32 ui32DataBufferUsedBytes;
 } TOPAZSC_JPEG_BUFFER_INFO;
@@ -592,8 +598,8 @@ typedef struct {
 } TOPAZSC_SCAN_ENCODE_INFO;
 
 typedef struct {
-    IMG_UINT8	aui8LumaQuantParams[QUANT_TABLE_SIZE_BYTES];	//!< Luma quant params
-    IMG_UINT8	aui8ChromaQuantParams[QUANT_TABLE_SIZE_BYTES];	//!< Chroma quant params
+    IMG_UINT8   aui8LumaQuantParams[QUANT_TABLE_SIZE_BYTES];    //!< Luma quant params
+    IMG_UINT8   aui8ChromaQuantParams[QUANT_TABLE_SIZE_BYTES];  //!< Chroma quant params
 
 } JPEG_MTX_QUANT_TABLE;
 
@@ -607,10 +613,10 @@ typedef struct context_jpeg_ENC_s {
 
     object_surface_p pSourceSurface;
     void * pMemInfoMTXSetup;
-    JPEG_MTX_DMA_SETUP*	pMTXSetup;
+    JPEG_MTX_DMA_SETUP* pMTXSetup;
 
     void * pMemInfoTableBlock;
-    JPEG_MTX_QUANT_TABLE	*psTablesBlock;
+    JPEG_MTX_QUANT_TABLE        *psTablesBlock;
 
     IMG_UINT32 ui32Offsets[MTX_MAX_COMPONENTS];
 
@@ -626,10 +632,10 @@ typedef struct context_jpeg_ENC_s {
 //////////////////////////////////////////////////////
 //Function Declarations unchanged by TopazSC
 //////////////////////////////////////////////////////
-void SetCompInfoFromFormat(IMG_FORMAT eFormat, IMG_UINT32 ui32Width, IMG_UINT32 ui32Height, IMG_JPEG_INFO	*psJpegInfo);
+void SetCompInfoFromFormat(IMG_FORMAT eFormat, IMG_UINT32 ui32Width, IMG_UINT32 ui32Height, IMG_JPEG_INFO       *psJpegInfo);
 /* This function will copy data from one buffer to another where the destination has a different stride */
 void APP_CopyToWithStride(IMG_UINT8* pSrc, IMG_UINT8* pDest , IMG_UINT32 ui32SrcWidth, IMG_UINT32 ui32SrcPhysWidth, IMG_UINT32 ui32SrcStep, IMG_UINT32 ui32SrcHeight, IMG_UINT32 ui32DestPhysWidth, IMG_UINT32 ui32DestPhysHeight);
-IMG_ERRORCODE SetupJPEGSourceSurface(IMG_FORMAT	eSurfaceFormat, IMG_UINT32 ui32FrameWidth, IMG_UINT32 ui32FrameHeight, JPEG_SOURCE_SURFACE *pSurf);
+IMG_ERRORCODE SetupJPEGSourceSurface(IMG_FORMAT eSurfaceFormat, IMG_UINT32 ui32FrameWidth, IMG_UINT32 ui32FrameHeight, JPEG_SOURCE_SURFACE *pSurf);
 //void FlushByteAlignedBuffer(IMG_UINT32 *pui_buff, IMG_UINT32 *ui_bytes_to_flush, FILE *pf_out);
 
 //////////////////////////////////////////////////////

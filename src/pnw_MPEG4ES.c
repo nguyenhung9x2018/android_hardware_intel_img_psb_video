@@ -21,6 +21,12 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
 
 #include "psb_def.h"
 #include "psb_surface.h"
@@ -36,7 +42,7 @@
 
 #define TOPAZ_MPEG4_MAX_BITRATE 16000000
 
-#define INIT_CONTEXT_MPEG4ES	context_ENC_p ctx = (context_ENC_p) obj_context->format_data
+#define INIT_CONTEXT_MPEG4ES    context_ENC_p ctx = (context_ENC_p) obj_context->format_data
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
@@ -179,7 +185,7 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferMPEG4));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncSequenceParameterBufferMPEG4))) {
+        (obj_buffer->size != sizeof(VAEncSequenceParameterBufferMPEG4))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -199,7 +205,7 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     ctx->sRCParams.FrameRate = seq_params->frame_rate;
     ctx->sRCParams.InitialQp = seq_params->initial_qp;
     ctx->sRCParams.MinQP = seq_params->min_qp;
-    ctx->sRCParams.BUSize = 0;	/* default 0, and will be set in pnw__setup_busize */
+    ctx->sRCParams.BUSize = 0;  /* default 0, and will be set in pnw__setup_busize */
 
     ctx->sRCParams.Slices = 1;
     ctx->sRCParams.QCPOffset = 0;/* FIXME */
@@ -279,7 +285,7 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncPictureParameterBufferMPEG4))) {
+        (obj_buffer->size != sizeof(VAEncPictureParameterBufferMPEG4))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -296,7 +302,7 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
     ASSERT(ctx->Height == pBuffer->picture_height);
 
     /*if (ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip)
-    	bIsVOPCoded = IMG_FALSE;*/
+        bIsVOPCoded = IMG_FALSE;*/
 
     ctx->FCode = 4 - 1; /* 4 is default value of "ui8Search_range" */
 
@@ -367,7 +373,7 @@ static VAStatus pnw__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     }
 
     if (NULL == ctx->slice_param_cache) {
-        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num);
+        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2 * ctx->slice_param_num);
         ctx->slice_param_num = obj_buffer->num_elements;
         ctx->slice_param_cache = calloc(2 * ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
         if (NULL == ctx->slice_param_cache) {
@@ -400,7 +406,7 @@ static VAStatus pnw__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
             /* Setup InParams value*/
             pnw_setup_slice_params(ctx,
                                    pBuffer->start_row_number * 16,
-                                   pBuffer->slice_height*16,
+                                   pBuffer->slice_height * 16,
                                    pBuffer->slice_flags.bits.is_intra,
                                    ctx->obj_context->frame_count > 0,
                                    psPicParams->sInParams.SeInitQP);
@@ -411,7 +417,7 @@ static VAStatus pnw__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
                                       pBuffer->start_row_number * 16,
                                       deblock_idc,
                                       ctx->obj_context->frame_count,
-                                      pBuffer->slice_height*16,
+                                      pBuffer->slice_height * 16,
                                       ctx->obj_context->slice_count);
 
         psb__information_message("Now frame_count/slice_count is %d/%d\n",

@@ -20,6 +20,20 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *    Jason Hu <jason.hu@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
+/*
+ * Most of rendering codes are ported from xf86-video-intel/src/intel_video.c
+ */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -33,6 +47,8 @@
 
 #ifdef ANDROID
 #define psb_xrandr_single_mode() 1
+#else
+int psb_xrandr_single_mode();
 #endif
 
 #include "img_iep_defs.h"
@@ -413,7 +429,7 @@ i830_display_video(
     unsigned int        offset = wsbmBOOffsetHint(pPriv->wsbo[overlayId]) & 0x0FFFFFFF;
     I830OverlayRegPtr   overlay = (I830OverlayRegPtr)(pPriv->regmap[overlayId]);
     struct drm_psb_register_rw_arg regs;
-    CSC_sHSBCSettings	sHSBCSettings;
+    CSC_sHSBCSettings   sHSBCSettings;
     char * pcEnableIEP = NULL;
     int i32EnableIEP = 1;
     char * pcEnableIEPBLE = NULL;
@@ -448,7 +464,7 @@ i830_display_video(
     overlay->DCLRKV = pPriv->colorKey;
 #if USE_ROTATION_FUNC
     if (((pipeId == PIPEA) && (driver_data->mipi0_rotation != VA_ROTATION_NONE)) ||
-            ((pipeId == PIPEB) && (driver_data->hdmi_rotation != VA_ROTATION_NONE))) {
+        ((pipeId == PIPEB) && (driver_data->hdmi_rotation != VA_ROTATION_NONE))) {
         switch (pPriv->rotation) {
         case VA_ROTATION_NONE:
             break;
@@ -826,12 +842,12 @@ i830_display_video(
                    driver_data->contrast.value);
 #endif
 #if 0
-            sHSBCSettings.i32Hue	    = (img_int32)(5.25f * (1 << 25));
+            sHSBCSettings.i32Hue            = (img_int32)(5.25f * (1 << 25));
             sHSBCSettings.i32Saturation = (img_int32)(1.07f * (1 << 25));
             sHSBCSettings.i32Brightness = (img_int32)(-10.1f * (1 << 10));
             sHSBCSettings.i32Contrast   = (img_int32)(0.99f * (1 << 25));
 #else
-            sHSBCSettings.i32Hue	    = (img_int32) driver_data->hue.value;
+            sHSBCSettings.i32Hue            = (img_int32) driver_data->hue.value;
             sHSBCSettings.i32Saturation = (img_int32) driver_data->saturation.value;
             sHSBCSettings.i32Brightness = (img_int32) driver_data->brightness.value;
             sHSBCSettings.i32Contrast   = (img_int32) driver_data->contrast.value;
@@ -1011,7 +1027,7 @@ dump_out:
             }
         }
         if ((driver_data->mipi0_rotation == VA_ROTATION_NONE) ||
-                (driver_data->mipi0_rotation == VA_ROTATION_180)) {
+            (driver_data->mipi0_rotation == VA_ROTATION_180)) {
             pPriv->width_save = pPriv->display_width;
             pPriv->height_save = pPriv->display_height;
         } else {
@@ -1031,7 +1047,7 @@ dump_out:
             }
         }
         if ((driver_data->hdmi_rotation == VA_ROTATION_NONE) ||
-                (driver_data->hdmi_rotation == VA_ROTATION_180)) {
+            (driver_data->hdmi_rotation == VA_ROTATION_180)) {
             pPriv->width_save = pPriv->extend_display_width;
             pPriv->height_save = pPriv->extend_display_height;
         } else {
@@ -1173,9 +1189,9 @@ dump_out:
 
 #if USE_DISPLAY_C_SPRITE
     if (fourcc == FOURCC_RGBA   \
-            || (fourcc == FOURCC_XVVA   \
-                && (pPriv->rotation != RR_Rotate_0) \
-                && (vaPtr->dst_srf.fourcc == VA_FOURCC_RGBA)))
+        || (fourcc == FOURCC_XVVA   \
+            && (pPriv->rotation != RR_Rotate_0) \
+            && (vaPtr->dst_srf.fourcc == VA_FOURCC_RGBA)))
         i830_display_video_sprite(pScrn, crtc, width, height, dstPitch,
                                   &dstBox, sprite_offset);
     else

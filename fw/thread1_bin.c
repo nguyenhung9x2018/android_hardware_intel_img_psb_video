@@ -41,9 +41,9 @@
 
              Version : BUILD_DXVA_FW1.00.10.0963.02.0011
              Date    : 26_08_2009
-             Code    :    12388 bytes		 12.098 Kb
-             Data    :     3408 bytes		 3.328 Kb
-             Total   :    15824 bytes		 15.453 Kb
+             Code    :    12388 bytes            12.098 Kb
+             Data    :     3408 bytes            3.328 Kb
+             Total   :    15824 bytes            15.453 Kb
 
 ******************************************************************************/
 //#include "firmware.h"
@@ -596,9 +596,9 @@ static const unsigned char aui8Data[] = {
 const FIRMWARE sFrameSwitchingFirmware = {
     "BUILD_DXVA_FW1.00.10.0963.02.0011",
     "26_08_2009",
-    12388,	/* TextSize bytes */
-    3408,	/* DataSize bytes */
-    0x00003080,	/* DataOffset bytes */
+    12388,      /* TextSize bytes */
+    3408,       /* DataSize bytes */
+    0x00003080, /* DataOffset bytes */
     aui8Text,
     aui8Data,
 };

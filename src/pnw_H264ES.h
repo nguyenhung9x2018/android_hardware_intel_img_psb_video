@@ -21,6 +21,14 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
+
 #ifndef _PNW_H264ES_H_
 #define _PNW_H264ES_H_
 
@@ -28,5 +36,5 @@
 
 extern struct format_vtable_s pnw_H264ES_vtable;
 extern VAStatus pnw_set_frame_skip_flag(
-        object_context_p obj_context);
+    object_context_p obj_context);
 #endif /* _PNW_H264ES_H_ */

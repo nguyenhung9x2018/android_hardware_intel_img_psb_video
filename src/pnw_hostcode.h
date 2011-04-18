@@ -22,6 +22,13 @@
  */
 
 
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
 #include "img_types.h"
 #include "psb_drv_video.h"
 #include "psb_surface.h"
@@ -46,15 +53,15 @@
 
 /* defines used for the second 32 bit word of the coded data header */
 /* the average Qp used in this frame */
-#define RC_STATUS_FRAME_AVE_QP_MASK		0x0ff
+#define RC_STATUS_FRAME_AVE_QP_MASK             0x0ff
 /* At least one slice in this frame was large enough for the firmware to
  * try to reduce it by increasing Qp or skipping MBs */
-#define RC_STATUS_FLAG_LARGE_SLICE		0x100
+#define RC_STATUS_FLAG_LARGE_SLICE              0x100
 /* At least one slice in this frame was larger than the slice limit */
-#define RC_STATUS_FLAG_SLICE_OVERFLOW	0x200
+#define RC_STATUS_FLAG_SLICE_OVERFLOW   0x200
 /* The peak bitrate was exceeded for this frame (VCM only) */
-#define RC_STATUS_FLAG_BITRATE_OVERFLOW	0x400
-#define SKIP_NEXT_FRAME			0x800	/* The next frame should be skipped */
+#define RC_STATUS_FLAG_BITRATE_OVERFLOW 0x400
+#define SKIP_NEXT_FRAME                 0x800   /* The next frame should be skipped */
 
 /* commands for topaz,shared with user space driver */
 enum drm_pnw_topaz_cmd {
@@ -101,27 +108,27 @@ enum drm_pnw_topaz_codec {
 };
 
 typedef struct _RC_PARAMS_ {
-    IMG_UINT32	BitsPerSecond;
-    IMG_UINT32	InitialQp;
-    IMG_UINT32	BUSize;
-    IMG_UINT32	FrameRate;
-    IMG_UINT32	BufferSize;
-    IMG_UINT32	BitsConsumed;
-    IMG_UINT32	IntraFreq;
+    IMG_UINT32  BitsPerSecond;
+    IMG_UINT32  InitialQp;
+    IMG_UINT32  BUSize;
+    IMG_UINT32  FrameRate;
+    IMG_UINT32  BufferSize;
+    IMG_UINT32  BitsConsumed;
+    IMG_UINT32  IntraFreq;
     IMG_UINT16  IDRFreq;
-    IMG_INT16	MinQP;
-    IMG_BOOL	RCEnable;
-    IMG_BOOL	FrameSkip;
+    IMG_INT16   MinQP;
+    IMG_BOOL    RCEnable;
+    IMG_BOOL    FrameSkip;
 
-    IMG_UINT8	Slices;
-    IMG_UINT32	BitsTransmitted;
-    IMG_INT32	InitialLevel;
-    IMG_INT32	InitialDelay;
-    IMG_INT8	QCPOffset;
+    IMG_UINT8   Slices;
+    IMG_UINT32  BitsTransmitted;
+    IMG_INT32   InitialLevel;
+    IMG_INT32   InitialDelay;
+    IMG_INT8    QCPOffset;
 
-    IMG_BOOL	bDisableFrameSkipping;
-    IMG_BOOL	bDisableBitStuffing;
-    IMG_BOOL 	bBitrateChanged;
+    IMG_BOOL    bDisableFrameSkipping;
+    IMG_BOOL    bDisableBitStuffing;
+    IMG_BOOL    bBitrateChanged;
 } IMG_RC_PARAMS;
 
 /*!
@@ -133,43 +140,43 @@ typedef struct _RC_PARAMS_ {
 *
 ****************************************************************************/
 typedef struct {
-    IMG_UINT8	SeInitQP;		/* Initial QP for Sequence */
-    IMG_UINT8	MinQPVal;		/* Minimum QP value to use */
-    IMG_UINT8	MaxQPVal;		/* Maximum QP value to use */
+    IMG_UINT8   SeInitQP;               /* Initial QP for Sequence */
+    IMG_UINT8   MinQPVal;               /* Minimum QP value to use */
+    IMG_UINT8   MaxQPVal;               /* Maximum QP value to use */
 
-    IMG_UINT8	MBPerRow;		/* Number of MBs Per Row */
-    IMG_UINT16	MBPerFrm;		/* Number of MBs Per Frame */
-    IMG_UINT16	MBPerBU;		/* Number of MBs Per BU */
-    IMG_UINT16	BUPerFrm;		/* Number of BUs Per Frame */
+    IMG_UINT8   MBPerRow;               /* Number of MBs Per Row */
+    IMG_UINT16  MBPerFrm;               /* Number of MBs Per Frame */
+    IMG_UINT16  MBPerBU;                /* Number of MBs Per BU */
+    IMG_UINT16  BUPerFrm;               /* Number of BUs Per Frame */
 
-    IMG_UINT16	IntraPeriod;	/* Intra frame frequency */
+    IMG_UINT16  IntraPeriod;    /* Intra frame frequency */
 
-    IMG_INT32	BitsPerFrm;		/* Bits Per Frame */
-    IMG_INT32	BitsPerBU;		/* Bits Per BU */
-    IMG_INT32	BitsPerMB;		/* Bits Per MB */
+    IMG_INT32   BitsPerFrm;             /* Bits Per Frame */
+    IMG_INT32   BitsPerBU;              /* Bits Per BU */
+    IMG_INT32   BitsPerMB;              /* Bits Per MB */
 
-    IMG_INT32	BitRate;			/* Bit Rate (bps) */
-    IMG_INT32	BufferSize;		/* Size of Buffer */
-    IMG_INT32	InitialLevel;	/* Initial Level of Buffer */
-    IMG_INT32	InitialDelay;	/* Initial Delay of Buffer */
+    IMG_INT32   BitRate;                        /* Bit Rate (bps) */
+    IMG_INT32   BufferSize;             /* Size of Buffer */
+    IMG_INT32   InitialLevel;   /* Initial Level of Buffer */
+    IMG_INT32   InitialDelay;   /* Initial Delay of Buffer */
 
-    IMG_UINT8	ScaleFactor;		/* Scale Factor (H264 only) */
+    IMG_UINT8   ScaleFactor;            /* Scale Factor (H264 only) */
 
     /* Bitrate that should be targetted as a fraction of 128
      * relative to maximum bitrate i32BitRate (VCM mode only)*/
-    IMG_UINT8	VCMBitrateMargin;
+    IMG_UINT8   VCMBitrateMargin;
 
-    IMG_UINT8	HalfFrameRate;	/* Half Frame Rate (MP4 only) */
-    IMG_UINT8	FCode;			/* F Code (MP4 only) */
+    IMG_UINT8   HalfFrameRate;  /* Half Frame Rate (MP4 only) */
+    IMG_UINT8   FCode;                  /* F Code (MP4 only) */
 
     /* TO BE DELETED -- ONCE MP4 RC CODE IS OPTIMISED */
-    IMG_INT32	BitsPerGOP;		/* Bits Per GOP (MP4 only) */
-    IMG_UINT16	AvQPVal;		/* Average QP in Current Picture */
-    IMG_UINT16	MyInitQP;		/* Initial Quantizer */
+    IMG_INT32   BitsPerGOP;             /* Bits Per GOP (MP4 only) */
+    IMG_UINT16  AvQPVal;                /* Average QP in Current Picture */
+    IMG_UINT16  MyInitQP;               /* Initial Quantizer */
 
     /* The number of bits of margin to leave before forcing
      * skipped macroblocks (VCM mode only)*/
-    IMG_INT32	ForeceSkipMargin;
+    IMG_INT32   ForeceSkipMargin;
 
     /* A constant used in rate control =
      * (GopSize/(BufferSize-InitialLevel))*256 */
@@ -180,7 +187,7 @@ typedef enum _TH_SKIP_SCALE_ {
     TH_SKIP_0 = 0,
     TH_SKIP_12 = 1,
     TH_SKIP_24 = 2
-}TH_SKIP_SCALE;
+} TH_SKIP_SCALE;
 
 struct context_ENC_s {
     object_context_p obj_context; /* back reference */
@@ -189,11 +196,11 @@ struct context_ENC_s {
     IMG_INT32       ParallelCores; /* Number of cores to use */
     IMG_INT32       BelowParamsBufIdx;
 
-    IMG_INT16 	    RawWidth;
+    IMG_INT16       RawWidth;
     IMG_INT16       RawHeight;
 
-    IMG_INT16 	    Width;  /* ~0xf & (RawWidth + 0xf)*/
-    IMG_INT16       Height;	/* ~0xf & (RawHeight + 0xf */
+    IMG_INT16       Width;  /* ~0xf & (RawWidth + 0xf)*/
+    IMG_INT16       Height;     /* ~0xf & (RawHeight + 0xf */
 
     IMG_INT16       Slices;
     enum drm_pnw_topaz_codec eCodec;
@@ -219,17 +226,17 @@ struct context_ENC_s {
     IMG_INT32       SliceToCore;  /* Core number to send current slice to */
     IMG_INT32       LastSliceNum[MAX_TOPAZ_CORES]; /* Slice number of last slice sent to core */
 
-    object_surface_p 	src_surface;
-    object_surface_p 	ref_surface;
-    object_surface_p 	dest_surface;/* reconstructed surface */
-    object_buffer_p 	coded_buf;
+    object_surface_p    src_surface;
+    object_surface_p    ref_surface;
+    object_surface_p    dest_surface;/* reconstructed surface */
+    object_buffer_p     coded_buf;
 
     /* save previous settings */
-    object_surface_p 	previous_src_surface;
-    object_surface_p 	previous_ref_surface;
-    object_surface_p 	previous_dest_surface; /* reconstructed surface */
-    object_buffer_p 	previous_coded_buf;
-    object_buffer_p 	pprevious_coded_buf;
+    object_surface_p    previous_src_surface;
+    object_surface_p    previous_ref_surface;
+    object_surface_p    previous_dest_surface; /* reconstructed surface */
+    object_buffer_p     previous_coded_buf;
+    object_buffer_p     pprevious_coded_buf;
 
     /* point to the place in cmdbuf following START_PIC, the initial_qp will fill into it later */
     uint32_t *initial_qp_in_cmdbuf;
@@ -313,39 +320,39 @@ typedef struct context_ENC_s *context_ENC_p;
 
 /*#define BELOW_PARAMS_SIZE 8*/
 
-#define HEADER_SIZE		128*2
+#define HEADER_SIZE             128*2
 
-#define BELOW_PARAMS_SIZE	16
-#define REGION_TYPE_2D		1
-#define REGION_TYPE_LINEAR	0
-#define REGION_TYPE_2DREF	3
+#define BELOW_PARAMS_SIZE       16
+#define REGION_TYPE_2D          1
+#define REGION_TYPE_LINEAR      0
+#define REGION_TYPE_2DREF       3
 
 
-#define MAX_RESIDUAL_PER_MB_H264 	1260
-#define ISINTER_FLAGS		0x1
-#define ISH264_FLAGS		0x2
-#define ISMPEG4_FLAGS		0x4
-#define ISH263_FLAGS		0x8
-#define DEBLOCK_FRAME		0x10
-#define ISRC_FLAGS		0x20
-#define ISCBR_FLAGS		0x40
-#define ISVCM_FLAGS		0x80
-#define ISVBR_FLAGS		0x100
-#define ISRC_I16BIAS		0x200
-#define INTERLEAVE_TARGET 	0x400
-#define FIRST_FRAME		0x800
-#define SYNC_SEQUENCER		0x1000
+#define MAX_RESIDUAL_PER_MB_H264        1260
+#define ISINTER_FLAGS           0x1
+#define ISH264_FLAGS            0x2
+#define ISMPEG4_FLAGS           0x4
+#define ISH263_FLAGS            0x8
+#define DEBLOCK_FRAME           0x10
+#define ISRC_FLAGS              0x20
+#define ISCBR_FLAGS             0x40
+#define ISVCM_FLAGS             0x80
+#define ISVBR_FLAGS             0x100
+#define ISRC_I16BIAS            0x200
+#define INTERLEAVE_TARGET       0x400
+#define FIRST_FRAME             0x800
+#define SYNC_SEQUENCER          0x1000
 #define DEBLOCK_SLICE           0x2000
-#define DISABLE_FRAME_SKIPPING	0x4000 //!< Flag indicatest that frame skipping should be disabled.
+#define DISABLE_FRAME_SKIPPING  0x4000 //!< Flag indicatest that frame skipping should be disabled.
 #define DISABLE_BIT_STUFFING    0x8000 //!< Flag indicates that bit stuffing should be disabled.
 
-#define SPE_EDGE_LEFT	1	/* ->bMinXRealEdge*/
-#define SPE_EDGE_RIGHT	2	/* ->bMaxXRealEdge*/
-#define SPE_EDGE_TOP	4   /* ->bMinYRealEdge*/
-#define SPE_EDGE_BOTTOM 8	/* ->bMaxYRealEdge*/
+#define SPE_EDGE_LEFT   1       /* ->bMinXRealEdge*/
+#define SPE_EDGE_RIGHT  2       /* ->bMaxXRealEdge*/
+#define SPE_EDGE_TOP    4   /* ->bMinYRealEdge*/
+#define SPE_EDGE_BOTTOM 8       /* ->bMaxYRealEdge*/
 
 #define BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE 23
-#define	PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE 23
+#define PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE 23
 #define PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE 7
 
 typedef struct {
@@ -357,32 +364,32 @@ typedef struct {
     /* Surrounding block availability */
     IMG_BYTE    MVValid;
     IMG_BYTE    ParamsValid;
-    IMG_BYTE	 bySliceQP;
-    IMG_BYTE	 bySliceQPC;
+    IMG_BYTE     bySliceQP;
+    IMG_BYTE     bySliceQPC;
 
-    IMG_BYTE	 Reserved[6]; /* This is padding to make the transfers 16 bytes aligned*/
+    IMG_BYTE     Reserved[6]; /* This is padding to make the transfers 16 bytes aligned*/
     /* Transferred into the SW communication section of the macroblock
      * parameter structure We shall EDMA the whole lot of this into eiob
      * in one go, and then use two TDMA's to put it into seperate locations
      * within the macroblock structure
      */
-    IMG_UINT32 	 IPEControl;
-    IMG_UINT32 	 SPEControl;
-    IMG_UINT32 	 JMCompControl;
-    IMG_UINT32 	 VLCControl;
-}MTX_CURRENT_IN_PARAMS;
+    IMG_UINT32   IPEControl;
+    IMG_UINT32   SPEControl;
+    IMG_UINT32   JMCompControl;
+    IMG_UINT32   VLCControl;
+} MTX_CURRENT_IN_PARAMS;
 
 typedef struct { /* corresponding bytes inside the MB_IN structure: */
-    IMG_BYTE    BlockSizes;	         /****************/
+    IMG_BYTE    BlockSizes;              /****************/
     IMG_BYTE    IntraMode;               /*              */
     IMG_BYTE    Intra4x4ModesBottom[2];  /*              */
     IMG_BYTE    CodeType;                /*  [64 : 71]   */
     IMG_BYTE    Reserved2;               /*              */
-    /*IMG_BYTE	 SAD;*/
+    /*IMG_BYTE   SAD;*/
     IMG_BYTE    QPy;                     /*              */
     IMG_BYTE    QPc;                     /****************/
 
-    IMG_BYTE    Reserved3[8];	 /* This is padding to make the transfers 16 byte aligned*/
+    IMG_BYTE    Reserved3[8];    /* This is padding to make the transfers 16 byte aligned*/
 
     IMG_UINT16  LumaSubBlockCoded;      /****************/
     IMG_BYTE    ChromaSubBlockCoded;    /*              */
@@ -396,76 +403,76 @@ typedef struct { /* corresponding bytes inside the MB_IN structure: */
     /* Motion vectors */
     IMG_UINT16  IntegerMV[16][2];      /* [207 : 144]  */
     /* input region from host */
-}MTX_CURRENT_OUT_PARAMS;
+} MTX_CURRENT_OUT_PARAMS;
 
 
 typedef struct _PIC_PARAMS_ {
-    IMG_UINT32		SrcYBase;
-    IMG_UINT32		SrcUBase;
-    IMG_UINT32		SrcVBase;
-    IMG_UINT32		DstYBase;
-    IMG_UINT32		DstUVBase;
+    IMG_UINT32          SrcYBase;
+    IMG_UINT32          SrcUBase;
+    IMG_UINT32          SrcVBase;
+    IMG_UINT32          DstYBase;
+    IMG_UINT32          DstUVBase;
 
-    IMG_UINT16		SrcYStride;
-    IMG_UINT16		SrcUVStride;
-    IMG_UINT16		SrcYRowStride;
-    IMG_UINT16		SrcUVRowStride;
+    IMG_UINT16          SrcYStride;
+    IMG_UINT16          SrcUVStride;
+    IMG_UINT16          SrcYRowStride;
+    IMG_UINT16          SrcUVRowStride;
 
-    IMG_UINT16		DstYStride;
-    IMG_UINT16		DstUVStride;
-    IMG_UINT16		DstYRowStride;
-    IMG_UINT16		DstUVRowStride;
+    IMG_UINT16          DstYStride;
+    IMG_UINT16          DstUVStride;
+    IMG_UINT16          DstYRowStride;
+    IMG_UINT16          DstUVRowStride;
 
-    IMG_UINT32		InParamsBase;
-    IMG_UINT32		InParamsRowStride;
+    IMG_UINT32          InParamsBase;
+    IMG_UINT32          InParamsRowStride;
 
-    IMG_UINT32		OutParamsBase;
-    IMG_UINT32		CodedBase;
+    IMG_UINT32          OutParamsBase;
+    IMG_UINT32          CodedBase;
 
-    IMG_UINT32		BelowParamsInBase;
-    IMG_UINT32		BelowParamsOutBase;
-    IMG_UINT32		BelowParamRowStride;
+    IMG_UINT32          BelowParamsInBase;
+    IMG_UINT32          BelowParamsOutBase;
+    IMG_UINT32          BelowParamRowStride;
 
-    IMG_UINT32		AboveParamsBase;
-    IMG_UINT32		AboveParamRowStride;
-    IMG_UINT16		Width;
-    IMG_UINT16		Height;
-    IMG_UINT16		Flags;
+    IMG_UINT32          AboveParamsBase;
+    IMG_UINT32          AboveParamRowStride;
+    IMG_UINT16          Width;
+    IMG_UINT16          Height;
+    IMG_UINT16          Flags;
 
-    IN_RC_PARAMS	sInParams;
-    TH_SKIP_SCALE	THSkip;
-    IMG_UINT16		SearchWidth;
-    IMG_UINT16		SearchHeight;
+    IN_RC_PARAMS        sInParams;
+    TH_SKIP_SCALE       THSkip;
+    IMG_UINT16          SearchWidth;
+    IMG_UINT16          SearchHeight;
 
-    IMG_UINT16		NumSlices;			//!< Number of slices in the picture
+    IMG_UINT16          NumSlices;                      //!< Number of slices in the picture
 
     // SEI_INSERTION
-    IMG_UINT32 		InitialCPBremovaldelayoffset;
-    IMG_UINT64	 	ClockDivBitrate;
-    IMG_UINT32 		MaxBufferMultClockDivBitrate;
-    IMG_BOOL 		InsertHRDparams;
+    IMG_UINT32          InitialCPBremovaldelayoffset;
+    IMG_UINT64          ClockDivBitrate;
+    IMG_UINT32          MaxBufferMultClockDivBitrate;
+    IMG_BOOL            InsertHRDparams;
 
-}PIC_PARAMS;
+} PIC_PARAMS;
 
 
 /* This holds the data that is needed at the start of a slice
  */
 typedef struct _SLICE_PARAMS_ {
 
-    IMG_UINT16	SliceStartRowNum;
-    IMG_UINT16	SliceHeight; /*Height of slice in pixels*/
+    IMG_UINT16  SliceStartRowNum;
+    IMG_UINT16  SliceHeight; /*Height of slice in pixels*/
 
-    IMG_UINT32	RefYBase;
-    IMG_UINT32	RefUVBase;
-    IMG_UINT16	RefYStride;
-    IMG_UINT16	RefUVStride;
-    IMG_UINT16	RefYRowStride;
-    IMG_UINT16	RefUVRowStride;
+    IMG_UINT32  RefYBase;
+    IMG_UINT32  RefUVBase;
+    IMG_UINT16  RefYStride;
+    IMG_UINT16  RefUVStride;
+    IMG_UINT16  RefYRowStride;
+    IMG_UINT16  RefUVRowStride;
 
-    IMG_UINT32	HostCtx;  /*Host context to insert into coded data header*/
+    IMG_UINT32  HostCtx;  /*Host context to insert into coded data header*/
     IMG_UINT32  Flags;
     IMG_UINT32  MaxSliceSize;
-    IMG_UINT32	FCode; /*FCode value MP4 only*/
+    IMG_UINT32  FCode; /*FCode value MP4 only*/
 
     /*Pointer to array of MTX_CURRENT_IN_PARAMS for each MB*/
     IMG_UINT32  InParamsBase;
@@ -475,8 +482,8 @@ typedef struct _SLICE_PARAMS_ {
 
     /*Theshold value used in Adaptive intra refresh calculation.*/
     IMG_INT16   AirThreshold;
-    IMG_UINT32	ui32Reserved;
-}SLICE_PARAMS;
+    IMG_UINT32  ui32Reserved;
+} SLICE_PARAMS;
 
 enum {
     CBR = 0,

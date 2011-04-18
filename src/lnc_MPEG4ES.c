@@ -22,6 +22,14 @@
  */
 
 
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
+
 #include "psb_def.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
@@ -36,7 +44,7 @@
 
 #define TOPAZ_MPEG4_MAX_BITRATE 16000000
 
-#define INIT_CONTEXT_MPEG4ES	context_ENC_p ctx = (context_ENC_p) obj_context->format_data
+#define INIT_CONTEXT_MPEG4ES    context_ENC_p ctx = (context_ENC_p) obj_context->format_data
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
@@ -185,7 +193,7 @@ static VAStatus lnc__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferMPEG4));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncSequenceParameterBufferMPEG4))) {
+        (obj_buffer->size != sizeof(VAEncSequenceParameterBufferMPEG4))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -194,7 +202,7 @@ static VAStatus lnc__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     obj_buffer->size = 0;
 
     if ((ctx->obj_context->frame_count != 0) &&
-            (ctx->sRCParams.BitsPerSecond != seq_params->bits_per_second))
+        (ctx->sRCParams.BitsPerSecond != seq_params->bits_per_second))
         ctx->update_rc_control = 1;
 
     if (seq_params->bits_per_second > TOPAZ_MPEG4_MAX_BITRATE) {
@@ -212,7 +220,7 @@ static VAStatus lnc__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     ctx->sRCParams.FrameRate = seq_params->frame_rate;
     ctx->sRCParams.InitialQp = seq_params->initial_qp;
     ctx->sRCParams.MinQP = seq_params->min_qp;
-    ctx->sRCParams.BUSize = 0;	/* default 0, and will be set in lnc__setup_busize */
+    ctx->sRCParams.BUSize = 0;  /* default 0, and will be set in lnc__setup_busize */
 
     ctx->sRCParams.Slices = 1;
     ctx->sRCParams.IntraFreq = seq_params->intra_period;
@@ -240,12 +248,12 @@ static VAStatus lnc__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
         seq_params->video_object_layer_width,/* Picture_Width_Pixels */
         seq_params->video_object_layer_height, /* Picture_Height_Pixels */
         0, /*   bVBVPresent  */
-        0, /* 	First_half_bit_rate   */
-        0, /* 	Latter_half_bit_rate */
-        0, /* 	First_half_vbv_buffer_size */
-        0, /* 	Latter_half_vbv_buffer_size  */
-        0, /* 	First_half_vbv_occupancy */
-        0, /* 	Latter_half_vbv_occupancy */
+        0, /*   First_half_bit_rate   */
+        0, /*   Latter_half_bit_rate */
+        0, /*   First_half_vbv_buffer_size */
+        0, /*   Latter_half_vbv_buffer_size  */
+        0, /*   First_half_vbv_occupancy */
+        0, /*   Latter_half_vbv_occupancy */
         seq_params->vop_time_increment_resolution); /* VopTimeResolution */
 
     ctx->MPEG4_vop_time_increment_resolution = seq_params->vop_time_increment_resolution;
@@ -268,7 +276,7 @@ static VAStatus lnc__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncPictureParameterBufferMPEG4))) {
+        (obj_buffer->size != sizeof(VAEncPictureParameterBufferMPEG4))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -339,7 +347,7 @@ static VAStatus lnc__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     }
 
     if (NULL == ctx->slice_param_cache) {
-        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num);
+        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2 * ctx->slice_param_num);
         ctx->slice_param_num = obj_buffer->num_elements;
         ctx->slice_param_cache = calloc(2 * ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
         if (NULL == ctx->slice_param_cache) {
@@ -365,7 +373,7 @@ static VAStatus lnc__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
                 /* Setup InParams value*/
                 lnc_setup_slice_params(ctx,
                                        pBuffer->start_row_number * 16,
-                                       pBuffer->slice_height*16,
+                                       pBuffer->slice_height * 16,
                                        pBuffer->slice_flags.bits.is_intra,
                                        ctx->obj_context->frame_count > 0,
                                        psPicParams->sInParams.SeInitQP);
@@ -374,9 +382,9 @@ static VAStatus lnc__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
             lnc__send_encode_slice_params(ctx,
                                           pBuffer->slice_flags.bits.is_intra,
                                           pBuffer->start_row_number * 16,
-                                          IMG_FALSE, 	/* Deblock is off for MPEG4*/
+                                          IMG_FALSE,    /* Deblock is off for MPEG4*/
                                           ctx->obj_context->frame_count,
-                                          pBuffer->slice_height*16,
+                                          pBuffer->slice_height * 16,
                                           ctx->obj_context->slice_count,
                                           ctx->max_slice_size);
 

@@ -1,3 +1,11 @@
+/*
+ * Authors:
+ *    Jason Hu  <jason.hu@intel.com>
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *
+ */
+
+
 #ifndef _PSB_XRANDR_H_
 #define _PSB_XRANDR_H_
 #include <stdio.h>
@@ -6,7 +14,7 @@
 #include <X11/Xproto.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/Xrandr.h>
-#include <X11/extensions/Xrender.h>	/* we share subpixel information */
+#include <X11/extensions/Xrender.h>     /* we share subpixel information */
 #include <pthread.h>
 #include <string.h>
 #include <stdlib.h>

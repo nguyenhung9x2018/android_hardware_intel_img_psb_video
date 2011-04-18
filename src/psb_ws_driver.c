@@ -20,6 +20,12 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
+
 #include "psb_def.h"
 
 #ifdef HAVE_CONFIG_H
@@ -32,7 +38,7 @@
 #include "psb_ws_driver.h"
 
 static struct _ValidateNode *
-            psb_alloc(struct _WsbmVNodeFuncs *func, int type_id) {
+psb_alloc(struct _WsbmVNodeFuncs *func, int type_id) {
     if (type_id == 0) {
         struct _PsbDrmValidateNode *vNode = malloc(sizeof(*vNode));
 
@@ -78,7 +84,7 @@ psb_clear(struct _ValidateNode *node)
 {
     if (node->type_id == 0) {
         struct _PsbDrmValidateNode *vNode =
-                        containerOf(node, struct _PsbDrmValidateNode, base);
+            containerOf(node, struct _PsbDrmValidateNode, base);
 
         memset(&vNode->val_arg.d.req, 0, sizeof(vNode->val_arg.d.req));
     }
@@ -91,6 +97,6 @@ static struct _WsbmVNodeFuncs psbVNode = {
 };
 
 struct _WsbmVNodeFuncs *
-            psbVNodeFuncs(void) {
+psbVNodeFuncs(void) {
     return &psbVNode;
 }

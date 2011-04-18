@@ -19,9 +19,9 @@
 
              Version : BUILD_DXVA_FW1.00.10.1042
              Date    : 30_09_2009
-             Code    :    12588 bytes		 12.293 Kb
-             Data    :     4064 bytes		 3.969 Kb
-             Total   :    16672 bytes		 16.281 Kb
+             Code    :    12588 bytes            12.293 Kb
+             Data    :     4064 bytes            3.969 Kb
+             Total   :    16672 bytes            16.281 Kb
 
 ******************************************************************************/
 typedef struct {
@@ -600,9 +600,9 @@ static const unsigned char aui8Data[] = {
 const FIRMWARE sSliceSwitchingFirmware = {
     "BUILD_DXVA_FW1.00.10.1042",
     "30_09_2009",
-    12588,	/* TextSize bytes */
-    4064,	/* DataSize bytes */
-    0x00003140,	/* DataOffset bytes */
+    12588,      /* TextSize bytes */
+    4064,       /* DataSize bytes */
+    0x00003140, /* DataOffset bytes */
     aui8Text,
     aui8Data,
 };

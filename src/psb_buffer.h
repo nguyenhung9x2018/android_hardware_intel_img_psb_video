@@ -20,6 +20,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #ifndef _PSB_BUFFER_H_
 #define _PSB_BUFFER_H_
 
@@ -36,11 +43,11 @@ typedef struct psb_buffer_s *psb_buffer_p;
 
 /* VPU = MSVDX */
 typedef enum psb_buffer_type_e {
-    psb_bt_cpu_vpu = 0,			/* Shared between CPU & Video PU */
-    psb_bt_cpu_vpu_shared,		/* CPU/VPU can access, and can shared by other process */
-    psb_bt_surface,			/* Tiled surface */
-    psb_bt_vpu_only,			/* Only used by Video PU */
-    psb_bt_cpu_only,			/* Only used by CPU */
+    psb_bt_cpu_vpu = 0,                 /* Shared between CPU & Video PU */
+    psb_bt_cpu_vpu_shared,              /* CPU/VPU can access, and can shared by other process */
+    psb_bt_surface,                     /* Tiled surface */
+    psb_bt_vpu_only,                    /* Only used by Video PU */
+    psb_bt_cpu_only,                    /* Only used by CPU */
     psb_bt_camera,                      /* memory is camera device memory */
     psb_bt_rar,                         /* global RAR buffer */
     psb_bt_rar_surface,                 /* memory is RAR device memory for protected surface*/

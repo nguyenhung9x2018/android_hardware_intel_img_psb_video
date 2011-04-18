@@ -32,23 +32,23 @@
  @Description
 
 ******************************************************************************/
-#ifndef _DXVA_FW_FLAGS_H_
-#define _DXVA_FW_FLAGS_H_
+#ifndef _VA_FW_FLAGS_H_
+#define _VA_FW_FLAGS_H_
 
 /* Flags */
 
-#define	FW_DXVA_RENDER_IS_FIRST_SLICE						0x00000001
-#define	FW_DXVA_RENDER_IS_H264_MBAFF						0x00000002
-#define	FW_DXVA_RENDER_IS_LAST_SLICE 						0x00000004
-#define	FW_DXVA_RENDER_IS_TWO_PASS_DEBLOCK					0x00000008
+#define FW_VA_RENDER_IS_FIRST_SLICE                                             0x00000001
+#define FW_VA_RENDER_IS_H264_MBAFF                                              0x00000002
+#define FW_VA_RENDER_IS_LAST_SLICE                                              0x00000004
+#define FW_VA_RENDER_IS_TWO_PASS_DEBLOCK                                        0x00000008
 
-#define	REPORT_STATUS										0x00000010
+#define REPORT_STATUS                                                                           0x00000010
 
-#define FW_DXVA_RENDER_IS_VLD_NOT_MC						0x00000800
+#define FW_VA_RENDER_IS_VLD_NOT_MC                                              0x00000800
 
-#define FW_ERROR_DETECTION_AND_RECOVERY						0x00000100
-#define FW_DXVA_RENDER_NO_RESPONCE_MSG						0x00002000  /* Cause no responce message to be sent, and no interupt generation on successfull completion */
-#define FW_DXVA_RENDER_HOST_INT								0x00004000
-#define FW_DXVA_RENDER_VC1_BITPLANE_PRESENT				    0x00008000
+#define FW_ERROR_DETECTION_AND_RECOVERY                                         0x00000100
+#define FW_VA_RENDER_NO_RESPONCE_MSG                                            0x00002000  /* Cause no responce message to be sent, and no interupt generation on successfull completion */
+#define FW_VA_RENDER_HOST_INT                                                           0x00004000
+#define FW_VA_RENDER_VC1_BITPLANE_PRESENT                                   0x00008000
 
-#endif /*_DXVA_FW_FLAGS_H_*/
+#endif /*_VA_FW_FLAGS_H_*/

@@ -22,18 +22,18 @@
  */
 
 /*!****************************************************************************
-@File			img_defs.h
+@File                   img_defs.h
 
-@Title			Common header containing type definitions for portability
+@Title                  Common header containing type definitions for portability
 
-@Author			Imagination Technologies
+@Author                 Imagination Technologies
 
-@date   		August 2001
+@date                   August 2001
 
-@Platform		cross platform / environment
+@Platform               cross platform / environment
 
-@Description	Contains variable and structure definitions. Any platform
-				specific types should be defined in this file.
+@Description    Contains variable and structure definitions. Any platform
+                                specific types should be defined in this file.
 
 @DoxygenVer
 
@@ -51,42 +51,42 @@ $Log: img_defs.h $
 
 /*!
  *****************************************************************************
- *	These types should be changed on a per-platform basis to retain
- *	the indicated number of bits per type. e.g.: A DP_INT_16 should be
- *	always reflect a signed 16 bit value.
+ *      These types should be changed on a per-platform basis to retain
+ *      the indicated number of bits per type. e.g.: A DP_INT_16 should be
+ *      always reflect a signed 16 bit value.
  *****************************************************************************/
 
-typedef		enum	img_tag_TriStateSwitch {
-    IMG_ON		=	0x00,
+typedef         enum    img_tag_TriStateSwitch {
+    IMG_ON              =       0x00,
     IMG_OFF,
     IMG_IGNORE
 
 } img_TriStateSwitch, * img_pTriStateSwitch;
 
-#define		IMG_SUCCESS				0
+#define         IMG_SUCCESS                             0
 #define     IMG_FAILED             -1
 
-#define		IMG_NULL				0
-#define		IMG_NO_REG				1
+#define         IMG_NULL                                0
+#define         IMG_NO_REG                              1
 
 #if defined (NO_INLINE_FUNCS)
-#define	INLINE
-#define	FORCE_INLINE
+#define INLINE
+#define FORCE_INLINE
 #else
 #if defined(_UITRON_)
-#define	INLINE
-#define	FORCE_INLINE			static
+#define INLINE
+#define FORCE_INLINE                    static
 #define INLINE_IS_PRAGMA
 #else
 #if defined (__cplusplus)
-#define INLINE					inline
-#define	FORCE_INLINE			inline
+#define INLINE                                  inline
+#define FORCE_INLINE                    inline
 #else
-#define	INLINE					__inline
+#define INLINE                                  __inline
 #if defined(UNDER_CE) || defined(UNDER_XP) || defined(UNDER_VISTA)
-#define	FORCE_INLINE			__forceinline
+#define FORCE_INLINE                    __forceinline
 #else
-#define	FORCE_INLINE			static __inline
+#define FORCE_INLINE                    static __inline
 #endif
 #endif
 #endif
@@ -94,7 +94,7 @@ typedef		enum	img_tag_TriStateSwitch {
 
 /* Use this in any file, or use attributes under GCC - see below */
 #ifndef PVR_UNREFERENCED_PARAMETER
-#define	PVR_UNREFERENCED_PARAMETER(param) (param) = (param)
+#define PVR_UNREFERENCED_PARAMETER(param) (param) = (param)
 #endif
 
 /* The best way to supress unused parameter warnings using GCC is to use a
@@ -116,42 +116,42 @@ typedef		enum	img_tag_TriStateSwitch {
 #define IMG_RESTRICT
 
 #define IMG_EXPORT
-#define	IMG_IMPORT	IMG_EXPORT
+#define IMG_IMPORT      IMG_EXPORT
 
 #ifdef DEBUG
-#define IMG_ABORT()	TerminateProcess(GetCurrentProcess(), 0)
+#define IMG_ABORT()     TerminateProcess(GetCurrentProcess(), 0)
 #else
-#define IMG_ABORT()	for(;;);
+#define IMG_ABORT()     for(;;);
 #endif
 #else
 #if defined(_WIN32)
 
 #define IMG_CALLCONV __stdcall
 #define IMG_INTERNAL
-#define	IMG_EXPORT	__declspec(dllexport)
+#define IMG_EXPORT      __declspec(dllexport)
 #define IMG_RESTRICT __restrict
 
 
 /* IMG_IMPORT is defined as IMG_EXPORT so that headers and implementations match.
  * Some compilers require the header to be declared IMPORT, while the implementation is declared EXPORT
  */
-#define	IMG_IMPORT	IMG_EXPORT
+#define IMG_IMPORT      IMG_EXPORT
 #if defined( UNDER_VISTA ) && !defined(USE_CODE)
-#ifndef	_INC_STDLIB
+#ifndef _INC_STDLIB
 void __cdecl abort(void);
 #endif
 __forceinline void __declspec(noreturn) img_abort(void)
 {
     for (;;) abort();
 }
-#define IMG_ABORT()	img_abort()
+#define IMG_ABORT()     img_abort()
 #endif
 #else
 #if defined (__SYMBIAN32__)
 
 #if defined (__GNUC__)
 #define IMG_IMPORT
-#define IMG_EXPORT	__declspec(dllexport)
+#define IMG_EXPORT      __declspec(dllexport)
 #define IMG_RESTRICT __restrict__
 #define NONSHARABLE_CLASS(x) class x
 #else
@@ -173,16 +173,16 @@ __forceinline void __declspec(noreturn) img_abort(void)
 #if defined(__linux__)
 
 #define IMG_CALLCONV
-#define IMG_INTERNAL	__attribute__ ((visibility ("hidden")))
+#define IMG_INTERNAL    __attribute__ ((visibility ("hidden")))
 #define IMG_EXPORT
 #define IMG_IMPORT
-#define IMG_RESTRICT	__restrict__
+#define IMG_RESTRICT    __restrict__
 
 #else
 #if defined(_UITRON_)
 #define IMG_CALLCONV
 #define IMG_INTERNAL
-#define	IMG_EXPORT
+#define IMG_EXPORT
 #define IMG_RESTRICT
 
 #define __cdecl
@@ -190,10 +190,10 @@ __forceinline void __declspec(noreturn) img_abort(void)
 /* IMG_IMPORT is defined as IMG_EXPORT so that headers and implementations match.
 * Some compilers require the header to be declared IMPORT, while the implementation is declared EXPORT
 */
-#define	IMG_IMPORT	IMG_EXPORT
+#define IMG_IMPORT      IMG_EXPORT
 #ifndef USE_CODE
 void SysAbort(char const *pMessage);
-#define IMG_ABORT()	SysAbort("ImgAbort")
+#define IMG_ABORT()     SysAbort("ImgAbort")
 #endif
 #else
 #error("define an OS")
@@ -205,7 +205,7 @@ void SysAbort(char const *pMessage);
 
 // Use default definition if not overridden
 #ifndef IMG_ABORT
-#define IMG_ABORT()	abort()
+#define IMG_ABORT()     abort()
 #endif
 
 

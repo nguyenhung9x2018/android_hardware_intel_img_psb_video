@@ -21,6 +21,13 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
 #ifndef _PNW_H263ES_H_
 #define _PNW_H263ES_H_
 

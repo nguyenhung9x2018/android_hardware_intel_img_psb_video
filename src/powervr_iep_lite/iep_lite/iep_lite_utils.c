@@ -21,20 +21,20 @@
  *********************************************************************************/
 
 /********************************************************************
-	DISCLAIMER:
-	This code is provided for demonstration purposes only. It has
-	been ported from other projects and has not been tested with
-	real hardware. It is not provided in a state that can be run
-	with real hardware - this is not intended as the basis for a
-	production driver. This code should only be used as an example
-	of the algorithms to be used for setting up the IEP lite
-	hardware.
+        DISCLAIMER:
+        This code is provided for demonstration purposes only. It has
+        been ported from other projects and has not been tested with
+        real hardware. It is not provided in a state that can be run
+        with real hardware - this is not intended as the basis for a
+        production driver. This code should only be used as an example
+        of the algorithms to be used for setting up the IEP lite
+        hardware.
  ********************************************************************/
 
 /*-------------------------------------------------------------------------------*/
 
 /*
-	Includes
+        Includes
 */
 
 #include <stdlib.h>
@@ -44,7 +44,7 @@
 #include "img_iep_defs.h"
 #include "csc2.h"
 
-#define	EXTERNAL
+#define EXTERNAL
 #include "iep_lite_api.h"
 #include "iep_lite_reg_defs.h"
 #undef EXTERNAL
@@ -61,7 +61,7 @@ inline void READ_REGISTER(void * p_iep_lite_context, unsigned int reg, unsigned 
 /*!
 ******************************************************************************
 
- @Function				iep_lite_RenderCompleteCallback
+ @Function                              iep_lite_RenderCompleteCallback
 
 ******************************************************************************/
 
@@ -76,14 +76,14 @@ img_void iep_lite_RenderCompleteCallback(void * p_iep_lite_context)
     }
 
     if ((sIEP_LITE_Context->eBLEBlackMode != IEP_LITE_BLE_OFF) ||
-            (sIEP_LITE_Context->eBLEWhiteMode != IEP_LITE_BLE_OFF)) {
+        (sIEP_LITE_Context->eBLEWhiteMode != IEP_LITE_BLE_OFF)) {
         if (sIEP_LITE_Context->bFirstLUTValuesWritten == IMG_FALSE) {
             /* The first table must be calculated using fixed values for YMinIn and YMaxIn. */
-            /* This is because the BLE hardware will not return meaningful values for these	*/
-            /* until it has been turned on and we can't turn it on without a valid table.	*/
-            /* As such, we use fixed values to approximate a table for the first frame.		*/
-            sIEP_LITE_Context->i32YMinIn		= IEP_LITE_BLE_INITIAL_MAVMIN_VALUE;
-            sIEP_LITE_Context->i32YMaxIn	= IEP_LITE_BLE_INITIAL_MAVMAX_VALUE;
+            /* This is because the BLE hardware will not return meaningful values for these     */
+            /* until it has been turned on and we can't turn it on without a valid table.       */
+            /* As such, we use fixed values to approximate a table for the first frame.         */
+            sIEP_LITE_Context->i32YMinIn                = IEP_LITE_BLE_INITIAL_MAVMIN_VALUE;
+            sIEP_LITE_Context->i32YMaxIn        = IEP_LITE_BLE_INITIAL_MAVMAX_VALUE;
         } else {
             /* Back at start of "read vals / calc table / write table" cycle */
             READ_REGISTER(sIEP_LITE_Context,
@@ -94,14 +94,14 @@ img_void iep_lite_RenderCompleteCallback(void * p_iep_lite_context)
             sIEP_LITE_Context->i32YMaxIn = READ_BITFIELD(IEP_LITE_BLE_MAV_BLE_MAVMAX, ui32MyReg);
         }
 
-        /* The hardware can return unusable values for MinIn and MaxIn for two reasons : 	*/
-        /* 1. 	The read has been performed while the hardware is calculating new values 	*/
-        /*		(i.e.: mid frame). In this case, both readback values will be zero.		 	*/
-        /* 2. 	The read has been performed during the first frame after the hardware has 	*/
-        /*		been turned on, but before the first readback values have been calculated.	*/
-        /*		In this case, the value for MinIn will be greater than the value for MaxIn.	*/
-        /* 																					*/
-        /* In both cases, we just ignore the read and try again next time.					*/
+        /* The hardware can return unusable values for MinIn and MaxIn for two reasons :        */
+        /* 1.   The read has been performed while the hardware is calculating new values        */
+        /*              (i.e.: mid frame). In this case, both readback values will be zero.                     */
+        /* 2.   The read has been performed during the first frame after the hardware has       */
+        /*              been turned on, but before the first readback values have been calculated.      */
+        /*              In this case, the value for MinIn will be greater than the value for MaxIn.     */
+        /*                                                                                                                                                                      */
+        /* In both cases, we just ignore the read and try again next time.                                      */
         if (
             ((sIEP_LITE_Context->i32YMinIn == 0) &&
              (sIEP_LITE_Context->i32YMaxIn == 0))
@@ -128,50 +128,50 @@ img_void iep_lite_RenderCompleteCallback(void * p_iep_lite_context)
  * Function Name: iep_lite_CalculateBLELookUpTable
  *****************************************************************************/
 img_void iep_lite_CalculateBLELookUpTable(IEP_LITE_sContext * sIEP_LITE_Context,
-        img_int32	i32YMinIn,
-        img_int32	i32YMaxIn)
+        img_int32       i32YMinIn,
+        img_int32       i32YMaxIn)
 {
-    img_uint32	ui32x1;
-    img_uint32 	ui32x2;
-    img_uint32 	ui32x3;
-    img_uint32 	ui32x4;
-    img_uint32 	ui32y1;
-    img_uint32 	ui32y2;
-    img_uint32 	ui32y3;
-    img_uint32 	ui32y4;
-    img_uint32	ui32lum0;
-    img_uint32	ui32lum1;
-    img_uint32 	ui32i;
-    img_uint32	ui32DR;
+    img_uint32  ui32x1;
+    img_uint32  ui32x2;
+    img_uint32  ui32x3;
+    img_uint32  ui32x4;
+    img_uint32  ui32y1;
+    img_uint32  ui32y2;
+    img_uint32  ui32y3;
+    img_uint32  ui32y4;
+    img_uint32  ui32lum0;
+    img_uint32  ui32lum1;
+    img_uint32  ui32i;
+    img_uint32  ui32DR;
     img_uint32  ui32DB;
     img_uint32  ui32DW;
     img_uint32  ui32BlackSlope;
     img_uint32  ui32WhiteSlope;
-    img_uint32	ui32CompositeWord = 0;
+    img_uint32  ui32CompositeWord = 0;
 
-    img_uint32 	ui32resolution	= (IEP_LITE_DATA_SIZE_10_BITS + 1);
-    img_uint32 	ui32col_res 	= IEP_LITE_DATA_SIZE_10_BITS;
+    img_uint32  ui32resolution  = (IEP_LITE_DATA_SIZE_10_BITS + 1);
+    img_uint32  ui32col_res     = IEP_LITE_DATA_SIZE_10_BITS;
 
     DEBUG_PRINT("Entering iep_lite_CalculateBLELookUpTable\n");
 
-    ui32DB 			=  	asBLEBlackModes [ sIEP_LITE_Context->eBLEBlackMode  ].ui32D;
-    ui32DW 			=  	asBLEWhiteModes [ sIEP_LITE_Context->eBLEWhiteMode  ].ui32D;
-    ui32BlackSlope	= 	asBLEBlackModes [ sIEP_LITE_Context->eBLEBlackMode  ].ui32Slope;
-    ui32WhiteSlope	= 	asBLEWhiteModes [ sIEP_LITE_Context->eBLEWhiteMode  ].ui32Slope;
+    ui32DB                      =       asBLEBlackModes [ sIEP_LITE_Context->eBLEBlackMode  ].ui32D;
+    ui32DW                      =       asBLEWhiteModes [ sIEP_LITE_Context->eBLEWhiteMode  ].ui32D;
+    ui32BlackSlope      =       asBLEBlackModes [ sIEP_LITE_Context->eBLEBlackMode  ].ui32Slope;
+    ui32WhiteSlope      =       asBLEWhiteModes [ sIEP_LITE_Context->eBLEWhiteMode  ].ui32Slope;
 
-    ui32DR 			= 	i32YMaxIn - i32YMinIn;
+    ui32DR                      =       i32YMaxIn - i32YMinIn;
 
-    ui32lum0 		=  	i32YMinIn + ((ui32DB * ui32DR) >> (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR));
-    ui32lum1 		=  	i32YMaxIn - ((ui32DW * ui32DR) >> (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR));
+    ui32lum0            =       i32YMinIn + ((ui32DB * ui32DR) >> (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR));
+    ui32lum1            =       i32YMaxIn - ((ui32DW * ui32DR) >> (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR));
 
-    ui32x1 			=	(ui32lum0 - (ui32lum0 * ui32BlackSlope >> IEP_LITE_BLE_RES_PAR));
-    ui32y1 			= 	0;
-    ui32x2 			= 	ui32lum0;
-    ui32y2 			= 	ui32lum0;
-    ui32x3			= 	ui32lum1;
-    ui32y3 			= 	ui32lum1;
-    ui32x4 			=	(ui32lum1 + ((ui32col_res - ui32lum1) * ui32WhiteSlope >> IEP_LITE_BLE_RES_PAR));
-    ui32y4 			= 	ui32col_res;
+    ui32x1                      = (ui32lum0 - (ui32lum0 * ui32BlackSlope >> IEP_LITE_BLE_RES_PAR));
+    ui32y1                      =       0;
+    ui32x2                      =       ui32lum0;
+    ui32y2                      =       ui32lum0;
+    ui32x3                      =       ui32lum1;
+    ui32y3                      =       ui32lum1;
+    ui32x4                      = (ui32lum1 + ((ui32col_res - ui32lum1) * ui32WhiteSlope >> IEP_LITE_BLE_RES_PAR));
+    ui32y4                      =       ui32col_res;
 
     /* initialization (we see black pixels if the resolution is not dense enough) */
     IMG_MEMSET(sIEP_LITE_Context->aui32BLELUT, 0, sizeof(img_uint32)*(ui32resolution));
@@ -264,7 +264,7 @@ img_void iep_lite_BLERecursiveLUTCalculation(IEP_LITE_sContext * sIEP_LITE_Conte
 
 img_void iep_lite_WriteBLELUTToHardware(IEP_LITE_sContext * sIEP_LITE_Context)
 {
-    img_uint32	i;
+    img_uint32  i;
 
     DEBUG_PRINT("Entering iep_lite_WriteBLELUTToHardware\n");
 
@@ -293,7 +293,7 @@ img_void iep_lite_WriteBLELUTToHardware(IEP_LITE_sContext * sIEP_LITE_Context)
 
 img_void iep_lite_StaticDataSafetyCheck(img_void)
 {
-    img_uint32	ui32i;
+    img_uint32  ui32i;
 
     DEBUG_PRINT("Entering iep_lite_StaticDataSafetyCheck\n");
 

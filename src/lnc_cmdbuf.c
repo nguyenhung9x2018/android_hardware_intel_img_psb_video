@@ -21,6 +21,14 @@
  */
 
 
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
+
 #include "lnc_cmdbuf.h"
 
 #include <unistd.h>
@@ -439,8 +447,8 @@ out:
 
 #if 0
 static struct _WsbmFenceObject *
-            lnc_fence_wait(psb_driver_data_p driver_data,
-                           struct psb_ttm_fence_rep *fence_rep, int *status)
+lnc_fence_wait(psb_driver_data_p driver_data,
+               struct psb_ttm_fence_rep *fence_rep, int *status)
 
 {
     struct _WsbmFenceObject *fence = NULL;

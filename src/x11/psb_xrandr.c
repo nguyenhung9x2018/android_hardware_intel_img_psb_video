@@ -1,3 +1,11 @@
+/*
+ * Authors:
+ *    Jason Hu  <jason.hu@intel.com>
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *
+ */
+
+
 #include "psb_xrandr.h"
 #include "psb_x11.h"
 
@@ -118,7 +126,7 @@ static void psb_xrandr_hdmi_property(VADriverContextP ctx)
             psb__information_message("Xrandr: ExtVideoMode_SubTitle (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_SubTitle);
         } else if (!strcmp(prop_name, "ExtDesktopMode")) {
             if ((psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode != EXTENDEDVIDEO) &&
-                    ((int)((INT32*)prop)[0] == EXTENDEDVIDEO)) {
+                ((int)((INT32*)prop)[0] == EXTENDEDVIDEO)) {
                 driver_data->xrandr_dirty |= PSB_NEW_EXTVIDEO;
             }
             psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = (int)((INT32*)prop)[0];
@@ -161,7 +169,7 @@ static void psb_xrandr_mipi_location_init(psb_output_device_mode output_device_m
 
     /* MIPI1 clone MIPI0 */
     if (local_crtc->x == 0 && local_crtc->y == 0 &&
-            extend_crtc->x == 0 && extend_crtc->y == 0) {
+        extend_crtc->x == 0 && extend_crtc->y == 0) {
         psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = CLONE;
         extend_crtc->location = NORMAL;
     } else {
@@ -209,7 +217,7 @@ static void psb_xrandr_hdmi_location_init(psb_output_device_mode output_device_m
         psb_xrandr_info->extend_crtc->location = NORMAL;
 
     if (psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == EXTENDED
-            || psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == EXTENDEDVIDEO) {
+        || psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode == EXTENDEDVIDEO) {
         if (local_crtc->y == extend_crtc->height)
             psb_xrandr_info->extend_crtc->location = ABOVE;
         else if (extend_crtc->y == local_crtc->height)
@@ -452,6 +460,17 @@ void psb_xrandr_refresh(VADriverContextP ctx)
     pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
 }
 
+static Bool
+outputChangePredicate(Display *display, XEvent *event, char *args)
+{
+    int event_base, error_base;
+
+    XRRQueryExtension(psb_xrandr_info->dpy, &event_base, &error_base);
+    return ((event->type == event_base + RRNotify_OutputChange) ||
+            ((event->type == ClientMessage) &&
+             (((XClientMessageEvent*)event)->message_type == psb_xrandr_info->psb_exit_atom)));
+}
+
 void psb_xrandr_thread(void* arg)
 {
     VADriverContextP ctx = (VADriverContextP)arg;
@@ -463,26 +482,28 @@ void psb_xrandr_thread(void* arg)
     psb__information_message("Xrandr: psb xrandr thread start\n");
 
     while (1) {
-        XNextEvent(psb_xrandr_info->dpy, (XEvent *)&event);
-        if (event.type == ClientMessage) {
-            psb__information_message("Xrandr: receive ClientMessage event, thread should exit\n");
-            XClientMessageEvent *evt;
-            evt = (XClientMessageEvent*) & event;
-            if (evt->message_type == psb_xrandr_info->psb_exit_atom) {
-                psb__information_message("Xrandr: xrandr thread exit safely\n");
-                pthread_exit(NULL);
+        if (XCheckIfEvent(psb_xrandr_info->dpy, (XEvent *)&event, outputChangePredicate, NULL)) {
+            if (event.type == ClientMessage) {
+                psb__information_message("Xrandr: receive ClientMessage event, thread should exit\n");
+                XClientMessageEvent *evt;
+                evt = (XClientMessageEvent*) & event;
+                if (evt->message_type == psb_xrandr_info->psb_exit_atom) {
+                    psb__information_message("Xrandr: xrandr thread exit safely\n");
+                    pthread_exit(NULL);
+                }
+            }
+            switch (event.type - event_base) {
+            case RRNotify_OutputChange:
+                XRRUpdateConfiguration(&event);
+                psb__information_message("Xrandr: receive RRNotify_OutputChange event, refresh output/crtc info\n");
+                driver_data->xrandr_update = 1;
+                psb_xrandr_refresh(ctx);
+                break;
+            default:
+                break;
             }
         }
-        switch (event.type - event_base) {
-        case RRNotify_OutputChange:
-            XRRUpdateConfiguration(&event);
-            psb__information_message("Xrandr: receive RRNotify_OutputChange event, refresh output/crtc info\n");
-            driver_data->xrandr_update = 1;
-            psb_xrandr_refresh(ctx);
-            break;
-        default:
-            break;
-        }
+        usleep(200000);
     }
 }
 
@@ -508,7 +529,7 @@ Window psb_xrandr_create_full_screen_window(unsigned int destx, unsigned int des
     mwmhints.flags = MWM_HINTS_DECORATIONS;
     mwmhints.decorations = 0; /* MWM_DECOR_BORDER */
     MOTIF_WM_HINTS = XInternAtom(psb_xrandr_info->dpy, "_MOTIF_WM_HINTS", False);
-    XChangeProperty(psb_xrandr_info->dpy, win, MOTIF_WM_HINTS, MOTIF_WM_HINTS, sizeof(long)*8,
+    XChangeProperty(psb_xrandr_info->dpy, win, MOTIF_WM_HINTS, MOTIF_WM_HINTS, sizeof(long) * 8,
                     PropModeReplace, (unsigned char*) &mwmhints, sizeof(mwmhints) / sizeof(long));
 
     XSetWindowAttributes attributes;
@@ -718,6 +739,7 @@ VAStatus psb_xrandr_extend_crtc_coordinate(psb_output_device *extend_device_enab
 VAStatus psb_xrandr_thread_exit()
 {
     int ret;
+
     XSelectInput(psb_xrandr_info->dpy, psb_xrandr_info->root, StructureNotifyMask);
     XClientMessageEvent xevent;
     xevent.type = ClientMessage;
@@ -786,7 +808,7 @@ VAStatus psb_xrandr_deinit()
 
 VAStatus psb_xrandr_init(VADriverContextP ctx)
 {
-    int	major, minor;
+    int major, minor;
     int screen;
 
     psb_xrandr_info = (psb_xrandr_info_p)calloc(1, sizeof(psb_xrandr_info_s));

@@ -50,14 +50,14 @@
 #define GET_SURFACE_INFO_colocated_index(psb_surface) ((int) (psb_surface->extra_info[3]))
 #define SET_SURFACE_INFO_colocated_index(psb_surface, val) psb_surface->extra_info[3] = (uint32_t) val;
 
-#define IS_USED_AS_REFERENCE(pic_flags) 	( pic_flags & (VA_PICTURE_H264_SHORT_TERM_REFERENCE | VA_PICTURE_H264_LONG_TERM_REFERENCE) )
+#define IS_USED_AS_REFERENCE(pic_flags)         ( pic_flags & (VA_PICTURE_H264_SHORT_TERM_REFERENCE | VA_PICTURE_H264_LONG_TERM_REFERENCE) )
 
 /* Truncates a signed integer to 17 bits */
 #define SIGNTRUNC( x ) ((( (x)  >> 15) & 0x10000) | ( (x) & 0xffff))
 
-#define MSVDX_VEC_REGS_BASE_MTX	0x0800
-#define MSVDX_COMMANDS_BASE_MTX	0x1000
-#define	MSVDX_IQRAM_BASE_MTX	0x700
+#define MSVDX_VEC_REGS_BASE_MTX 0x0800
+#define MSVDX_COMMANDS_BASE_MTX 0x1000
+#define MSVDX_IQRAM_BASE_MTX    0x700
 
 #define SLICEDATA_BUFFER_TYPE(type) ((type==VASliceDataBufferType)?"VASliceDataBufferType":"VAProtectedSliceDataBufferType")
 
@@ -87,7 +87,7 @@ typedef enum {
     ST_I ,
     ST_SP ,
     ST_SI
-}SLICE_TYPE;
+} SLICE_TYPE;
 
 IMG_UINT8 aSliceTypeVAtoMsvdx[] = { 1 , 2 , 0, 1, 0 };
 
@@ -120,15 +120,15 @@ struct context_H264_s {
     uint32_t first_mb_x;
     uint32_t first_mb_y;
 
-    uint32_t mb_width_c;		/* Chroma macroblock width */
-    uint32_t mb_height_c;		/* Chroma macroblock height */
+    uint32_t mb_width_c;                /* Chroma macroblock width */
+    uint32_t mb_height_c;               /* Chroma macroblock height */
 
-    uint32_t bit_depth_l;		/* Luma bit depth */
+    uint32_t bit_depth_l;               /* Luma bit depth */
     uint32_t qp_bd_offset_l;
-    uint32_t bit_depth_c;		/* Chroma bit depth */
+    uint32_t bit_depth_c;               /* Chroma bit depth */
     uint32_t qp_bd_offset_c;
 
-    uint32_t raw_mb_bits;		/* Number of bits per macroblock */
+    uint32_t raw_mb_bits;               /* Number of bits per macroblock */
 
     uint32_t picture_width_samples_l;
     uint32_t picture_height_samples_l;
@@ -189,21 +189,21 @@ typedef struct context_H264_s *context_H264_p;
 
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 
-#define CACHE_REF_OFFSET	72
-#define CACHE_ROW_OFFSET	4
+#define CACHE_REF_OFFSET        72
+#define CACHE_ROW_OFFSET        4
 
-#define REFERENCE_CACHE_SIZE	(512 * 1024)
+#define REFERENCE_CACHE_SIZE    (512 * 1024)
 
-#define MAX_PRELOAD_CMDS				(40*2)
+#define MAX_PRELOAD_CMDS                                (40*2)
 typedef struct {
-    IMG_UINT8		ui8Address[MAX_PRELOAD_CMDS]; /* Address = (ui8Address << 1 | 0x400 ) */
-    IMG_UINT32		ui32Value[MAX_PRELOAD_CMDS];
+    IMG_UINT8           ui8Address[MAX_PRELOAD_CMDS]; /* Address = (ui8Address << 1 | 0x400 ) */
+    IMG_UINT32          ui32Value[MAX_PRELOAD_CMDS];
 } ADDRDATA;
 
 typedef struct {
-    IMG_UINT32		ui32ContextId;
-    IMG_UINT32		ui32PreloadBufferSize;
-    ADDRDATA		aData;
+    IMG_UINT32          ui32ContextId;
+    IMG_UINT32          ui32PreloadBufferSize;
+    ADDRDATA            aData;
 } PRELOAD;
 
 
@@ -347,7 +347,7 @@ static VAStatus psb__H264_check_legal_picture(object_context_p obj_context, obje
     switch (obj_config->profile) {
     case VAProfileH264Baseline:
         if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 720)
-                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 576)) {
+            || (obj_context->picture_height <= 0) || (obj_context->picture_height > 576)) {
             vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
         }
         break;
@@ -356,7 +356,7 @@ static VAStatus psb__H264_check_legal_picture(object_context_p obj_context, obje
     case VAProfileH264High:
     case VAProfileH264ConstrainedBaseline:
         if ((obj_context->picture_width <= 0) || (obj_context->picture_width > 1920)
-                || (obj_context->picture_height <= 0) || (obj_context->picture_height > 1088)) {
+            || (obj_context->picture_height <= 0) || (obj_context->picture_height > 1088)) {
             vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
         }
         break;
@@ -550,8 +550,6 @@ static VAStatus psb__H264_allocate_colocated_buffer(context_H264_p ctx, object_s
 {
     psb_surface_p surface = obj_surface->psb_surface;
 
-    psb__information_message("psb_H264: Allocating colocated buffer for surface %08x size = %08x\n", surface, size);
-
     if (!GET_SURFACE_INFO_colocated_index(surface)) {
         VAStatus vaStatus;
         psb_buffer_p buf;
@@ -559,6 +557,8 @@ static VAStatus psb__H264_allocate_colocated_buffer(context_H264_p ctx, object_s
         if (index >= ctx->colocated_buffers_size) {
             return VA_STATUS_ERROR_UNKNOWN;
         }
+        psb__information_message("psb_H264: Allocating colocated buffer for surface %08x size = %08x\n", surface, size);
+        
         buf = &(ctx->colocated_buffers[index]);
         vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, buf);
         if (VA_STATUS_SUCCESS != vaStatus) {
@@ -572,16 +572,17 @@ static VAStatus psb__H264_allocate_colocated_buffer(context_H264_p ctx, object_s
 
 static psb_buffer_p psb__H264_lookup_colocated_buffer(context_H264_p ctx, psb_surface_p surface)
 {
-    psb__information_message("psb_H264: Looking up colocated buffer for surface %08x\n", surface);
+    /* psb__information_message("psb_H264: Looking up colocated buffer for surface %08x\n", surface); */
     int index = GET_SURFACE_INFO_colocated_index(surface);
     if (!index) {
         return NULL;
     }
+    
     return &(ctx->colocated_buffers[index-1]); /* 0 means unset, index is offset by 1 */
 }
 
 #ifdef DEBUG_TRACE
-#define P(x)	psb__trace_message("PARAMS: " #x "\t= %08x (%d)\n", p->x, p->x)
+#define P(x)    psb__trace_message("PARAMS: " #x "\t= %08x (%d)\n", p->x, p->x)
 static void psb__H264_trace_pic_params(VAPictureParameterBufferH264 *p)
 {
     P(CurrPic);
@@ -615,8 +616,8 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     ASSERT(target_surface);
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAPictureParameterBufferH264)) ||
-            (NULL == target_surface)) {
+        (obj_buffer->size != sizeof(VAPictureParameterBufferH264)) ||
+        (NULL == target_surface)) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -641,23 +642,26 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
         ctx->mb_width_c = 0;
         ctx->mb_height_c = 0;
     } else {
-        ctx->mb_width_c = 16 / sub_width_c;		/* 6-1 */
-        ctx->mb_height_c = 16 / sub_height_c;		/* 6-2 */
+        ctx->mb_width_c = 16 / sub_width_c;             /* 6-1 */
+        ctx->mb_height_c = 16 / sub_height_c;           /* 6-2 */
     }
 
-    ctx->bit_depth_l = 8 + pic_params->bit_depth_luma_minus8;			/* (7-1) */
-    ctx->qp_bd_offset_l = 6 * pic_params->bit_depth_luma_minus8;		/* (7-2) */
+    ctx->bit_depth_l = 8 + pic_params->bit_depth_luma_minus8;                   /* (7-1) */
+    ctx->qp_bd_offset_l = 6 * pic_params->bit_depth_luma_minus8;                /* (7-2) */
 
-    ctx->bit_depth_c = 8 + pic_params->bit_depth_chroma_minus8;			/* (7-3) */
-    ctx->qp_bd_offset_c = 6 * (pic_params->bit_depth_chroma_minus8 + pic_params->seq_fields.bits.residual_colour_transform_flag);	/* (7-4) */
+    ctx->bit_depth_c = 8 + pic_params->bit_depth_chroma_minus8;                 /* (7-3) */
+    ctx->qp_bd_offset_c = 6 * (pic_params->bit_depth_chroma_minus8 + pic_params->seq_fields.bits.residual_colour_transform_flag);       /* (7-4) */
 
     ctx->picture_width_mb = pic_params->picture_width_in_mbs_minus1 + 1;
     ctx->picture_height_mb = pic_params->picture_height_in_mbs_minus1 + 1;
 
-    ctx->size_mb = ctx->picture_width_mb * ctx->picture_height_mb;		/* (7-25) */
+    ctx->size_mb = ctx->picture_width_mb * ctx->picture_height_mb;              /* (7-25) */
 
     //uint32_t colocated_size = (ctx->picture_width_mb + extra_size) * (ctx->picture_height_mb + extra_size) * 192;
-    uint32_t colocated_size = ((ctx->size_mb + 100) * 128 + 0xfff) & ~0xfff;
+    /*for resolution change feature, need allocat co-located buffer according the size of surface*/
+    uint32_t size_mb = ((ctx->obj_context->current_render_target->width + 15)/16) * 
+                ((ctx->obj_context->current_render_target->height + 15)/16);
+	uint32_t colocated_size = ((size_mb + 100) * 128 + 0xfff) & ~0xfff;
 
     vaStatus = psb__H264_allocate_colocated_buffer(ctx, ctx->obj_context->current_render_target, colocated_size);
     if (VA_STATUS_SUCCESS != vaStatus) {
@@ -665,7 +669,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
         return vaStatus;
     }
 
-    ctx->raw_mb_bits = 256 * ctx->bit_depth_l + 2 * ctx->mb_width_c * ctx->mb_height_c * ctx->bit_depth_c;	/* (7-5) */
+    ctx->raw_mb_bits = 256 * ctx->bit_depth_l + 2 * ctx->mb_width_c * ctx->mb_height_c * ctx->bit_depth_c;      /* (7-5) */
 
     ctx->picture_width_samples_l = ctx->picture_width_mb * 16;
     ctx->picture_width_samples_c = ctx->picture_width_mb * ctx->mb_width_c;
@@ -674,7 +678,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     ctx->picture_height_samples_c = ctx->picture_height_mb * ctx->mb_height_c;
 
     // BECAUSE OF
-    //	sps->FrameHeightInMbs	= ( 2 - sps->seq_fields.bits.frame_mbs_only_flag ) * sps->PicHeightInMapUnits;	/* (7-15) */
+    //  sps->FrameHeightInMbs   = ( 2 - sps->seq_fields.bits.frame_mbs_only_flag ) * sps->PicHeightInMapUnits;  /* (7-15) */
     ctx->picture_height_map_units = 1 + ctx->picture_height_mb / (2 - pic_params->seq_fields.bits.frame_mbs_only_flag);
     ctx->picture_size_map_units = ctx->picture_width_mb * ctx->picture_height_map_units;/* (7-14) */
 
@@ -710,36 +714,36 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
 
     ctx->reg_SPS0 = 0;
     REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_SPS0, H264_BE_SPS0_DEFAULT_MATRIX_FLAG, (ctx->profile == H264_BASELINE_PROFILE));    /* Always use suplied matrix non baseline otherwise use default*/
-    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_SPS0, H264_BE_SPS0_2PASS_FLAG,		ctx->two_pass_mode);			/* Always 0 for DXVA - we cant handle otherwise yet */
+    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_SPS0, H264_BE_SPS0_2PASS_FLAG,         ctx->two_pass_mode);                    /* Always 0 for VA - we cant handle otherwise yet */
     /* Assume SGM_8BIT */
-    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, H264_FE_SPS0_4BIT_SGM_FLAG,	0);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_SPS0, BE_PROFILEIDC,			ctx->profile_idc);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, MIN_LUMA_BIPRED_SIZE_8X8,	pic_params->seq_fields.bits.MinLumaBiPredSize8x8);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, DIRECT_8X8_INFERENCE_FLAG,	pic_params->seq_fields.bits.direct_8x8_inference_flag);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, CHROMA_FORMAT_IDC,		pic_params->seq_fields.bits.chroma_format_idc);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, FRAME_MBS_ONLY_FLAG,		pic_params->seq_fields.bits.frame_mbs_only_flag);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, PICWIDTHINMBSLESS1,		ctx->picture_width_mb - 1);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, H264_FE_SPS0_4BIT_SGM_FLAG,      0);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_SPS0, BE_PROFILEIDC,                   ctx->profile_idc);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, MIN_LUMA_BIPRED_SIZE_8X8,        pic_params->seq_fields.bits.MinLumaBiPredSize8x8);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, DIRECT_8X8_INFERENCE_FLAG,       pic_params->seq_fields.bits.direct_8x8_inference_flag);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, CHROMA_FORMAT_IDC,               pic_params->seq_fields.bits.chroma_format_idc);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, FRAME_MBS_ONLY_FLAG,             pic_params->seq_fields.bits.frame_mbs_only_flag);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_SPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0, PICWIDTHINMBSLESS1,              ctx->picture_width_mb - 1);
 
     ctx->reg_PPS0 = 0;
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0, TRANSFORM_8X8_MODE_FLAG,		pic_params->pic_fields.bits.transform_8x8_mode_flag);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0, CONSTRAINED_INTRA_PRED_FLAG,	pic_params->pic_fields.bits.constrained_intra_pred_flag);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0, ENTROPY_CODING_MODE_FLAG,	pic_params->pic_fields.bits.entropy_coding_mode_flag);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0, NUM_SLICE_GROUPS_MINUS1,		pic_params->num_slice_groups_minus1);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_PPS0, BE_WEIGHTED_BIPRED_IDC,		pic_params->pic_fields.bits.weighted_bipred_idc);
-    REGIO_WRITE_FIELD_MASKEDLITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_PPS0, BE_CHROMA_QP_INDEX_OFFSET,	pic_params->chroma_qp_index_offset);
-    REGIO_WRITE_FIELD_MASKEDLITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_PPS0, BE_SECOND_CHROMA_QP_INDEX_OFFSET,	pic_params->second_chroma_qp_index_offset);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0, TRANSFORM_8X8_MODE_FLAG,         pic_params->pic_fields.bits.transform_8x8_mode_flag);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0, CONSTRAINED_INTRA_PRED_FLAG,     pic_params->pic_fields.bits.constrained_intra_pred_flag);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0, ENTROPY_CODING_MODE_FLAG,        pic_params->pic_fields.bits.entropy_coding_mode_flag);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0, NUM_SLICE_GROUPS_MINUS1,         pic_params->num_slice_groups_minus1);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_PPS0, BE_WEIGHTED_BIPRED_IDC,          pic_params->pic_fields.bits.weighted_bipred_idc);
+    REGIO_WRITE_FIELD_MASKEDLITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_PPS0, BE_CHROMA_QP_INDEX_OFFSET, pic_params->chroma_qp_index_offset);
+    REGIO_WRITE_FIELD_MASKEDLITE(ctx->reg_PPS0, MSVDX_VEC_H264, CR_VEC_H264_BE_PPS0, BE_SECOND_CHROMA_QP_INDEX_OFFSET,  pic_params->second_chroma_qp_index_offset);
 
-    uint32_t PicHeightInMbs	= ctx->picture_height_mb >> pic_params->pic_fields.bits.field_pic_flag;		/* (7-23) */
-    uint32_t PicSizeInMbs	= ctx->picture_width_mb * PicHeightInMbs;			/* (7-26) */
+    uint32_t PicHeightInMbs     = ctx->picture_height_mb >> pic_params->pic_fields.bits.field_pic_flag;         /* (7-23) */
+    uint32_t PicSizeInMbs       = ctx->picture_width_mb * PicHeightInMbs;                       /* (7-26) */
 
     ctx->reg_PIC0 = 0;
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, PICSIZEINMBSLESS1,		PicSizeInMbs - 1);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, PICHEIGHTINMBSLESS1,		PicHeightInMbs - 1);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, PICSIZEINMBSLESS1,           PicSizeInMbs - 1);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, PICHEIGHTINMBSLESS1,         PicHeightInMbs - 1);
     /* TODO */
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_BE_CUR_PIC0, BE_REFERENCE_FLAG,		IS_USED_AS_REFERENCE(pic_params->CurrPic.flags) ? 1 : 0);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, MBAFFFRAMEFLAG,		pic_params->seq_fields.bits.mb_adaptive_frame_field_flag);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, FIELD_PIC_FLAG,		pic_params->pic_fields.bits.field_pic_flag);
-    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, BOTTOM_FIELD_FLAG,		pic_params->CurrPic.flags & VA_PICTURE_H264_BOTTOM_FIELD ? 1 : 0);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_BE_CUR_PIC0, BE_REFERENCE_FLAG,           IS_USED_AS_REFERENCE(pic_params->CurrPic.flags) ? 1 : 0);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, MBAFFFRAMEFLAG,              pic_params->seq_fields.bits.mb_adaptive_frame_field_flag);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, FIELD_PIC_FLAG,              pic_params->pic_fields.bits.field_pic_flag);
+    REGIO_WRITE_FIELD_LITE(ctx->reg_PIC0, MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0, BOTTOM_FIELD_FLAG,           pic_params->CurrPic.flags & VA_PICTURE_H264_BOTTOM_FIELD ? 1 : 0);
 
     /* Record some info about current picture */
     reg_value = 0;
@@ -772,7 +776,7 @@ static VAStatus psb__H264_process_iq_matrix(context_H264_p ctx, object_buffer_p 
     ASSERT(obj_buffer->size == sizeof(VAIQMatrixBufferH264));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAIQMatrixBufferH264))) {
+        (obj_buffer->size != sizeof(VAIQMatrixBufferH264))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -802,8 +806,8 @@ static VAStatus psb__H264_process_slice_group_map(context_H264_p ctx, object_buf
     return VA_STATUS_SUCCESS;
 }
 
-#define SCALING_LIST_4x4_SIZE	((4*4))
-#define SCALING_LIST_8x8_SIZE	((8*8))
+#define SCALING_LIST_4x4_SIZE   ((4*4))
+#define SCALING_LIST_8x8_SIZE   ((8*8))
 
 static void psb__H264_build_SCA_chunk(context_H264_p ctx)
 {
@@ -906,9 +910,9 @@ static void psb__H264_build_B_slice_chunk(context_H264_p ctx, VASliceParameterBu
             bottom_field_flag  = (slice_param->RefPicList1[0].flags & VA_PICTURE_H264_BOTTOM_FIELD) ? 1 : 0;
         } else {
             /* when current pic is a frame col bottom field flag is different */
-            IMG_INT32	i32Cur;
-            IMG_INT32	i32Top, i32Bot;
-            IMG_INT32	i32TopAbsDiffPoc, i32BotAbsDiffPoc;
+            IMG_INT32   i32Cur;
+            IMG_INT32   i32Top, i32Bot;
+            IMG_INT32   i32TopAbsDiffPoc, i32BotAbsDiffPoc;
 
             /* current pic */
             i32Top = pic_params->CurrPic.TopFieldOrderCnt;
@@ -1007,14 +1011,14 @@ static void psb__H264_build_register(context_H264_p ctx, VASliceParameterBufferH
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_ENTDEC_FE_CONTROL), reg_value);
 
     /* write the FE registers */
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0),	ctx->reg_SPS0);
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0),	ctx->reg_PPS0);
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0),	ctx->reg_PIC0;);
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0),	ctx->slice0_params);
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1),	ctx->slice1_params);
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0),    ctx->reg_SPS0);
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0),    ctx->reg_PPS0);
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0),        ctx->reg_PIC0;);
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0),  ctx->slice0_params);
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1),  ctx->slice1_params);
 
     reg_value = 0;
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE2, FIRST_MB_IN_SLICE,	slice_param->first_mb_in_slice);
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE2, FIRST_MB_IN_SLICE, slice_param->first_mb_in_slice);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE2), reg_value);
 
     if (ctx->pic_params->num_slice_groups_minus1 >= 1) {
@@ -1111,7 +1115,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     psb_cmdbuf_rendec_end_chunk(cmdbuf);
 
 #warning "TODO: MUST be done after fe slice1 (which gives MB address) "
-    /* 		REGIO_WRITE_REGISTER(0, MSVDX_VEC_H264, CR_VEC_H264_FE_BASE_ADDR_SGM, gui32SliceGroupType6BaseAddressHack); */
+    /*          REGIO_WRITE_REGISTER(0, MSVDX_VEC_H264, CR_VEC_H264_FE_BASE_ADDR_SGM, gui32SliceGroupType6BaseAddressHack); */
 
     /* CHUNK: SCA */
     /* send Scaling Lists in High Profile for first slice*/
@@ -1157,7 +1161,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
 
     /* CHUNK: DPB */
     /* send DPB information (for P and B slices?) only needed once per frame */
-//	if ( sh->slice_type == ST_B || sh->slice_type == ST_P )
+//      if ( sh->slice_type == ST_B || sh->slice_type == ST_P )
     if (pic_params->num_ref_frames > 0) {
         int i;
         IMG_BOOL is_used[16];
@@ -1205,7 +1209,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
                                          __FUNCTION__, __LINE__);
                 /* return; */
             }
-
+            /*
             psb__information_message("pic_params->ReferenceFrames[%d] = %08x --> %08x frame_idx:0x%08x flags:%02x TopFieldOrderCnt: 0x%08x BottomFieldOrderCnt: 0x%08x %s\n",
                                      i,
                                      pic_params->ReferenceFrames[i].picture_id,
@@ -1215,8 +1219,8 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
                                      pic_params->ReferenceFrames[i].TopFieldOrderCnt,
                                      pic_params->ReferenceFrames[i].BottomFieldOrderCnt,
                                      is_used[i] ? "used" : "");
-
-            if (ref_surface && is_used[i])
+            */
+            if (ref_surface && is_used[i] && ref_surface->psb_surface->ref_buf)
                 // GET_SURFACE_INFO_is_used(ref_surface->psb_surface))
             {
                 buffer = ref_surface->psb_surface->ref_buf;
@@ -1236,7 +1240,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /* CHUNK: MVA and MVB */
     /* works as long as weighted factors A and B commands remain the same */
     if ((pic_params->pic_fields.bits.weighted_pred_flag && (slice_param->slice_type == ST_P)) ||
-            ((pic_params->pic_fields.bits.weighted_bipred_idc != 0) && (slice_param->slice_type == ST_B))) {
+        ((pic_params->pic_fields.bits.weighted_bipred_idc != 0) && (slice_param->slice_type == ST_B))) {
         IMG_UINT32 num_ref_0 = slice_param->num_ref_idx_l0_active_minus1;
 
         psb_cmdbuf_rendec_start_chunk(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, H264_WEIGHTED_FACTORS_A));
@@ -1247,9 +1251,9 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
         /* weighted factors */
         for (i = 0; i <= num_ref_0; i++) {
             reg_value = 0;
-            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_A, CR_WEIGHT_A,	slice_param->chroma_weight_l0[i][1]);/* Cr - 1 */
-            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_A, CB_WEIGHT_A,	slice_param->chroma_weight_l0[i][0]);/* Cb - 0 */
-            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_A, Y_WEIGHT_A,	slice_param->luma_weight_l0[i]);
+            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_A, CR_WEIGHT_A,   slice_param->chroma_weight_l0[i][1]);/* Cr - 1 */
+            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_A, CB_WEIGHT_A,   slice_param->chroma_weight_l0[i][0]);/* Cb - 0 */
+            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_A, Y_WEIGHT_A,    slice_param->luma_weight_l0[i]);
 
             psb_cmdbuf_rendec_write(cmdbuf, reg_value);
         }
@@ -1261,9 +1265,9 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
         /* weighted offsets */
         for (i = 0; i <= num_ref_0; i++) {
             reg_value = 0;
-            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_A, CR_OFFSET_A,	slice_param->chroma_offset_l0[i][1]);/* Cr - 1 */
-            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_A, CB_OFFSET_A,	slice_param->chroma_offset_l0[i][0]);/* Cb - 0 */
-            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_A, Y_OFFSET_A,	slice_param->luma_offset_l0[i]);
+            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_A, CR_OFFSET_A,    slice_param->chroma_offset_l0[i][1]);/* Cr - 1 */
+            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_A, CB_OFFSET_A,    slice_param->chroma_offset_l0[i][0]);/* Cb - 0 */
+            REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_A, Y_OFFSET_A,     slice_param->luma_offset_l0[i]);
 
             psb_cmdbuf_rendec_write(cmdbuf, reg_value);
         }
@@ -1286,9 +1290,9 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
             /* weighted factors */
             for (i = 0; i <= num_ref_1; i++) {
                 reg_value = 0;
-                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_B, CR_WEIGHT_B,	slice_param->chroma_weight_l1[i][1]);/* Cr - 1 */
-                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_B, CB_WEIGHT_B,	slice_param->chroma_weight_l1[i][0]);/* Cb - 0 */
-                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_B, Y_WEIGHT_B,	slice_param->luma_weight_l1[i]);
+                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_B, CR_WEIGHT_B,       slice_param->chroma_weight_l1[i][1]);/* Cr - 1 */
+                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_B, CB_WEIGHT_B,       slice_param->chroma_weight_l1[i][0]);/* Cb - 0 */
+                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_FACTORS_B, Y_WEIGHT_B,        slice_param->luma_weight_l1[i]);
 
                 psb_cmdbuf_rendec_write(cmdbuf, reg_value);
             }
@@ -1300,9 +1304,9 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
             /* weighted offsets */
             for (i = 0; i <= num_ref_1; i++) {
                 reg_value = 0;
-                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_B, CR_OFFSET_B,	slice_param->chroma_offset_l1[i][1]);/* Cr - 1 */
-                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_B, CB_OFFSET_B,	slice_param->chroma_offset_l1[i][0]);/* Cb - 0 */
-                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_B, Y_OFFSET_B,	slice_param->luma_offset_l1[i]);
+                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_B, CR_OFFSET_B,        slice_param->chroma_offset_l1[i][1]);/* Cr - 1 */
+                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_B, CB_OFFSET_B,        slice_param->chroma_offset_l1[i][0]);/* Cb - 0 */
+                REGIO_WRITE_FIELD_MASKEDLITE(reg_value, MSVDX_CMDS, H264_WEIGHTED_OFFSET_B, Y_OFFSET_B, slice_param->luma_offset_l1[i]);
 
                 psb_cmdbuf_rendec_write(cmdbuf, reg_value);
             }
@@ -1314,8 +1318,8 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
         }
     }
 
-    /* 		If this a two pass mode deblock, then we will perform the rotation as part of the
-     * 		2nd pass deblock procedure
+    /*          If this a two pass mode deblock, then we will perform the rotation as part of the
+     *          2nd pass deblock procedure
      */
     if (/*!ctx->two_pass_mode &&*/ ctx->obj_context->rotate != VA_ROTATION_NONE) /* FIXME field coded should not issue */
         psb__H264_setup_alternative_frame(ctx);
@@ -1326,13 +1330,13 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     psb_cmdbuf_rendec_start_chunk(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE));
 
     reg_value = 0;
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_HEIGHT,	(ctx->picture_height_mb*16) - 1);
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_WIDTH,	(ctx->picture_width_mb*16) - 1);
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_HEIGHT, (ctx->picture_height_mb * 16) - 1);
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_WIDTH, (ctx->picture_width_mb * 16) - 1);
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 
     reg_value = 0;
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_HEIGHT, (ctx->picture_height_mb*16) - 1);
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_WIDTH, (ctx->picture_width_mb*16) - 1);
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_HEIGHT, (ctx->picture_height_mb * 16) - 1);
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_WIDTH, (ctx->picture_width_mb * 16) - 1);
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 
     reg_value = 0;
@@ -1340,7 +1344,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, OPERATING_MODE, CHROMA_INTERLEAVED, 0);
     REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, OPERATING_MODE, ROW_STRIDE, target_surface->stride_mode);
     REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, OPERATING_MODE, CODEC_PROFILE, ctx->profile);
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, OPERATING_MODE, CODEC_MODE, 1);	/* H.264 */
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, OPERATING_MODE, CODEC_MODE, 1);       /* H.264 */
     REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE, ctx->two_pass_mode);
     REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, OPERATING_MODE, CHROMA_FORMAT, pic_params->seq_fields.bits.chroma_format_idc);
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
@@ -1484,20 +1488,20 @@ static void psb__H264_preprocess_slice(context_H264_p ctx,
         ctx->first_mb_y *= 2;
     }
 
-    slice_qpy = 26 + pic_params->pic_init_qp_minus26 + slice_param->slice_qp_delta;	/* (7-27) */
+    slice_qpy = 26 + pic_params->pic_init_qp_minus26 + slice_param->slice_qp_delta;     /* (7-27) */
 
-    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, BE_DIRECT_SPATIAL_MV_PRED_FLAG,			slice_param->direct_spatial_mv_pred_flag);
-    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_DISABLE_DEBLOCK_FILTER_IDC,	slice_param->disable_deblocking_filter_idc);
-    REGIO_WRITE_FIELD_MASKEDLITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_ALPHA_CO_OFFSET_DIV2,	slice_param->slice_alpha_c0_offset_div2);
-    REGIO_WRITE_FIELD_MASKEDLITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_BETA_OFFSET_DIV2,		slice_param->slice_beta_offset_div2);
-    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_FIELD_TYPE,			ctx->field_type);
-    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, SLICETYPE,					aSliceTypeVAtoMsvdx[ slice_param->slice_type % 5]);
-    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, CABAC_INIT_IDC,					slice_param->cabac_init_idc);
-    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, SLICECOUNT,					ctx->slice_count);
+    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, BE_DIRECT_SPATIAL_MV_PRED_FLAG,                   slice_param->direct_spatial_mv_pred_flag);
+    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_DISABLE_DEBLOCK_FILTER_IDC,        slice_param->disable_deblocking_filter_idc);
+    REGIO_WRITE_FIELD_MASKEDLITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_ALPHA_CO_OFFSET_DIV2,        slice_param->slice_alpha_c0_offset_div2);
+    REGIO_WRITE_FIELD_MASKEDLITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_BETA_OFFSET_DIV2,            slice_param->slice_beta_offset_div2);
+    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_BE_SLICE0, H264_BE_SLICE0_FIELD_TYPE,                        ctx->field_type);
+    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, SLICETYPE,                                        aSliceTypeVAtoMsvdx[ slice_param->slice_type % 5]);
+    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, CABAC_INIT_IDC,                                   slice_param->cabac_init_idc);
+    REGIO_WRITE_FIELD_LITE(ctx->slice0_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0, SLICECOUNT,                                       ctx->slice_count);
 
-    REGIO_WRITE_FIELD_LITE(ctx->slice1_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1, FIRST_MB_IN_SLICE_X,	ctx->first_mb_x);
-    REGIO_WRITE_FIELD_LITE(ctx->slice1_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1, FIRST_MB_IN_SLICE_Y,	ctx->first_mb_y);
-    REGIO_WRITE_FIELD_LITE(ctx->slice1_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1, SLICEQPY,			slice_qpy);
+    REGIO_WRITE_FIELD_LITE(ctx->slice1_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1, FIRST_MB_IN_SLICE_X,      ctx->first_mb_x);
+    REGIO_WRITE_FIELD_LITE(ctx->slice1_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1, FIRST_MB_IN_SLICE_Y,      ctx->first_mb_y);
+    REGIO_WRITE_FIELD_LITE(ctx->slice1_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1, SLICEQPY,                 slice_qpy);
     REGIO_WRITE_FIELD_LITE(ctx->slice1_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1, NUM_REF_IDX_L0_ACTIVE_MINUS1, slice_param->num_ref_idx_l0_active_minus1);
     REGIO_WRITE_FIELD_LITE(ctx->slice1_params, MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1, NUM_REF_IDX_L1_ACTIVE_MINUS1, slice_param->num_ref_idx_l1_active_minus1);
 }
@@ -1584,6 +1588,7 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 
+#if 0    
     psb__information_message("H264 process slice %d\n", ctx->slice_count);
     psb__information_message("    profile = %s\n", profile2str[ctx->profile]);
     psb__information_message("    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
@@ -1592,9 +1597,10 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
     psb__information_message("    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
     psb__information_message("    slice type = %s\n", slice2str[(slice_param->slice_type % 5)]);
     psb__information_message("    weighted_pred_flag = %d weighted_bipred_idc = %d\n", ctx->pic_params->pic_fields.bits.weighted_pred_flag, ctx->pic_params->pic_fields.bits.weighted_bipred_idc);
-
+#endif
+    
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-            (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
+        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
         if (0 == slice_param->slice_data_size) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
@@ -1636,7 +1642,7 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
     }
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-            (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
+        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
         if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
             ASSERT(ctx->split_buffer_pending);
         }
@@ -1662,13 +1668,13 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
         ctx->obj_context->video_op = psb_video_vld;
         ctx->obj_context->flags = 0;
         if (ctx->slice_count == 0) {
-            ctx->obj_context->flags |= FW_DXVA_RENDER_IS_FIRST_SLICE;
+            ctx->obj_context->flags |= FW_VA_RENDER_IS_FIRST_SLICE;
         }
         if (ctx->pic_params->seq_fields.bits.mb_adaptive_frame_field_flag) {
-            ctx->obj_context->flags |= FW_DXVA_RENDER_IS_H264_MBAFF;
+            ctx->obj_context->flags |= FW_VA_RENDER_IS_H264_MBAFF;
         }
         if (ctx->two_pass_mode) {
-            ctx->obj_context->flags |= FW_DXVA_RENDER_IS_TWO_PASS_DEBLOCK;
+            ctx->obj_context->flags |= FW_VA_RENDER_IS_TWO_PASS_DEBLOCK;
         }
 
         if (ctx->obj_context->driver_data->ec_enabled)
@@ -1702,7 +1708,7 @@ static VAStatus psb__H264_process_slice_data(context_H264_p ctx, object_buffer_p
         return VA_STATUS_ERROR_UNKNOWN;
     }
     if ((NULL == obj_buffer->psb_buffer) ||
-            (0 == obj_buffer->size)) {
+        (0 == obj_buffer->size)) {
         /* We need to have data in the bitstream buffer */
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -1762,32 +1768,32 @@ static VAStatus psb_H264_RenderPicture(
 
         switch (obj_buffer->type) {
         case VAPictureParameterBufferType:
-            psb__information_message("psb_H264_RenderPicture got VAPictureParameterBuffer\n");
+            /* psb__information_message("psb_H264_RenderPicture got VAPictureParameterBuffer\n"); */
             vaStatus = psb__H264_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAIQMatrixBufferType:
-            psb__information_message("psb_H264_RenderPicture got VAIQMatrixBufferType\n");
+            /* psb__information_message("psb_H264_RenderPicture got VAIQMatrixBufferType\n"); */
             vaStatus = psb__H264_process_iq_matrix(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VASliceGroupMapBufferType:
-            psb__information_message("psb_H264_RenderPicture got VASliceGroupMapBufferType\n");
+            /* psb__information_message("psb_H264_RenderPicture got VASliceGroupMapBufferType\n"); */
             vaStatus = psb__H264_process_slice_group_map(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VASliceParameterBufferType:
-            psb__information_message("psb_H264_RenderPicture got VASliceParameterBufferType\n");
+            /* psb__information_message("psb_H264_RenderPicture got VASliceParameterBufferType\n"); */
             vaStatus = psb__H264_add_slice_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VASliceDataBufferType:
         case VAProtectedSliceDataBufferType:
-            psb__information_message("psb_H264_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
+            /* psb__information_message("psb_H264_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type)); */
             vaStatus = psb__H264_process_slice_data(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
@@ -1863,7 +1869,7 @@ static VAStatus psb_H264_EndPicture(
         psb_context_get_next_cmdbuf(ctx->obj_context);
 
         if ((NULL == colocated_target_buffer)
-                || psb_buffer_map(colocated_target_buffer, &pMbData)) {
+            || psb_buffer_map(colocated_target_buffer, &pMbData)) {
             psb__information_message("psb_H264: map colocated buffer error!\n");
         } else {
             int ret;

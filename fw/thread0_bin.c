@@ -1683,14 +1683,14 @@ unsigned long aui32MTXDXVAFWText[] = {
     0x4a0cb780,
     0x93647500,
     0x420cb780,
+    0x4a0cb5a0,
     0xaa09f248,
     0x7d00c004,
     0xf24890e2,
     0xc004aa35,
     0xc0057d00,
-    0x9eab9144,
-    0xb5a00986,
-    0xc0144a0c,
+    0x9eab9104,
+    0xc0140986,
     0x0d829b30,
     0xc1719e5c,
     0xf2489ccc,
@@ -1774,7 +1774,7 @@ unsigned long aui32MTXDXVAFWText[] = {
     0x9b339eab,
     0x0daa97bc,
     0xc0340982,
-    0x9754993c,
+    0x9756993c,
     0xc008a605,
     0xffb40df2,
     0xe0409a01,
@@ -3909,5 +3909,5 @@ unsigned long aui32MTXDXVAFWData[] = {
     0x00000000,
     0x00000000,
 };
-//char* psFirmwareVersion = "BUILD_DXVA_FW1.00.10.1229.02.0008_Legacy";
-//char* psFirmwareBuildDate = "09_02_2011";
+char* psFirmwareVersion = "BUILD_DXVA_FW1.00.10.1229.02.0009_Legacy";
+char* psFirmwareBuildDate = "20_04_2011";

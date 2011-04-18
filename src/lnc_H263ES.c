@@ -21,6 +21,13 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
 
 #include "psb_def.h"
 #include "psb_surface.h"
@@ -175,7 +182,7 @@ static VAStatus lnc__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH263));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH263))) {
+        (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH263))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -184,7 +191,7 @@ static VAStatus lnc__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     obj_buffer->size = 0;
 
     if ((ctx->obj_context->frame_count != 0) &&
-            (ctx->sRCParams.BitsPerSecond != pSequenceParams->bits_per_second))
+        (ctx->sRCParams.BitsPerSecond != pSequenceParams->bits_per_second))
         ctx->update_rc_control = 1;
 
     if (pSequenceParams->bits_per_second > TOPAZ_H263_MAX_BITRATE) {
@@ -236,7 +243,7 @@ static VAStatus lnc__H263ES_process_picture_param(context_ENC_p ctx, object_buff
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncPictureParameterBufferH263))) {
+        (obj_buffer->size != sizeof(VAEncPictureParameterBufferH263))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -334,7 +341,7 @@ static VAStatus lnc__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
 
     if (NULL == ctx->slice_param_cache) {
         ctx->slice_param_num = obj_buffer->num_elements;
-        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num);
+        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2 * ctx->slice_param_num);
         ctx->slice_param_cache = calloc(2 * ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
         if (NULL == ctx->slice_param_cache) {
             psb__error_message("Run out of memory!\n");
@@ -378,7 +385,7 @@ static VAStatus lnc__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
             /* Setup InParams value*/
             lnc_setup_slice_params(ctx,
                                    pBuffer->start_row_number * 16,
-                                   pBuffer->slice_height*16,
+                                   pBuffer->slice_height * 16,
                                    pBuffer->slice_flags.bits.is_intra,
                                    ctx->obj_context->frame_count > 0,
                                    psPicParams->sInParams.SeInitQP);
@@ -390,7 +397,7 @@ static VAStatus lnc__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
                                       pBuffer->start_row_number * 16,
                                       0, /* no deblock for H263 */
                                       ctx->obj_context->frame_count,
-                                      pBuffer->slice_height*16,
+                                      pBuffer->slice_height * 16,
                                       ctx->obj_context->slice_count,
                                       ctx->max_slice_size);
 

@@ -21,6 +21,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *
+ */
+
 #include <stdio.h>
 
 #include "JPEGMasterFirmware_bin.h"
@@ -53,26 +60,26 @@
 #define FW_FILE_NAME "topazsc_fw.bin"
 
 #define FW_MASTER_INFO(codec,prefix) \
-	{ FW_MASTER_##codec,\
-	  { FW_VER,\
-	    FW_MASTER_##codec,\
-	    ui32##prefix##_MasterMTXTOPAZFWTextSize,\
-	    ui32##prefix##_MasterMTXTOPAZFWDataSize,\
-	    ui32##prefix##_MasterMTXTOPAZFWDataOrigin\
-	  },\
-	  aui32##prefix##_MasterMTXTOPAZFWText, aui32##prefix##_MasterMTXTOPAZFWData \
-	}
+        { FW_MASTER_##codec,\
+          { FW_VER,\
+            FW_MASTER_##codec,\
+            ui32##prefix##_MasterMTXTOPAZFWTextSize,\
+            ui32##prefix##_MasterMTXTOPAZFWDataSize,\
+            ui32##prefix##_MasterMTXTOPAZFWDataOrigin\
+          },\
+          aui32##prefix##_MasterMTXTOPAZFWText, aui32##prefix##_MasterMTXTOPAZFWData \
+        }
 
 #define FW_SLAVE_INFO(codec,prefix) \
-	{ FW_SLAVE_##codec,\
-	  { FW_VER,\
-	    FW_SLAVE_##codec,\
-	    ui32##prefix##_SlaveMTXTOPAZFWTextSize,\
-	    ui32##prefix##_SlaveMTXTOPAZFWDataSize,\
-	    ui32##prefix##_SlaveMTXTOPAZFWDataOrigin\
-	  },\
-	  aui32##prefix##_SlaveMTXTOPAZFWText, aui32##prefix##_SlaveMTXTOPAZFWData \
-	}
+        { FW_SLAVE_##codec,\
+          { FW_VER,\
+            FW_SLAVE_##codec,\
+            ui32##prefix##_SlaveMTXTOPAZFWTextSize,\
+            ui32##prefix##_SlaveMTXTOPAZFWDataSize,\
+            ui32##prefix##_SlaveMTXTOPAZFWDataOrigin\
+          },\
+          aui32##prefix##_SlaveMTXTOPAZFWText, aui32##prefix##_SlaveMTXTOPAZFWData \
+        }
 
 
 

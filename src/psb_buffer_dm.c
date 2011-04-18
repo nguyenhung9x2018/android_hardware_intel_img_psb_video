@@ -20,6 +20,13 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Forrest Zhang  <forrest.zhang@intel.com>
+ *
+ */
+
 #include "psb_buffer.h"
 
 #include <errno.h>
@@ -194,9 +201,9 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
     }
 
 #ifndef ANDROID
-    extern int wsbmBODataUB(struct _WsbmBufferObject *buf,
-                                unsigned size, const void *data,
-                                struct _WsbmBufferPool *newPool, uint32_t placement, const unsigned long *user_ptr);
+    extern int wsbmBODataUB(struct _WsbmBufferObject * buf,
+                            unsigned size, const void * data,
+                            struct _WsbmBufferPool * newPool, uint32_t placement, const unsigned long * user_ptr);
 
     /* here use the placement when gen buffer setted */
     ret = wsbmBODataUB(buf->drm_buf, size, NULL, NULL, 0, user_ptr);

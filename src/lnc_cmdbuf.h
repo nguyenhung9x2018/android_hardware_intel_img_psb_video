@@ -20,6 +20,14 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
+
 #ifndef _LNC_CMDBUF_H_
 #define _LNC_CMDBUF_H_
 
@@ -132,13 +140,13 @@ void lnc_cmdbuf_add_relocation(lnc_cmdbuf_p cmdbuf,
                                uint32_t dst_buffer, /*Index of the list refered by cmdbuf->buffer_refs */
                                uint32_t *start_of_dst_buffer);
 
-#define RELOC_CMDBUF(dest, offset, buf)	lnc_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, cmdbuf->cmd_start)
+#define RELOC_CMDBUF(dest, offset, buf) lnc_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, cmdbuf->cmd_start)
 
 /* do relocation in PIC_PARAMS: src/dst Y/UV base, InParamsBase, CodeBase, BellowParamsBase, AboveParamsBase */
-#define RELOC_PIC_PARAMS(dest, offset, buf)	lnc_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (uint32_t *)cmdbuf->pic_params_p)
+#define RELOC_PIC_PARAMS(dest, offset, buf)     lnc_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (uint32_t *)cmdbuf->pic_params_p)
 
 /* do relocation in SLICE_PARAMS: reference Y/UV base,CodedData */
-#define RELOC_SLICE_PARAMS(dest, offset, buf)	lnc_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 2,(uint32_t *)cmdbuf->slice_params_p)
+#define RELOC_SLICE_PARAMS(dest, offset, buf)   lnc_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 2,(uint32_t *)cmdbuf->slice_params_p)
 
 /* operation number is inserted by DRM */
 #define lnc_cmdbuf_insert_command(cmdbuf,cmdhdr,size,hint)              \

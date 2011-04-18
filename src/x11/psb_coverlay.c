@@ -20,6 +20,14 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Jason Hu  <jason.hu@intel.com>
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *
+ */
+
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
 #include <va/va_backend.h>
@@ -39,7 +47,7 @@
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 #define INIT_OUTPUT_PRIV    psb_x11_output_p output = (psb_x11_output_p)(((psb_driver_data_p)ctx->pDriverData)->ws_priv)
-#define SURFACE(id)	((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
+#define SURFACE(id)     ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 
 static int
 psb_x11_getWindowCoordinate(Display * display,
@@ -154,7 +162,7 @@ psb_x11_substractRects(Display *             display,
             psNext = psCur->next;
 
             if ((psRegion->rect.i32Left > psCur->rect.i32Left) &&
-                    (psRegion->rect.i32Left <= psCur->rect.i32Right)) {
+                (psRegion->rect.i32Left <= psCur->rect.i32Right)) {
                 sCreateRect.i32Right = psRegion->rect.i32Left - 1;
 
                 sCreateRect.i32Left = psCur->rect.i32Left;
@@ -170,7 +178,7 @@ psb_x11_substractRects(Display *             display,
             }
 
             if ((psRegion->rect.i32Right >= psCur->rect.i32Left) &&
-                    (psRegion->rect.i32Right < psCur->rect.i32Right))
+                (psRegion->rect.i32Right < psCur->rect.i32Right))
 
             {
                 sCreateRect.i32Left = psRegion->rect.i32Right + 1;
@@ -188,7 +196,7 @@ psb_x11_substractRects(Display *             display,
             }
 
             if ((psRegion->rect.i32Top > psCur->rect.i32Top) &&
-                    (psRegion->rect.i32Top <= psCur->rect.i32Bottom)) {
+                (psRegion->rect.i32Top <= psCur->rect.i32Bottom)) {
                 sCreateRect.i32Bottom = psRegion->rect.i32Top - 1;
 
                 sCreateRect.i32Left   = psCur->rect.i32Left;
@@ -204,7 +212,7 @@ psb_x11_substractRects(Display *             display,
             }
 
             if ((psRegion->rect.i32Bottom >= psCur->rect.i32Top) &&
-                    (psRegion->rect.i32Bottom <  psCur->rect.i32Bottom)) {
+                (psRegion->rect.i32Bottom <  psCur->rect.i32Bottom)) {
                 sCreateRect.i32Top    = psRegion->rect.i32Bottom + 1;
                 sCreateRect.i32Left   = psCur->rect.i32Left;
                 sCreateRect.i32Right  = psCur->rect.i32Right;
@@ -219,9 +227,9 @@ psb_x11_substractRects(Display *             display,
             }
 
             if ((IS_BETWEEN_RANGE(psRegion->rect.i32Left, psCur->rect.i32Left,   psRegion->rect.i32Right)) &&
-                    (IS_BETWEEN_RANGE(psRegion->rect.i32Left, psCur->rect.i32Right,  psRegion->rect.i32Right)) &&
-                    (IS_BETWEEN_RANGE(psRegion->rect.i32Top,  psCur->rect.i32Top,    psRegion->rect.i32Bottom)) &&
-                    (IS_BETWEEN_RANGE(psRegion->rect.i32Top,  psCur->rect.i32Bottom, psRegion->rect.i32Bottom))) {
+                (IS_BETWEEN_RANGE(psRegion->rect.i32Left, psCur->rect.i32Right,  psRegion->rect.i32Right)) &&
+                (IS_BETWEEN_RANGE(psRegion->rect.i32Top,  psCur->rect.i32Top,    psRegion->rect.i32Bottom)) &&
+                (IS_BETWEEN_RANGE(psRegion->rect.i32Top,  psCur->rect.i32Bottom, psRegion->rect.i32Bottom))) {
                 if (psPrev) {
                     psPrev->next = psCur->next;
                     free(psCur);
@@ -490,7 +498,7 @@ static VAStatus psb_DisplayRGBASubpicture(
         XSync((Display *)ctx->native_dpy, False);
 
         if (psb_xrandr_extvideo_mode() &&
-                (subtitle == ONLY_HDMI || subtitle == BOTH)) {
+            (subtitle == ONLY_HDMI || subtitle == BOTH)) {
             float xScale, yScale;
 
             xScale = pPriv->extend_display_width * 1.0 / surface_w;
@@ -572,8 +580,8 @@ static VAStatus psb_repaint_colorkey(
 
     /* repaint the color key when window size changed*/
     if (!obj_surface->subpictures &&
-            ((pPriv->x11_window_width != x11_window_width) ||
-             (pPriv->x11_window_height != x11_window_height))) {
+        ((pPriv->x11_window_width != x11_window_width) ||
+         (pPriv->x11_window_height != x11_window_height))) {
         pPriv->x11_window_width = x11_window_width;
         pPriv->x11_window_height = x11_window_height;
         XSetForeground((Display *)ctx->native_dpy, output->gc, pPriv->colorKey);
@@ -583,8 +591,8 @@ static VAStatus psb_repaint_colorkey(
 
 
     if ((!obj_surface->subpictures) &&
-            ((output->ui32NumClipBoxList != pPriv->last_num_clipbox) ||
-             (memcmp(&pVaWindowClipRects[0], &(pPriv->last_clipbox[0]), (output->ui32NumClipBoxList > 16 ? 16 : output->ui32NumClipBoxList)*sizeof(VARectangle)) != 0))) {
+        ((output->ui32NumClipBoxList != pPriv->last_num_clipbox) ||
+         (memcmp(&pVaWindowClipRects[0], &(pPriv->last_clipbox[0]), (output->ui32NumClipBoxList > 16 ? 16 : output->ui32NumClipBoxList)*sizeof(VARectangle)) != 0))) {
         pPriv->last_num_clipbox = output->ui32NumClipBoxList;
         memcpy(&pPriv->last_clipbox[0], &pVaWindowClipRects[0], (output->ui32NumClipBoxList > 16 ? 16 : output->ui32NumClipBoxList)*sizeof(VARectangle));
         XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
@@ -618,7 +626,7 @@ static VAStatus psb_extendMode_getCoordinate(
             *x11_window_width = pPriv->display_width + pPriv->extend_display_width - destx;
         }
         if (((desty + *x11_window_height) < pPriv->display_height) &&
-                ((desty + *x11_window_height) < pPriv->extend_display_height))
+            ((desty + *x11_window_height) < pPriv->extend_display_height))
             local_rect->dHeight = extend_rect->dHeight = *x11_window_height;
         else if (pPriv->display_height < pPriv->extend_display_height) {
             local_rect->dHeight = pPriv->display_height - desty;
@@ -665,7 +673,7 @@ static VAStatus psb_extendMode_getCoordinate(
             *x11_window_width = pPriv->display_width + pPriv->extend_display_width - destx;
         }
         if (((desty + *x11_window_height) < pPriv->display_height) &&
-                ((desty + *x11_window_height) < pPriv->extend_display_height))
+            ((desty + *x11_window_height) < pPriv->extend_display_height))
             local_rect->dHeight = extend_rect->dHeight = *x11_window_height;
         else if (pPriv->display_height < pPriv->extend_display_height) {
             local_rect->dHeight = pPriv->display_height - desty;
@@ -709,7 +717,7 @@ static VAStatus psb_extendMode_getCoordinate(
         break;
     case ABOVE:
         if (((destx + *x11_window_width) < pPriv->display_width) &&
-                ((destx + *x11_window_width) < pPriv->extend_display_width))
+            ((destx + *x11_window_width) < pPriv->extend_display_width))
             local_rect->dWidth = extend_rect->dWidth = *x11_window_width;
         else if (pPriv->display_width < pPriv->extend_display_width) {
             local_rect->dWidth = pPriv->display_width - destx;
@@ -757,7 +765,7 @@ static VAStatus psb_extendMode_getCoordinate(
         break;
     case BELOW:
         if (((destx + *x11_window_width) < pPriv->display_width) &&
-                ((destx + *x11_window_width) < pPriv->extend_display_width))
+            ((destx + *x11_window_width) < pPriv->extend_display_width))
             local_rect->dWidth = extend_rect->dWidth = *x11_window_width;
         else if (pPriv->display_width < pPriv->extend_display_width) {
             local_rect->dWidth = pPriv->display_width - destx;
@@ -849,9 +857,9 @@ static void psb_clear_subpictures(
 
     for (i = 0; subpicture != NULL; subpicture = subpicture->next, i++) {
         if ((subpicture->subpic_dstx != pPriv->clear_key[i].subpic_dstx) ||
-                (subpicture->subpic_dsty != pPriv->clear_key[i].subpic_dsty) ||
-                (subpicture->subpic_dstw != pPriv->clear_key[i].subpic_dstw) ||
-                (subpicture->subpic_dsth != pPriv->clear_key[i].subpic_dsth)) {
+            (subpicture->subpic_dsty != pPriv->clear_key[i].subpic_dsty) ||
+            (subpicture->subpic_dstw != pPriv->clear_key[i].subpic_dstw) ||
+            (subpicture->subpic_dsth != pPriv->clear_key[i].subpic_dsth)) {
             XSetForeground((Display *)ctx->native_dpy, output->gc, 0);
             XFillRectangle((Display *)ctx->native_dpy, output->output_drawable, output->gc, 0, 0, win_width, win_height);
             XSync((Display *)ctx->native_dpy, False);
@@ -931,7 +939,7 @@ VAStatus psb_putsurface_coverlay(
     if (!output->gc) {
         output->gc = XCreateGC((Display *)ctx->native_dpy, draw, 0, NULL);
         /* paint the color key */
-        if (!obj_surface->subpictures) {
+        if (!obj_surface->subpictures && !driver_data->overlay_auto_paint_color_key) {
             XSetForeground((Display *)ctx->native_dpy, output->gc, pPriv->colorKey);
             XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, x11_window_width, x11_window_height);
             XSync((Display *)ctx->native_dpy, False);
@@ -1046,10 +1054,12 @@ VAStatus psb_putsurface_coverlay(
             srch = (unsigned short)(x11_window_height * yScaleFactor);
         }
 
-        ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
-        if (ret != 0) {
-            psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
-            return VA_STATUS_ERROR_UNKNOWN;
+        if (!driver_data->overlay_auto_paint_color_key) {
+            ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
+            if (ret != 0) {
+                psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
+                return VA_STATUS_ERROR_UNKNOWN;
+            }
         }
 
         psb_putsurface_overlay(
@@ -1068,7 +1078,7 @@ VAStatus psb_putsurface_coverlay(
         }
 
         if (((destx + x11_window_width) < pPriv->display_width) &&
-                ((destx + x11_window_width) < pPriv->extend_display_width))
+            ((destx + x11_window_width) < pPriv->extend_display_width))
             local_rect.dWidth = extend_rect.dWidth = x11_window_width;
         else if (pPriv->display_width < pPriv->extend_display_width) {
             local_rect.dWidth = pPriv->display_width - destx;
@@ -1085,7 +1095,7 @@ VAStatus psb_putsurface_coverlay(
         }
 
         if (((desty + x11_window_height) < pPriv->display_height) &&
-                ((desty + x11_window_height) < pPriv->extend_display_height))
+            ((desty + x11_window_height) < pPriv->extend_display_height))
             local_rect.dHeight = extend_rect.dHeight = x11_window_height;
         else if (pPriv->display_height < pPriv->extend_display_height) {
             local_rect.dHeight = pPriv->display_height - desty;
@@ -1101,7 +1111,7 @@ VAStatus psb_putsurface_coverlay(
                 local_rect.dHeight = x11_window_height;
         }
         if ((driver_data->mipi0_rotation != VA_ROTATION_NONE) ||
-                (driver_data->hdmi_rotation != VA_ROTATION_NONE)) {
+            (driver_data->hdmi_rotation != VA_ROTATION_NONE)) {
             local_rect.sWidth = srcw;
             local_rect.sHeight = srch;
             extend_rect.sWidth = srcw;

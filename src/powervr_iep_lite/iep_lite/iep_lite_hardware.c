@@ -16,26 +16,26 @@
  **             : WD4 8LZ, U.K.
  **
  ** Description : This module contains hardware specific data for the
- **				  IEP LITE module.
+ **                               IEP LITE module.
  **
  *********************************************************************************
  *********************************************************************************/
 
 /********************************************************************
-	DISCLAIMER:
-	This code is provided for demonstration purposes only. It has
-	been ported from other projects and has not been tested with
-	real hardware. It is not provided in a state that can be run
-	with real hardware - this is not intended as the basis for a
-	production driver. This code should only be used as an example
-	of the algorithms to be used for setting up the IEP lite
-	hardware.
+        DISCLAIMER:
+        This code is provided for demonstration purposes only. It has
+        been ported from other projects and has not been tested with
+        real hardware. It is not provided in a state that can be run
+        with real hardware - this is not intended as the basis for a
+        production driver. This code should only be used as an example
+        of the algorithms to be used for setting up the IEP lite
+        hardware.
  ********************************************************************/
 
 /*-------------------------------------------------------------------------------*/
 
 /*
-	Includes
+        Includes
 */
 
 #include "img_iep_defs.h"
@@ -49,25 +49,25 @@
 /*-------------------------------------------------------------------------------*/
 
 /*
-	Data
+        Data
 */
 
-const IEP_LITE_sBLEModeSpecificSettings	asBLEBlackModes [ IEP_LITE_BLE_NO_OF_MODES ] = {
-    /*  Safety check			D 																					Slope											*/
-    {	IEP_LITE_BLE_OFF,	(img_uint32)(0.3f * (1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))),	(img_uint32)(1.0 * (1ul << IEP_LITE_BLE_RES_PAR))	},	/* Off		*/
+const IEP_LITE_sBLEModeSpecificSettings asBLEBlackModes [ IEP_LITE_BLE_NO_OF_MODES ] = {
+    /*  Safety check                    D                                                                                                                                                                       Slope                                                                                   */
+    {   IEP_LITE_BLE_OFF, (img_uint32)(0.3f *(1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))), (img_uint32)(1.0 *(1ul << IEP_LITE_BLE_RES_PAR))        },                   /* Off          */
 
-    {	IEP_LITE_BLE_LOW,	(img_uint32)(0.3f * (1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))),	(img_uint32)(0.9 * (1ul << IEP_LITE_BLE_RES_PAR))	},	/* Low		*/
-    {	IEP_LITE_BLE_MEDIUM,	(img_uint32)(0.3f * (1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))),	(img_uint32)(0.6 * (1ul << IEP_LITE_BLE_RES_PAR))	},	/* Medium	*/
-    {	IEP_LITE_BLE_HIGH,	(img_uint32)(0.3f * (1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))),	(img_uint32)(0.4 * (1ul << IEP_LITE_BLE_RES_PAR))	}	/* High		*/
+    {   IEP_LITE_BLE_LOW, (img_uint32)(0.3f *(1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))), (img_uint32)(0.9 *(1ul << IEP_LITE_BLE_RES_PAR))        },                   /* Low          */
+    {   IEP_LITE_BLE_MEDIUM, (img_uint32)(0.3f *(1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))), (img_uint32)(0.6 *(1ul << IEP_LITE_BLE_RES_PAR))        },                /* Medium       */
+    {   IEP_LITE_BLE_HIGH, (img_uint32)(0.3f *(1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))), (img_uint32)(0.4 *(1ul << IEP_LITE_BLE_RES_PAR))        }                   /* High         */
 };
 
-const IEP_LITE_sBLEModeSpecificSettings	asBLEWhiteModes [ IEP_LITE_BLE_NO_OF_MODES ] = {
-    /*  Safety check			D 																					Slope											*/
-    {	IEP_LITE_BLE_OFF,	(img_uint32)(0.3f * (1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))),	(img_uint32)(1.0 * (1ul << IEP_LITE_BLE_RES_PAR))	},	/* Off		*/
+const IEP_LITE_sBLEModeSpecificSettings asBLEWhiteModes [ IEP_LITE_BLE_NO_OF_MODES ] = {
+    /*  Safety check                    D                                                                                                                                                                       Slope                                                                                   */
+    {   IEP_LITE_BLE_OFF, (img_uint32)(0.3f *(1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))), (img_uint32)(1.0 *(1ul << IEP_LITE_BLE_RES_PAR))        },                   /* Off          */
 
-    {	IEP_LITE_BLE_LOW,	(img_uint32)(0.3f * (1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))),	(img_uint32)(0.9 * (1ul << IEP_LITE_BLE_RES_PAR))	},	/* Low		*/
-    {	IEP_LITE_BLE_MEDIUM,	(img_uint32)(0.3f * (1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))),	(img_uint32)(0.6 * (1ul << IEP_LITE_BLE_RES_PAR))	},	/* Medium	*/
-    {	IEP_LITE_BLE_HIGH,	(img_uint32)(0.3f * (1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))),	(img_uint32)(0.4 * (1ul << IEP_LITE_BLE_RES_PAR))	}	/* High		*/
+    {   IEP_LITE_BLE_LOW, (img_uint32)(0.3f *(1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))), (img_uint32)(0.9 *(1ul << IEP_LITE_BLE_RES_PAR))        },                   /* Low          */
+    {   IEP_LITE_BLE_MEDIUM, (img_uint32)(0.3f *(1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))), (img_uint32)(0.6 *(1ul << IEP_LITE_BLE_RES_PAR))        },                /* Medium       */
+    {   IEP_LITE_BLE_HIGH, (img_uint32)(0.3f *(1ul << (IEP_LITE_BLE_RES_PAR + IEP_LITE_BLE_RES_PAR_CORR))), (img_uint32)(0.4 *(1ul << IEP_LITE_BLE_RES_PAR))        }                   /* High         */
 };
 
 /*--------------------------- End of File --------------------------------*/

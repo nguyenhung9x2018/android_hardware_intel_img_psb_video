@@ -21,6 +21,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
 #include <stdio.h>
 
 #include "H263Firmware_bin.h"
@@ -83,112 +90,132 @@ int main()
          * { ver, codec, text_size, data_size, date_location }
          * fw_text fw_data */
         { 0, {0, 0, 0, 0, 0} },
-        { FW_H264_NO_RC,
-          { FW_VER,
+        {
             FW_H264_NO_RC,
-            ui32H264_MTXTOPAZFWTextSize,
-            ui32H264_MTXTOPAZFWDataSize,
-            ui32H264_MTXTOPAZFWDataLocation
-          },
-          aui32H264_MTXTOPAZFWText, aui32H264_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_H264_NO_RC,
+                ui32H264_MTXTOPAZFWTextSize,
+                ui32H264_MTXTOPAZFWDataSize,
+                ui32H264_MTXTOPAZFWDataLocation
+            },
+            aui32H264_MTXTOPAZFWText, aui32H264_MTXTOPAZFWData
         },
 
-        { FW_H264_VBR,
-          { FW_VER,
+        {
             FW_H264_VBR,
-            ui32H264VBR_MTXTOPAZFWTextSize,
-            ui32H264VBR_MTXTOPAZFWDataSize,
-            ui32H264VBR_MTXTOPAZFWDataLocation
-          },
-          aui32H264VBR_MTXTOPAZFWText, aui32H264VBR_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_H264_VBR,
+                ui32H264VBR_MTXTOPAZFWTextSize,
+                ui32H264VBR_MTXTOPAZFWDataSize,
+                ui32H264VBR_MTXTOPAZFWDataLocation
+            },
+            aui32H264VBR_MTXTOPAZFWText, aui32H264VBR_MTXTOPAZFWData
         },
 
-        { FW_H264_CBR,
-          { FW_VER,
+        {
             FW_H264_CBR,
-            ui32H264CBR_MTXTOPAZFWTextSize,
-            ui32H264CBR_MTXTOPAZFWDataSize,
-            ui32H264CBR_MTXTOPAZFWDataLocation
-          },
-          aui32H264CBR_MTXTOPAZFWText,
-          aui32H264CBR_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_H264_CBR,
+                ui32H264CBR_MTXTOPAZFWTextSize,
+                ui32H264CBR_MTXTOPAZFWDataSize,
+                ui32H264CBR_MTXTOPAZFWDataLocation
+            },
+            aui32H264CBR_MTXTOPAZFWText,
+            aui32H264CBR_MTXTOPAZFWData
         },
 
-        { FW_H264_VCM,
-          { FW_VER,
+        {
             FW_H264_VCM,
-            ui32H264VCM_MTXTOPAZFWTextSize,
-            ui32H264VCM_MTXTOPAZFWDataSize,
-            ui32H264VCM_MTXTOPAZFWDataLocation
-          },
-          aui32H264VCM_MTXTOPAZFWText,
-          aui32H264VCM_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_H264_VCM,
+                ui32H264VCM_MTXTOPAZFWTextSize,
+                ui32H264VCM_MTXTOPAZFWDataSize,
+                ui32H264VCM_MTXTOPAZFWDataLocation
+            },
+            aui32H264VCM_MTXTOPAZFWText,
+            aui32H264VCM_MTXTOPAZFWData
         },
 
-        { FW_H263_NO_RC,
-          { FW_VER,
+        {
             FW_H263_NO_RC,
-            ui32H263_MTXTOPAZFWTextSize,
-            ui32H263_MTXTOPAZFWDataSize,
-            ui32H263_MTXTOPAZFWDataLocation
-          },
-          aui32H263_MTXTOPAZFWText,
-          aui32H263_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_H263_NO_RC,
+                ui32H263_MTXTOPAZFWTextSize,
+                ui32H263_MTXTOPAZFWDataSize,
+                ui32H263_MTXTOPAZFWDataLocation
+            },
+            aui32H263_MTXTOPAZFWText,
+            aui32H263_MTXTOPAZFWData
         },
 
-        { FW_H263_VBR,
-          { FW_VER,
+        {
             FW_H263_VBR,
-            ui32H263VBR_MTXTOPAZFWTextSize,
-            ui32H263VBR_MTXTOPAZFWDataSize,
-            ui32H263VBR_MTXTOPAZFWDataLocation
-          },
-          aui32H263VBR_MTXTOPAZFWText,
-          aui32H263VBR_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_H263_VBR,
+                ui32H263VBR_MTXTOPAZFWTextSize,
+                ui32H263VBR_MTXTOPAZFWDataSize,
+                ui32H263VBR_MTXTOPAZFWDataLocation
+            },
+            aui32H263VBR_MTXTOPAZFWText,
+            aui32H263VBR_MTXTOPAZFWData
         },
 
-        { FW_H263_CBR,
-          { FW_VER,
+        {
             FW_H263_CBR,
-            ui32H263CBR_MTXTOPAZFWTextSize,
-            ui32H263CBR_MTXTOPAZFWDataSize,
-            ui32H263CBR_MTXTOPAZFWDataLocation
-          },
-          aui32H263CBR_MTXTOPAZFWText,
-          aui32H263CBR_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_H263_CBR,
+                ui32H263CBR_MTXTOPAZFWTextSize,
+                ui32H263CBR_MTXTOPAZFWDataSize,
+                ui32H263CBR_MTXTOPAZFWDataLocation
+            },
+            aui32H263CBR_MTXTOPAZFWText,
+            aui32H263CBR_MTXTOPAZFWData
         },
 
-        { FW_MPEG4_NO_RC,
-          { FW_VER,
+        {
             FW_MPEG4_NO_RC,
-            ui32MPG4_MTXTOPAZFWTextSize,
-            ui32MPG4_MTXTOPAZFWDataSize,
-            ui32MPG4_MTXTOPAZFWDataLocation
-          },
-          aui32MPG4_MTXTOPAZFWText,
-          aui32MPG4_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_MPEG4_NO_RC,
+                ui32MPG4_MTXTOPAZFWTextSize,
+                ui32MPG4_MTXTOPAZFWDataSize,
+                ui32MPG4_MTXTOPAZFWDataLocation
+            },
+            aui32MPG4_MTXTOPAZFWText,
+            aui32MPG4_MTXTOPAZFWData
         },
 
-        { FW_MPEG4_VBR,
-          { FW_VER,
+        {
             FW_MPEG4_VBR,
-            ui32MPG4VBR_MTXTOPAZFWTextSize,
-            ui32MPG4VBR_MTXTOPAZFWDataSize,
-            ui32MPG4VBR_MTXTOPAZFWDataLocation
-          },
-          aui32MPG4VBR_MTXTOPAZFWText,
-          aui32MPG4VBR_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_MPEG4_VBR,
+                ui32MPG4VBR_MTXTOPAZFWTextSize,
+                ui32MPG4VBR_MTXTOPAZFWDataSize,
+                ui32MPG4VBR_MTXTOPAZFWDataLocation
+            },
+            aui32MPG4VBR_MTXTOPAZFWText,
+            aui32MPG4VBR_MTXTOPAZFWData
         },
 
-        { FW_MPEG4_CBR,
-          { FW_VER,
+        {
             FW_MPEG4_CBR,
-            ui32MPG4CBR_MTXTOPAZFWTextSize,
-            ui32MPG4CBR_MTXTOPAZFWDataSize,
-            ui32MPG4CBR_MTXTOPAZFWDataLocation
-          },
-          aui32MPG4CBR_MTXTOPAZFWText,
-          aui32MPG4CBR_MTXTOPAZFWData
+            {
+                FW_VER,
+                FW_MPEG4_CBR,
+                ui32MPG4CBR_MTXTOPAZFWTextSize,
+                ui32MPG4CBR_MTXTOPAZFWDataSize,
+                ui32MPG4CBR_MTXTOPAZFWDataLocation
+            },
+            aui32MPG4CBR_MTXTOPAZFWText,
+            aui32MPG4CBR_MTXTOPAZFWData
         }
     };
 

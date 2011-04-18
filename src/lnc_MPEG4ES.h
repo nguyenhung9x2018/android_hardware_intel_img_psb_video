@@ -21,6 +21,15 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
+
+
 #ifndef _LNC_MPEG4ES_H_
 #define _LNC_MPEG4ES_H_
 

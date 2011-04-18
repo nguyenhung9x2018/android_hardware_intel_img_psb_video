@@ -1,9 +1,9 @@
 #!/bin/bash
-file=$(find . -name *.[ch])
+file=$(find . -name "*.[ch]" -o -name "*.cpp")
 for i in $file
 do 
     echo $i 
-    astyle --style=linux -s -p -U -n $i
+    astyle --style=linux -s4 -c -s -p -U -H -n $i
 done
 
 

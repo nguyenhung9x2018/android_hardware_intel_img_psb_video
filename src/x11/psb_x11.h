@@ -20,6 +20,16 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *
+ */
+
+
+
 #ifndef _PSB_X11_H_
 #define _PSB_X11_H_
 
@@ -73,7 +83,7 @@ typedef struct _psb_x11_output_s {
     PsbXvVAPutSurfaceRec        imgdata_vasrf;
     GC                          gc;
     Drawable                    output_drawable;
-    int 			is_pixmap;
+    int                         is_pixmap;
     Drawable                    output_drawable_save;
     GC                          extend_gc;
     Drawable                    extend_drawable;

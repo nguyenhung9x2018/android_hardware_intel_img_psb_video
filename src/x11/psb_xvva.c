@@ -20,6 +20,13 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *
+ */
+
 
 #include <va/va_backend.h>
 #include "psb_surface.h"
@@ -35,7 +42,7 @@
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define INIT_OUTPUT_PRIV    psb_x11_output_p output = (psb_x11_output_p)(((psb_driver_data_p)ctx->pDriverData)->ws_priv)
 
-#define SURFACE(id)	((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
+#define SURFACE(id)     ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 
 static int psb_CheckDrawable(VADriverContextP ctx, Drawable draw);
 
@@ -132,7 +139,7 @@ VAStatus psb_init_xvideo(VADriverContextP ctx, psb_x11_output_p output)
     output->ignore_dpm = 1;
     if (getenv("PSB_VIDEO_DPMS_HACK")) {
         if (DPMSQueryExtension((Display *)ctx->native_dpy, &dummy, &dummy)
-                && DPMSCapable((Display *)ctx->native_dpy)) {
+            && DPMSCapable((Display *)ctx->native_dpy)) {
             BOOL onoff;
             CARD16 state;
 
@@ -192,7 +199,7 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
 
     if (output->textured_portID) {
         if ((output->using_port == USING_TEXTURE_PORT) && output->output_drawable
-                && (psb_CheckDrawable(ctx, output->output_drawable) == 0)) {
+            && (psb_CheckDrawable(ctx, output->output_drawable) == 0)) {
             psb__information_message("Deinit: stop textured Xvideo\n");
             XvStopVideo((Display *)ctx->native_dpy, output->textured_portID, output->output_drawable);
         }
@@ -204,7 +211,7 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
 
     if (output->overlay_portID) {
         if ((output->using_port == USING_OVERLAY_PORT) && output->output_drawable
-                && (psb_CheckDrawable(ctx, output->output_drawable) == 0)) {
+            && (psb_CheckDrawable(ctx, output->output_drawable) == 0)) {
             psb__information_message("Deinit: stop overlay Xvideo\n");
             XvStopVideo((Display *)ctx->native_dpy, output->overlay_portID, output->output_drawable);
         }
@@ -258,7 +265,7 @@ static void psb_surface_init(
     srf->pre_add = pre_add;
     if ((flags == VA_TOP_FIELD) || (flags == VA_BOTTOM_FIELD)) {
         if (driver_data->output_method ==  PSB_PUTSURFACE_FORCE_OVERLAY
-                || driver_data->output_method == PSB_PUTSURFACE_OVERLAY) {
+            || driver_data->output_method == PSB_PUTSURFACE_OVERLAY) {
             srf->height = h;
             srf->stride = stride;
         } else {
@@ -397,9 +404,9 @@ static int psb__CheckPutSurfaceXvPort(
     }
 
     if (((buf_pl & (WSBM_PL_FLAG_TT | DRM_PSB_FLAG_MEM_RAR | DRM_PSB_FLAG_MEM_CI)) == 0) /* buf not in TT/RAR or CI */
-            || (obj_surface->width > 1920)  /* overlay have isue to support >1920xXXX resolution */
-            || (obj_surface->subpic_count > 0)  /* overlay can't support subpicture */
-            /*    || (flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD))*/
+        || (obj_surface->width > 1920)  /* overlay have isue to support >1920xXXX resolution */
+        || (obj_surface->subpic_count > 0)  /* overlay can't support subpicture */
+        /*    || (flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD))*/
        ) {
         driver_data->output_method = PSB_PUTSURFACE_TEXTURE;
         return 0;
@@ -425,7 +432,7 @@ static int psb__CheckPutSurfaceXvPort(
      *other attribute like down scaling and pixmap, use texture adaptor
      */
     if (driver_data->drawable_info
-            & (XVDRAWABLE_ROTATE_180 | XVDRAWABLE_ROTATE_90 | XVDRAWABLE_ROTATE_270)) {
+        & (XVDRAWABLE_ROTATE_180 | XVDRAWABLE_ROTATE_90 | XVDRAWABLE_ROTATE_270)) {
         if (buf_pl & DRM_PSB_FLAG_MEM_RAR)
             driver_data->output_method = PSB_PUTSURFACE_OVERLAY;
         else
@@ -481,12 +488,12 @@ static int psb__CheckGCXvImage(
     }
 
     if ((driver_data->output_method == PSB_PUTSURFACE_FORCE_OVERLAY) ||
-            (driver_data->output_method == PSB_PUTSURFACE_OVERLAY)) {
+        (driver_data->output_method == PSB_PUTSURFACE_OVERLAY)) {
         /* use OVERLAY XVideo */
         if (obj_surface &&
-                ((output->output_width != obj_surface->width) ||
-                 (output->output_height != obj_surface->height) ||
-                 (!output->overlay_xvimage))) {
+            ((output->output_width != obj_surface->width) ||
+             (output->output_height != obj_surface->height) ||
+             (!output->overlay_xvimage))) {
 
             if (output->overlay_xvimage)
                 XFree(output->overlay_xvimage);
@@ -516,12 +523,12 @@ static int psb__CheckGCXvImage(
     }
 
     if ((driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXTURE) ||
-            (driver_data->output_method == PSB_PUTSURFACE_TEXTURE)) {
+        (driver_data->output_method == PSB_PUTSURFACE_TEXTURE)) {
         /* use Textured XVideo */
         if (obj_surface &&
-                ((output->output_width != obj_surface->width) ||
-                 (output->output_height != obj_surface->height ||
-                  (!output->textured_xvimage)))) {
+            ((output->output_width != obj_surface->width) ||
+             (output->output_height != obj_surface->height ||
+              (!output->textured_xvimage)))) {
             if (output->textured_xvimage)
                 XFree(output->textured_xvimage);
 
@@ -588,8 +595,8 @@ VAStatus psb_check_rotatesurface(
     if (output->rotate_surface) {
         obj_rotate_surface = SURFACE(output->rotate_surfaceID);
         if (obj_rotate_surface &&
-                ((obj_rotate_surface->width != rotate_width)
-                 || (obj_rotate_surface->height != rotate_height))) {
+            ((obj_rotate_surface->width != rotate_width)
+             || (obj_rotate_surface->height != rotate_height))) {
             psb_surface_destroy(output->rotate_surface);
             free(output->rotate_surface);
             object_heap_free(&driver_data->surface_heap, (object_base_p)obj_rotate_surface);
@@ -662,7 +669,7 @@ VAStatus psb_putsurface_xvideo(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     PsbVASurfaceRec *subpic_surface;
     PsbXvVAPutSurfacePtr vaPtr;
-    XvPortID 	portID = 0;
+    XvPortID    portID = 0;
     XvImage *xvImage = NULL;
     object_surface_p obj_surface = SURFACE(surface);
     psb_surface_p psb_surface;
@@ -746,7 +753,7 @@ VAStatus psb_putsurface_xvideo(
                      psb_surface->buf.drm_buf, flags);
 
     if ((driver_data->output_method == PSB_PUTSURFACE_OVERLAY)
-            && (driver_data->drawable_info & (XVDRAWABLE_ROTATE_180 | XVDRAWABLE_ROTATE_90 | XVDRAWABLE_ROTATE_270))) {
+        && (driver_data->drawable_info & (XVDRAWABLE_ROTATE_180 | XVDRAWABLE_ROTATE_90 | XVDRAWABLE_ROTATE_270))) {
         unsigned int rotate_width, rotate_height;
         int fourcc;
         if (output->sprite_enabled)

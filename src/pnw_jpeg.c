@@ -19,6 +19,14 @@
  * otherwise. Any license under such intellectual property rights must be
  * express and approved by Intel in writing.
  */
+
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *
+ */
+
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -31,7 +39,7 @@
 #include "pnw_hostheader.h"
 #include "pnw_hostjpeg.h"
 
-#define INIT_CONTEXT_JPEG	context_ENC_p ctx = (context_ENC_p) obj_context->format_data
+#define INIT_CONTEXT_JPEG       context_ENC_p ctx = (context_ENC_p) obj_context->format_data
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
@@ -254,7 +262,7 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncPictureParameterBufferJPEG))) {
+        (obj_buffer->size != sizeof(VAEncPictureParameterBufferJPEG))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -428,7 +436,7 @@ static VAStatus pnw_jpeg_EndPicture(
     ui32RemainMCUs = pContext->sScan_Encode_Info.ui32NumberMCUsToEncode;
 
     for (ui16BCnt = 0; ui16BCnt < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers
-            && pContext->sScan_Encode_Info.ui16SScan > 0; ui16BCnt++) {
+         && pContext->sScan_Encode_Info.ui16SScan > 0; ui16BCnt++) {
         pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber =
             pContext->sScan_Encode_Info.ui16SScan--;
         /*i8MTXNumber is the core number.*/
@@ -497,8 +505,8 @@ VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, void *raw_coded_bu
     pContext->jpeg_coded_buf.ui32BytesWritten = 0;
 
     for (ui16BCnt = 0;
-            ui16BCnt < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers;
-            ui16BCnt++) {
+         ui16BCnt < pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers;
+         ui16BCnt++) {
         pBufHeader = (BUFFER_HEADER *)pSegStart;
         pBufHeader->ui32Reserved3 =
             PNW_JPEG_HEADER_MAX_SIZE + pContext->ui32SizePerCodedBuffer * ui16BCnt ;

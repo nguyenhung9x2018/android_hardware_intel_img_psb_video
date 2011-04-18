@@ -21,6 +21,12 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +52,7 @@ int main()
     /* Create msvdx firmware for mrst */
 
     struct msvdx_fw fw;
-    fw.ver = 0x0187;
+    fw.ver = 944;
     fw.text_size = ui32MTXDXVAFWTextSize_ss;
     fw.data_size = ui32MTXDXVAFWDataSize_ss;
     fw.data_location = ui32MTXDXVAFWDataLocation_ss;
@@ -69,24 +75,24 @@ int main()
     fseek(ptr, lseek, SEEK_SET);
 
     /* Create msvdx firmware for mrst error concealment*/
-    /*	fw.ver = 0xec;
+    /*  fw.ver = 0xec;
             fw.text_size = ui32sMiniSSLegacyTextSize;
             fw.data_size = ui32sMiniSSLegacyDataSize;
             fw.data_location = ui32sMiniSSLegacyDataLocation;
 
-    	fwrite( &fw, sizeof(fw), 1, ptr);
+        fwrite( &fw, sizeof(fw), 1, ptr);
 
-    	for (i = 0; i < fw.text_size; i++)
-    	{
-    		fwrite( &aui32sMiniSSLegacyText[i],4, 1, ptr);
-    	}
-    	for (i = 0; i < fw.data_size; i++)
-    	{
-    		fwrite( &aui32sMiniSSLegacyData[i],4, 1, ptr);
-    	}
-    	fclose (ptr);
+        for (i = 0; i < fw.text_size; i++)
+        {
+                fwrite( &aui32sMiniSSLegacyText[i],4, 1, ptr);
+        }
+        for (i = 0; i < fw.data_size; i++)
+        {
+                fwrite( &aui32sMiniSSLegacyData[i],4, 1, ptr);
+        }
+        fclose (ptr);
     */
-    fw.ver = 0x4cd;
+    fw.ver = 0x4ce;
     fw.text_size = ui32MTXDXVAFWTextSize;
     fw.data_size = ui32MTXDXVAFWDataSize;
     fw.data_location = ui32MTXDXVAFWDataLocation;
@@ -151,6 +157,7 @@ int main()
 
     /* fw_DE2 = sFirmware1133_SS; */
     fw_DE2 = sFirmware1163_SS;
+    /* fw_DE2 = sFirmware1163_FS; */
     /* fw_DE2 = sFirmware1133_FS; */
 
     fw.ver = 0x0496;

@@ -19,6 +19,16 @@
  * otherwise. Any license under such intellectual property rights must be
  * express and approved by Intel in writing.
  */
+
+
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Forrest Zhang  <forrest.zhang@intel.com>
+ *
+ */
+
+
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -163,6 +173,7 @@ int lnc_ospm_start(psb_driver_data_p driver_data, int encode)
         return 0;
 
     if (IS_MRST(driver_data)) {
+        /*
         psb__information_message("OSPM:send DBUS message to ospm daemon\n");
         if (encode)
             ret = lnc_ospm_event_send("video_record", "start");
@@ -173,6 +184,7 @@ int lnc_ospm_start(psb_driver_data_p driver_data, int encode)
             psb__information_message("lnc_ospm_event_send start error: #%d\n", ret);
         else
             psb__information_message("lnc_ospm_event_send start ok\n");
+        */
     } else if (IS_MFLD(driver_data)) {
         psb__information_message("OSPM:set PM_QoS parameters\n");
         /*
@@ -199,6 +211,7 @@ int lnc_ospm_stop(psb_driver_data_p driver_data, int encode)
         return 0;
 
     if (IS_MRST(driver_data)) {
+        /*
         psb__information_message("OSPM:send DBUS message to ospm daemon\n");
         if (encode)
             ret = lnc_ospm_event_send("video_record", "stop");
@@ -209,6 +222,7 @@ int lnc_ospm_stop(psb_driver_data_p driver_data, int encode)
             psb__information_message("lnc_ospm_event_send start error: #%d\n", ret);
         else
             psb__information_message("lnc_ospm_event_send start ok\n");
+        */
     } else if (IS_MFLD(driver_data)) {
         psb__information_message("OSPM:set PM_QoS parameters\n");
         /*

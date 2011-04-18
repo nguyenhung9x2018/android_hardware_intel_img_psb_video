@@ -21,6 +21,13 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
 
 
 #include <stdio.h>
@@ -52,9 +59,9 @@ static void Show_Bits(
     IMG_UINT32 uiLp, uiBt, Bcnt;
     Bcnt = 0;
     uiByteSize = (Bits + ByteStartBit + 7) >> 3;
-    for (uiLp = 0;uiLp < uiByteSize;uiLp++) {
+    for (uiLp = 0; uiLp < uiByteSize; uiLp++) {
         snprintf(Txt, strlen(" "), " ");
-        for (uiBt = 128;uiBt >= 1;uiBt = uiBt >> 1) {
+        for (uiBt = 128; uiBt >= 1; uiBt = uiBt >> 1) {
             Bcnt++;
             if (Bcnt > Bits + ByteStartBit || Bcnt <= ByteStartBit)
                 snprintf(Txt, sizeof(Txt), "%sX", Txt);
@@ -82,12 +89,12 @@ static void Show_Elements(
     IMG_UINT32 RTotalByteSize;
 
     RTotalByteSize = TotalByteSize = 0;
-    for (f = 0;f < mtx_hdr->Elements;f++) {
+    for (f = 0; f < mtx_hdr->Elements; f++) {
 #if HEADERS_VERBOSE_OUTPUT
         psb__information_message("Encoding Element [%i] - Type:%i\n", f, elt_p[f]->Element_Type);
 #endif
         if (elt_p[f]->Element_Type == ELEMENT_STARTCODE_RAWDATA ||
-                elt_p[f]->Element_Type == ELEMENT_RAWDATA) {
+            elt_p[f]->Element_Type == ELEMENT_RAWDATA) {
             TotalByteSize = elt_p[f]->Size;
 #if HEADERS_VERBOSE_OUTPUT
             psb__information_message("Writing %i RAW bits to element.\n", elt_p[f]->Size);
@@ -167,7 +174,8 @@ static void lnc__write_upto8bits_elements(
      */
     IMG_UINT8 *wrt_bytes_p;
     IMG_UINT8 *size_bits_p;
-    union {IMG_UINT32 UI16Input;
+    union {
+        IMG_UINT32 UI16Input;
         IMG_UINT8 UI8Input[2];
     } InputVal = {0, };
     IMG_UINT8 OutByteIndex;
@@ -194,7 +202,7 @@ static void lnc__write_upto8bits_elements(
 
     OutByteIndex = (size_bits_p[0] / 8);
 
-    if (!(size_bits_p[0]&7)) {
+    if (!(size_bits_p[0] & 7)) {
         if (size_bits_p[0] >= 120) {
             /* Element maximum bits send to element, time to start a new one */
             mtx_hdr->Elements++; /* Increment element index */
@@ -324,7 +332,7 @@ static void lnc__insert_element_token(
 
     if (mtx_hdr->Elements != ELEMENTS_EMPTY) {
         if (elt_p[mtx_hdr->Elements]->Element_Type == ELEMENT_STARTCODE_RAWDATA
-                || elt_p[mtx_hdr->Elements]->Element_Type == ELEMENT_RAWDATA) {
+            || elt_p[mtx_hdr->Elements]->Element_Type == ELEMENT_RAWDATA) {
             /*Add a new element aligned to word boundary
              *Find RAWBit size in bytes (rounded to word boundary))
              */
@@ -366,7 +374,7 @@ static void lnc__H264_writebits_startcode_prefix_element(
      * without sequence/picture_header before picture
      */
 
-    for (Lp = 0;Lp < ByteSize - 1;Lp++)
+    for (Lp = 0; Lp < ByteSize - 1; Lp++)
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
 
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
@@ -409,7 +417,7 @@ static void lnc__H264_writebits_sequence_header0(
         (1 << 7) |/* constrain_set0_flag = 0 for MP, 1 for BP */
         (1 << 6) |/* constrain_set1_flag = 0 for BP, 1 for MP */
         (0 << 5) | /* constrain_set2_flag = always 0 in BP/MP */
-        ((pSHParams->ucLevel == SH_LEVEL_1B ? 1 : 0) << 4),	/* constrain_set3_flag = 1 for level 1b, 0 for others */
+        ((pSHParams->ucLevel == SH_LEVEL_1B ? 1 : 0) << 4),     /* constrain_set3_flag = 1 for level 1b, 0 for others */
         /* reserved_zero_4bits = 0 */
         8);
 
@@ -734,7 +742,7 @@ static void lnc__H264_writebits_slice_header1(
             1);/* num_ref_idx_active_override_flag (1 bit) = 0 in Topaz */
 
     if (pSlHParams->SliceFrame_Type != SLHP_I_SLICEFRAME_TYPE &&
-            pSlHParams->SliceFrame_Type != SLHP_IDR_SLICEFRAME_TYPE) {
+        pSlHParams->SliceFrame_Type != SLHP_IDR_SLICEFRAME_TYPE) {
         if (pSlHParams->bUsesLongTermRef) {
             /* ref_pic_list_ordering_flag_IO (1 bit) = 1, L0
              * reference picture ordering */
@@ -944,10 +952,10 @@ static void lnc__H264_writebits_SEI_rbspheader(
     /* last_payload_size_byte (8 bits) = 41 as SEI_message length is 41-bit */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 41, 8);
 
-    /* sequence_parameter_set_id	ue(0) = 1b sequence_parameter_set_id=0 in Topaz */
+    /* sequence_parameter_set_id        ue(0) = 1b sequence_parameter_set_id=0 in Topaz */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
-    /* Initial_cpb_removal_delay (20 bits)	x is initial cpb delay of each sequence     */
+    /* Initial_cpb_removal_delay (20 bits)      x is initial cpb delay of each sequence     */
     lnc__write_upto32bits_elements(mtx_hdr, elt_p, Initial_cpb_removal_delay, 20);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
@@ -1026,11 +1034,11 @@ static void lnc__H264_getelements_backward_zero_B_slice(
     This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
     elt_p[0] = This_Element;
 
-    for (Lp = 0;Lp < MB_No_In_Slice;Lp++) {
+    for (Lp = 0; Lp < MB_No_In_Slice; Lp++) {
         /* mb_skip_run = ue(0) = 1b */
-        lnc__write_upto8bits_elements(mtx_hdr, elt_p,	1, 1);
+        lnc__write_upto8bits_elements(mtx_hdr, elt_p,   1, 1);
         /* backward_zero_B_mb() - all static         */
-        lnc__write_upto8bits_elements(mtx_hdr, elt_p,	15, 5);
+        lnc__write_upto8bits_elements(mtx_hdr, elt_p,   15, 5);
     }
 
     /* Tell MTX to insert the byte align field
@@ -1220,81 +1228,81 @@ static void lnc__MPEG4_writebits_sequence_header(
     /* Essential we insert the element before we try to fill it! */
     lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
 
-    /* visual_object_sequence_start_code	= 32 Bits	= 0x1B0 */
+    /* visual_object_sequence_start_code        = 32 Bits       = 0x1B0 */
     lnc__write_upto32bits_elements(mtx_hdr, elt_p, 432, 32);
 
     /* profile_and_level_indication = 8 Bits = SP L0-L3 and SP L4-L5 are supported */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, Profile_and_level_indication, 8);
 
-    /* visual_object_start_code = 32 Bits	= 0x1B5 */
+    /* visual_object_start_code = 32 Bits       = 0x1B5 */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 181, 8);
 
-    /* is_visual_object_identifier = 1 Bit 	= 0 */
+    /* is_visual_object_identifier = 1 Bit      = 0 */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    /* visual_object_type = 4 Bits	= Video ID = 1 */
+    /* visual_object_type = 4 Bits      = Video ID = 1 */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
 
-    /* video_signal_type = 1 Bit		= 1 */
+    /* video_signal_type = 1 Bit                = 1 */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    /* byte_aligned_bits = 2 Bits	= 01b (byte_aligned_bits is 2-bit stuffing bit field 01) */
+    /* byte_aligned_bits = 2 Bits       = 01b (byte_aligned_bits is 2-bit stuffing bit field 01) */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 2);
 
-    /* video_object_start_code = 32 Bits	= 0x100 One VO only in a Topaz video stream */
+    /* video_object_start_code = 32 Bits        = 0x100 One VO only in a Topaz video stream */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
 
-    /* video_object_layer_start_code = 32 Bits	= 0x120 One VOL only in a Topaz stream */
+    /* video_object_layer_start_code = 32 Bits  = 0x120 One VOL only in a Topaz stream */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 32, 8);
 
-    /* random_accessible_vol = 1 Bit		= 0 (P-Frame in GOP) */
+    /* random_accessible_vol = 1 Bit            = 0 (P-Frame in GOP) */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
     if (bProfile == SP) {
-        /* video_object_type_indication = 8 Bits	= 0x01 for SP */
+        /* video_object_type_indication = 8 Bits        = 0x01 for SP */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
 #ifndef MATCH_TO_ENC
-        /* is_object_layer_identifier	= 1 Bit		= 0 for SP */
+        /* is_object_layer_identifier   = 1 Bit         = 0 for SP */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 #else
         /* to match the encoder */
 
-        /* is_object_layer_identifier 	= 1 Bit		 */
+        /* is_object_layer_identifier   = 1 Bit          */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
-        /* video_object_layer_verid	= 4 Bits	 */
+        /* video_object_layer_verid     = 4 Bits         */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
 
-        /* video_object_layer_priority	= 3 Bits	 */
+        /* video_object_layer_priority  = 3 Bits         */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 3);  // 0 is reserved...
 #endif
     } else {
-        /* video_object_type_indication	= 8 Bits	= 0x11 for ASP */
+        /* video_object_type_indication = 8 Bits        = 0x11 for ASP */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 3, 8);
 
-        /* is_object_layer_identifier	= 1 Bit		= 1 for ASP */
+        /* is_object_layer_identifier   = 1 Bit         = 1 for ASP */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
-        /* video_object_layer_verid	= 4 Bits	= 5 is for ASP */
+        /* video_object_layer_verid     = 4 Bits        = 5 is for ASP */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 5, 4);
 
-        /* video_object_layer_priority	= 3 Bits	= 1 (Highest priority) */
+        /* video_object_layer_priority  = 3 Bits        = 1 (Highest priority) */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 3);
     }
 
-    /* aspect_ratio_info		= 4 Bits	=0x1 (Square pixel) */
+    /* aspect_ratio_info                = 4 Bits        =0x1 (Square pixel) */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
 #ifndef MATCH_TO_ENC
-    /* vol_control_parameters		= 1 Bit		= 1 (Always send VOL control parameters) */
+    /* vol_control_parameters           = 1 Bit         = 1 (Always send VOL control parameters) */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 #else
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
@@ -1302,7 +1310,7 @@ static void lnc__MPEG4_writebits_sequence_header(
 #endif
 
 #ifndef MATCH_TO_ENC
-    /* chroma_format			= 2 Bits	= 01b (4:2:0) */
+    /* chroma_format                    = 2 Bits        = 01b (4:2:0) */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 2);
 
     /* low_delay = 1 Bit = 0 with B-frame and 1 without B-frame */
@@ -1311,7 +1319,7 @@ static void lnc__MPEG4_writebits_sequence_header(
     else
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
-    /* vbv_parameters			= 1 Bit			=0/1  */
+    /* vbv_parameters                   = 1 Bit                 =0/1  */
     if (sVBVParams) {
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
@@ -1359,7 +1367,7 @@ static void lnc__MPEG4_writebits_sequence_header(
     } else
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1); /* No vbv parameters present */
 #endif
-    /* video_object_layer_shape	= 2 Bits =	00b	Rectangular shape */
+    /* video_object_layer_shape = 2 Bits =      00b     Rectangular shape */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1); /* Marker Bit = 1 */
 
@@ -1368,14 +1376,14 @@ static void lnc__MPEG4_writebits_sequence_header(
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1); /* Marker Bit = 1 */
 
 #ifndef MATCH_TO_ENC
-    /* fixed_vop_rate = 1 Bits 	= 1 Always fixed frame rate */
+    /* fixed_vop_rate = 1 Bits  = 1 Always fixed frame rate */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
-    /* fixed_vop_time_increment 	= Variable number of bits based on the time increment resolution. */
+    /* fixed_vop_time_increment         = Variable number of bits based on the time increment resolution. */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, Bits2Code(VopTimeResolution - 1));
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1); /* Marker Bit = 1 */
 #else
-    /* fixed_vop_rate	= 1 Bits =	0 */
+    /* fixed_vop_rate   = 1 Bits =      0 */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1); /* Marker Bit = 1 */
 
@@ -1397,7 +1405,7 @@ static void lnc__MPEG4_writebits_sequence_header(
     /* sprite_enable = 1 Bit = 0 Not use sprite in Topaz */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    /* not_8_bit = 1	Bit = 0	8-bit video in Topaz */
+    /* not_8_bit = 1    Bit = 0 8-bit video in Topaz */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
     /* quant_type = 1 Bit = 0 2nd quantization method in Topaz */
@@ -1408,7 +1416,7 @@ static void lnc__MPEG4_writebits_sequence_header(
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
     }
 
-    /* complexity_estimation_disable	= 1 Bit	= 1 No complexity estimation in Topaz */
+    /* complexity_estimation_disable    = 1 Bit = 1 No complexity estimation in Topaz */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 #ifndef MATCH_TO_ENC
 
@@ -1423,11 +1431,11 @@ static void lnc__MPEG4_writebits_sequence_header(
     if (bProfile == ASP) {
         /* newpred_enable = 1 Bit = 0 No newpred mode in SP/ASP */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-        /* reduced_vop_resolution_enable=1 Bit = 0	No reduced resolution frame in SP/ASP */
+        /* reduced_vop_resolution_enable=1 Bit = 0      No reduced resolution frame in SP/ASP */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
     }
 
-    /* scalability = 1 Bit = 0	No scalability in SP/ASP */
+    /* scalability = 1 Bit = 0  No scalability in SP/ASP */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
     /* byte_aligned_bits */
@@ -1464,8 +1472,8 @@ static void lnc__MPEG4_writebits_sequence_header(
 static void lnc__MPEG4_writebits_VOP_header(
     MTX_HEADER_PARAMS *mtx_hdr,
     MTX_HEADER_ELEMENT **elt_p,
-    IMG_BOOL	bIsVOP_coded,
-    IMG_UINT8	VOP_time_increment,
+    IMG_BOOL    bIsVOP_coded,
+    IMG_UINT8   VOP_time_increment,
     SEARCH_RANGE_TYPE sSearch_range,
     VOP_CODING_TYPE sVopCodingType,
     IMG_UINT32 VopTimeResolution)
@@ -1474,10 +1482,10 @@ static void lnc__MPEG4_writebits_VOP_header(
     /* Essential we insert the element before we try to fill it! */
     lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
 
-    /* visual_object_sequence_start_code	= 32 Bits	= 0x1B6 */
+    /* visual_object_sequence_start_code        = 32 Bits       = 0x1B6 */
     lnc__write_upto32bits_elements(mtx_hdr, elt_p, 438, 32);
 
-    /* vop_coding_type	= 2 Bits = 0 for I-frame and 1 for P-frame */
+    /* vop_coding_type  = 2 Bits = 0 for I-frame and 1 for P-frame */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, sVopCodingType, 2);
     bIsSyncPoint = (VOP_time_increment > 1) && ((VOP_time_increment) % VopTimeResolution == 0);
 
@@ -1490,7 +1498,7 @@ static void lnc__MPEG4_writebits_VOP_header(
 
 #endif
 
-    /* marker_bit = 1	Bits	= 1	 */
+    /* marker_bit = 1   Bits    = 1      */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
 #ifndef MATCH_TO_ENC
@@ -1506,11 +1514,11 @@ static void lnc__MPEG4_writebits_VOP_header(
         Bits2Code(VopTimeResolution - 1));
 
 #endif
-    /* marker_bit = 1 Bit		= 1	 */
+    /* marker_bit = 1 Bit               = 1      */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
     if (!bIsVOP_coded) {
-        /* vop_coded	= 1 Bit		= 0 for skipped frame */
+        /* vop_coded    = 1 Bit         = 0 for skipped frame */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
         /* byte_aligned_bits (skipped pictures are byte aligned) */
@@ -1519,7 +1527,7 @@ static void lnc__MPEG4_writebits_VOP_header(
          */
         lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_MPG4);
     } else {
-        /* vop_coded = 1 Bit		= 1 for normal coded frame */
+        /* vop_coded = 1 Bit            = 1 for normal coded frame */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
         if (sVopCodingType == P_FRAME) {
@@ -1530,12 +1538,12 @@ static void lnc__MPEG4_writebits_VOP_header(
         /* intra_dc_vlc_thr = 3 Bits = 0 Use intra DC VLC in Topaz */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 3);
 
-        /* vop_quant = 5 Bits	= x	5-bit frame Q_scale from rate control - GENERATED BY MTX */
+        /* vop_quant = 5 Bits   = x     5-bit frame Q_scale from rate control - GENERATED BY MTX */
         /* lnc__write_upto8bits_elements(mtx_hdr, elt_p, Frame_Q_scale, 5); */
         lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_FRAMEQSCALE);
 
         if (sVopCodingType == P_FRAME) {
-            /* vop_fcode_forward = 3 bits	= 2 for +/-32 and 3 for +/-64 search range  */
+            /* vop_fcode_forward = 3 bits       = 2 for +/-32 and 3 for +/-64 search range  */
             lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
             lnc__write_upto8bits_elements(mtx_hdr, elt_p, sSearch_range, 3);
         }
@@ -1543,12 +1551,12 @@ static void lnc__MPEG4_writebits_VOP_header(
         /*
         **** THE FINAL PART OF VOP STRUCTURE CAN'T BE GENERATED HERE
         lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
-        video_packet_data ( )			= 1st  VP that doesn’t have the VP header
+        video_packet_data ( )                   = 1st  VP that doesn’t have the VP header
 
         while (nextbits_bytealigned ( ) == resync_marker)
         {
         video_packet _header( )
-        video_packet _data( )			All MB in the slice
+        video_packet _data( )                   All MB in the slice
         }
         */
     }
@@ -1571,17 +1579,17 @@ static void lnc__MPEG4_writebits_videopacket_header(
     lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
 
     if (eVop_Coding_Type == I_FRAME) {
-        /* resync_marker	= 17 bit	=0x1	17-bit for I-frame */
+        /* resync_marker        = 17 bit        =0x1    17-bit for I-frame */
         lnc__write_upto32bits_elements(mtx_hdr, elt_p, 1, 17);
     } else {
-        /* resync_marker = 17 bit	=0x1	(16+fcode) bits for P-frame */
+        /* resync_marker = 17 bit       =0x1    (16+fcode) bits for P-frame */
         lnc__write_upto32bits_elements(mtx_hdr, elt_p, 1, 16 + Fcode);
     }
 
-    /* macroblock_number = 1-14 bits	= ?????? */
+    /* macroblock_number = 1-14 bits    = ?????? */
     lnc__write_upto32bits_elements(mtx_hdr, elt_p, MBNumber, MBNumberlength);
 
-    /* quant_scale = 5 bits	=1-32	VP (Slice) Q_scale
+    /* quant_scale = 5 bits     =1-32   VP (Slice) Q_scale
      * lnc__write_upto8bits_elements(mtx_hdr, elt_p, VP_Slice_Q_Scale, 5);
      */
     lnc__insert_element_token(
@@ -1591,25 +1599,25 @@ static void lnc__MPEG4_writebits_videopacket_header(
     lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA); /* Begin writing rawdata again */
 
     if (bHeader_Extension_Code) {
-        /* header_extension_code = 1bit = 1	picture header parameters are repeated */
+        /* header_extension_code = 1bit = 1     picture header parameters are repeated */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-        /* modulo_time_base = 1 bit = 0	The same as it is in the current picture header */
+        /* modulo_time_base = 1 bit = 0 The same as it is in the current picture header */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-        /* marker_bit = 1 bit 	= 1 */
+        /* marker_bit = 1 bit   = 1 */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
-        /* vop_time_increment = 5 bits	= 0-30	The same as it is in the current picture header */
+        /* vop_time_increment = 5 bits  = 0-30  The same as it is in the current picture header */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, VOP_Time_Increment, 5);
 
-        /* marker_bit	= 1 bit		= 1	 */
+        /* marker_bit   = 1 bit         = 1      */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
-        /* vop_coding_type= 2	bits	= 0/1 The same as it is in the current picture header */
+        /* vop_coding_type= 2   bits    = 0/1 The same as it is in the current picture header */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, eVop_Coding_Type, 2);
 
-        /* intra_dc_vlc_thr = 3 bits	= 0 The same as it is in the current picture header */
+        /* intra_dc_vlc_thr = 3 bits    = 0 The same as it is in the current picture header */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 3);
 
         if (eVop_Coding_Type == P_FRAME) {
@@ -1617,7 +1625,7 @@ static void lnc__MPEG4_writebits_videopacket_header(
             lnc__write_upto8bits_elements(mtx_hdr, elt_p, sSearch_range, 3);
         }
     } else {
-        /* header_extension_code = 1 bits =0	picture header parameters are NOT repeated */
+        /* header_extension_code = 1 bits =0    picture header parameters are NOT repeated */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
     }
 }
@@ -1662,8 +1670,8 @@ static void lnc__MPEG4_getelements_sequence_header(
 /* MPEG 4 VOP (Picture) Header */
 static void lnc__MPEG4_getelements_VOP_header(
     MTX_HEADER_PARAMS *mtx_hdr,
-    IMG_BOOL	bIsVOP_coded,
-    IMG_UINT8	VOP_time_increment,
+    IMG_BOOL    bIsVOP_coded,
+    IMG_UINT8   VOP_time_increment,
     SEARCH_RANGE_TYPE sSearch_range,
     VOP_CODING_TYPE sVopCodingType,
     IMG_UINT32 VopTimeResolution)
@@ -1731,30 +1739,30 @@ static void H263_writebits_VideoSequenceHeader(
     /* Essential we insert the element before we try to fill it! */
     lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
 
-    /* visual_object_sequence_start_code	= 32 Bits	= 0x1B0 */
+    /* visual_object_sequence_start_code        = 32 Bits       = 0x1B0 */
     lnc__write_upto32bits_elements(mtx_hdr, elt_p, 432, 32);
 
-    /* profile_and_level_indication = 8 Bits = 	x SP L0-L3 and SP L4-L5 are supported */
+    /* profile_and_level_indication = 8 Bits =  x SP L0-L3 and SP L4-L5 are supported */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, Profile_and_level_indication, 8);
 
-    /* visual_object_start_code	= 32 Bits	= 0x1B5 */
+    /* visual_object_start_code = 32 Bits       = 0x1B5 */
 
     /* 437 too large for the   lnc__write_upto32bits_elements function */
     lnc__write_upto32bits_elements(mtx_hdr, elt_p, 437, 32);
 
-    /* is_visual_object_identifier = 1 Bit		= 0 */
+    /* is_visual_object_identifier = 1 Bit              = 0 */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    /* is_visual_object_type	= 4 Bits	= 1 Video ID */
+    /* is_visual_object_type    = 4 Bits        = 1 Video ID */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
 
-    /* video_signal_type = 1 Bit		= 0	 */
+    /* video_signal_type = 1 Bit                = 0      */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    /* byte_aligned_bits = 2 Bits = 01b	byte_aligned_bits is 2-bit stuffing bit field 01 */
+    /* byte_aligned_bits = 2 Bits = 01b byte_aligned_bits is 2-bit stuffing bit field 01 */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 2);
 
-    /* video_object_start_code 	=32 Bits	= 0x100	One VO only in a Topaz video stream */
+    /* video_object_start_code  =32 Bits        = 0x100 One VO only in a Topaz video stream */
     lnc__write_upto32bits_elements(mtx_hdr, elt_p, 256, 32);
 
     return;
@@ -1788,28 +1796,28 @@ static void H263_writebits_VideoPictureHeader(
     /* Essential we insert the element before we try to fill it! */
     lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
 
-    /* short_video_start_marker	= 22 Bits	= 0x20 Picture start code */
+    /* short_video_start_marker = 22 Bits       = 0x20 Picture start code */
     lnc__write_upto32bits_elements(mtx_hdr, elt_p, 32, 22);
 
-    /* temporal_reference = 8 Bits	= 0-255	Each picture increased by 1 */
+    /* temporal_reference = 8 Bits      = 0-255 Each picture increased by 1 */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, Temporal_Ref, 8);
 
-    /* marker_bit = 1 Bit = 1	 */
+    /* marker_bit = 1 Bit = 1    */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
 
-    /* zero_bit	= 1 Bits	= 0	 */
+    /* zero_bit = 1 Bits        = 0      */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    /* split_screen_indicator	= 1	Bits	= 0	No direct effect on encoding of picture */
+    /* split_screen_indicator   = 1     Bits    = 0     No direct effect on encoding of picture */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    /* document_camera_indicator= 1	Bits	= 0	No direct effect on encoding of picture */
+    /* document_camera_indicator= 1     Bits    = 0     No direct effect on encoding of picture */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    /* full_picture_freeze_release=1 Bits	= 0	No direct effect on encoding of picture */
+    /* full_picture_freeze_release=1 Bits       = 0     No direct effect on encoding of picture */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
 
-    /* source_format				= 3	Bits	= 1-4	See note */
+    /* source_format                            = 3     Bits    = 1-4   See note */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, SourceFormatType, 3);
 #endif
 
@@ -1823,10 +1831,10 @@ static void H263_writebits_VideoPictureHeader(
 
 
     if (SourceFormatType != 7) {
-        /* picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame */
+        /* picture_coding_type          = 1 Bit         = 0/1   0 for I-frame and 1 for P-frame */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 1);
 
-        /* four_reserved_zero_bits	= 4 Bits	= 0	 */
+        /* four_reserved_zero_bits      = 4 Bits        = 0      */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 4);
     } else {
         static IMG_UINT8 RTYPE = 0;
@@ -1857,7 +1865,7 @@ static void H263_writebits_VideoPictureHeader(
             lnc__write_upto8bits_elements(mtx_hdr, elt_p, 8, 4);
             /* 4 reserve bits */
         }
-        /* picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame */
+        /* picture_coding_type          = 1 Bit         = 0/1   0 for I-frame and 1 for P-frame */
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 3);
 
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
@@ -1884,7 +1892,7 @@ static void H263_writebits_VideoPictureHeader(
             ui16PWI = (PictureWidth >> 2) - 1;
             lnc__write_upto32bits_elements(mtx_hdr, elt_p, (IMG_UINT8)ui16PWI, 9);
             lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-            /* marker_bit				= 1 Bit		= 1	 */
+            /* marker_bit                               = 1 Bit         = 1      */
             //lnc__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeigth >> 8), 1);
             //lnc__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeigth & 0xFF), 8);
             /* good up to that point */
@@ -1892,7 +1900,7 @@ static void H263_writebits_VideoPictureHeader(
             lnc__write_upto32bits_elements(mtx_hdr, elt_p, (IMG_UINT8)ui16PHI, 9);
 
             /* lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1); */
-            /* marker_bit				= 1 Bit		= 1	 */
+            /* marker_bit                               = 1 Bit         = 1      */
             /* just checking */
             if (*OptionalCustomPCF == 1) {
                 //IMG_UINT8 CPCFC;
@@ -1901,7 +1909,7 @@ static void H263_writebits_VideoPictureHeader(
                 //CPCFC <<= 1; /* for Clock Conversion Code */
                 lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
                 // Clock Divisor : 7 bits The natural binary representation of the value of the clock divisor.
-                lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1800000 / (FrameRate*1000), 7);
+                lnc__write_upto8bits_elements(mtx_hdr, elt_p, 1800000 / (FrameRate * 1000), 7);
             }
         }
         if (*OptionalCustomPCF == 1) {
@@ -1913,7 +1921,7 @@ static void H263_writebits_VideoPictureHeader(
             /* Two MSBs of temporal_reference */
         }
     }
-    /* vop_quant = 5 Bits	= x	5-bit frame Q_scale from rate control - GENERATED BY MTX */
+    /* vop_quant = 5 Bits       = x     5-bit frame Q_scale from rate control - GENERATED BY MTX */
     /* lnc__write_upto8bits_elements(mtx_hdr, elt_p, Q_Scale, 5); */
 
     /* Insert token to tell MTX to insert rate-control value
@@ -1924,8 +1932,8 @@ static void H263_writebits_VideoPictureHeader(
 
     lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
 
-    /* zero_bit	= 1 Bit		= 0
-     * pei	= 1 Bit		= 0	No direct effect on encoding of picture
+    /* zero_bit = 1 Bit         = 0
+     * pei      = 1 Bit         = 0     No direct effect on encoding of picture
      */
     if (SourceFormatType != 7) {
         lnc__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
@@ -1965,16 +1973,16 @@ static void H263_writebits_GOBSliceHeader(
     /* Essential we insert the element before we try to fill it! */
     lnc__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
 
-    /* gob_resync_marker		= 17		= 0x1 */
+    /* gob_resync_marker                = 17            = 0x1 */
     lnc__write_upto32bits_elements(mtx_hdr, elt_p, 1, 17);
 
-    /* gob_number = 5	= 0-17	It is gob number in a picture */
+    /* gob_number = 5   = 0-17  It is gob number in a picture */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, GOBNumber, 5);
 
-    /* gob_frame_id	= 2 = 0-3	See note */
+    /* gob_frame_id     = 2 = 0-3       See note */
     lnc__write_upto8bits_elements(mtx_hdr, elt_p, GOBFrameId, 2);
 
-    /* quant_scale	= 5	= 1-32	gob (Slice) Q_scale  */
+    /* quant_scale      = 5     = 1-32  gob (Slice) Q_scale  */
     /* lnc__write_upto8bits_elements(mtx_hdr, elt_p, GOB_Q_Scale, 5); */
 
     /* Insert token to tell MTX to insert rate-control value
@@ -2063,8 +2071,8 @@ void lnc__H264_prepare_sequence_header(
     IMG_UINT8 uiLevel,
     IMG_UINT8 uiProfile)
 {
-    H264_SEQUENCE_HEADER_PARAMS	SHParams = {0, };
-    MTX_HEADER_PARAMS	*mtx_hdr;
+    H264_SEQUENCE_HEADER_PARAMS SHParams = {0, };
+    MTX_HEADER_PARAMS   *mtx_hdr;
 
     /* Route output elements to memory provided */
     mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
@@ -2112,7 +2120,7 @@ void lnc__H264_prepare_sequence_header(
     SHParams.ucMax_num_ref_frames = uiMaxNumRefFrames;
     SHParams.ucWidth_in_mbs_minus1 = (IMG_UINT8)(uiPicWidthInMbs - 1);
     SHParams.ucHeight_in_maps_units_minus1 = (IMG_UINT8)(uiPicHeightInMbs - 1);
-    SHParams.VUI_Params_Present	= VUI_present;
+    SHParams.VUI_Params_Present = VUI_present;
     if (VUI_present)
         SHParams.VUI_Params = *VUI_params;
 
@@ -2136,7 +2144,7 @@ void lnc__H264_prepare_sequence_header(
 
 void lnc__H264_prepare_picture_header(IMG_UINT32 *pHeaderMemory)
 {
-    MTX_HEADER_PARAMS	*mtx_hdr;
+    MTX_HEADER_PARAMS   *mtx_hdr;
 
 
     /* Route output elements to memory provided */
@@ -2162,7 +2170,7 @@ void lnc__H264_prepare_picture_header(IMG_UINT32 *pHeaderMemory)
 
 void lnc__H264_prepare_slice_header(
     IMG_UINT32 *pHeaderMemory,
-    IMG_BOOL	bIntraSlice,
+    IMG_BOOL    bIntraSlice,
     IMG_UINT32 uiDisableDeblockingFilterIDC,
     IMG_UINT32 uiFrameNumber,
     IMG_UINT32 uiFirst_MB_Address,
@@ -2192,7 +2200,7 @@ void lnc__H264_prepare_slice_header(
     SlHParams.bUsesLongTermRef = bUsesLongTermRef;
     SlHParams.bIsLongTermRef = bIsLongTermRef;
 
-    SlHParams.First_MB_Address	=  uiFirst_MB_Address;
+    SlHParams.First_MB_Address  =  uiFirst_MB_Address;
     SlHParams.Disable_Deblocking_Filter_Idc = (IMG_UINT8) uiDisableDeblockingFilterIDC;
 
     if (uiMBSkipRun)
@@ -2240,12 +2248,12 @@ void lnc__MPEG4_prepare_sequence_header(
     IMG_UINT32 Picture_Width_Pixels,
     IMG_UINT32 Picture_Height_Pixels,
     IMG_BOOL bVBVPresent,
-    IMG_UINT32	First_half_bit_rate,
-    IMG_UINT32	Latter_half_bit_rate,
-    IMG_UINT32	First_half_vbv_buffer_size,
-    IMG_UINT32	Latter_half_vbv_buffer_size,
-    IMG_UINT32	First_half_vbv_occupancy,
-    IMG_UINT32	Latter_half_vbv_occupancy,
+    IMG_UINT32  First_half_bit_rate,
+    IMG_UINT32  Latter_half_bit_rate,
+    IMG_UINT32  First_half_vbv_buffer_size,
+    IMG_UINT32  Latter_half_vbv_buffer_size,
+    IMG_UINT32  First_half_vbv_occupancy,
+    IMG_UINT32  Latter_half_vbv_occupancy,
     IMG_UINT32 VopTimeResolution)
 {
     MTX_HEADER_PARAMS *mtx_hdr;

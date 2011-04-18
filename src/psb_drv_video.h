@@ -20,6 +20,11 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
 
 #ifndef _PSB_DRV_VIDEO_H_
 #define _PSB_DRV_VIDEO_H_
@@ -62,15 +67,15 @@
 #define WORKAROUND_DMA_OFF_BY_ONE
 #define FOURCC_XVVA     (('A' << 24) + ('V' << 16) + ('V' << 8) + 'X')
 
-#define PSB_MAX_PROFILES				14
-#define PSB_MAX_ENTRYPOINTS				8
-#define PSB_MAX_CONFIG_ATTRIBUTES		10
-#define PSB_MAX_BUFFERTYPES			32
+#define PSB_MAX_PROFILES                                14
+#define PSB_MAX_ENTRYPOINTS                             8
+#define PSB_MAX_CONFIG_ATTRIBUTES               10
+#define PSB_MAX_BUFFERTYPES                     32
 
 /* Max # of command submission buffers */
-#define PSB_MAX_CMDBUFS				10
-#define LNC_MAX_CMDBUFS_ENCODE			4
-#define PNW_MAX_CMDBUFS_ENCODE			4
+#define PSB_MAX_CMDBUFS                         10
+#define LNC_MAX_CMDBUFS_ENCODE                  4
+#define PNW_MAX_CMDBUFS_ENCODE                  4
 
 #define PSB_SURFACE_DISPLAYING_F (0x1U<<0)
 #define PSB_SURFACE_IS_FLAG_SET(flags, mask) (((flags)& PSB_SURFACE_DISPLAYING_F) != 0)
@@ -115,34 +120,36 @@ typedef struct psb_decode_info {
 typedef struct msvdx_decode_info *psb_decode_info_p;
 
 struct psb_driver_data_s {
-    struct object_heap_s	config_heap;
-    struct object_heap_s	context_heap;
-    struct object_heap_s	surface_heap;
-    struct object_heap_s	buffer_heap;
-    struct object_heap_s	image_heap;
-    struct object_heap_s	subpic_heap;
-    char *			bus_id;
+    struct object_heap_s        config_heap;
+    struct object_heap_s        context_heap;
+    struct object_heap_s        surface_heap;
+    struct object_heap_s        buffer_heap;
+    struct object_heap_s        image_heap;
+    struct object_heap_s        subpic_heap;
+    char *                      bus_id;
     uint32_t                    dev_id;
-    int				drm_fd;
+    int                         drm_fd;
+    int                         dup_drm_fd;
+    
     /*  PM_QoS */
     int                         pm_qos_fd;
-    int				dri2;
-    int 			dri_dummy;
-    XID				context_id;
-    drm_context_t		drm_context;
-    drmLock			*drm_lock;
-    int				contended_lock;
-    pthread_mutex_t		drm_mutex;
-    format_vtable_p		profile2Format[PSB_MAX_PROFILES][PSB_MAX_ENTRYPOINTS];
-    uint32_t			msvdx_context_base;
-    int				video_sd_disabled;
-    int				video_hd_disabled;
+    int                         dri2;
+    int                         dri_dummy;
+    XID                         context_id;
+    drm_context_t               drm_context;
+    drmLock                     *drm_lock;
+    int                         contended_lock;
+    pthread_mutex_t             drm_mutex;
+    format_vtable_p             profile2Format[PSB_MAX_PROFILES][PSB_MAX_ENTRYPOINTS];
+    uint32_t                    msvdx_context_base;
+    int                         video_sd_disabled;
+    int                         video_hd_disabled;
     void *                      camera_bo;
-    uint32_t			camera_phyaddr;
-    uint32_t			camera_size;
+    uint32_t                    camera_phyaddr;
+    uint32_t                    camera_size;
     void *                      rar_bo;
-    uint32_t			rar_phyaddr;
-    uint32_t			rar_size;
+    uint32_t                    rar_phyaddr;
+    uint32_t                    rar_size;
     void *                      rar_rd;
 
     int encode_supported;
@@ -189,6 +196,12 @@ struct psb_driver_data_s {
     VADisplayAttribute hue;
     VADisplayAttribute contrast;
     VADisplayAttribute saturation;
+    /*Save RenderMode and RenderRect attribute
+     * for medfield android extend video mode.*/
+    uint32_t render_device;
+    uint32_t render_mode;
+    VARectangle  render_rect;
+
     unsigned int clear_color;
 
     int  is_oold;
@@ -214,6 +227,7 @@ struct psb_driver_data_s {
 
     uint32_t blend_mode;
     uint32_t blend_color;
+    uint32_t overlay_auto_paint_color_key;
     uint32_t color_key;
 
     /*output rotation info*/
@@ -225,6 +239,8 @@ struct psb_driver_data_s {
     uint32_t bcd_id;
     uint32_t bcd_ioctrl_num;
     uint32_t bcd_registered;
+    uint32_t bcd_buffer_num;
+    uint32_t *bcd_ttm_handles;
     uint32_t xrandr_dirty;
     uint32_t xrandr_update;
     /*only VAProfileH264ConstrainedBaseline profile enable error concealment*/
@@ -234,6 +250,13 @@ struct psb_driver_data_s {
     psb_decode_info_t decode_info;
     drm_psb_msvdx_decode_status_t *msvdx_decode_status;
     VASurfaceDecodeMBErrors *surface_mb_error;
+
+    void *hPVR2DContext;
+
+    uint32_t wrapped_surface_id[VIDEO_BUFFER_NUM];
+    uint32_t wrapped_subpic_id[VIDEO_BUFFER_NUM];
+    PVR2DMEMINFO *videoBuf[VIDEO_BUFFER_NUM];
+    PVR2DMEMINFO *subpicBuf[VIDEO_BUFFER_NUM];
 };
 
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)
@@ -367,9 +390,9 @@ struct object_subpic_s {
 };
 
 #define MEMSET_OBJECT(ptr, data_struct) \
-	memset((void *)ptr + sizeof(struct object_base_s),\
-		0,			    \
-	       sizeof(data_struct) - sizeof(struct object_base_s))
+        memset((void *)ptr + sizeof(struct object_base_s),\
+                0,                          \
+               sizeof(data_struct) - sizeof(struct object_base_s))
 
 struct format_vtable_s {
     void (*queryConfigAttributes)(
@@ -410,7 +433,7 @@ static inline unsigned long GetTickCount()
     struct timeval tv;
     if (gettimeofday(&tv, NULL))
         return 0;
-    return tv.tv_usec / 1000 + tv.tv_sec*1000;
+    return tv.tv_usec / 1000 + tv.tv_sec * 1000;
 }
 
 inline static char * buffer_type_to_string(int type)

@@ -21,6 +21,12 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
 
 
 #include "psb_drv_video.h"
@@ -97,7 +103,7 @@ static IMG_INT16 H264InterBias(IMG_INT8 i8QP)
         return 20;
 
     //return aui16InterBiasValues[i8QP-36];
-    return (70*(i8QP - 35));
+    return (70 * (i8QP - 35));
 }
 
 static IMG_INT16 H264SkipBias(IMG_INT8 i8QP, TH_SKIP_SCALE eSkipScale)
@@ -188,7 +194,7 @@ static void LoadMPEG4Bias(
 
     // this should be done for each core....
     pnw_cmdbuf_insert_reg_write(MVEARegBase[i32Core], MVEA_CR_SPE_ZERO_THRESH, SPE_ZERO_THRESHOLD);
-    for (n = 31;n > 0;n--) {
+    for (n = 31; n > 0; n--) {
         iX = n - 12;
         if (iX < 0) {
             iX = 0;
@@ -215,7 +221,7 @@ static void LoadMPEG4Bias(
         uSPESkipVecBias = TH_SKIP_SPE * uiLambda;
         iIntra16Bias = 0;
 
-        if (n&1) {
+        if (n & 1) {
             pnw_cmdbuf_insert_reg_write(MVEARegBase[i32Core], MVEA_CR_IPE_MV_BIAS_TABLE, uIPESkipVecBias);
             pnw_cmdbuf_insert_reg_write(MVEARegBase[i32Core], MVEA_CR_SPE_PRED_VECTOR_BIAS_TABLE, uIPESkipVecBias);
             pnw_cmdbuf_insert_reg_write(MVEARegBase[i32Core], MVEA_CR_SPE_INTRA16_BIAS_TABLE, iIntra16Bias);
@@ -244,7 +250,7 @@ static void LoadH263Bias(
 
     // this should be done for each core....
     pnw_cmdbuf_insert_reg_write(MVEARegBase[i32Core], MVEA_CR_SPE_ZERO_THRESH, SPE_ZERO_THRESHOLD);
-    for (n = 31;n > 0;n--) {
+    for (n = 31; n > 0; n--) {
         iX = n - 12;
         if (iX < 0) {
             iX = 0;
@@ -272,7 +278,7 @@ static void LoadH263Bias(
         uSPESkipVecBias = TH_SKIP_SPE * uiLambda;
         iIntra16Bias = 0;
         //
-        if (n&1) {
+        if (n & 1) {
             pnw_cmdbuf_insert_reg_write(MVEARegBase[i32Core], MVEA_CR_IPE_MV_BIAS_TABLE, uIPESkipVecBias);
             pnw_cmdbuf_insert_reg_write(MVEARegBase[i32Core], MVEA_CR_SPE_PRED_VECTOR_BIAS_TABLE, uIPESkipVecBias);
             pnw_cmdbuf_insert_reg_write(MVEARegBase[i32Core], MVEA_CR_SPE_INTRA16_BIAS_TABLE, iIntra16Bias);
@@ -307,7 +313,7 @@ static void LoadH264Bias(
         39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
     };
 
-    for (n = 51;n >= 0;n--) {
+    for (n = 51; n >= 0; n--) {
         iX = n - 12;
         if (iX < 0) {
             iX = 0;
@@ -329,7 +335,7 @@ static void LoadH264Bias(
 #endif
 
     }
-    for (n = 52;n >= 0;n -= 2) {
+    for (n = 52; n >= 0; n -= 2) {
         IMG_INT8 qp = n;
         if (qp > 51) qp = 51;
 
@@ -553,7 +559,7 @@ void pnw__UpdateRCBitsTransmitted(context_ENC_p ctx)
     BitsPerFrame = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
 
     if (!ctx->Transmitting) {
-        if (BitsPerFrame * (ctx->obj_context->frame_count + 1) >= ctx->sRCParams.InitialLevel)
+        if (BitsPerFrame *(ctx->obj_context->frame_count + 1) >= ctx->sRCParams.InitialLevel)
             ctx->Transmitting = IMG_TRUE;
         ctx->sRCParams.BitsTransmitted = 0;
         if ((ctx->sRCParams.BitsPerSecond == 0) || (ctx->sRCParams.FrameRate == 0))
@@ -581,7 +587,7 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
      {
      pnw_DetectFrameSkip(ctx);
      if (0 != (GET_SURFACE_INFO_skipped_flag(ctx->src_surface->psb_surface)
-     	    & SURFACE_INFO_SKIP_FLAG_SETTLED))
+            & SURFACE_INFO_SKIP_FLAG_SETTLED))
          ctx->sRCParams.FrameSkip = IMG_TRUE;
      else
          ctx->sRCParams.FrameSkip = IMG_FALSE;
@@ -720,7 +726,7 @@ VAStatus pnw_set_bias(context_ENC_p ctx, int core)
 
 VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
 {
-    PIC_PARAMS *psPicParams;	/* PIC_PARAMS has been put in pnw_hostcode.h */
+    PIC_PARAMS *psPicParams;    /* PIC_PARAMS has been put in pnw_hostcode.h */
     object_surface_p src_surface;
     unsigned int srf_buf_offset;
     object_surface_p rec_surface;
@@ -786,7 +792,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
 
     psPicParams->SrcYStride = src_surface->psb_surface->stride;
     switch (ctx->eFormat) {
-    case IMG_CODEC_IYUV:	/* IYUV */
+    case IMG_CODEC_IYUV:        /* IYUV */
     case IMG_CODEC_PL8:
         psPicParams->SrcUVStride = src_surface->psb_surface->stride / 2;
         psPicParams->SrcUVRowStride = src_surface->psb_surface->stride * 8 / 2;
@@ -921,7 +927,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
                              &src_surface->psb_surface->buf);
 
         RELOC_PIC_PARAMS_PNW(&psPicParams->SrcVBase,
-                             srf_buf_offset + src_surface->psb_surface->stride * src_surface->height + (src_surface->psb_surface->stride / 2) * (src_surface->height / 2),
+                             srf_buf_offset + src_surface->psb_surface->stride * src_surface->height + (src_surface->psb_surface->stride / 2) *(src_surface->height / 2),
                              &src_surface->psb_surface->buf);
 
         break;
@@ -938,19 +944,19 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
                          &rec_surface->psb_surface->buf);
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->BelowParamsInBase,
-                         ctx->below_params_ofs + ctx->below_params_size * (((ctx->AccessUnitNum)&0x1)),
+                         ctx->below_params_ofs + ctx->below_params_size *(((ctx->AccessUnitNum) & 0x1)),
                          cmdbuf->topaz_below_params);
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->BelowParamsOutBase,
-                         ctx->below_params_ofs + ctx->below_params_size * (((ctx->AccessUnitNum + 1)&0x1)),
+                         ctx->below_params_ofs + ctx->below_params_size *(((ctx->AccessUnitNum + 1) & 0x1)),
                          cmdbuf->topaz_below_params);
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->AboveParamsBase,
-                         ctx->above_params_ofs + ctx->above_params_size * (core * 2 + (ctx->AccessUnitNum & 0x1)),
+                         ctx->above_params_ofs + ctx->above_params_size *(core * 2 + (ctx->AccessUnitNum & 0x1)),
                          cmdbuf->topaz_above_params);
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->CodedBase, ctx->coded_buf_per_slice * core, ctx->coded_buf->psb_buffer);
-    psb__information_message("For core %d, above_parmas_off %x\n", core, ctx->above_params_ofs + ctx->above_params_size * (core * 2 + ((ctx->AccessUnitNum) & 0x1)));
+    psb__information_message("For core %d, above_parmas_off %x\n", core, ctx->above_params_ofs + ctx->above_params_size *(core * 2 + ((ctx->AccessUnitNum) & 0x1)));
 
 #if TOPAZ_PIC_PARAMS_VERBOSE
     psb__information_message("PicParams->SrcYBase  0x%08x\n", psPicParams->SrcYBase);
@@ -1175,14 +1181,14 @@ static void pnw__setup_busize(context_ENC_p ctx)
         IMG_INT32  SliceHeight;
         IMG_UINT32 MaxSlicesPerPipe, MaxMBsPerPipe, MaxBUsPerPipe;
 
-        MBs	= ctx->Height * ctx->Width / (16 * 16);
+        MBs     = ctx->Height * ctx->Width / (16 * 16);
 
-        SliceHeight	= ctx->Height / slices;
+        SliceHeight     = ctx->Height / slices;
         /* SliceHeight += 15; */
         SliceHeight &= ~15;
 
-        MBsperSlice	= (SliceHeight * ctx->Width) / (16 * 16);
-        MBsLastSlice	= MBs - (MBsperSlice * (slices - 1));
+        MBsperSlice     = (SliceHeight * ctx->Width) / (16 * 16);
+        MBsLastSlice    = MBs - (MBsperSlice * (slices - 1));
 
         /* they have given us a basic unit so validate it */
         if (ctx->sRCParams.BUSize < 6) {
@@ -1225,13 +1231,13 @@ static void pnw__setup_busize(context_ENC_p ctx)
         IMG_INT32  SliceHeight;
         IMG_UINT32 BUSize = 6;
 
-        MBs	= ctx->Height * ctx->Width / (16 * 16);
+        MBs     = ctx->Height * ctx->Width / (16 * 16);
 
-        SliceHeight	= ctx->Height / slices;
+        SliceHeight     = ctx->Height / slices;
         /* SliceHeight += 15; */
         SliceHeight &= ~15;
 
-        MBsperSlice	= (SliceHeight * ctx->Width) / (16 * 16);
+        MBsperSlice     = (SliceHeight * ctx->Width) / (16 * 16);
         MBsLastSlice = MBs - (MBsperSlice * (slices - 1));
 
         /* Check number of BUs to be encoded on one pipe is less than maximum number allowed 200  */
@@ -1248,7 +1254,7 @@ static void pnw__setup_busize(context_ENC_p ctx)
         BUsperSlice = MBsperSlice / BUSize;
         BUsLastSlice = MBsLastSlice / BUSize;
         while ((BUsperSlice*BUSize != MBsperSlice) ||
-                (BUsLastSlice*BUSize != MBsLastSlice)) {
+               (BUsLastSlice*BUSize != MBsLastSlice)) {
             BUSize++;
             BUsperSlice = MBsperSlice / BUSize;
             BUsLastSlice = MBsLastSlice / BUSize;
@@ -1269,8 +1275,8 @@ static void pnw__update_rcdata(
     PIC_PARAMS *psPicParams,
     IMG_RC_PARAMS *psRCParams)
 {
-    double	L1, L2, L3, L4, L5, L6, flBpp;
-    IMG_INT16		i16TempQP;
+    double      L1, L2, L3, L4, L5, L6, flBpp;
+    IMG_INT16           i16TempQP;
     IMG_INT32   i32BufferSizeInFrames = 0;
 
     flBpp = 1.0 * psRCParams->BitsPerSecond
@@ -1285,8 +1291,8 @@ static void pnw__update_rcdata(
     psPicParams->sInParams.BitRate = psRCParams->BitsPerSecond;
     psPicParams->sInParams.BitsPerFrm = (psRCParams->BitsPerSecond + psRCParams->FrameRate / 2) / psRCParams->FrameRate;
     psPicParams->sInParams.BitsPerGOP = (psRCParams->BitsPerSecond / psRCParams->FrameRate) * psRCParams->IntraFreq;
-    psPicParams->sInParams.BitsPerBU	= psPicParams->sInParams.BitsPerFrm / (4 * psPicParams->sInParams.BUPerFrm);
-    psPicParams->sInParams.BitsPerMB	= psPicParams->sInParams.BitsPerBU / psRCParams->BUSize;
+    psPicParams->sInParams.BitsPerBU    = psPicParams->sInParams.BitsPerFrm / (4 * psPicParams->sInParams.BUPerFrm);
+    psPicParams->sInParams.BitsPerMB    = psPicParams->sInParams.BitsPerBU / psRCParams->BUSize;
 
     i32BufferSizeInFrames = psRCParams->BufferSize / psPicParams->sInParams.BitsPerFrm;
 
@@ -1348,7 +1354,7 @@ static void pnw__update_rcdata(
     case IMG_CODEC_MPEG4_VBR:
     case IMG_CODEC_H263_CBR:
     case IMG_CODEC_H263_VBR:
-        psPicParams->sInParams.MaxQPVal	 = 31;
+        psPicParams->sInParams.MaxQPVal  = 31;
 
         if (psContext->Width <= 176) {
             L1 = 0.043;
@@ -1416,7 +1422,7 @@ static void pnw__update_rcdata(
         return ;
 
     case IMG_CODEC_H264_VCM:
-        psPicParams->Flags	|= ISVCM_FLAGS | ISCBR_FLAGS;
+        psPicParams->Flags      |= ISVCM_FLAGS | ISCBR_FLAGS;
         if (psContext->Height >= 480) {
             /* for SD and above we can target 95% (122/128) of maximum bitrate */
             psPicParams->sInParams.VCMBitrateMargin = 122;
@@ -1484,7 +1490,7 @@ static void pnw__update_rcdata(
         }
 
         psPicParams->sInParams.BufferSize = psRCParams->BufferSize;
-        if (psPicParams->sInParams.BufferSize > 112*16384) // Simple Profile L5 Constraints
+        if (psPicParams->sInParams.BufferSize > 112 * 16384) // Simple Profile L5 Constraints
             psPicParams->sInParams.BufferSize = 112 * 16384;
         break;
 
@@ -1493,21 +1499,21 @@ static void pnw__update_rcdata(
     case IMG_CODEC_H264_VBR:
         psPicParams->Flags |= ISVBR_FLAGS;
 
-        psPicParams->sInParams.MBPerBU	= psPicParams->sInParams.MBPerFrm;
-        psPicParams->sInParams.BUPerFrm	= 1;
+        psPicParams->sInParams.MBPerBU  = psPicParams->sInParams.MBPerFrm;
+        psPicParams->sInParams.BUPerFrm = 1;
 
         /* Initialize the parameters of fluid flow traffic model. */
         psPicParams->sInParams.BufferSize = psRCParams->BufferSize;
 
         if (psContext->eCodec != IMG_CODEC_H264_VBR) {
-            if (psPicParams->sInParams.BufferSize >  112*16384)
+            if (psPicParams->sInParams.BufferSize >  112 * 16384)
                 psPicParams->sInParams.BufferSize = 112 * 16384; // Simple Profile L5 Constraints
         }
 
         /* These scale factor are used only for rate control to avoid overflow */
         /* in fixed-point calculation these scale factors are decided by bit rate */
         if (psRCParams->BitsPerSecond < 640000) {
-            psPicParams->sInParams.ScaleFactor  = 2;						/* related to complexity */
+            psPicParams->sInParams.ScaleFactor  = 2;                                            /* related to complexity */
         } else if (psRCParams->BitsPerSecond < 2000000) {
             psPicParams->sInParams.ScaleFactor  = 4;
         } else {
@@ -1518,7 +1524,7 @@ static void pnw__update_rcdata(
         break;
     }
 
-    psPicParams->sInParams.MyInitQP	= psPicParams->sInParams.SeInitQP;
+    psPicParams->sInParams.MyInitQP     = psPicParams->sInParams.SeInitQP;
 
     if (psContext->SyncSequencer)
         psPicParams->Flags |= SYNC_SEQUENCER;
@@ -1546,7 +1552,7 @@ void pnw__setup_rcdata(
     PIC_PARAMS *psPicParams,
     IMG_RC_PARAMS *psRCParams)
 {
-    IMG_UINT8 	ui8InitialSeInitQP;
+    IMG_UINT8   ui8InitialSeInitQP;
 
     /* frameskip is always cleared, specially handled at vaEndPicture */
     psRCParams->FrameSkip = 0;
@@ -1566,10 +1572,10 @@ void pnw__setup_rcdata(
 
     psPicParams->sInParams.MBPerRow = (psContext->Width >> 4);
     psPicParams->sInParams.MBPerBU = psRCParams->BUSize;
-    psPicParams->sInParams.MBPerFrm	= (psContext->Width >> 4) * (psContext->Height >> 4);
-    psPicParams->sInParams.BUPerFrm	= (psPicParams->sInParams.MBPerFrm) / psRCParams->BUSize;
+    psPicParams->sInParams.MBPerFrm     = (psContext->Width >> 4) * (psContext->Height >> 4);
+    psPicParams->sInParams.BUPerFrm     = (psPicParams->sInParams.MBPerFrm) / psRCParams->BUSize;
     psPicParams->sInParams.AvQPVal = psRCParams->InitialQp;
-    psPicParams->sInParams.MyInitQP	= psRCParams->InitialQp;
+    psPicParams->sInParams.MyInitQP     = psRCParams->InitialQp;
 
     ui8InitialSeInitQP = psPicParams->sInParams.SeInitQP;
 
@@ -1624,7 +1630,7 @@ static void pnw__setup_qpvalues_mpeg4(
     MTX_CURRENT_IN_PARAMS * psCurrent,
     IMG_BYTE bySliceQP)
 {
-    psCurrent->bySliceQP =	bySliceQP;
+    psCurrent->bySliceQP =      bySliceQP;
 }
 
 static void pnw__setup_slice_row_params(
@@ -1642,8 +1648,8 @@ static void pnw__setup_slice_row_params(
     MTX_CURRENT_IN_PARAMS *psCurrent;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
 
-    IMG_INT16	iPos, iYPos, srcY;
-    IMG_UINT16	ui16tmp;
+    IMG_INT16   iPos, iYPos, srcY;
+    IMG_UINT16  ui16tmp;
     IMG_UINT16 ui16SearchWidth, ui16SearchHeight, ui16SearchLeftOffset, ui16SearchTopOffset, ui16CurBlockX;
 
     if (IsIntra && cmdbuf->topaz_in_params_I_p == NULL) {
@@ -1689,7 +1695,7 @@ static void pnw__setup_slice_row_params(
       else*/
     ui16tmp = (CurrentRowY != SliceStartRowY);
 
-    for (iPos = 0;iPos < ctx->Width;iPos += 16, psCurrent++) {
+    for (iPos = 0; iPos < ctx->Width; iPos += 16, psCurrent++) {
         memset(psCurrent, 0, sizeof(MTX_CURRENT_IN_PARAMS));
         psCurrent->MVValid = 0;
         psCurrent->ParamsValid = 0;
@@ -1790,7 +1796,7 @@ static void pnw__setup_slice_row_params(
         }
 
         psCurrent->CurBlockAddr = ((ui16CurBlockX) / 16);
-        psCurrent->CurBlockAddr	|= ((IMG_UINT8)(((iYPos + ui16SearchTopOffset) - srcY) / 16) << 4);
+        psCurrent->CurBlockAddr |= ((IMG_UINT8)(((iYPos + ui16SearchTopOffset) - srcY) / 16) << 4);
 
         /* Setup the control register values
            These will get setup and transferred to a different location within the macroblock parameter structure.
@@ -2010,7 +2016,7 @@ IMG_UINT32 pnw__send_encode_slice_params(
                                       ctx->SliceToCore,
                                       MTX_CMDID_ENCODE_SLICE,
                                       &cmdbuf->slice_params,
-                                      CurrentSlice * ((sizeof(SLICE_PARAMS) + 15) & 0xfff0));
+                                      CurrentSlice *((sizeof(SLICE_PARAMS) + 15) & 0xfff0));
 
 
     return 0;

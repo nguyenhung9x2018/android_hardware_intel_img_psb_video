@@ -20,6 +20,15 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Zhaohan Ren  <zhaohan.ren@intel.com>
+ *    Jason Hu <jason.hu@intel.com>
+ *
+ */
+
 #ifndef _PSB_OUTPUT_H_
 #define _PSB_OUTPUT_H_
 #include <inttypes.h>
@@ -39,12 +48,12 @@
 #define LOG_TAG "pvr_drv_video"
 #endif
 
-#define PSB_MAX_IMAGE_FORMATS      5 /* sizeof(psb__CreateImageFormat)/sizeof(VAImageFormat) */
+#define PSB_MAX_IMAGE_FORMATS      3 /* sizeof(psb__CreateImageFormat)/sizeof(VAImageFormat) */
 #define PSB_MAX_SUBPIC_FORMATS     3 /* sizeof(psb__SubpicFormat)/sizeof(VAImageFormat) */
 #define PSB_MAX_DISPLAY_ATTRIBUTES 6 /* sizeof(psb__DisplayAttribute)/sizeof(VADisplayAttribute) */
 
-#define VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD	0x0004
-#define PSB_SUPPORTED_SUBPIC_FLAGS	VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD /* No alpha or chroma key support */
+#define VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD       0x0004
+#define PSB_SUPPORTED_SUBPIC_FLAGS      VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD /* No alpha or chroma key support */
 
 
 #define CLAMP(_X) ( (_X)= ((_X)<0?0:((_X)>255?255:(_X)) ) )
@@ -68,6 +77,9 @@
 #define SATURATION_MIN 0
 #define SATURATION_MAX 3
 #define SATURATION_STEPSIZE 0.0001
+
+#define VA_RENDER_MODE_MASK 0x0f
+#define VA_RENDER_DEVICE_MASK 0x03
 
 #define PSB_DRIDDX_VERSION_MAJOR 0
 #define PSB_DRIDDX_VERSION_MINOR 1
@@ -337,8 +349,8 @@ void psb_SurfaceDeassociateSubpict(
  */
 VAStatus psb_QueryDisplayAttributes(
     VADriverContextP ctx,
-    VADisplayAttribute *attr_list,	/* out */
-    int *num_attributes		/* out */
+    VADisplayAttribute *attr_list,      /* out */
+    int *num_attributes         /* out */
 );
 
 /*
@@ -349,7 +361,7 @@ VAStatus psb_QueryDisplayAttributes(
  */
 VAStatus psb_GetDisplayAttributes(
     VADriverContextP ctx,
-    VADisplayAttribute *attr_list,	/* in/out */
+    VADisplayAttribute *attr_list,      /* in/out */
     int num_attributes
 );
 

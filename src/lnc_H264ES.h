@@ -21,6 +21,14 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
+
 #ifndef _LNC_H264ES_H_
 #define _LNC_H264ES_H_
 
@@ -29,8 +37,8 @@
 extern struct format_vtable_s lnc_H264ES_vtable;
 
 extern VAStatus lnc_H264_append_aux_info(object_context_p obj_context,
-            object_buffer_p obj_buffer,
-            unsigned char *buf,
-            unsigned int *p_size);
+        object_buffer_p obj_buffer,
+        unsigned char *buf,
+        unsigned int *p_size);
 
 #endif /* _LNC_H264_H_ */

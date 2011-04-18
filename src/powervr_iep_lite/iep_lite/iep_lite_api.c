@@ -21,18 +21,18 @@
  *********************************************************************************/
 
 /********************************************************************
-	DISCLAIMER:
-	This code is provided for demonstration purposes only. It has
-	been ported from other projects and has not been tested with
-	real hardware. It is not provided in a state that can be run
-	with real hardware - this is not intended as the basis for a
-	production driver. This code should only be used as an example
-	of the algorithms to be used for setting up the IEP lite
-	hardware.
+        DISCLAIMER:
+        This code is provided for demonstration purposes only. It has
+        been ported from other projects and has not been tested with
+        real hardware. It is not provided in a state that can be run
+        with real hardware - this is not intended as the basis for a
+        production driver. This code should only be used as an example
+        of the algorithms to be used for setting up the IEP lite
+        hardware.
  ********************************************************************/
 
 /*
-	Includes
+        Includes
 */
 
 #include <stdio.h>
@@ -44,7 +44,7 @@
 #include "iep_lite_reg_defs.h"
 #include "iep_lite_api.h"
 
-#define	EXTERNAL
+#define EXTERNAL
 #include "iep_lite_utils.h"
 #undef EXTERNAL
 
@@ -53,13 +53,13 @@ FILE * pfDebugOutput = IMG_NULL;
 /*-------------------------------------------------------------------------------*/
 
 /*
-	Functions
+        Functions
 */
 
 /*!
 ******************************************************************************
 
- @Function				IEP_LITE_Initialise
+ @Function                              IEP_LITE_Initialise
 
 ******************************************************************************/
 
@@ -81,7 +81,7 @@ IEP_LITE_Initialise(void * p_iep_lite_context, img_uint32 ui32RegBaseAddr)
     iep_lite_StaticDataSafetyCheck();
 
     /* Register 'render complete' callback - this is a function which is called */
-    /* automatically after the h/w has finished rendering.						*/
+    /* automatically after the h/w has finished rendering.                                              */
     REGISTER_CALLBACK(RENDER_COMPLETE, iep_lite_RenderCompleteCallback);
 
     IMG_MEMSET(sIEP_LITE_Context,
@@ -99,11 +99,11 @@ IEP_LITE_Initialise(void * p_iep_lite_context, img_uint32 ui32RegBaseAddr)
 /*!
 ******************************************************************************
 
- @Function				IEP_LITE_UploadCSCMatrix
+ @Function                              IEP_LITE_UploadCSCMatrix
 
 ******************************************************************************/
-img_result	IEP_LITE_UploadCSCMatrix(void * p_iep_lite_context,
-                                    img_int32	ai32Coefficients[3][3])
+img_result      IEP_LITE_UploadCSCMatrix(void * p_iep_lite_context,
+        img_int32  ai32Coefficients[3][3])
 {
     IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;
     img_uint32 ui32MyReg = 0;
@@ -184,19 +184,19 @@ img_result	IEP_LITE_UploadCSCMatrix(void * p_iep_lite_context,
 /*!
 ******************************************************************************
 
- @Function				IEP_LITE_IEPCSCConfigure
+ @Function                              IEP_LITE_IEPCSCConfigure
 
 ******************************************************************************/
-img_result	IEP_LITE_CSCConfigure(
+img_result      IEP_LITE_CSCConfigure(
     void * p_iep_lite_context,
-    CSC_eColourSpace	eInputColourSpace,
-    CSC_eColourSpace	eOutputColourSpace,
-    CSC_psHSBCSettings	psHSBCSettings
+    CSC_eColourSpace    eInputColourSpace,
+    CSC_eColourSpace    eOutputColourSpace,
+    CSC_psHSBCSettings  psHSBCSettings
 )
 {
     IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;
-    CSC_sConfiguration				sInternalConfig;
-    img_uint32						ui32MyReg;
+    CSC_sConfiguration                          sInternalConfig;
+    img_uint32                                          ui32MyReg;
 
     DEBUG_PRINT("Entering IEP_LITE_IEPCSCConfigure\n");
     if (NULL == sIEP_LITE_Context) {
@@ -337,18 +337,18 @@ img_result	IEP_LITE_CSCConfigure(
 /*!
 ******************************************************************************
 
- @Function				IEP_LITE_BlackLevelExpanderConfigure
+ @Function                              IEP_LITE_BlackLevelExpanderConfigure
 
 ******************************************************************************/
-img_result	IEP_LITE_BlackLevelExpanderConfigure(
+img_result      IEP_LITE_BlackLevelExpanderConfigure(
     void * p_iep_lite_context,
-    IEP_LITE_eBLEMode					eBLEBlackMode,
-    IEP_LITE_eBLEMode					eBLEWhiteMode
+    IEP_LITE_eBLEMode                                   eBLEBlackMode,
+    IEP_LITE_eBLEMode                                   eBLEWhiteMode
 )
 {
     IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;
-    IEP_LITE_eBLEMode		eCurrentBlackMode;
-    IEP_LITE_eBLEMode		eCurrentWhiteMode;
+    IEP_LITE_eBLEMode           eCurrentBlackMode;
+    IEP_LITE_eBLEMode           eCurrentWhiteMode;
 
     DEBUG_PRINT("Entering IEP_LITE_BlackLevelExpanderConfigure\n");
     if (NULL == sIEP_LITE_Context) {
@@ -375,7 +375,7 @@ img_result	IEP_LITE_BlackLevelExpanderConfigure(
         WRITE_REGISTER(IEP_LITE_BLE_CONF_STATUS_OFFSET,
                        0);
 
-        sIEP_LITE_Context->bFirstLUTValuesWritten 		= IMG_FALSE;
+        sIEP_LITE_Context->bFirstLUTValuesWritten               = IMG_FALSE;
     }
 
     DEBUG_PRINT("Leaving IEP_LITE_BlackLevelExpanderConfigure\n");
@@ -387,18 +387,18 @@ img_result	IEP_LITE_BlackLevelExpanderConfigure(
 /*!
 ******************************************************************************
 
- @Function				IEP_LITE_BlueStretchConfigure
+ @Function                              IEP_LITE_BlueStretchConfigure
 
 ******************************************************************************/
-img_result	IEP_LITE_BlueStretchConfigure(
+img_result      IEP_LITE_BlueStretchConfigure(
     void * p_iep_lite_context,
-    img_uint8							ui8Gain
+    img_uint8                                                   ui8Gain
 )
 {
     IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;
-    img_uint32	ui32Offset = 0;
-    img_uint32	ui32MyReg = 0;
-    img_uint32	ui32EnableReg = 0;
+    img_uint32  ui32Offset = 0;
+    img_uint32  ui32MyReg = 0;
+    img_uint32  ui32EnableReg = 0;
 
     DEBUG_PRINT("Entering IEP_LITE_BlueStretchConfigure\n");
     if (NULL == sIEP_LITE_Context) {
@@ -439,11 +439,11 @@ img_result	IEP_LITE_BlueStretchConfigure(
         ui32MyReg = 0;
 
         WRITE_BITFIELD(IEP_LITE_BS_CHROMA_ANGLE_THETA3,
-                       ((IEP_LITE_BS_THETA3_DEFAULT_VALUE * (1 << 10)) / 360),
+                       ((IEP_LITE_BS_THETA3_DEFAULT_VALUE *(1 << 10)) / 360),
                        ui32MyReg);
 
         WRITE_BITFIELD(IEP_LITE_BS_CHROMA_ANGLE_THETA4,
-                       ((IEP_LITE_BS_THETA4_DEFAULT_VALUE * (1 << 10)) / 360),
+                       ((IEP_LITE_BS_THETA4_DEFAULT_VALUE *(1 << 10)) / 360),
                        ui32MyReg);
 
         WRITE_REGISTER(IEP_LITE_BS_CHROMA_ANGLE_OFFSET,
@@ -458,8 +458,8 @@ img_result	IEP_LITE_BlueStretchConfigure(
         /* Scale between 0 and IEP_LITE_BS_OFFSET_MAX_VALUE, using ui8Gain */
         ui32Offset = IEP_LITE_BS_OFFSET_MAX_VALUE * ui8Gain; /* 0.23 * 8.0 = 8.23 */
 
-        /* Rather than dividing by (1 << 8) and losing precision, just promote the decimal	*/
-        /* point i.e.: Consider it a 0.31 value instead of an 8.23.							*/
+        /* Rather than dividing by (1 << 8) and losing precision, just promote the decimal      */
+        /* point i.e.: Consider it a 0.31 value instead of an 8.23.                                                     */
 
         ui32Offset += (1 << (31 - 7)) >> 1; /* Prevent error when rounding down */
         ui32Offset >>= (31 - 7); /* Adjust for register */
@@ -487,18 +487,18 @@ img_result	IEP_LITE_BlueStretchConfigure(
 /*!
 ******************************************************************************
 
- @Function				IEP_LITE_SkinColourCorrectionConfigure
+ @Function                              IEP_LITE_SkinColourCorrectionConfigure
 
 ******************************************************************************/
-img_result	IEP_LITE_SkinColourCorrectionConfigure(
+img_result      IEP_LITE_SkinColourCorrectionConfigure(
     void * p_iep_lite_context,
-    img_uint8							ui8Gain
+    img_uint8                                                   ui8Gain
 )
 {
     IEP_LITE_sContext * sIEP_LITE_Context = p_iep_lite_context;
-    img_uint32	ui32MyReg = 0;
-    img_uint32	ui32Offset = 0;
-    img_uint32	ui32EnableReg = 0;
+    img_uint32  ui32MyReg = 0;
+    img_uint32  ui32Offset = 0;
+    img_uint32  ui32EnableReg = 0;
 
     DEBUG_PRINT("Entering IEP_LITE_SkinColourCorrectionConfigure\n");
     if (NULL == sIEP_LITE_Context) {
@@ -547,11 +547,11 @@ img_result	IEP_LITE_SkinColourCorrectionConfigure(
         ui32MyReg = 0;
 
         WRITE_BITFIELD(IEP_LITE_SCC_ANGLE_THETA2,
-                       ((IEP_LITE_SCC_THETA2_DEFAULT_VALUE * (1 << 10)) / 360),
+                       ((IEP_LITE_SCC_THETA2_DEFAULT_VALUE *(1 << 10)) / 360),
                        ui32MyReg);
 
         WRITE_BITFIELD(IEP_LITE_SCC_ANGLE_THETA1,
-                       ((IEP_LITE_SCC_THETA1_DEFAULT_VALUE * (1 << 10)) / 360),
+                       ((IEP_LITE_SCC_THETA1_DEFAULT_VALUE *(1 << 10)) / 360),
                        ui32MyReg);
 
         WRITE_REGISTER(IEP_LITE_SCC_ANGLE_OFFSET,
@@ -559,17 +559,17 @@ img_result	IEP_LITE_SkinColourCorrectionConfigure(
 
         /* Skin colour correction parameters - controlled by gain slider */
 
-        /* Scale between 0 and IEP_LITE_SCC_OFFSET_MAX_VALUE, using ui8Gain 	 */
+        /* Scale between 0 and IEP_LITE_SCC_OFFSET_MAX_VALUE, using ui8Gain      */
         ui32Offset = IEP_LITE_SCC_OFFSET_MAX_VALUE * ui8Gain; /* 0.23 * 8.0 = 8.23 */
 
-        /* Rather than dividing by (1 << 8) and losing precision, just promote the decimal	*/
-        /* point i.e.: Consider it a 0.31 value instead of an 8.23.			*/
+        /* Rather than dividing by (1 << 8) and losing precision, just promote the decimal      */
+        /* point i.e.: Consider it a 0.31 value instead of an 8.23.                     */
 
-        /* Note: gain register in hardware 'works backwards' 						*/
-        /* (i.e.: 1023 is min gain, 0 is max gain).											*/
+        /* Note: gain register in hardware 'works backwards'                                            */
+        /* (i.e.: 1023 is min gain, 0 is max gain).                                                                                     */
         ui32Offset = (1 << 31) - ui32Offset;
 
-        ui32Offset += (1 << (31 - 10)) >> 1; /* Prevent error when rounding down 			*/
+        ui32Offset += (1 << (31 - 10)) >> 1; /* Prevent error when rounding down                        */
         ui32Offset >>= (31 - 10); /* Adjust for register */
 
         WRITE_REGISTER(IEP_LITE_SCC_CORR_OFFSET,

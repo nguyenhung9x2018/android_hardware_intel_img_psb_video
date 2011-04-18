@@ -20,6 +20,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *
+ */
+
 #ifndef _PNW_JPEG_H_
 #define _PNW_JPEG_H_
 

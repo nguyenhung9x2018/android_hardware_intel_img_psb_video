@@ -20,6 +20,13 @@
 * express and approved by Intel in writing.
 */
 
+
+/*
+ * Authors:
+ *    Fei Jiang <fei.jiang@intel.com>
+ *
+ */
+
 #include <va/va.h>
 #include <va/va_backend.h>
 
@@ -85,10 +92,15 @@ VAStatus psb_register_video_bcd(
         psb__error_message("buffer count is not correct.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
-
+    driver_data->bcd_buffer_num = num_surfaces;
     psb__information_message("In psb_register_video_bcd, call BC_Video_ioctl_set_buffer_phyaddr to bind buffer id with physical address.\n");
     bc_buf_ptr_t buf_pa;
-
+    
+    driver_data->bcd_ttm_handles = (uint32_t *)calloc(num_surfaces, sizeof(uint32_t));
+    if (NULL == driver_data->bcd_ttm_handles) {
+        psb__error_message("Out of memory.\n");
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    }
     for (i = 0; i < num_surfaces; i++) {
         psb_surface_p psb_surface;
         object_surface_p obj_surface = SURFACE(surface_list[i]);
@@ -98,6 +110,7 @@ VAStatus psb_register_video_bcd(
         /*get ttm buffer handle*/
         buf_pa.handle = wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf));
         buf_pa.index = i;
+        driver_data->bcd_ttm_handles[buf_pa.index] = buf_pa.handle;
         ioctl_package.ioctl_cmd = BC_Video_ioctl_set_buffer_phyaddr;
         ioctl_package.device_id = driver_data->bcd_id;
         ioctl_package.inputparam = (int)(&buf_pa);
@@ -133,6 +146,9 @@ VAStatus psb_release_video_bcd(VADriverContextP ctx)
         return VA_STATUS_ERROR_UNKNOWN;
     }
     driver_data->bcd_registered = 0;
+    driver_data->bcd_buffer_num = 0;
+    free(driver_data->bcd_ttm_handles);
+    driver_data->bcd_ttm_handles = NULL;
 
     return vaStatus;
 }

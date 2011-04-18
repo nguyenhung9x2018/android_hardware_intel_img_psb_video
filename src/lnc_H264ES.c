@@ -21,6 +21,13 @@
  * express and approved by Intel in writing.
  */
 
+/*
+ * Authors:
+ *    Zeng Li <zeng.li@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
+ *    Binglin Chen <binglin.chen@intel.com>
+ *
+ */
 
 
 #include "psb_def.h"
@@ -33,12 +40,13 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <limits.h>
 
 
 #define TOPAZ_H264_MAX_BITRATE 14000000 /* FIXME ?? */
 #define WORST_CASE_SLICE_HEADER_SIZE 200
 
-#define INIT_CONTEXT_H264ES	context_ENC_p ctx = (context_ENC_p) obj_context->format_data
+#define INIT_CONTEXT_H264ES     context_ENC_p ctx = (context_ENC_p) obj_context->format_data
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
@@ -136,7 +144,7 @@ static VAStatus lnc_H264ES_CreateContext(
         ctx->sRCParams.RCEnable = IMG_FALSE;
     } else
         return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
-    ctx->eFormat = IMG_CODEC_PL12;	/* use default */
+    ctx->eFormat = IMG_CODEC_PL12;      /* use default */
 
     ctx->IPEControl = lnc__get_ipe_control(ctx->eCodec);
     ctx->idr_pic_id = 1;
@@ -198,7 +206,7 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH264));
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH264))) {
+        (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH264))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -209,7 +217,7 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     obj_buffer->size = 0;
 
     if ((ctx->obj_context->frame_count != 0) &&
-            (ctx->sRCParams.BitsPerSecond != pSequenceParams->bits_per_second))
+        (ctx->sRCParams.BitsPerSecond != pSequenceParams->bits_per_second))
         ctx->update_rc_control = 1;
 
     /* a new sequence and IDR need reset frame_count */
@@ -240,10 +248,7 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
                              pSequenceParams->initial_qp,
                              pSequenceParams->min_qp);
 
-    if (ctx->eCodec == IMG_CODEC_H264_VCM)
-        ctx->sRCParams.InitialQp = pSequenceParams->initial_qp;
-    else
-        ctx->sRCParams.InitialQp = 0;
+    ctx->sRCParams.InitialQp = pSequenceParams->initial_qp;
 
     ctx->sRCParams.MinQP = pSequenceParams->min_qp;
     ctx->sRCParams.BUSize = pSequenceParams->basic_unit_size;
@@ -326,7 +331,7 @@ static VAStatus lnc__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
     if ((obj_buffer->num_elements != 1) ||
-            (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264))) {
+        (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -458,7 +463,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
 
     if (NULL == ctx->slice_param_cache) {
         ctx->slice_param_num = obj_buffer->num_elements;
-        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2*ctx->slice_param_num);
+        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2 * ctx->slice_param_num);
         ctx->slice_param_cache = calloc(2 * ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
         if (NULL == ctx->slice_param_cache) {
             psb__error_message("Run out of memory!\n");
@@ -491,7 +496,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
         }
 
         if ((pBuffer->slice_flags.bits.disable_deblocking_filter_idc == 0)
-                || (pBuffer->slice_flags.bits.disable_deblocking_filter_idc == 2))
+            || (pBuffer->slice_flags.bits.disable_deblocking_filter_idc == 2))
             deblock_on = IMG_TRUE;
         else
             deblock_on = IMG_FALSE;
@@ -535,7 +540,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
                 /* Setup InParams value*/
                 lnc_setup_slice_params(ctx,
                                        pBuffer->start_row_number * 16,
-                                       pBuffer->slice_height*16,
+                                       pBuffer->slice_height * 16,
                                        pBuffer->slice_flags.bits.is_intra,
                                        ctx->obj_context->frame_count > 0,
                                        psPicParams->sInParams.SeInitQP);
@@ -547,7 +552,7 @@ static VAStatus lnc__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
                                           pBuffer->start_row_number * 16,
                                           deblock_on,
                                           ctx->obj_context->frame_count,
-                                          pBuffer->slice_height*16,
+                                          pBuffer->slice_height * 16,
                                           ctx->obj_context->slice_count, ctx->max_slice_size);
 
             psb__information_message("Now frame_count/slice_count is %d/%d\n",
@@ -616,9 +621,8 @@ static VAStatus lnc__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
             rate_control_param->min_qp = atoi(hardcoded_qp);
 
         if (rate_control_param->initial_qp > 65535 ||
-                rate_control_param->initial_qp < 3 ||
-                rate_control_param->min_qp > 65535 ||
-                rate_control_param->target_percentage > 65535) {
+            rate_control_param->min_qp > 65535 ||
+            rate_control_param->target_percentage > 65535) {
             vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
             break;
         }
@@ -641,10 +645,10 @@ static VAStatus lnc__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
                                  rate_control_param->bits_per_second);
 
         if ((rate_control_param->bits_per_second == ctx->sRCParams.BitsPerSecond) &&
-                (ctx->sRCParams.VCMBitrateMargin == rate_control_param->target_percentage * 128 / 100) &&
-                (ctx->sRCParams.BufferSize == ctx->sRCParams.BitsPerSecond / 1000 * rate_control_param->window_size) &&
-                (ctx->sRCParams.MinQP == rate_control_param->min_qp) &&
-                (ctx->sRCParams.InitialQp == rate_control_param->initial_qp))
+            (ctx->sRCParams.VCMBitrateMargin == rate_control_param->target_percentage * 128 / 100) &&
+            (ctx->sRCParams.BufferSize == ctx->sRCParams.BitsPerSecond / 1000 * rate_control_param->window_size) &&
+            (ctx->sRCParams.MinQP == rate_control_param->min_qp) &&
+            (ctx->sRCParams.InitialQp == rate_control_param->initial_qp))
             break;
         else
             ctx->update_rc_control = 1;
@@ -670,13 +674,15 @@ static VAStatus lnc__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     case VAEncMiscParameterTypeMaxSliceSize:
         max_slice_size_param = (VAEncMiscParameterMaxSliceSize *)pBuffer->data;
 
-        if (max_slice_size_param->max_slice_size > 65535 ||
-                max_slice_size_param->max_slice_size < WORST_CASE_SLICE_HEADER_SIZE * 2) {
+        if (max_slice_size_param->max_slice_size > INT_MAX ||
+            (max_slice_size_param->max_slice_size != 0 &&
+             max_slice_size_param->max_slice_size < WORST_CASE_SLICE_HEADER_SIZE)) {
             vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
             break;
         }
 
-        max_slice_size_param->max_slice_size -= WORST_CASE_SLICE_HEADER_SIZE;
+	if (max_slice_size_param->max_slice_size != 0)
+		max_slice_size_param->max_slice_size -= WORST_CASE_SLICE_HEADER_SIZE;
 
         if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
             break;
@@ -692,7 +698,7 @@ static VAStatus lnc__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
         air_param = (VAEncMiscParameterAIR *)pBuffer->data;
 
         if (air_param->air_num_mbs > 65535 ||
-                air_param->air_threshold > 65535) {
+            air_param->air_threshold > 65535) {
             vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
             break;
         }
@@ -841,9 +847,9 @@ VAStatus lnc_H264_append_aux_info(object_context_p obj_context,
     struct coded_buf_aux_info *p_prev_aux_info;
 
     if (NULL == ctx->p_coded_buf_info ||
-            (ctx->eCodec != IMG_CODEC_H264_VBR
-             && ctx->eCodec != IMG_CODEC_H264_CBR
-             && ctx->eCodec != IMG_CODEC_H264_NO_RC))
+        (ctx->eCodec != IMG_CODEC_H264_VBR
+         && ctx->eCodec != IMG_CODEC_H264_CBR
+         && ctx->eCodec != IMG_CODEC_H264_NO_RC))
         return VA_STATUS_SUCCESS;
 
     ASSERT(obj_buffer);

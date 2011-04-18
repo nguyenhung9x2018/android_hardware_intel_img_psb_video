@@ -20,6 +20,13 @@
  * express and approved by Intel in writing.
  */
 
+
+/*
+ * Authors:
+ *    Waldo Bastian <waldo.bastian@intel.com>
+ *
+ */
+
 #ifndef _PSB_DEF_H_
 #define _PSB_DEF_H_
 
@@ -35,7 +42,7 @@
 #ifdef DEBUG_TRACE
 
 #ifndef ASSERT
-#define ASSERT	assert
+#define ASSERT  assert
 #endif
 
 #ifndef IMG_ASSERT
@@ -53,11 +60,11 @@
 #endif /* DEBUG_TRACE */
 
 #ifndef FALSE
-#define FALSE 	0
+#define FALSE   0
 #endif
 
 #ifndef TRUE
-#define TRUE 	1
+#define TRUE    1
 #endif
 
 
@@ -66,8 +73,8 @@ void psb__information_message(const char *msg, ...);
 void psb__trace_message(const char *msg, ...);
 
 
-#define DEBUG_FAILURE		while(vaStatus) {psb__information_message("%s fails with '%d' at %s:%d\n", __FUNCTION__, vaStatus, __FILE__, __LINE__);break;}
-#define DEBUG_FAILURE_RET	while(ret)		{psb__information_message("%s fails with '%s' at %s:%d\n", __FUNCTION__, strerror(ret < 0 ? -ret : ret), __FILE__, __LINE__);break;}
+#define DEBUG_FAILURE           while(vaStatus) {psb__information_message("%s fails with '%d' at %s:%d\n", __FUNCTION__, vaStatus, __FILE__, __LINE__);break;}
+#define DEBUG_FAILURE_RET       while(ret)              {psb__information_message("%s fails with '%s' at %s:%d\n", __FUNCTION__, strerror(ret < 0 ? -ret : ret), __FILE__, __LINE__);break;}
 
 
 #ifndef VA_FOURCC_YV16

@@ -23,6 +23,13 @@
 
 
 /*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *
+ */
+
+/*
  * Description  DMA code for mtx Platform     : Generic
  */
 
@@ -46,11 +53,11 @@ typedef struct {
 
 typedef enum {
     ELEMENT_STARTCODE_RAWDATA = 0,/* Rawdata that includes a start code */
-    ELEMENT_RAWDATA,		/* Rawdata */
-    ELEMENT_QP,			/* Insert the H264 Picture Header QP parameter (no rawdata) */
-    ELEMENT_SQP,		/* Insert the H264 Slice Header QP parameter (no rawdata) */
-    ELEMENT_FRAMEQSCALE,	/* Insert the H263/MPEG4 Frame Q_scale parameter (vob_quant field) (no rawdata) */
-    ELEMENT_SLICEQSCALE,	/* Insert the H263/MPEG4 Slice Q_scale parameter (quant_scale field) (no rawdata) */
+    ELEMENT_RAWDATA,            /* Rawdata */
+    ELEMENT_QP,                 /* Insert the H264 Picture Header QP parameter (no rawdata) */
+    ELEMENT_SQP,                /* Insert the H264 Slice Header QP parameter (no rawdata) */
+    ELEMENT_FRAMEQSCALE,        /* Insert the H263/MPEG4 Frame Q_scale parameter (vob_quant field) (no rawdata) */
+    ELEMENT_SLICEQSCALE,        /* Insert the H263/MPEG4 Slice Q_scale parameter (quant_scale field) (no rawdata) */
     ELEMENT_INSERTBYTEALIGN_H264,/* Insert the byte align field (no rawdata) */
     ELEMENT_INSERTBYTEALIGN_MPG4, /* Insert the byte align field  (no rawdata) */
 
@@ -89,7 +96,7 @@ typedef enum _SHPROFILES {
 /* Level number definitions (integer level numbers, non-intermediary only.. except level 1b) */
 typedef enum _SHLEVELS {
     SH_LEVEL_1 = 10,
-    SH_LEVEL_1B = 111,
+    SH_LEVEL_1B = 9,
     SH_LEVEL_11 = 11,
     SH_LEVEL_12 = 12,
     SH_LEVEL_13 = 13,
@@ -140,7 +147,7 @@ typedef struct _H264_CROP_PARAMS_STRUCT_ {
     IMG_UINT16 RightCropOffset;
     IMG_UINT16 TopCropOffset;
     IMG_UINT16 BottomCropOffset;
-}H264_CROP_PARAMS;
+} H264_CROP_PARAMS;
 
 typedef struct _H264_SEQUENCE_HEADER_PARAMS_STRUC {
     SH_PROFILE_TYPE ucProfile;
@@ -183,12 +190,12 @@ typedef enum _FIXED_VOP_TIME_ENUM {
 } FIXED_VOP_TIME_TYPE;
 
 typedef struct _VBVPARAMS_STRUC {
-    IMG_UINT32	First_half_bit_rate;
-    IMG_UINT32	Latter_half_bit_rate;
-    IMG_UINT32	First_half_vbv_buffer_size;
-    IMG_UINT32	Latter_half_vbv_buffer_size;
-    IMG_UINT32	First_half_vbv_occupancy;
-    IMG_UINT32	Latter_half_vbv_occupancy;
+    IMG_UINT32  First_half_bit_rate;
+    IMG_UINT32  Latter_half_bit_rate;
+    IMG_UINT32  First_half_vbv_buffer_size;
+    IMG_UINT32  Latter_half_vbv_buffer_size;
+    IMG_UINT32  First_half_vbv_occupancy;
+    IMG_UINT32  Latter_half_vbv_occupancy;
 } VBVPARAMS;
 
 
@@ -231,7 +238,7 @@ void pnw__H264_prepare_picture_header(IMG_UINT32 *pHeaderMemory, IMG_BOOL bCabac
 
 void pnw__H264_prepare_slice_header(
     IMG_UINT32 *pHeaderMemory,
-    IMG_BOOL	bIntraSlice,
+    IMG_BOOL    bIntraSlice,
     IMG_UINT32 uiDisableDeblockingFilterIDC,
     IMG_UINT32 uiFrameNumber,
     IMG_UINT32 uiFirst_MB_Address,
