@@ -55,9 +55,6 @@
 #include <sys/ioctl.h>
 
 #define INIT_DRIVER_DATA        psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
-#ifndef ANDROID
-#define INIT_OUTPUT_PRIV    psb_x11_output_p output = (psb_x11_output_p)(((psb_driver_data_p)ctx->pDriverData)->ws_priv)
-#endif
 
 #define SURFACE(id)     ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &driver_data->buffer_heap, id ))
@@ -134,8 +131,10 @@ VAStatus psb_initOutput(VADriverContextP ctx)
 
 #ifdef ANDROID
     ws_priv = psb_android_output_init(ctx);
+    driver_data->is_android = 1;
 #else
     ws_priv = psb_x11_output_init(ctx);
+    driver_data->is_android = 0;
 #endif
     driver_data->ws_priv = ws_priv;
 

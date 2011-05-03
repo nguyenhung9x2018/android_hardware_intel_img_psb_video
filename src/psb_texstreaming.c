@@ -121,6 +121,7 @@ VAStatus psb_register_video_bcd(
         }
     }
     psb__information_message("num_surface = %d, bcd_id = %d\n", num_surfaces, driver_data->bcd_id);
+    psb__android_message("In psb_register_video_bcd, num_surface = %d, bcd_id = %d\n", num_surfaces, driver_data->bcd_id);
     return vaStatus;
 }
 

@@ -38,7 +38,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#include <cutils/log.h>
 #include "psb_android_glue.h"
 #include "psb_texstreaming.h"
 #include <wsbm/wsbm_manager.h>
@@ -67,7 +66,6 @@ void *psb_android_output_init(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     char put_surface[1024];
-    struct drm_psb_register_rw_arg regs;
     psb_android_output_p output = calloc(1, sizeof(psb_android_output_s));
 
     struct fb_var_screeninfo vinfo = {0};
@@ -106,10 +104,6 @@ void *psb_android_output_init(VADriverContextP ctx)
         driver_data->coverlay = 1;
     }
     
-    /*set PIPEB(HDMI)source format as RGBA*/
-    memset(&regs, 0, sizeof(regs));
-    regs.subpicture_enable_mask = REGRWBITS_DSPBCNTR;
-    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
 
     return output;
 }
@@ -252,9 +246,12 @@ VAStatus psb_PutSurface(
         DEBUG_FAILURE;
         return vaStatus;
     }
-
+    if (NULL == android_isurface) {
+        psb__error_message("vaPutSurface: isurface is NULL passed from upper layer.\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
     if (driver_data->dummy_putsurface) {
-        LOGD("vaPutSurface: dummy mode, return directly\n");
+        psb__information_message("vaPutSurface: dummy mode, return directly\n");
         return VA_STATUS_SUCCESS;
     }
 
@@ -268,9 +265,7 @@ VAStatus psb_PutSurface(
     } else if ((driver_data->render_mode & VA_RENDER_MODE_LOCAL_OVERLAY) ||
                (driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) ||
                (driver_data->output_method == PSB_PUTSURFACE_COVERLAY)) {
-        LOGD("In psb_PutSurface, use overlay to display video.\n");
-        LOGD("srcx is %d, srcy is %d, srcw is %d, srch is %d, destx is %d, desty is %d, destw is %d, desth is %d.\n", \
-             srcx, srcy, srcw, srch, destx, desty, destw, desth);
+        psb__information_message("Use overlay to display video.\n");
         /*Use overlay to render local display*/
         if (destw > output->screen_width)
             destw = output->screen_width;
@@ -289,10 +284,13 @@ VAStatus psb_PutSurface(
                                               flags, OVERLAY_C, PIPEB);
         }
     } else {
-        LOGD("In psb_PutSurface, use texture streaming to display video.\n");
-        LOGD("In psb_PutSurface, call psb_android_register_isurface to create texture streaming source, srcw is %d, srch is %d.\n", srcw, srch);
+#if 0
+        psb__android_message("In psb_PutSurface, srcx is %d, srcy is %d, srcw is %d, srch is %d, destx is %d, desty is %d, destw is %d, desth is %d.\n",
+            srcx, srcy, srcw, srch, destx, desty, destw, desth);
+#endif
+        psb__information_message("Use texture streaming to display video.\n");
         if (psb_android_register_isurface(android_isurface, driver_data->bcd_id, srcw, srch)) {
-            LOGE("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
+            psb__error_message("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
             return VA_STATUS_ERROR_UNKNOWN;
         }
         /*blend/positioning setting can be called by app directly, or enable VA_ENABLE_BLEND flag to let driver call*/
@@ -307,7 +305,7 @@ VAStatus psb_PutSurface(
             srcw = obj_surface->width;
             srch = obj_surface->height_origin;
         }
-		psb_android_texture_streaming_set_texture_dim(srcw, srch);
+        psb_android_texture_streaming_set_texture_dim(srcw, srch);
 #if 0
         /*use cliprect for crop*/
         if (cliprects && (number_cliprects == 1))
@@ -327,7 +325,6 @@ VAStatus psb_PutSurface(
 	    return VA_STATUS_ERROR_UNKNOWN;
 	}
 
-	LOGD("buffer handle is %d and buffer index is %d.\n", ttm_handle, i);
 	psb_android_texture_streaming_display(i);
 
         /*Use overlay to render external HDMI display*/

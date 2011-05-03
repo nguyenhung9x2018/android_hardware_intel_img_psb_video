@@ -468,6 +468,7 @@ typedef struct
     PVR2D_UINT                          uiNumLayers;            /* no. of YUV planes */
     PVR2D_UCHAR                         RotationValue;          /* Rotation setting */
     PVR2D_SURFACE			sSrcSubpic[6];          /* subpic source surfaces */
+    PVR2D_UCHAR 			subpicGlobalAlpha[6];  	/* global alpha value for each subpic */
     PVR2DRECT                           rcSubpicSource[6];	/* source rectangle */
     PVR2DRECT				rcSubpicDest[6];	/* subpicture destination rectangle */
     PPVR2DMEMINFO			pPalMemInfo[6];		/* source/pattern palette memory containing argb8888 color table */

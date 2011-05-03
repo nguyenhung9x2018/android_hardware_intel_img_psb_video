@@ -1359,9 +1359,19 @@ int psb_coverlay_init(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = &driver_data->coverlay_priv;
+    struct drm_psb_register_rw_arg regs;
 
     memset(pPriv, 0, sizeof(PsbPortPrivRec));
     pPriv->is_mfld = IS_MFLD(driver_data);
+
+    if (pPriv->is_mfld && driver_data->is_android) {
+        psb__information_message("Android ExtVideo: set PIPEB(HDMI)source format as RGBA\n");
+        
+        memset(&regs, 0, sizeof(regs));
+        regs.subpicture_enable_mask = REGRWBITS_DSPBCNTR;
+        drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+    }
+    
     psbSetupImageVideoOverlay(ctx, pPriv);
 
     I830ResetVideo(ctx, pPriv);

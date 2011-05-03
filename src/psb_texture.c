@@ -549,13 +549,11 @@ void psb_putsurface_textureblit(
     /* wrap the dest source */
     /* FIXME: this is wrap for rgb565 */
     if (wrap_dst == 0) {
-        pDstMeminfo = (PPVR2DMEMINFO)dst;
 
-        if (IS_MFLD(driver_data))
-            sBltVP.sDst.Stride = PVRCalculateStride(dst_w, 32, 8);
-        if (IS_MRST(driver_data))
-            sBltVP.sDst.Stride = PVRCalculateStride(dst_w, 32, 32);
+        pDstMeminfo = (PPVR2DMEMINFO)dst;
+	sBltVP.sDst.Stride = PVRCalculateStride(width, 32, 8);
         sBltVP.sDst.Format = PVR2D_ARGB8888;
+
     } else {
         ePVR2DStatus = PVR2DMemWrap(driver_data->hPVR2DContext,
                                     dst,

@@ -113,6 +113,7 @@ void psb_android_texture_streaming_set_texture_dim(unsigned short srcw,
         else
             isurface->setTextureStreamDim(srcw, srch - 1);
 #else
+        LOGD("In psb_android_texture_streaming_set_texture_dim: srcw is %d, srch is %d.\n", srcw, srch);
         /*surface flinger will do the upper height correction*/
         isurface->setTextureStreamDim(srcw, srch);
 #endif

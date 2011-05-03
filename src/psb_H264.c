@@ -617,7 +617,9 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
 
     if ((obj_buffer->num_elements != 1) ||
         (obj_buffer->size != sizeof(VAPictureParameterBufferH264)) ||
-        (NULL == target_surface)) {
+       (NULL == target_surface) ||
+       (NULL == obj_buffer->buffer_data)) {
+        psb__error_message("picture parameter buffer is not valid.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -776,7 +778,9 @@ static VAStatus psb__H264_process_iq_matrix(context_H264_p ctx, object_buffer_p 
     ASSERT(obj_buffer->size == sizeof(VAIQMatrixBufferH264));
 
     if ((obj_buffer->num_elements != 1) ||
-        (obj_buffer->size != sizeof(VAIQMatrixBufferH264))) {
+       (obj_buffer->size != sizeof(VAIQMatrixBufferH264)) ||
+       (NULL == obj_buffer->buffer_data)) {
+        psb__error_message("iq matrix buffer is not valid.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -797,7 +801,8 @@ static VAStatus psb__H264_process_slice_group_map(context_H264_p ctx, object_buf
     ASSERT(obj_buffer->num_elements == 1);
 //    ASSERT(obj_buffer->size == ...);
 
-    if (obj_buffer->num_elements != 1) {
+    if((obj_buffer->num_elements != 1) ||
+        (NULL == obj_buffer->psb_buffer)) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -1703,18 +1708,28 @@ static VAStatus psb__H264_process_slice_data(context_H264_p ctx, object_buffer_p
     ASSERT(ctx->pic_params);
     ASSERT(ctx->slice_param_list_idx);
 
-    if (!ctx->pic_params) {
+    if((!ctx->pic_params) || (!ctx->slice_param_list_idx)) {
         /* Picture params missing */
+        psb__error_message("picture/slice parameter buffer should not be empty.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
     if ((NULL == obj_buffer->psb_buffer) ||
         (0 == obj_buffer->size)) {
         /* We need to have data in the bitstream buffer */
+        psb__error_message("bitstream buffer should not be empty.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
     while (buffer_idx < ctx->slice_param_list_idx) {
         object_buffer_p slice_buf = ctx->slice_param_list[buffer_idx];
+        /*need check whether slice parameter buffer is valid*/
+        if ((NULL == slice_buf) ||
+            (NULL == slice_buf->buffer_data) ||
+            (slice_buf->size != sizeof(VASliceParameterBufferH264))) {
+            psb__error_message("slice parameter buffer is not valid.\n");
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+
         if (element_idx >= slice_buf->num_elements) {
             /* Move to next buffer */
             element_idx = 0;

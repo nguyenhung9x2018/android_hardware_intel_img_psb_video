@@ -38,9 +38,7 @@
 /* #define DEBUG_TRACE */
 /* #define DEBUG_TRACE_VERBOSE */
 
-
 #ifdef DEBUG_TRACE
-
 #ifndef ASSERT
 #define ASSERT  assert
 #endif
@@ -53,7 +51,6 @@
 
 #undef ASSERT
 #undef IMG_ASSERT
-
 #define ASSERT(x)
 #define IMG_ASSERT(x)
 
@@ -70,6 +67,12 @@
 
 void psb__error_message(const char *msg, ...);
 void psb__information_message(const char *msg, ...);
+#ifdef ANDROID
+#define psb__android_message(format, ...) \
+	LOGD(format, ##__VA_ARGS__)
+#else
+#define psb__android_message(format, ...)
+#endif
 void psb__trace_message(const char *msg, ...);
 
 

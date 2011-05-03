@@ -49,6 +49,8 @@
 #else
 #define XID unsigned int
 #define INT16 unsigned int
+#include <cutils/log.h>
+#define LOG_TAG "pvr_drv_video"
 #endif
 #include "hwdefs/dxva_fw_flags.h"
 #include <wsbm/wsbm_pool.h>
@@ -60,6 +62,7 @@
 #ifndef max
 #define max(a, b) ((a) > (b)) ? (a) : (b)
 #endif
+
 /*
  * WORKAROUND_DMA_OFF_BY_ONE: LLDMA requests may access one additional byte which can cause
  * a MMU fault if the next byte after the buffer end is on a different page that isn't mapped.
@@ -257,6 +260,8 @@ struct psb_driver_data_s {
     uint32_t wrapped_subpic_id[VIDEO_BUFFER_NUM];
     PVR2DMEMINFO *videoBuf[VIDEO_BUFFER_NUM];
     PVR2DMEMINFO *subpicBuf[VIDEO_BUFFER_NUM];
+
+    int is_android;
 };
 
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)

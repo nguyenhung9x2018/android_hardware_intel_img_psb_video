@@ -197,6 +197,9 @@ void psb__error_message(const char *msg, ...)
             GetTickCount(), getpid(), pthread_self());
     va_start(args, msg);
     vfprintf(fp, msg, args);
+#ifdef ANDROID
+    LOGE(msg, args);
+#endif
     va_end(args);
 
     fflush(fp);
@@ -2696,6 +2699,13 @@ VAStatus psb_CreateSurfacesForUserPtr(
         return vaStatus;
     }
 
+    /* We only support NV12/YV12 */
+    if (((VA_RT_FORMAT_YUV420 == format) && (fourcc != VA_FOURCC_NV12)) ||
+        ((VA_RT_FORMAT_YUV422 == format) && (fourcc != VA_FOURCC_YV16))) {
+        psb__error_message("Only support NV12/YV16 format\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+    
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
     if (VA_STATUS_SUCCESS != vaStatus) {
         DEBUG_FAILURE;
