@@ -58,6 +58,7 @@ extern "C" {
     void psb_android_texture_streaming_destroy();
 
     int psb_android_register_isurface(void** surface, int bcd_id, int srcw, int srch);
+    int psb_android_fallback_overlay();
 
 #ifdef __cplusplus
 }

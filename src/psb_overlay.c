@@ -46,7 +46,7 @@
 #include "psb_overlay.h"
 
 #ifdef ANDROID
-#define psb_xrandr_single_mode() 1
+#define psb_xrandr_single_mode() 0
 #else
 int psb_xrandr_single_mode();
 #endif
@@ -190,7 +190,6 @@ static void I830StopVideo(VADriverContextP ctx)
 #if 0
     REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
 #endif
-
     memset(&regs, 0, sizeof(regs));
     if (pPriv->subpicture_enabled) {
         regs.subpicture_disable_mask = pPriv->subpicture_enable_mask;
@@ -205,6 +204,7 @@ static void I830StopVideo(VADriverContextP ctx)
             regs.overlay_read_mask = OVC_REGRWBITS_OVADD;
             drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
 
+            overlayC->DWINSZ = 0x00000000;
             overlayC->OCMD &= ~OVERLAY_ENABLE;
             regs.overlay_read_mask = 0;
             regs.overlay_write_mask = OVC_REGRWBITS_OVADD;
@@ -217,6 +217,7 @@ static void I830StopVideo(VADriverContextP ctx)
             regs.overlay_read_mask = OV_REGRWBITS_OVADD;
             drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
 
+            overlayA->DWINSZ = 0x00000000;
             overlayA->OCMD &= ~OVERLAY_ENABLE;
             regs.overlay_read_mask = 0;
             regs.overlay_write_mask = OV_REGRWBITS_OVADD;
@@ -224,10 +225,15 @@ static void I830StopVideo(VADriverContextP ctx)
             pPriv->overlayA_enabled = 0;
         }
     } else {
-        regs.overlay_write_mask = OV_REGRWBITS_OVADD;
-        regs.overlay.OVADD = offsetA;
-        pPriv->overlayA_enabled = 0;
+        regs.overlay_read_mask = OV_REGRWBITS_OVADD;
         drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+
+        overlayA->DWINSZ = 0x00000000;
+        overlayA->OCMD &= ~OVERLAY_ENABLE;
+        regs.overlay_read_mask = 0;
+        regs.overlay_write_mask = OV_REGRWBITS_OVADD;
+        drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+        pPriv->overlayA_enabled = 0;
     }
 }
 
@@ -464,7 +470,7 @@ i830_display_video(
     overlay->DCLRKV = pPriv->colorKey;
 #if USE_ROTATION_FUNC
     if (((pipeId == PIPEA) && (driver_data->mipi0_rotation != VA_ROTATION_NONE)) ||
-        ((pipeId == PIPEB) && (driver_data->hdmi_rotation != VA_ROTATION_NONE))) {
+            ((pipeId == PIPEB) && (driver_data->hdmi_rotation != VA_ROTATION_NONE))) {
         switch (pPriv->rotation) {
         case VA_ROTATION_NONE:
             break;
@@ -1027,7 +1033,7 @@ dump_out:
             }
         }
         if ((driver_data->mipi0_rotation == VA_ROTATION_NONE) ||
-            (driver_data->mipi0_rotation == VA_ROTATION_180)) {
+                (driver_data->mipi0_rotation == VA_ROTATION_180)) {
             pPriv->width_save = pPriv->display_width;
             pPriv->height_save = pPriv->display_height;
         } else {
@@ -1047,7 +1053,7 @@ dump_out:
             }
         }
         if ((driver_data->hdmi_rotation == VA_ROTATION_NONE) ||
-            (driver_data->hdmi_rotation == VA_ROTATION_180)) {
+                (driver_data->hdmi_rotation == VA_ROTATION_180)) {
             pPriv->width_save = pPriv->extend_display_width;
             pPriv->height_save = pPriv->extend_display_height;
         } else {
@@ -1189,9 +1195,9 @@ dump_out:
 
 #if USE_DISPLAY_C_SPRITE
     if (fourcc == FOURCC_RGBA   \
-        || (fourcc == FOURCC_XVVA   \
-            && (pPriv->rotation != RR_Rotate_0) \
-            && (vaPtr->dst_srf.fourcc == VA_FOURCC_RGBA)))
+            || (fourcc == FOURCC_XVVA   \
+                && (pPriv->rotation != RR_Rotate_0) \
+                && (vaPtr->dst_srf.fourcc == VA_FOURCC_RGBA)))
         i830_display_video_sprite(pScrn, crtc, width, height, dstPitch,
                                   &dstBox, sprite_offset);
     else
@@ -1365,10 +1371,13 @@ int psb_coverlay_init(VADriverContextP ctx)
     pPriv->is_mfld = IS_MFLD(driver_data);
 
     if (pPriv->is_mfld && driver_data->is_android) {
-        psb__information_message("Android ExtVideo: set PIPEB(HDMI)source format as RGBA\n");
+        psb__information_message("Android ExtVideo: set PIPEB(HDMI)display plane on the bottom.\n");
         
         memset(&regs, 0, sizeof(regs));
-        regs.subpicture_enable_mask = REGRWBITS_DSPBCNTR;
+        regs.display_read_mask = REGRWBITS_DSPBCNTR;
+        drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+        regs.display.dspcntr_b |= DISPPLANE_BOTTOM;
+        regs.display_write_mask = REGRWBITS_DSPBCNTR;
         drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
     }
     
@@ -1390,6 +1399,18 @@ int psb_coverlay_deinit(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = &driver_data->coverlay_priv;
+    struct drm_psb_register_rw_arg regs;
+
+    if (pPriv->is_mfld && driver_data->is_android) {
+        psb__information_message("Android ExtVideo: set PIPEB(HDMI)display plane normal.\n");
+
+        memset(&regs, 0, sizeof(regs));
+        regs.display_read_mask = REGRWBITS_DSPBCNTR;
+        drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+        regs.display.dspcntr_b &= ~DISPPLANE_BOTTOM;
+        regs.display_write_mask = REGRWBITS_DSPBCNTR;
+        drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+    }
 
     psbPortPrivDestroy(ctx, pPriv);
 

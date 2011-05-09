@@ -243,6 +243,8 @@ void psb_ctexture_init(VADriverContextP ctx)
     texture_priv->desth_save = 0;
     texture_priv->local_rotation_save = -1;
     texture_priv->extend_rotation_save = -1;
+    texture_priv->dri_drawable= NULL;
+    texture_priv->extend_dri_drawable= NULL;
 
     for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
         texture_priv->blt_meminfo[i] = NULL;
@@ -312,13 +314,16 @@ void psb_ctexture_deinit(VADriverContextP ctx)
         }
     }
 
+    /* release all dri drawable buffer */
+    //free_drawable_hashtable(ctx);
+
     if (driver_data->hPVR2DContext) {
 	ePVR2DStatus = PVR2DDestroyDeviceContext(driver_data->hPVR2DContext);
 	if (ePVR2DStatus != PVR2D_OK)
 	    psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
 	driver_data->hPVR2DContext = NULL;
     }
-    
+
     if (driver_data->dup_drm_fd)
         close(driver_data->dup_drm_fd);
 }
@@ -551,7 +556,7 @@ void psb_putsurface_textureblit(
     if (wrap_dst == 0) {
 
         pDstMeminfo = (PPVR2DMEMINFO)dst;
-	sBltVP.sDst.Stride = PVRCalculateStride(width, 32, 8);
+	sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 8);
         sBltVP.sDst.Format = PVR2D_ARGB8888;
 
     } else {
@@ -614,7 +619,8 @@ void psb_putsurface_textureblit(
             }
 
 	    object_subpic_p obj_subpic = SUBPIC(surface_subpic->subpic_id);
-	    sBltVP.GlobalAlphaValue = obj_subpic->global_alpha;
+	    sBltVP.AlphaBlendingFunc = PVR2D_ALPHA_OP_GLOBAL;
+	    sBltVP.subpicGlobalAlpha[i] = obj_subpic->global_alpha;
 
             sBltVP.sSrcSubpic[i].pSurfMemInfo = pVaVideoSubpicMemInfo;
             sBltVP.sSrcSubpic[i].SurfOffset = 0;

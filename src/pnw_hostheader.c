@@ -756,7 +756,8 @@ static void pnw__H264_writebits_sequence_header(
         pnw__write_upto8bits_elements(pMTX_Header,
                                       // constrain_set0_flag = 1 for BP constraints
                                       aui32ElementPointers, (0 << 7) |
-                                      (0 << 6) |        // constrain_set1_flag  = 1 for MP constraints
+				      // constrain_set1_flag  = 1 for MP constraints and Constrained Baseline profile.
+                                      ((pSHParams->ucProfile == SH_PROFILE_BP ? 1 : 0) << 6) |
                                       (0 << 5) |        // constrain_set2_flag = 1 for HP
                                       // constrain_set3_flag = 1 for level 1b, 0 for others
                                       ((pSHParams->ucLevel == SH_LEVEL_1B ?     1 : 0) <<       4),

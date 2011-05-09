@@ -50,7 +50,7 @@
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
-int psb_parse_config(char *env, char *env_value);
+
 
 static void lnc_H264ES_QueryConfigAttributes(
     VAProfile profile,

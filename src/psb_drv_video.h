@@ -50,6 +50,7 @@
 #define XID unsigned int
 #define INT16 unsigned int
 #include <cutils/log.h>
+#undef  LOG_TAG
 #define LOG_TAG "pvr_drv_video"
 #endif
 #include "hwdefs/dxva_fw_flags.h"
@@ -478,6 +479,8 @@ inline static char * buffer_type_to_string(int type)
         return "UnknowBuffer";
     }
 }
+
+int psb_parse_config(char *env, char *env_value);
 
 int LOCK_HARDWARE(psb_driver_data_p driver_data);
 int UNLOCK_HARDWARE(psb_driver_data_p driver_data);

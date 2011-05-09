@@ -40,7 +40,9 @@
 #include <stdarg.h>
 #include "psb_android_glue.h"
 #include "psb_texstreaming.h"
+#include "psb_HDMIExtMode.h"
 #include <wsbm/wsbm_manager.h>
+#include <psb_drm.h>
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define INIT_OUTPUT_PRIV    psb_android_output_p output = (psb_android_output_p)(((psb_driver_data_p)ctx->pDriverData)->ws_priv)
@@ -66,6 +68,7 @@ void *psb_android_output_init(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     char put_surface[1024];
+    struct drm_psb_register_rw_arg regs;
     psb_android_output_p output = calloc(1, sizeof(psb_android_output_s));
 
     struct fb_var_screeninfo vinfo = {0};
@@ -98,20 +101,33 @@ void *psb_android_output_init(VADriverContextP ctx)
     /* Init CTEXTURE for vaPutSurfaceBuf */
     driver_data->ctexture = 1;
 
+    if (psb_parse_config("PSB_VIDEO_TS", &put_surface[0]) == 0) {
+        psb__information_message("Putsurface use texstreaming\n");
+        driver_data->output_method = PSB_PUTSURFACE_FORCE_TEXSTREAMING;
+    }
+
     if (psb_parse_config("PSB_VIDEO_COVERLAY", &put_surface[0]) == 0) {
         psb__information_message("Putsurface use client overlay\n");
         driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
-        driver_data->coverlay = 1;
     }
-    
+
+    if (IS_MFLD(driver_data)) {
+        driver_data->coverlay = 1;
+        if (psb_HDMIExt_init(ctx)) {
+            psb__error_message("Failed to init psb_HDMIExt.\n");
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+    }
 
     return output;
 }
 
 VAStatus psb_android_output_deinit(VADriverContextP ctx)
 {
-    INIT_OUTPUT_PRIV;
+    INIT_DRIVER_DATA;
     //psb_android_output_p output = GET_OUTPUT_DATA(ctx);
+    if (IS_MFLD(driver_data))
+        psb_HDMIExt_deinit();
 
     return VA_STATUS_SUCCESS;
 }
@@ -140,33 +156,18 @@ static VAStatus psb_putsurface_ctexture(
     obj_surface = SURFACE(surface);
     psb_surface = obj_surface->psb_surface;
 
-//    psb_surface->buf.drm_buf;
-//    psb_surface->buf.pl_flags;
-
-#if 0
-    printf("pl_flags %x\n", psb_surface->buf.pl_flags);
-
-    printf("FIXME: not sure how Android app handle rotation?\n"
-           "need to revise width & height here?\n");
-
-    printf("FIXME: need to prepare a rotation/RAR surface here?\n");
-
-    printf("FIXME: camera preview surface is different, all is \n"
-           "just one buffer, so a pre_add is needed\n");
-    psb__error_message("srcx %d, srcy %d, srcw %d, srch %d, destx %d, desty %d, destw %d,\n"
-                       "desth %d, width %d height %d, stride %d drm_buf %x\n",
-                       srcx, srcy, srcw, srch, destx, desty, destw, desth, obj_surface->width,
-                       obj_surface->height, psb_surface->stride, psb_surface->buf.drm_buf);
-#endif
-    psb_putsurface_textureblit(ctx, data, surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 0, /* no subtitle */
+    //    psb_surface->buf.drm_buf;
+    //    psb_surface->buf.pl_flags;
+    psb_putsurface_textureblit(ctx, data, surface, srcx, srcy, srcw, srch,
+                               destx, desty, destw, desth, 0, /* no subtitle */
                                obj_surface->width, obj_surface->height,
                                psb_surface->stride, psb_surface->buf.drm_buf,
                                psb_surface->buf.pl_flags, 1 /* need wrap dst */);
 
     psb_android_postBuffer(offset);
+
     return VA_STATUS_SUCCESS;
 }
-
 
 VAStatus psb_putsurface_coverlay(
     VADriverContextP ctx,
@@ -208,6 +209,8 @@ VAStatus psb_putsurface_coverlay(
     destw = _destw;
     desth = _desth;
 
+    psb__information_message("psb_putsurface_overlay: srcx is %d, srcy is %d, srcw is %d, srch is %d, destx is %d, desty is %d, destw is %d, desth is %d.\n", \
+                             srcx, srcy, srcw, srch, destx, desty, destw, desth);
     /* display by overlay */
     vaStatus = psb_putsurface_overlay(
                    ctx, surface, srcx, srcy, srcw, srch,
@@ -216,7 +219,6 @@ VAStatus psb_putsurface_coverlay(
 
     return vaStatus;
 }
-
 
 VAStatus psb_PutSurface(
     VADriverContextP ctx,
@@ -239,6 +241,8 @@ VAStatus psb_PutSurface(
     INIT_OUTPUT_PRIV;
     object_surface_p obj_surface;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
+    psb_hdmi_mode hdmi_mode = OFF;
 
     obj_surface = SURFACE(surface);
     if (NULL == obj_surface) {
@@ -246,35 +250,67 @@ VAStatus psb_PutSurface(
         DEBUG_FAILURE;
         return vaStatus;
     }
-    if (NULL == android_isurface) {
-        psb__error_message("vaPutSurface: isurface is NULL passed from upper layer.\n");
+
+    if ((srcx < 0) || (srcx > obj_surface->width) || (srcw > (obj_surface->width - srcx)) ||
+            (srcy < 0) || (srcy > obj_surface->height_origin) || (srch > (obj_surface->height_origin - srcy))) {
+        psb__error_message("vaPutSurface: source rectangle passed from upper layer is not correct.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
+    if ((destx < 0) || (desty < 0)) {
+        psb__error_message("vaPutSurface: dest rectangle passed from upper layer is not correct.\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+
     if (driver_data->dummy_putsurface) {
         psb__information_message("vaPutSurface: dummy mode, return directly\n");
         return VA_STATUS_SUCCESS;
     }
 
-    if (driver_data->render_device == VA_RENDER_DEVICE_EXTERNAL) {
+    if (IS_MFLD(driver_data)) {
+	if (psb_HDMIExt_update(ctx)) {
+	    psb__error_message("%s: Failed to update HDMIExt info.\n", __FUNCTION__);
+	    return VA_STATUS_ERROR_UNKNOWN;
+	}
+
+        hdmi_mode = psb_HDMIExt_get_mode();
+        psb__information_message("hdmi_mode = %d\n", hdmi_mode);
+        if (hdmi_mode != OFF) {
+            psb_HDMIExt_get_prop(&driver_data->render_rect.width, &driver_data->render_rect.height,
+                                 &driver_data->render_rect.x, &driver_data->render_rect.y);
+            psb__information_message("driver_data->render_rect.width=%d, driver_data->render_rect.height=%d, driver_data->render_rect.x =%d, driver_data->render_rect.y=%d\n",
+                                     driver_data->render_rect.width, driver_data->render_rect.height, driver_data->render_rect.x, driver_data->render_rect.y);
+        }
+    }
+    if ((driver_data->render_device == VA_RENDER_DEVICE_EXTERNAL) ||
+            (hdmi_mode == EXTENDED_VIDEO)) {
         /*Use overlay to render external HDMI display*/
+        psb__information_message("Use overlay to render external HDMI display.\n");
         vaStatus = psb_putsurface_overlay(ctx, surface,
                                           srcx, srcy, srcw, srch,
                                           driver_data->render_rect.x, driver_data->render_rect.y,
                                           driver_data->render_rect.width, driver_data->render_rect.height,
                                           flags, OVERLAY_A, PIPEB);
-    } else if ((driver_data->render_mode & VA_RENDER_MODE_LOCAL_OVERLAY) ||
+    } else if (((hdmi_mode != CLONE) && psb_android_fallback_overlay()
+                && (driver_data->output_method != PSB_PUTSURFACE_FORCE_TEXSTREAMING)) ||
+               (driver_data->render_mode & VA_RENDER_MODE_LOCAL_OVERLAY) ||
                (driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) ||
                (driver_data->output_method == PSB_PUTSURFACE_COVERLAY)) {
         psb__information_message("Use overlay to display video.\n");
+        /*Hack for repaint color key to black(0,0,0).*/
+        if (!pPriv->overlayA_enabled) {
+            psb_android_texture_streaming_display(-1);
+            LOGD("It is a Hack for repainting color key for overlay. Ignore the error message \"Texture Streaming Fails...\".\n");
+        }
+
         /*Use overlay to render local display*/
         if (destw > output->screen_width)
             destw = output->screen_width;
         if (desth > output->screen_height)
             desth = output->screen_height;
-        vaStatus = psb_putsurface_overlay(ctx, surface,
-                                          srcx, srcy, srcw, srch,
-                                          destx, desty, destw, desth,
-                                          flags, OVERLAY_A, PIPEA);
+        vaStatus = psb_putsurface_coverlay(ctx, surface,
+                                           srcx, srcy, srcw, srch,
+                                           destx, desty, destw, desth,
+                                           flags);
         /*Use overlay to render external HDMI display*/
         if (driver_data->render_device & VA_RENDER_DEVICE_EXTERNAL) {
             vaStatus = psb_putsurface_overlay(ctx, surface,
@@ -286,9 +322,12 @@ VAStatus psb_PutSurface(
     } else {
 #if 0
         psb__android_message("In psb_PutSurface, srcx is %d, srcy is %d, srcw is %d, srch is %d, destx is %d, desty is %d, destw is %d, desth is %d.\n",
-            srcx, srcy, srcw, srch, destx, desty, destw, desth);
+                             srcx, srcy, srcw, srch, destx, desty, destw, desth);
 #endif
         psb__information_message("Use texture streaming to display video.\n");
+        /*Stop overlay if overlay still enabled*/
+        psb_coverlay_stop(ctx);
+
         if (psb_android_register_isurface(android_isurface, driver_data->bcd_id, srcw, srch)) {
             psb__error_message("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
             return VA_STATUS_ERROR_UNKNOWN;
@@ -311,30 +350,22 @@ VAStatus psb_PutSurface(
         if (cliprects && (number_cliprects == 1))
             psb_android_texture_streaming_set_crop(cliprects->x, cliprects->y, cliprects->width, cliprects->height);
 #endif
-	uint32_t ttm_handle, i;
-	psb_surface_p psb_surface;
-	psb_surface = obj_surface->psb_surface;
-	ttm_handle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+        uint32_t ttm_handle, i;
+        psb_surface_p psb_surface;
+        psb_surface = obj_surface->psb_surface;
+        ttm_handle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
 
-	for (i = 0; i < driver_data->bcd_buffer_num; i++) {
-	    if (driver_data->bcd_ttm_handles[i] == ttm_handle)
-		break;
-	}
-	if (i == driver_data->bcd_buffer_num) {
-	    psb__error_message("Failed to get buffer index.\n");
-	    return VA_STATUS_ERROR_UNKNOWN;
-	}
-
-	psb_android_texture_streaming_display(i);
-
-        /*Use overlay to render external HDMI display*/
-        if (driver_data->render_device & VA_RENDER_DEVICE_EXTERNAL) {
-            vaStatus = psb_putsurface_overlay(ctx, surface,
-                                              srcx, srcy, srcw, srch,
-                                              driver_data->render_rect.x, driver_data->render_rect.y,
-                                              driver_data->render_rect.width, driver_data->render_rect.height,
-                                              flags, OVERLAY_A, PIPEB);
+        for (i = 0; i < driver_data->bcd_buffer_num; i++) {
+            if (driver_data->bcd_ttm_handles[i] == ttm_handle)
+                break;
         }
+        if (i == driver_data->bcd_buffer_num) {
+            psb__error_message("Failed to get buffer index.\n");
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+
+        psb_android_texture_streaming_display(i);
+
     }
 
     return vaStatus;

@@ -35,6 +35,7 @@
 #include <surfaceflinger/Surface.h>
 #include <surfaceflinger/ISurface.h>
 #include <surfaceflinger/SurfaceComposerClient.h>
+#include <surfaceflinger/ISurfaceComposer.h>
 #include <binder/MemoryHeapBase.h>
 #include "psb_android_glue.h"
 #include "psb_texstreaming.h"
@@ -200,3 +201,14 @@ void psb_android_texture_streaming_destroy()
         isurface->destroyTextureStreamSource();
 }
 
+int psb_android_fallback_overlay()
+{
+    if (isurface.get()) {
+	uint32_t pm = isurface->getVideoPostMethod();
+	if (pm == ISurfaceComposer::eVideoPostOverlay) {
+	    return 1;
+	}
+    }
+
+    return 0;
+}

@@ -72,6 +72,12 @@ static VAStatus psb_extend_dri_init(VADriverContextP ctx, unsigned int destx, un
     if (!output->extend_drawable) {
         psb__error_message("%s: Failed to create drawable for extend display # %d\n", __func__, output->extend_drawable);
     }
+
+    if (texture_priv->extend_dri_drawable) {
+	free_drawable(ctx, texture_priv->extend_dri_drawable);
+	texture_priv->extend_dri_drawable = NULL;
+    }
+
     texture_priv->extend_dri_drawable = dri_get_drawable(ctx, output->extend_drawable);
     if (!texture_priv->extend_dri_drawable) {
         psb__error_message("%s(): Failed to get extend_dri_drawable\n", __func__);
@@ -108,15 +114,19 @@ static VAStatus psb_extend_dri_init(VADriverContextP ctx, unsigned int destx, un
 static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
 {
     INIT_DRIVER_DATA;
-    INIT_OUTPUT_PRIV;
     union dri_buffer *dri_buffer;
     PPVR2DMEMINFO dri2_bb_export_meminfo;
     struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
     struct dri_drawable *tmp_drawable;
     int i, ret;
 
-    
-    texture_priv->dri_drawable = dri_get_drawable(ctx, output->output_drawable);
+    /* free the previous drawable buffer */
+    if (texture_priv->dri_drawable) {
+	free_drawable(ctx, texture_priv->dri_drawable);
+	texture_priv->dri_drawable = NULL;
+    }
+
+    texture_priv->dri_drawable = dri_get_drawable(ctx, draw);
     if (!texture_priv->dri_drawable) {
         psb__error_message("%s(): Failed to get dri_drawable\n", __func__);
         return VA_STATUS_ERROR_UNKNOWN;
@@ -131,6 +141,9 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
 
     /* pixmap */
     if (!tmp_drawable->is_window) {
+	if (texture_priv->blt_meminfo_pixmap)
+	    PVR2DMemFree(driver_data->hPVR2DContext, texture_priv->blt_meminfo_pixmap);
+
         ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &texture_priv->blt_meminfo_pixmap);
         if (ret != PVR2D_OK) {
             psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);

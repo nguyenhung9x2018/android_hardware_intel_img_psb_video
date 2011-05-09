@@ -48,6 +48,7 @@ LOCAL_SRC_FILES :=		\
     psb_texstreaming.c            \
     psb_texture.c            \
     android/psb_output_android.c            \
+    android/psb_HDMIExtMode.c               \
     android/psb_android_glue.cpp            \
     psb_surface.c           \
     psb_overlay.c		\

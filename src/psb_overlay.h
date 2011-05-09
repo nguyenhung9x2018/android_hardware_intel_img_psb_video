@@ -78,6 +78,19 @@
 
 #define CLAMP_ATTR(a,max,min) (a>max?max:(a<min?min:a))
 
+/*DSPCNTR - Display Control Register*/
+#define DISPLAY_PLANE_ENABLE 			(1<<31)
+#define DISPLAY_PLANE_DISABLE			0
+#define DISPPLANE_GAMMA_ENABLE			(1<<30)
+#define DISPPLANE_GAMMA_DISABLE			0
+#define DISPPLANE_PIXFORMAT_MASK		(0xf<<26)
+#define DISPPLANE_8BPP				(0x2<<26)
+#define DISPPLANE_15_16BPP			(0x4<<26)
+#define DISPPLANE_16BPP				(0x5<<26)
+#define DISPPLANE_32BPP_NO_ALPHA 		(0x6<<26)
+#define DISPPLANE_32BPP				(0x7<<26)
+#define DISPPLANE_BOTTOM			(4)
+
 /*
  * OCMD - Overlay Command Register
  */

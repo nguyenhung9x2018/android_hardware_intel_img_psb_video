@@ -793,6 +793,12 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
             return vaStatus;
         }
     }
+
+    //SET_SURFACE_INFO_picture_coding_type(ctx->decoded_surface->psb_surface, pic_params->picture_fields.bits.frame_coding_mode);
+    SET_SURFACE_INFO_picture_coding_type(ctx->obj_context->current_render_target->psb_surface, pic_params->picture_fields.bits.frame_coding_mode);
+    ctx->forward_ref_fcm =  pic_params->picture_fields.bits.frame_coding_mode;
+    ctx->backward_ref_fcm =  pic_params->picture_fields.bits.frame_coding_mode;
+
     /* Lookup surfaces for backward/forward references */
     ctx->forward_ref_surface = NULL;
     ctx->backward_ref_surface = NULL;
@@ -802,6 +808,12 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     if (pic_params->backward_reference_picture != VA_INVALID_SURFACE) {
         ctx->backward_ref_surface = SURFACE(pic_params->backward_reference_picture);
     }
+
+    if (ctx->forward_ref_surface)
+        ctx->forward_ref_fcm = GET_SURFACE_INFO_picture_coding_type(ctx->forward_ref_surface->psb_surface );
+
+    if (ctx->backward_ref_surface)
+        ctx->backward_ref_fcm = GET_SURFACE_INFO_picture_coding_type(ctx->backward_ref_surface->psb_surface );
 
 #if 0
     if (NULL == ctx->forward_ref_surface) {
@@ -2270,9 +2282,13 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     /* CR_VEC_VC1_BE_PPS2 */
     cmd = 0;
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF2, ctx->ui8FCM_Ref2Pic);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF1, ctx->ui8FCM_Ref1Pic);
-    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF0, ctx->ui8FCM_Ref0Pic);
+    //REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF2, ctx->ui8FCM_Ref2Pic);
+    //REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF1, ctx->ui8FCM_Ref1Pic);
+    //REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF0, ctx->ui8FCM_Ref0Pic);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF2, ctx->backward_ref_fcm);
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF1, ctx->forward_ref_fcm);
+    //REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF0, GET_SURFACE_INFO_picture_coding_type(ctx->decoded_surface->psb_surface));
+    REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_FCM_REF0, GET_SURFACE_INFO_picture_coding_type(ctx->obj_context->current_render_target->psb_surface));
     REGIO_WRITE_FIELD(cmd, MSVDX_VEC_VC1, CR_VEC_VC1_BE_PPS2, VC1_BE_COLLOCATED_SKIPPED, 0); // @TODO: Really need this?
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 

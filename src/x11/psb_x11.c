@@ -380,6 +380,12 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
         return 0;
     }
 
+    /* Assign default value for MRST */
+    if (IS_MRST(driver_data))
+	driver_data->output_method = PSB_PUTSURFACE_OVERLAY;
+    else if (IS_MFLD(driver_data))
+	driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
+
     if (driver_data->overlay_auto_paint_color_key)
 	driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
 

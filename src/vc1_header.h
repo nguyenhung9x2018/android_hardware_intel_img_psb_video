@@ -307,6 +307,9 @@ struct context_VC1_s {
     uint32_t *p_slice_params; /* pointer to ui32SliceParams in CMD_HEADER_VC1 */
     uint32_t *slice_first_pic_last;
     uint32_t *alt_output_flags;
+
+    uint32_t forward_ref_fcm;
+    uint32_t backward_ref_fcm;
 };
 
 typedef struct context_VC1_s *context_VC1_p;

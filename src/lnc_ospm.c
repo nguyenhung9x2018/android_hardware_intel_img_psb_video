@@ -169,7 +169,7 @@ int lnc_ospm_start(psb_driver_data_p driver_data, int encode)
 {
     int ret;
 
-    if (getenv("PSB_VIDEO_NO_OSPM"))
+    if (psb_parse_config("PSB_VIDEO_NOPM", NULL) == 0)
         return 0;
 
     if (IS_MRST(driver_data)) {

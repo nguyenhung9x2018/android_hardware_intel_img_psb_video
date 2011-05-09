@@ -127,7 +127,7 @@ int psb_parse_config(char *env, char *env_value)
     FILE *fp = NULL;
     char *env_ptr;
 
-    if (env_value == NULL)
+    if (env == NULL)
         return 1;
 
     fp = fopen("/etc/psbvideo.conf", "r");
@@ -1001,11 +1001,6 @@ VAStatus psb_DestroySurfaces(
         if (VA_STATUS_SUCCESS != psb_release_video_bcd(ctx))
             return VA_STATUS_ERROR_UNKNOWN;
 
-    /* This is work around.
-       Add sufficient delay for gfx to release surface pages,
-       Avoid page leak message in TTM */
-    usleep(1000*100);
-
     /* Free PVR2D buffer wrapped from the surfaces */
     psb_free_surface_pvr2dbuf(driver_data);
 
@@ -1026,6 +1021,7 @@ VAStatus psb_DestroySurfaces(
 
         if (driver_data->cur_displaying_surface == surface_list[i]) {
             /* Surface is being displaying. Need to stop overlay here */
+            psb_coverlay_stop(ctx);
         }
 
         psb__destroy_surface(driver_data, obj_surface);
@@ -1779,7 +1775,6 @@ VAStatus psb_CreateBuffer(
 
 VAStatus psb_BufferInfo(
     VADriverContextP ctx,
-    VAContextID context,        /* in */
     VABufferID buf_id,  /* in */
     VABufferType *type, /* out */
     unsigned int *size,         /* out */
