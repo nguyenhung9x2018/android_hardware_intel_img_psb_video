@@ -314,9 +314,6 @@ void psb_ctexture_deinit(VADriverContextP ctx)
         }
     }
 
-    /* release all dri drawable buffer */
-    //free_drawable_hashtable(ctx);
-
     if (driver_data->hPVR2DContext) {
 	ePVR2DStatus = PVR2DDestroyDeviceContext(driver_data->hPVR2DContext);
 	if (ePVR2DStatus != PVR2D_OK)

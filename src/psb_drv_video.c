@@ -77,7 +77,7 @@
 #endif
 
 #define PSB_DRV_VERSION  PSB_PACKAGE_VERSION
-#define PSB_CHG_REVISION "(0X00000064)"
+#define PSB_CHG_REVISION "(0X00000066)"
 
 #define PSB_STR_VENDOR_MRST     "Intel GMA500-MRST-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_MFLD     "Intel GMA500-MFLD-" PSB_DRV_VERSION " " PSB_CHG_REVISION
@@ -198,7 +198,7 @@ void psb__error_message(const char *msg, ...)
     va_start(args, msg);
     vfprintf(fp, msg, args);
 #ifdef ANDROID
-    LOGE(msg, args);
+    __android_log_vprint(ANDROID_LOG_ERROR,"pvr_drv_video", msg, args);
 #endif
     va_end(args);
 
@@ -2876,6 +2876,7 @@ int UNLOCK_HARDWARE(psb_driver_data_p driver_data)
 static void psb__deinitDRM(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA
+    struct dri_state *dri_state = (struct dri_state *)ctx->dri_state;
 
     if (driver_data->main_pool) {
         driver_data->main_pool->takeDown(driver_data->main_pool);
@@ -2890,7 +2891,7 @@ static void psb__deinitDRM(VADriverContextP ctx)
         wsbmTakedown();
 
     close(driver_data->drm_fd);
-    driver_data->drm_fd  = -1;
+    driver_data->drm_fd = dri_state->fd = -1;
 }
 
 

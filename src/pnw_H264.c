@@ -1128,8 +1128,8 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     if (slice_param->slice_type == ST_B ||  slice_param->slice_type == ST_P) {
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, H264_CR_VEC_H264_BE_LIST0));
 
-        if (slice_param->num_ref_idx_l0_active_minus1 > (32 - 4)) {
-            psb__error_message("num_ref_idx_l0_active_minus1(%d) is too big. Set it with 28\n",
+        if (slice_param->num_ref_idx_l0_active_minus1 > 31) {
+            psb__error_message("num_ref_idx_l0_active_minus1(%d) is too big, limit it to 31.\n",
                                slice_param->num_ref_idx_l0_active_minus1);
             slice_param->num_ref_idx_l0_active_minus1 = 28;
         }

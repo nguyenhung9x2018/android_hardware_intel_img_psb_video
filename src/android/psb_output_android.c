@@ -40,6 +40,7 @@
 #include <stdarg.h>
 #include "psb_android_glue.h"
 #include "psb_texstreaming.h"
+#include "psb_output_android.h"
 #include "psb_HDMIExtMode.h"
 #include <wsbm/wsbm_manager.h>
 #include <psb_drm.h>
@@ -52,16 +53,6 @@
 #define IMAGE(id)  ((object_image_p) object_heap_lookup( &driver_data->image_heap, id ))
 #define SUBPIC(id)  ((object_subpic_p) object_heap_lookup( &driver_data->subpic_heap, id ))
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
-
-
-typedef struct _psb_android_output_s {
-    /* information of output display */
-    unsigned short screen_width;
-    unsigned short screen_height;
-
-    /* for memory heap base used by putsurface */
-    unsigned char* heap_addr;
-} psb_android_output_s, *psb_android_output_p;
 
 
 void *psb_android_output_init(VADriverContextP ctx)
@@ -113,7 +104,8 @@ void *psb_android_output_init(VADriverContextP ctx)
 
     if (IS_MFLD(driver_data)) {
         driver_data->coverlay = 1;
-        if (psb_HDMIExt_init(ctx)) {
+        output->psb_HDMIExt_info = psb_HDMIExt_init(ctx, output);
+        if (!output->psb_HDMIExt_info) {
             psb__error_message("Failed to init psb_HDMIExt.\n");
             return VA_STATUS_ERROR_UNKNOWN;
         }
@@ -125,9 +117,11 @@ void *psb_android_output_init(VADriverContextP ctx)
 VAStatus psb_android_output_deinit(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
+    INIT_OUTPUT_PRIV;
     //psb_android_output_p output = GET_OUTPUT_DATA(ctx);
-    if (IS_MFLD(driver_data))
-        psb_HDMIExt_deinit();
+    if (IS_MFLD(driver_data)) {
+        psb_HDMIExt_deinit(output);
+    }
 
     return VA_STATUS_SUCCESS;
 }
@@ -242,6 +236,7 @@ VAStatus psb_PutSurface(
     object_surface_p obj_surface;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
+    psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
     psb_hdmi_mode hdmi_mode = OFF;
 
     obj_surface = SURFACE(surface);
@@ -267,15 +262,15 @@ VAStatus psb_PutSurface(
     }
 
     if (IS_MFLD(driver_data)) {
-	if (psb_HDMIExt_update(ctx)) {
-	    psb__error_message("%s: Failed to update HDMIExt info.\n", __FUNCTION__);
-	    return VA_STATUS_ERROR_UNKNOWN;
-	}
+        if (psb_HDMIExt_update(ctx, psb_HDMIExt_info)) {
+            psb__error_message("%s: Failed to update HDMIExt info.\n", __FUNCTION__);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
 
-        hdmi_mode = psb_HDMIExt_get_mode();
+        hdmi_mode = psb_HDMIExt_get_mode(output);
         psb__information_message("hdmi_mode = %d\n", hdmi_mode);
         if (hdmi_mode != OFF) {
-            psb_HDMIExt_get_prop(&driver_data->render_rect.width, &driver_data->render_rect.height,
+            psb_HDMIExt_get_prop(output, &driver_data->render_rect.width, &driver_data->render_rect.height,
                                  &driver_data->render_rect.x, &driver_data->render_rect.y);
             psb__information_message("driver_data->render_rect.width=%d, driver_data->render_rect.height=%d, driver_data->render_rect.x =%d, driver_data->render_rect.y=%d\n",
                                      driver_data->render_rect.width, driver_data->render_rect.height, driver_data->render_rect.x, driver_data->render_rect.y);

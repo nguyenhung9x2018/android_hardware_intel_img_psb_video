@@ -31,6 +31,7 @@
 #ifndef ANDROID
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
+#include <va/va_dricommon.h>
 #include "x11/psb_x11.h"
 #include "x11/psb_xrandr.h"
 #endif
@@ -168,6 +169,7 @@ VAStatus psb_deinitOutput(
 )
 {
     INIT_DRIVER_DATA;
+    struct dri_state *dri_state = (struct dri_state *)ctx->dri_state;
 
     //use client textureblit
     if (driver_data->ctexture == 1)
@@ -178,6 +180,11 @@ VAStatus psb_deinitOutput(
     
 #ifndef ANDROID
     psb_x11_output_deinit(ctx);
+
+    /* close dri fd and release all drawable buffer */
+    if (driver_data->ctexture == 1) {
+	(*dri_state->close)(ctx);
+    }
 #else
     psb_android_output_deinit(ctx);
 #endif

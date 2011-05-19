@@ -168,6 +168,7 @@ struct psb_driver_data_s {
     struct _WsbmFenceMgr *fence_mgr;
 
     enum psb_output_method_t output_method;
+    enum psb_output_method_t output_method_save;
 
     /* whether the post-processing use client overlay or not */
     int coverlay;

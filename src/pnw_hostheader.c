@@ -2608,7 +2608,7 @@ void pnw__H264_prepare_sequence_header(
     case 10:
         SHParams.ucLevel =  SH_LEVEL_1;
         break;
-    case 9:
+    case 111:
         SHParams.ucLevel =  SH_LEVEL_1B;
         break;
     case 11:

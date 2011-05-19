@@ -111,6 +111,32 @@ static VAStatus psb_extend_dri_init(VADriverContextP ctx, unsigned int destx, un
     return VA_STATUS_SUCCESS;
 }
 
+/* reset buffer to prevent non-video area distorting when rendering into part of a drawable */
+static void psb_dri_reset_mem(VADriverContextP ctx)
+{
+    INIT_DRIVER_DATA;
+    unsigned int i, size;
+    struct dri_drawable *tmp_drawable;
+    struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
+
+    tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;    
+    size = tmp_drawable->width * tmp_drawable->height * 4;
+
+    if (!tmp_drawable->is_window) {
+	memset(texture_priv->blt_meminfo_pixmap->pBase, 0x0, size);
+	return;
+    } else {
+	if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS)
+	    for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++)
+		memset(texture_priv->blt_meminfo[i]->pBase, 0x0, size);
+	if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN)
+	    for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++)
+		memset(texture_priv->blt_meminfo[i]->pBase, 0x0, size);
+    }
+
+    return;
+}
+
 static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
 {
     INIT_DRIVER_DATA;
@@ -149,44 +175,44 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
             psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
+    /* window */
+    } else {
+	ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &dri2_bb_export_meminfo);
+	if (ret != PVR2D_OK) {
+            psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+            return VA_STATUS_ERROR_UNKNOWN;
+	}
 
-        texture_priv->dri_init_flag = 1;
-        return VA_STATUS_SUCCESS;
-    }
+	memcpy(&texture_priv->dri2_bb_export, dri2_bb_export_meminfo->pBase, sizeof(PVRDRI2BackBuffersExport));
 
-    ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &dri2_bb_export_meminfo);
-    if (ret != PVR2D_OK) {
-        psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
+	if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS) {
+            psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS\n");
 
-    memcpy(&texture_priv->dri2_bb_export, dri2_bb_export_meminfo->pBase, sizeof(PVRDRI2BackBuffersExport));
+	    for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
+		ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->blt_meminfo[i]);
+		if (ret != PVR2D_OK) {
+		    psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+		    return VA_STATUS_ERROR_UNKNOWN;
+		}
+	    }
+	} else if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN) {
+            psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN\n");
 
-    if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS) {
-        psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS\n");
+	    for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++) {
+		ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->flip_meminfo[i]);
+		if (ret != PVR2D_OK) {
+		    psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+		    return VA_STATUS_ERROR_UNKNOWN;
+		}
+	    }
+	}
 
-        for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
-            ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->blt_meminfo[i]);
-            if (ret != PVR2D_OK) {
-                psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
-                return VA_STATUS_ERROR_UNKNOWN;
-            }
-        }
-    } else if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN) {
-        psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN\n");
-
-        for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++) {
-            ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->flip_meminfo[i]);
-            if (ret != PVR2D_OK) {
-                psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
-                return VA_STATUS_ERROR_UNKNOWN;
-            }
-        }
+	PVR2DMemFree(driver_data->hPVR2DContext, dri2_bb_export_meminfo);
     }
 
     texture_priv->dri_init_flag = 1;
 
-    PVR2DMemFree(driver_data->hPVR2DContext, dri2_bb_export_meminfo);
+    psb_dri_reset_mem(ctx);
     return VA_STATUS_SUCCESS;
 }
 

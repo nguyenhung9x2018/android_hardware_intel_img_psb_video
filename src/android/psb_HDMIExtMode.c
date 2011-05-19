@@ -1,15 +1,43 @@
+/*
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ *
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission.
+ *
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
+ */
+
+/*
+ * Authors:
+ *    Jason Hu <jason.hu@intel.com>
+ */
+
 #include "psb_HDMIExtMode.h"
+#include "psb_output_android.h"
 #include "pvr2d.h"
 #include "psb_drv_video.h"
 
-/* Global variable for HDMIExt. */
-psb_HDMIExt_info_p psb_HDMIExt_info;
-
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 
-VAStatus psb_HDMIExt_get_prop(unsigned short *xres, unsigned short *yres,
+VAStatus psb_HDMIExt_get_prop(psb_android_output_p output,
+                              unsigned short *xres, unsigned short *yres,
                               short *xoffset, short *yoffset)
 {
+    psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
+
     if (!psb_HDMIExt_info || !psb_HDMIExt_info->hdmi_extvideo_prop ||
             (psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode == OFF)) {
         psb__error_message("%s : Failed to get HDMI prop\n", __FUNCTION__);
@@ -22,8 +50,10 @@ VAStatus psb_HDMIExt_get_prop(unsigned short *xres, unsigned short *yres,
     return VA_STATUS_SUCCESS;
 }
 
-psb_hdmi_mode psb_HDMIExt_get_mode()
+psb_hdmi_mode psb_HDMIExt_get_mode(psb_android_output_p output)
 {
+    psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
+
     if (!psb_HDMIExt_info) {
         psb__error_message("%s : Failed to get HDMI mode\n", __FUNCTION__);
         return VA_STATUS_ERROR_UNKNOWN;
@@ -31,7 +61,7 @@ psb_hdmi_mode psb_HDMIExt_get_mode()
     return psb_HDMIExt_info->hdmi_mode;
 }
 
-VAStatus psb_HDMIExt_update(VADriverContextP ctx)
+VAStatus psb_HDMIExt_update(VADriverContextP ctx, psb_HDMIExt_info_p psb_HDMIExt_info)
 {
     INIT_DRIVER_DATA;
     drmModeCrtc *hdmi_crtc = NULL;
@@ -90,13 +120,15 @@ VAStatus psb_HDMIExt_update(VADriverContextP ctx)
     return VA_STATUS_SUCCESS;
 }
 
-VAStatus psb_HDMIExt_init(VADriverContextP ctx)
+psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p output)
 {
     INIT_DRIVER_DATA;
+    drmModeRes *resources;
     drmModeConnector *connector = NULL;
     drmModeEncoder *mipi_encoder = NULL;
     drmModeCrtc *mipi_crtc = NULL;
     int mipi_connector_id = 0, mipi_encoder_id = 0, mipi_crtc_id = 0, i;
+    psb_HDMIExt_info_p psb_HDMIExt_info = NULL;
 
     psb_HDMIExt_info = (psb_HDMIExt_info_p)calloc(1, sizeof(psb_HDMIExt_info_s));
     if (!psb_HDMIExt_info) {
@@ -108,24 +140,24 @@ VAStatus psb_HDMIExt_init(VADriverContextP ctx)
     psb_HDMIExt_info->hdmi_extvideo_prop = (psb_extvideo_prop_p)calloc(1, sizeof(psb_extvideo_prop_s));
     if (!psb_HDMIExt_info->hdmi_extvideo_prop) {
         psb__error_message("%s : Failed to create hdmi_extvideo_prop.\n", __FUNCTION__);
-        return VA_STATUS_ERROR_UNKNOWN;
+        return NULL;
     }
     memset(psb_HDMIExt_info->hdmi_extvideo_prop, 0, sizeof(psb_extvideo_prop_s));
 
     /*Get Resources.*/
-    psb_HDMIExt_info->resources = drmModeGetResources(driver_data->drm_fd);
-    if (!psb_HDMIExt_info->resources) {
+    resources = drmModeGetResources(driver_data->drm_fd);
+    if (!resources) {
         psb__error_message("%s : drmModeGetResources failed.\n", __FUNCTION__);
         goto exit;
     }
 
     /*Get MIPI and HDMI connector id.*/
-    for (i = 0; i < psb_HDMIExt_info->resources->count_connectors; i++) {
-        connector = drmModeGetConnector(driver_data->drm_fd, psb_HDMIExt_info->resources->connectors[i]);
+    for (i = 0; i < resources->count_connectors; i++) {
+        connector = drmModeGetConnector(driver_data->drm_fd, resources->connectors[i]);
 
         if (!connector) {
             psb__error_message("%s : Failed to get connector %i\n", __FUNCTION__,
-                               psb_HDMIExt_info->resources->connectors[i]);
+                               resources->connectors[i]);
             continue;
         }
 
@@ -173,30 +205,33 @@ VAStatus psb_HDMIExt_init(VADriverContextP ctx)
                              psb_HDMIExt_info->mipi_fb_id);
     drmModeFreeCrtc(mipi_crtc);
 
-    if (psb_HDMIExt_update(ctx))
+    if (psb_HDMIExt_update(ctx, psb_HDMIExt_info))
         goto exit;
 
-    return VA_STATUS_SUCCESS;
+    if (resources)
+        drmModeFreeResources(resources);
+
+    return psb_HDMIExt_info;
 
 exit:
-    if (psb_HDMIExt_info->resources)
-        drmModeFreeResources(psb_HDMIExt_info->resources);
+    if (resources)
+        drmModeFreeResources(resources);
 
     if (connector)
         drmModeFreeConnector(connector);
 
     free(psb_HDMIExt_info);
 
-    return VA_STATUS_ERROR_UNKNOWN;
+    return NULL;
 }
 
-VAStatus psb_HDMIExt_deinit()
+VAStatus psb_HDMIExt_deinit(psb_android_output_p output)
 {
-    if (psb_HDMIExt_info->resources)
-        drmModeFreeResources(psb_HDMIExt_info->resources);
+    psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
 
     if (psb_HDMIExt_info->hdmi_extvideo_prop)
         free(psb_HDMIExt_info->hdmi_extvideo_prop);
+
     if (psb_HDMIExt_info)
         free(psb_HDMIExt_info);
 
