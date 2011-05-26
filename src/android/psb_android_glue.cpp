@@ -201,13 +201,19 @@ void psb_android_texture_streaming_destroy()
         isurface->destroyTextureStreamSource();
 }
 
-int psb_android_fallback_overlay()
+int psb_android_surfaceflinger_status(void** android_isurface, int *sf_compositioin, int *rotation)
 {
-    if (isurface.get()) {
-	uint32_t pm = isurface->getVideoPostMethod();
-	if (pm == ISurfaceComposer::eVideoPostOverlay) {
-	    return 1;
-	}
+    sp<ISurface> tmp_isurface;
+
+    tmp_isurface = static_cast<ISurface*>(*android_isurface);
+    if (tmp_isurface.get()) {
+	uint32_t pm = tmp_isurface->getVideoPostMethod();
+
+	if ((pm & 0xff) == ISurfaceComposer::eVideoPostOverlay)
+	    *sf_compositioin = 0; /* no composition */
+        else
+	    *sf_compositioin = 1; /* with composition */
+        *rotation = (pm >> 8) & 0xff;
     }
 
     return 0;

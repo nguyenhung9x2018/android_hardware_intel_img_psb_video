@@ -98,6 +98,7 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     INIT_DRIVER_DATA;
     void *ws_priv = NULL;
     char *fps = NULL;
+    char env_value[1024];
 
     pthread_mutex_init(&driver_data->output_mutex, NULL);
 
@@ -126,6 +127,13 @@ VAStatus psb_initOutput(VADriverContextP ctx)
         psb__information_message("Throttling at FPS=%d\n", driver_data->fixed_fps);
     } else
         driver_data->fixed_fps = 0;
+
+    driver_data->outputmethod_checkinterval = 1;
+    if (psb_parse_config("PSB_VIDEO_INTERVAL", &env_value[0]) == 0) {
+        driver_data->outputmethod_checkinterval = atoi(env_value);
+        psb__information_message("Check output method at %d frames interval\n",
+                                 driver_data->outputmethod_checkinterval);
+    }
 
     driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
     driver_data->last_displaying_surface = VA_INVALID_SURFACE;
@@ -1384,7 +1392,7 @@ VAStatus psb_CreateSubpicture(
     obj_subpic->subpic_id = subpicID;
     obj_subpic->image_id = obj_image->image.image_id;
     obj_subpic->surfaces = NULL;
-    obj_subpic->global_alpha = 1;
+    obj_subpic->global_alpha = 255;
 
     obj_image->subpic_ref ++;
 
@@ -2022,22 +2030,19 @@ VAStatus psb_SetDisplayAttributes(
             driver_data->is_oold = p->value;
             break;
         case VADisplayAttribRotation:
-            driver_data->video_rotate = p->value;
-            angle = Rotation2Angle(driver_data->video_rotate) + Rotation2Angle(driver_data->mipi0_rotation);
+            driver_data->va_rotate = p->value;
+            angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->mipi0_rotation);
             driver_data->local_rotation = Angle2Rotation(angle);
-            angle = Rotation2Angle(driver_data->video_rotate) + Rotation2Angle(driver_data->hdmi_rotation);
+            angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->hdmi_rotation);
             driver_data->extend_rotation = Angle2Rotation(angle);
-#ifndef ANDROID
             if (driver_data->local_rotation == driver_data->extend_rotation) {
-                driver_data->rotate = driver_data->local_rotation;
+                driver_data->msvdx_rotate = ROTATE_VA2MSVDX(driver_data->local_rotation);
             } else {
-                driver_data->rotate = driver_data->video_rotate;
+                driver_data->msvdx_rotate = ROTATE_VA2MSVDX(driver_data->va_rotate);
                 /*fallback to texblit path*/
-                driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
+                if (driver_data->is_android == 0)
+                    driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
             }
-#endif
-            if (driver_data->rotate == VA_ROTATION_270)
-                driver_data->rotate = 3; /* Match with hw definition */
             break;
         case VADisplayAttribCSCMatrix:
             driver_data->load_csc_matrix = 1;

@@ -410,19 +410,6 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
         driver_data->output_method = PSB_PUTSURFACE_CTEXTURE;
     }
 
-    /* repaint color key when swtiching from clint texture to XV overlay */
-    if (driver_data->output_method_save == PSB_PUTSURFACE_CTEXTURE && driver_data->output_method == PSB_PUTSURFACE_OVERLAY) {
-	int val = 0;
-	Atom xvColorKey = XInternAtom((Display *)ctx->native_dpy, "XV_COLORKEY", 0);
-	XvGetPortAttribute((Display *)ctx->native_dpy, output->overlay_portID, xvColorKey, &val);
-
-        XSetForeground((Display *)ctx->native_dpy, output->gc, val);
-        XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, 0, 0, destw, desth);
-        XSync((Display *)ctx->native_dpy, False);
-    }
-
-    driver_data->output_method_save = driver_data->output_method;
-
     return 0;
 }
 

@@ -60,7 +60,7 @@ struct psb_surface_s {
     /* Used to store driver private data, e.g. decoder specific intermediate status data
      * extra_info[0-3]: used for decode
      * extra_info[4]: surface fourcc
-     * extra_info[5]: surface skippeded or not for encode
+     * extra_info[5]: surface skippeded or not for encode, rotate info for decode
      */
     int extra_info[6];
     int size;

@@ -553,7 +553,10 @@ void psb_putsurface_textureblit(
     if (wrap_dst == 0) {
 
         pDstMeminfo = (PPVR2DMEMINFO)dst;
-	sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 8);
+	if (IS_MRST(driver_data))
+	    sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 32);
+	if (IS_MFLD(driver_data))
+	    sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 8);
         sBltVP.sDst.Format = PVR2D_ARGB8888;
 
     } else {
@@ -673,6 +676,10 @@ void psb_putsurface_textureblit(
         if (ePVR2DStatus != PVR2D_OK)
             psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
     }
+
+    driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
+    driver_data->last_displaying_surface = VA_INVALID_SURFACE;
+    obj_surface->display_timestamp = 0;
 }
 
 static void

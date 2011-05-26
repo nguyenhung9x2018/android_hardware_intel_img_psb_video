@@ -168,7 +168,6 @@ struct psb_driver_data_s {
     struct _WsbmFenceMgr *fence_mgr;
 
     enum psb_output_method_t output_method;
-    enum psb_output_method_t output_method_save;
 
     /* whether the post-processing use client overlay or not */
     int coverlay;
@@ -223,8 +222,6 @@ struct psb_driver_data_s {
     pthread_t xrandr_thread_id;
     int extend_fullscreen;
 
-    int rotate;
-    int video_rotate;
     int drawable_info;
     int dummy_putsurface;
     int fixed_fps;
@@ -236,11 +233,15 @@ struct psb_driver_data_s {
     uint32_t color_key;
 
     /*output rotation info*/
-    int mipi0_rotation;
-    int mipi1_rotation;
-    int hdmi_rotation;
-    int local_rotation;
-    int extend_rotation;
+    int msvdx_rotate; /* msvdx rotate info programed to msvdx */
+    int va_rotate; /* VA rotate passed from APP */
+    int mipi0_rotation; /* window manager rotation */
+    int mipi1_rotation; /* window manager rotation */
+    int hdmi_rotation; /* window manager rotation */
+    int local_rotation; /* final device rotate: VA rotate+wm rotate */
+    int extend_rotation; /* final device rotate: VA rotate+wm rotate */
+    
+    unsigned int outputmethod_checkinterval;
     uint32_t bcd_id;
     uint32_t bcd_ioctrl_num;
     uint32_t bcd_registered;
@@ -277,6 +278,9 @@ struct object_config_s {
     int attrib_count;
     format_vtable_p format_vtable;
 };
+
+#define ROTATE_VA2MSVDX(va_rotate) va_rotate
+#define HAS_ROTATE(msvdx_rotate) (msvdx_rotate != ROTATE_VA2MSVDX(VA_ROTATION_NONE))
 
 struct object_context_s {
     struct object_base_s base;
@@ -326,7 +330,7 @@ struct object_context_s {
     uint32_t last_mb;
 
     int is_oold;
-    int rotate;
+    int msvdx_rotate;
 
     uint32_t msvdx_context;
 

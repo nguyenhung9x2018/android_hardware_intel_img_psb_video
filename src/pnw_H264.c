@@ -53,6 +53,8 @@
 #define SET_SURFACE_INFO_dpb_idx(psb_surface, val) psb_surface->extra_info[2] = val;
 #define GET_SURFACE_INFO_colocated_index(psb_surface) ((int) (psb_surface->extra_info[3]))
 #define SET_SURFACE_INFO_colocated_index(psb_surface, val) psb_surface->extra_info[3] = (uint32_t) val;
+#define SET_SURFACE_INFO_rotate(psb_surface, rotate) psb_surface->extra_info[5] = (uint32_t) rotate;
+#define GET_SURFACE_INFO_rotate(psb_surface) ((int) psb_surface->extra_info[5])
 
 #define IS_USED_AS_REFERENCE(pic_flags)         ( pic_flags & (VA_PICTURE_H264_SHORT_TERM_REFERENCE | VA_PICTURE_H264_LONG_TERM_REFERENCE) )
 
@@ -1019,7 +1021,7 @@ static void psb__H264_setup_alternative_frame(context_H264_p ctx)
     psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
     object_context_p obj_context = ctx->obj_context;
 
-    if (rotate_surface->extra_info[5] != obj_context->rotate)
+    if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)
         psb__error_message("Display rotate mode does not match surface rotate mode!\n");
 
 
@@ -1037,7 +1039,7 @@ static void psb__H264_setup_alternative_frame(context_H264_p ctx)
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, rotate_surface->extra_info[5]);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
     *ctx->alt_output_flags = cmd;
 
@@ -1396,7 +1398,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /*          If this a two pass mode deblock, then we will perform the rotation as part of the
      *          2nd pass deblock procedure
      */
-    if (!ctx->two_pass_mode && ctx->obj_context->rotate != VA_ROTATION_NONE) /* FIXME field coded should not issue */
+    if (!ctx->two_pass_mode && HAS_ROTATE(ctx->obj_context->msvdx_rotate)) /* FIXME field coded should not issue */
         psb__H264_setup_alternative_frame(ctx);
 
     /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
@@ -1825,12 +1827,12 @@ static VAStatus pnw_H264_EndPicture(
         uint32_t ext_stride_a = 0;
 
         psb__information_message("pnw_H264_EndPicture got two pass mode frame\n");
-        if (ctx->obj_context->rotate != VA_ROTATION_NONE) {
+        if (HAS_ROTATE(ctx->obj_context->msvdx_rotate)) {
             ASSERT(rotate_surface);
             REGIO_WRITE_FIELD_LITE(rotation_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
             REGIO_WRITE_FIELD_LITE(rotation_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
             REGIO_WRITE_FIELD_LITE(rotation_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
-            REGIO_WRITE_FIELD_LITE(rotation_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, rotate_surface->extra_info[5]);
+            REGIO_WRITE_FIELD_LITE(rotation_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
         }
 
         REGIO_WRITE_FIELD_LITE(ext_stride_a, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64);
@@ -1855,7 +1857,7 @@ static VAStatus pnw_H264_EndPicture(
             psb_buffer_p buffer_dst;
             uint32_t chroma_offset_dst;
 
-            if (ctx->obj_context->rotate == VA_ROTATION_NONE) {
+            if (HAS_ROTATE(ctx->obj_context->msvdx_rotate) == 0) {
                 buffer_dst = &target_surface->buf;
                 chroma_offset_dst = target_surface->chroma_offset;
             } else {

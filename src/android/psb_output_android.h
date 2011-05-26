@@ -39,6 +39,7 @@ typedef struct _psb_android_output_s {
 
     /*HDMI extend video mode info*/
     void* psb_HDMIExt_info;
+    unsigned int sf_composition; /* surfaceflinger compostion */
 } psb_android_output_s, *psb_android_output_p;
 
 #endif /*_PSB_OUTPUT_ANDROID_H_*/

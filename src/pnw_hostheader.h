@@ -96,7 +96,7 @@ typedef enum _SHPROFILES {
 /* Level number definitions (integer level numbers, non-intermediary only.. except level 1b) */
 typedef enum _SHLEVELS {
     SH_LEVEL_1 = 10,
-    SH_LEVEL_1B = 9,
+    SH_LEVEL_1B = 11,
     SH_LEVEL_11 = 11,
     SH_LEVEL_12 = 12,
     SH_LEVEL_13 = 13,

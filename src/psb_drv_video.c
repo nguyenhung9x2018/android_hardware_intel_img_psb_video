@@ -77,7 +77,7 @@
 #endif
 
 #define PSB_DRV_VERSION  PSB_PACKAGE_VERSION
-#define PSB_CHG_REVISION "(0X00000066)"
+#define PSB_CHG_REVISION "(0X00000068)"
 
 #define PSB_STR_VENDOR_MRST     "Intel GMA500-MRST-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_MFLD     "Intel GMA500-MFLD-" PSB_DRV_VERSION " " PSB_CHG_REVISION
@@ -106,6 +106,9 @@
 #define BUFFER_ID_OFFSET        0x04000000
 #define IMAGE_ID_OFFSET         0x05000000
 #define SUBPIC_ID_OFFSET        0x06000000
+
+#define SET_SURFACE_INFO_rotate(psb_surface, rotate) psb_surface->extra_info[5] = (uint32_t) rotate;
+#define GET_SURFACE_INFO_rotate(psb_surface) ((int) psb_surface->extra_info[5])
 
 static int psb_get_device_info(VADriverContextP ctx);
 
@@ -254,6 +257,7 @@ static int Rotation2Angle(int rotation)
     }
 }
 
+
 #ifdef DEBUG_TRACE
 void psb__trace_message(const char *msg, ...)
 {
@@ -266,9 +270,6 @@ void psb__trace_message(const char *msg, ...)
 
         if (psb_parse_config("PSB_VIDEO_TRACE", &trace_fn[0]) == 0)
             trace_file = trace_fn;
-
-        if (getenv("PSB_VIDEO_TRACE"))
-            trace_file = getenv("PSB_VIDEO_TRACE");
 
         if (trace_file) {
             trace = fopen(trace_file, "w");
@@ -808,7 +809,7 @@ VAStatus psb_CreateSurfaces(
         obj_surface->psb_surface = psb_surface;
 
         /* Allocate alternative output surface */
-        if (driver_data->rotate != VA_ROTATION_NONE) {
+        if (HAS_ROTATE(driver_data->msvdx_rotate)) {
             psb__information_message("Try to allocate surface for alternative rotate output\n");
             psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
             if (NULL == psb_surface) {
@@ -822,7 +823,7 @@ VAStatus psb_CreateSurfaces(
                 break;
             }
 
-            if (driver_data->rotate == VA_ROTATION_180)
+            if (driver_data->msvdx_rotate == ROTATE_VA2MSVDX(VA_ROTATION_180))
                 vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
                                               (VA_RT_FORMAT_PROTECTED & format), psb_surface);
             else {
@@ -844,7 +845,7 @@ VAStatus psb_CreateSurfaces(
             /* by default, surface fourcc is NV12 */
             memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
             psb_surface->extra_info[4] = VA_FOURCC_NV12;
-            psb_surface->extra_info[5] = driver_data->rotate;
+            SET_SURFACE_INFO_rotate(psb_surface, driver_data->msvdx_rotate);
 
             obj_surface->psb_surface_rotate = psb_surface;
         }
@@ -1124,7 +1125,7 @@ VAStatus psb_CreateContext(
     obj_context->driver_data = driver_data;
     obj_context->current_render_target = NULL;
     obj_context->is_oold = driver_data->is_oold;
-    obj_context->rotate = driver_data->rotate;
+    obj_context->msvdx_rotate = driver_data->msvdx_rotate;
 
     obj_context->context_id = contextID;
     obj_context->config_id = config_id;
@@ -1923,7 +1924,7 @@ static VAStatus psb__create_surface_rotation(VADriverContextP ctx, object_surfac
     width = obj_surface->width;
     height = obj_surface->height;
 
-    if (driver_data->rotate == VA_ROTATION_180) {
+    if (driver_data->msvdx_rotate == ROTATE_VA2MSVDX(VA_ROTATION_180)) {
         vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
                                       protected, psb_surface);
         obj_surface->width_r = width;
@@ -1944,7 +1945,7 @@ static VAStatus psb__create_surface_rotation(VADriverContextP ctx, object_surfac
     /* by default, surface fourcc is NV12 */
     memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
     psb_surface->extra_info[4] = VA_FOURCC_NV12;
-    psb_surface->extra_info[5] = driver_data->rotate;
+    SET_SURFACE_INFO_rotate(psb_surface, driver_data->msvdx_rotate);
 
     obj_surface->psb_surface_rotate = psb_surface;
     return vaStatus;
@@ -1996,39 +1997,39 @@ VAStatus psb_BeginPicture(
 
     if (driver_data->xrandr_dirty & PSB_NEW_ROTATION) {
         int angle;
-        angle = Rotation2Angle(driver_data->video_rotate) + Rotation2Angle(driver_data->mipi0_rotation);
+        angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->mipi0_rotation);
         driver_data->local_rotation = Angle2Rotation(angle);
-        angle = Rotation2Angle(driver_data->video_rotate) + Rotation2Angle(driver_data->hdmi_rotation);
+        angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->hdmi_rotation);
         driver_data->extend_rotation = Angle2Rotation(angle);
 #ifndef ANDROID
         if ((driver_data->mipi1_rotation != VA_ROTATION_NONE) ||
             ((driver_data->local_rotation != VA_ROTATION_NONE) &&
              (driver_data->extend_rotation != VA_ROTATION_NONE) &&
              (driver_data->local_rotation != driver_data->extend_rotation))) {
-            driver_data->rotate = driver_data->video_rotate;
+            driver_data->msvdx_rotate = driver_data->va_rotate;
             /*fallback to texblit path*/
             driver_data->output_method = PSB_PUTSURFACE_CTEXTURE;
         } else {
             if (driver_data->output_method != PSB_PUTSURFACE_FORCE_CTEXTURE) {
                 driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
-                driver_data->rotate = (driver_data->local_rotation == 0) ? driver_data->extend_rotation : driver_data->local_rotation;
+                if (HAS_ROTATE(driver_data->local_rotation))
+                    driver_data->msvdx_rotate = ROTATE_VA2MSVDX(driver_data->local_rotation);
+                else
+                    driver_data->msvdx_rotate = ROTATE_VA2MSVDX(driver_data->extend_rotation);
             }
         }
 #endif
-        if (driver_data->rotate == VA_ROTATION_270)
-            driver_data->rotate = 3; /* Match with hw definition */
-
         driver_data->xrandr_dirty &= ~PSB_NEW_ROTATION;
     }
     /* Create surface for rotation if needed */
-    if (driver_data->rotate == VA_ROTATION_NONE && obj_surface->psb_surface_rotate) {
+    if (HAS_ROTATE(driver_data->msvdx_rotate) == 0 && obj_surface->psb_surface_rotate) {
         psb_surface_destroy(obj_surface->psb_surface_rotate);
         obj_surface->psb_surface_rotate = NULL;
         obj_surface->width_r = obj_surface->width;
         obj_surface->height_r = obj_surface->height;
-        obj_context->rotate = driver_data->rotate;
-    } else if (driver_data->rotate != VA_ROTATION_NONE &&
-               (!obj_surface->psb_surface_rotate ? 1 : (obj_surface->psb_surface_rotate->extra_info[5] != driver_data->rotate))) {
+        obj_context->msvdx_rotate = driver_data->msvdx_rotate;
+    } else if (HAS_ROTATE(driver_data->msvdx_rotate) &&
+               (!obj_surface->psb_surface_rotate ? 1 : (GET_SURFACE_INFO_rotate(obj_surface->psb_surface_rotate) != driver_data->msvdx_rotate))) {
         if (!obj_surface->psb_surface_rotate) {
             psb__create_surface_rotation(ctx, obj_surface, obj_surface->psb_surface->buf.type == psb_bt_rar_surface);
         } else {
@@ -2036,7 +2037,7 @@ VAStatus psb_BeginPicture(
             free(obj_surface->psb_surface_rotate);
             psb__create_surface_rotation(ctx, obj_surface, obj_surface->psb_surface->buf.type == psb_bt_rar_surface);
         }
-        obj_context->rotate = driver_data->rotate;
+        obj_context->msvdx_rotate = driver_data->msvdx_rotate;
     }
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {
@@ -3267,8 +3268,8 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
 
     driver_data->use_xrandr_thread = 0;
     driver_data->xrandr_thread_id = 0;
-    driver_data->rotate = VA_ROTATION_NONE;
-    driver_data->video_rotate = VA_ROTATION_NONE;
+    driver_data->msvdx_rotate = ROTATE_VA2MSVDX(VA_ROTATION_NONE);
+    driver_data->va_rotate = VA_ROTATION_NONE;
     driver_data->xrandr_dirty = 0;
     driver_data->xrandr_update = 0;
 

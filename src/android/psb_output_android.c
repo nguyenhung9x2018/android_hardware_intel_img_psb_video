@@ -61,14 +61,13 @@ void *psb_android_output_init(VADriverContextP ctx)
     char put_surface[1024];
     struct drm_psb_register_rw_arg regs;
     psb_android_output_p output = calloc(1, sizeof(psb_android_output_s));
-
-    struct fb_var_screeninfo vinfo = {0};
+    struct fb_var_screeninfo vinfo;
     int fbfd = -1;
     int ret;
 
     if (output == NULL) {
         psb__error_message("Can't malloc memory\n");
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        return NULL;
     }
 
     /* Guess the screen size */
@@ -76,6 +75,7 @@ void *psb_android_output_init(VADriverContextP ctx)
     output->screen_height = 480;
 
     // Open the frame buffer for reading
+    memset(&vinfo, sizeof(vinfo), 0);
     fbfd = open("/dev/graphics/fb0", O_RDONLY);
     if (fbfd) {
         if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo))
@@ -107,7 +107,8 @@ void *psb_android_output_init(VADriverContextP ctx)
         output->psb_HDMIExt_info = psb_HDMIExt_init(ctx, output);
         if (!output->psb_HDMIExt_info) {
             psb__error_message("Failed to init psb_HDMIExt.\n");
-            return VA_STATUS_ERROR_UNKNOWN;
+            free(output);
+            return NULL;
         }
     }
 
@@ -203,7 +204,7 @@ VAStatus psb_putsurface_coverlay(
     destw = _destw;
     desth = _desth;
 
-    psb__information_message("psb_putsurface_overlay: srcx is %d, srcy is %d, srcw is %d, srch is %d, destx is %d, desty is %d, destw is %d, desth is %d.\n", \
+    psb__information_message("psb_putsurface_overlay: src (%d, %d, %d, %d), destx (%d, %d, %d, %d).\n",
                              srcx, srcy, srcw, srch, destx, desty, destw, desth);
     /* display by overlay */
     vaStatus = psb_putsurface_overlay(
@@ -212,6 +213,131 @@ VAStatus psb_putsurface_coverlay(
                    flags, OVERLAY_A, PIPEA);
 
     return vaStatus;
+}
+
+
+VAStatus psb_putsurface_ts(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    void *android_isurface,
+    short srcx,
+    short srcy,
+    unsigned short srcw,
+    unsigned short srch,
+    short destx,
+    short desty,
+    unsigned short destw,
+    unsigned short desth,
+    VARectangle *cliprects, /* client supplied clip list */
+    unsigned int number_cliprects, /* number of clip rects in the clip list */
+    unsigned int flags /* de-interlacing flags */
+)
+{
+    INIT_DRIVER_DATA;
+    INIT_OUTPUT_PRIV;
+    object_surface_p obj_surface = SURFACE(surface);
+    uint32_t ttm_handle, i;
+    psb_surface_p psb_surface;
+
+    /* Stop overlay if overlay still enabled */
+    psb_coverlay_stop(ctx);
+
+    if (psb_android_register_isurface(android_isurface, driver_data->bcd_id, srcw, srch)) {
+        psb__error_message("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    /* blend/positioning setting can be called by app directly, or enable VA_ENABLE_BLEND flag to let driver call */
+    if (flags & VA_ENABLE_BLEND)
+        psb_android_texture_streaming_set_blend(destx, desty, destw, desth,
+                                                driver_data->clear_color,
+                                                driver_data->blend_color,
+                                                driver_data->blend_mode);
+    /*cropping can be also used for dynamic resolution change feature, only high to low resolution*/
+    /*by default, srcw and srch is set to video width and height*/
+    if ((0 == srcw) || (0 == srch)) {
+        srcw = obj_surface->width;
+        srch = obj_surface->height_origin;
+    }
+    psb_android_texture_streaming_set_texture_dim(srcw, srch);
+
+#if 0
+    /* use cliprect for crop */
+    if (cliprects && (number_cliprects == 1))
+        psb_android_texture_streaming_set_crop(cliprects->x, cliprects->y, cliprects->width, cliprects->height);
+#endif
+
+    psb_surface = obj_surface->psb_surface;
+    ttm_handle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+
+    for (i = 0; i < driver_data->bcd_buffer_num; i++) {
+        if (driver_data->bcd_ttm_handles[i] == ttm_handle)
+            break;
+    }
+    if (i == driver_data->bcd_buffer_num) {
+        psb__error_message("Failed to get buffer index.\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    psb_android_texture_streaming_display(i);
+
+    return VA_STATUS_SUCCESS;
+}
+
+
+static int psb_check_outputmethod(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    void *android_isurface,
+    psb_hdmi_mode *hdmi_mode,
+    int *sf_composition
+)
+{
+    INIT_DRIVER_DATA;
+    INIT_OUTPUT_PRIV;
+    psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
+
+    /* use saved status to avoid per-frame checking */
+    if ((driver_data->frame_count % driver_data->outputmethod_checkinterval) != 0) {
+        *hdmi_mode = psb_HDMIExt_get_mode(output);
+        *sf_composition = output->sf_composition; /* check composition status */
+        return 0;
+    }
+
+    /* check the status at outputmethod_checkinterval frequency */
+    /* at first check HDMI status */
+    if (psb_HDMIExt_update(ctx, psb_HDMIExt_info)) {
+        psb__error_message("%s: Failed to update HDMIExt info.\n", __FUNCTION__);
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    *hdmi_mode = psb_HDMIExt_get_mode(output);
+    psb__information_message("hdmi_mode = %d\n", *hdmi_mode);
+    if (*hdmi_mode != OFF) {
+        psb_HDMIExt_get_prop(output, &driver_data->render_rect.width, &driver_data->render_rect.height,
+                             &driver_data->render_rect.x, &driver_data->render_rect.y);
+        psb__information_message("Render Rect: (%d,%d,%d,%d)\n",
+                                 driver_data->render_rect.x, driver_data->render_rect.y,
+                                 driver_data->render_rect.width, driver_data->render_rect.height);
+    }
+
+    if ((*hdmi_mode != EXTENDED_VIDEO) && (*hdmi_mode != CLONE)) {
+        int rotation;
+
+        psb_android_surfaceflinger_status(android_isurface, &output->sf_composition, &rotation);
+
+        *sf_composition = output->sf_composition;
+        /* only care local rotation */
+        if (driver_data->local_rotation != rotation) {
+            /* todo: new rotation occured, attached new surfaces */
+            psb__information_message("New rotation degree %d\n", rotation);
+            driver_data->local_rotation = rotation;
+        }
+        if (rotation != 0) /* currently msvdx/overlay not ready for rotation */
+            *sf_composition = 1;
+    }
+
+    return 0;
 }
 
 VAStatus psb_PutSurface(
@@ -236,8 +362,8 @@ VAStatus psb_PutSurface(
     object_surface_p obj_surface;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
-    psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
     psb_hdmi_mode hdmi_mode = OFF;
+    int sf_composition = 0;
 
     obj_surface = SURFACE(surface);
     if (NULL == obj_surface) {
@@ -247,7 +373,7 @@ VAStatus psb_PutSurface(
     }
 
     if ((srcx < 0) || (srcx > obj_surface->width) || (srcw > (obj_surface->width - srcx)) ||
-            (srcy < 0) || (srcy > obj_surface->height_origin) || (srch > (obj_surface->height_origin - srcy))) {
+        (srcy < 0) || (srcy > obj_surface->height_origin) || (srch > (obj_surface->height_origin - srcy))) {
         psb__error_message("vaPutSurface: source rectangle passed from upper layer is not correct.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -261,107 +387,83 @@ VAStatus psb_PutSurface(
         return VA_STATUS_SUCCESS;
     }
 
-    if (IS_MFLD(driver_data)) {
-        if (psb_HDMIExt_update(ctx, psb_HDMIExt_info)) {
-            psb__error_message("%s: Failed to update HDMIExt info.\n", __FUNCTION__);
-            return VA_STATUS_ERROR_UNKNOWN;
+    /* exit MRST path at first */
+    if (IS_MRST(driver_data)) {
+        if (driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) { /* overlay is for testing, not POR */
+            psb__information_message("Force overlay to display\n");
+            vaStatus = psb_putsurface_coverlay(ctx, surface,
+                                               srcx, srcy, srcw, srch,
+                                               destx, desty, destw, desth,
+                                               flags);
+        } else {
+            psb__information_message("Use texstreaming to display.\n");
+            vaStatus = psb_putsurface_ts(ctx, surface, android_isurface,
+                                         srcx, srcy, srcw, srch,
+                                         destx, desty, destw, desth,
+                                         cliprects, number_cliprects, /* number of clip rects in the clip list */
+                                         flags);
         }
 
-        hdmi_mode = psb_HDMIExt_get_mode(output);
-        psb__information_message("hdmi_mode = %d\n", hdmi_mode);
-        if (hdmi_mode != OFF) {
-            psb_HDMIExt_get_prop(output, &driver_data->render_rect.width, &driver_data->render_rect.height,
-                                 &driver_data->render_rect.x, &driver_data->render_rect.y);
-            psb__information_message("driver_data->render_rect.width=%d, driver_data->render_rect.height=%d, driver_data->render_rect.x =%d, driver_data->render_rect.y=%d\n",
-                                     driver_data->render_rect.width, driver_data->render_rect.height, driver_data->render_rect.x, driver_data->render_rect.y);
-        }
+        return vaStatus;
     }
-    if ((driver_data->render_device == VA_RENDER_DEVICE_EXTERNAL) ||
-            (hdmi_mode == EXTENDED_VIDEO)) {
-        /*Use overlay to render external HDMI display*/
-        psb__information_message("Use overlay to render external HDMI display.\n");
+
+    /* time for MFLD platform */
+    psb_check_outputmethod(ctx, surface, android_isurface, &hdmi_mode, &sf_composition);
+
+    /* Extvideo: Use overlay to render external HDMI display */
+    if (hdmi_mode == EXTENDED_VIDEO) {
+        psb__information_message("HDMI: ExtVideo mode enabled, use overlay to render external HDMI display.\n");
         vaStatus = psb_putsurface_overlay(ctx, surface,
                                           srcx, srcy, srcw, srch,
                                           driver_data->render_rect.x, driver_data->render_rect.y,
                                           driver_data->render_rect.width, driver_data->render_rect.height,
                                           flags, OVERLAY_A, PIPEB);
-    } else if (((hdmi_mode != CLONE) && psb_android_fallback_overlay()
-                && (driver_data->output_method != PSB_PUTSURFACE_FORCE_TEXSTREAMING)) ||
-               (driver_data->render_mode & VA_RENDER_MODE_LOCAL_OVERLAY) ||
-               (driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) ||
-               (driver_data->output_method == PSB_PUTSURFACE_COVERLAY)) {
-        psb__information_message("Use overlay to display video.\n");
-        /*Hack for repaint color key to black(0,0,0).*/
+
+        return vaStatus;
+    }
+
+    /* Clone mode: Use TS to render both MIPI and HDMI display */
+    if (hdmi_mode == CLONE) {
+        psb__information_message("HDMI: Clone mode enabled, use texsteaming for both devices\n");
+        vaStatus = psb_putsurface_ts(ctx, surface, android_isurface,
+                                     srcx, srcy, srcw, srch,
+                                     destx, desty, destw, desth,
+                                     cliprects, number_cliprects, /* number of clip rects in the clip list */
+                                     flags);
+        return vaStatus;
+    }
+
+    if ((sf_composition == 1) || /* compositing ... */
+        (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING)) {
+        psb__information_message("MIPI: Use texstreaming to display.\n");
+
+        vaStatus = psb_putsurface_ts(ctx, surface, android_isurface,
+                                     srcx, srcy, srcw, srch,
+                                     destx, desty, destw, desth,
+                                     cliprects, number_cliprects, /* number of clip rects in the clip list */
+                                     flags);
+    } else {
+        psb__information_message("MIPI: Use overlay to display.\n");
+
+        /* Hack for repaint color key to black(0,0,0). */
         if (!pPriv->overlayA_enabled) {
             psb_android_texture_streaming_display(-1);
-            LOGD("It is a Hack for repainting color key for overlay. Ignore the error message \"Texture Streaming Fails...\".\n");
+            psb__information_message("Hack for repainting color key for overlay.Ignore the error message \"Texture Streaming Fails...\".\n");
         }
 
-        /*Use overlay to render local display*/
+        /* Use overlay to render local display*/
         if (destw > output->screen_width)
             destw = output->screen_width;
         if (desth > output->screen_height)
             desth = output->screen_height;
+
         vaStatus = psb_putsurface_coverlay(ctx, surface,
                                            srcx, srcy, srcw, srch,
                                            destx, desty, destw, desth,
                                            flags);
-        /*Use overlay to render external HDMI display*/
-        if (driver_data->render_device & VA_RENDER_DEVICE_EXTERNAL) {
-            vaStatus = psb_putsurface_overlay(ctx, surface,
-                                              srcx, srcy, srcw, srch,
-                                              driver_data->render_rect.x, driver_data->render_rect.y,
-                                              driver_data->render_rect.width, driver_data->render_rect.height,
-                                              flags, OVERLAY_C, PIPEB);
-        }
-    } else {
-#if 0
-        psb__android_message("In psb_PutSurface, srcx is %d, srcy is %d, srcw is %d, srch is %d, destx is %d, desty is %d, destw is %d, desth is %d.\n",
-                             srcx, srcy, srcw, srch, destx, desty, destw, desth);
-#endif
-        psb__information_message("Use texture streaming to display video.\n");
-        /*Stop overlay if overlay still enabled*/
-        psb_coverlay_stop(ctx);
-
-        if (psb_android_register_isurface(android_isurface, driver_data->bcd_id, srcw, srch)) {
-            psb__error_message("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
-        /*blend/positioning setting can be called by app directly, or enable VA_ENABLE_BLEND flag to let driver call*/
-        if (flags & VA_ENABLE_BLEND)
-            psb_android_texture_streaming_set_blend(destx, desty, destw, desth,
-                                                    driver_data->clear_color,
-                                                    driver_data->blend_color,
-                                                    driver_data->blend_mode);
-        /*cropping can be also used for dynamic resolution change feature, only high to low resolution*/
-        /*by default, srcw and srch is set to video width and height*/
-        if ((0 == srcw) || (0 == srch)) {
-            srcw = obj_surface->width;
-            srch = obj_surface->height_origin;
-        }
-        psb_android_texture_streaming_set_texture_dim(srcw, srch);
-#if 0
-        /*use cliprect for crop*/
-        if (cliprects && (number_cliprects == 1))
-            psb_android_texture_streaming_set_crop(cliprects->x, cliprects->y, cliprects->width, cliprects->height);
-#endif
-        uint32_t ttm_handle, i;
-        psb_surface_p psb_surface;
-        psb_surface = obj_surface->psb_surface;
-        ttm_handle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
-
-        for (i = 0; i < driver_data->bcd_buffer_num; i++) {
-            if (driver_data->bcd_ttm_handles[i] == ttm_handle)
-                break;
-        }
-        if (i == driver_data->bcd_buffer_num) {
-            psb__error_message("Failed to get buffer index.\n");
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
-
-        psb_android_texture_streaming_display(i);
-
     }
+
+    driver_data->frame_count++;
 
     return vaStatus;
 }

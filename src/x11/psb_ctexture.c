@@ -254,13 +254,13 @@ VAStatus psb_putsurface_ctexture(
         return VA_STATUS_ERROR_INVALID_SURFACE;
     }
 
-    if (driver_data->video_rotate == VA_ROTATION_NONE) {
+    if (driver_data->va_rotate == VA_ROTATION_NONE) {
         psb_surface = obj_surface->psb_surface;
         surface_width = obj_surface->width;
         surface_height = obj_surface->height;
     } else {
         psb_surface = obj_surface->psb_surface_rotate;
-        if (driver_data->video_rotate != VA_ROTATION_180) {
+        if (driver_data->va_rotate != VA_ROTATION_180) {
             tmp = srcw;
             srcw = srch;
             srch = tmp;

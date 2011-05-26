@@ -50,6 +50,8 @@
 #define SET_SURFACE_INFO_picture_structure(psb_surface, val) psb_surface->extra_info[1] = val;
 #define GET_SURFACE_INFO_picture_coding_type(psb_surface) ((int) (psb_surface->extra_info[2]))
 #define SET_SURFACE_INFO_picture_coding_type(psb_surface, val) psb_surface->extra_info[2] = (uint32_t) val;
+#define SET_SURFACE_INFO_rotate(psb_surface, rotate) psb_surface->extra_info[5] = (uint32_t) rotate;
+#define GET_SURFACE_INFO_rotate(psb_surface) ((int) psb_surface->extra_info[5])
 
 
 #define SLICEDATA_BUFFER_TYPE(type) ((type==VASliceDataBufferType)?"VASliceDataBufferType":"VAProtectedSliceDataBufferType")
@@ -922,7 +924,7 @@ static void psb__MPEG2_setup_alternative_frame(context_MPEG2_p ctx)
     psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
     object_context_p obj_context = ctx->obj_context;
 
-    if (rotate_surface->extra_info[5] != obj_context->rotate)
+    if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)
         psb__error_message("Display rotate mode does not match surface rotate mode!\n");
 
 
@@ -940,7 +942,7 @@ static void psb__MPEG2_setup_alternative_frame(context_MPEG2_p ctx)
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, rotate_surface->extra_info[5]);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
 
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
@@ -954,7 +956,7 @@ static void psb__MPEG2_set_operating_mode(context_MPEG2_p ctx)
 
     psb_cmdbuf_rendec_start_block(cmdbuf);
 
-    if (ctx->obj_context->rotate != VA_ROTATION_NONE)
+    if (HAS_ROTATE(ctx->obj_context->msvdx_rotate))
         psb__MPEG2_setup_alternative_frame(ctx);
 
     psb_cmdbuf_rendec_start_chunk(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE));
@@ -1475,7 +1477,7 @@ static void psb__MEPG2_send_blit_cmd(context_MPEG2_p ctx)
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0);
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, rotate_surface->extra_info[5]);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION), cmd);
     psb_cmdbuf_reg_end_block(cmdbuf);
 
@@ -1575,7 +1577,7 @@ static VAStatus psb_MPEG2_EndPicture(
 
     psb__information_message("psb_MPEG2_EndPicture\n");
 
-    if (ctx->obj_context->rotate != VA_ROTATION_NONE) {
+    if (HAS_ROTATE(ctx->obj_context->msvdx_rotate)) {
         if (!(ctx->pic_params->picture_coding_extension.bits.progressive_frame) &&
             !(ctx->pic_params->picture_coding_extension.bits.is_first_field))
             psb__MPEG2_insert_blit_cmd_to_rotate(ctx);
