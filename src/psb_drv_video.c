@@ -77,7 +77,7 @@
 #endif
 
 #define PSB_DRV_VERSION  PSB_PACKAGE_VERSION
-#define PSB_CHG_REVISION "(0X00000068)"
+#define PSB_CHG_REVISION "(0X00000069)"
 
 #define PSB_STR_VENDOR_MRST     "Intel GMA500-MRST-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_MFLD     "Intel GMA500-MFLD-" PSB_DRV_VERSION " " PSB_CHG_REVISION
@@ -201,6 +201,7 @@ void psb__error_message(const char *msg, ...)
     va_start(args, msg);
     vfprintf(fp, msg, args);
 #ifdef ANDROID
+    LOGD("(pid=%d,threadid=0x%08lx)", getpid(), pthread_self());
     __android_log_vprint(ANDROID_LOG_ERROR,"pvr_drv_video", msg, args);
 #endif
     va_end(args);
@@ -218,6 +219,10 @@ void psb__information_message(const char *msg, ...)
                 GetTickCount(), getpid(), pthread_self());
         va_start(args, msg);
         vfprintf(psb_video_debug_fp, msg, args);
+#ifdef ANDROID
+        LOGD("(pid=%d,threadid=0x%08lx)", getpid(), pthread_self());
+        __android_log_vprint(ANDROID_LOG_ERROR,"pvr_drv_video", msg, args);
+#endif
         va_end(args);
         fflush(psb_video_debug_fp);
         fsync(fileno(psb_video_debug_fp));
@@ -3109,7 +3114,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
 
     free(ctx->pDriverData);
     ctx->pDriverData = NULL;
-    psb__information_message("vaTerminate: cleanup successfully, goodbye\n\n");
+    psb__error_message("vaTerminate: goodbye\n\n");
 
     psb__close_log();
 
@@ -3367,7 +3372,6 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     else
         ctx->str_vendor = PSB_STR_VENDOR_MRST;
 
-    psb__information_message("vaInitilize: succeeded!\n\n");
 
     driver_data->msvdx_decode_status = calloc(1, sizeof(drm_psb_msvdx_decode_status_t));
     if (NULL == driver_data->msvdx_decode_status) {
@@ -3378,6 +3382,8 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
+    psb__error_message("vaInitilize: succeeded!\n\n");
+    
     return VA_STATUS_SUCCESS;
 }
 

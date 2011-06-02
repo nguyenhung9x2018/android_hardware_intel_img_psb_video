@@ -1782,6 +1782,98 @@ static  VADisplayAttribute psb__DisplayAttribute[] = {
         0x00000000,
         VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
     },
+    {
+        VADisplayAttribRotation,
+	VA_ROTATION_NONE,
+	VA_ROTATION_270,
+	VA_ROTATION_NONE,
+	VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },    
+    {
+        VADisplayAttribOutofLoopDeblock,
+	VA_OOL_DEBLOCKING_FALSE,
+        VA_OOL_DEBLOCKING_TRUE,
+        VA_OOL_DEBLOCKING_FALSE,
+	VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },    
+   {
+        VADisplayAttribBLEBlackMode,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+	VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+   },   
+   {
+         VADisplayAttribBLEWhiteMode,
+         0x00000000,
+         0xffffffff,
+         0x00000000,
+	 VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
+    
+    {
+          VADisplayAttribBlueStretch,
+          0x00000000,
+          0xffffffff,
+          0x00000000,
+          VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },    
+    {
+         VADisplayAttribSkinColorCorrection,
+         0x00000000,
+         0xffffffff,
+         0x00000000,
+	 VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },    
+    {
+         VADisplayAttribBlendColor,
+         0x00000000,
+         0xffffffff,
+         0x00000000,
+         VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },    
+    {
+         VADisplayAttribOverlayColorKey,
+         0x00000000,
+         0xffffffff,
+         0x00000000,
+	 VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+     },     
+     {
+          VADisplayAttribOverlayAutoPaintColorKey,
+          0x00000000,
+          0xffffffff,
+          0x00000000,
+	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+     },
+     {
+          VADisplayAttribCSCMatrix,
+          0x00000000,
+          0xffffffff,
+          0x00000000,
+	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+     },
+     {
+          VADisplayAttribRenderDevice,
+          0x00000000,
+          0xffffffff,
+          0x00000000,
+	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+     },
+     {
+          VADisplayAttribRenderMode,
+          0x00000000,
+          0xffffffff,
+          0x00000000,
+	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+     },
+     {
+          VADisplayAttribRenderRect,
+          0x00000000,
+          0xffffffff,
+          0x00000000,
+	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+     }
 };
 
 /*
@@ -1809,8 +1901,7 @@ VAStatus psb_QueryDisplayAttributes(
         return vaStatus;
     }
     *num_attributes = min(*num_attributes, PSB_MAX_DISPLAY_ATTRIBUTES);
-    memcpy(attr_list, psb__DisplayAttribute, *num_attributes);
-
+    memcpy(attr_list, psb__DisplayAttribute, (*num_attributes)*sizeof(VADisplayAttribute));
     return VA_STATUS_SUCCESS;
 }
 
@@ -1903,6 +1994,40 @@ VAStatus psb_GetDisplayAttributes(
             p->min_value = 0;
             p->max_value = 1;
             break;
+	case VADisplayAttribRotation:
+	    p->value = driver_data->va_rotate = p->value;
+	    p->min_value = VA_ROTATION_NONE;
+	    p->max_value = VA_ROTATION_270;
+	    break;
+	case VADisplayAttribOutofLoopDeblock:
+	    p->value = driver_data->is_oold = p->value;
+	    p->min_value = VA_OOL_DEBLOCKING_FALSE;
+	    p->max_value = VA_OOL_DEBLOCKING_TRUE;
+	    break;
+        case VADisplayAttribCSCMatrix:
+            p->value = driver_data->load_csc_matrix = p->value;
+            p->min_value = 0;
+            p->max_value = 255;
+            break;
+        case VADisplayAttribRenderDevice:
+            p->value = driver_data->render_device = p->value;
+            p->min_value = 0;
+            p->max_value = 255;
+            break;
+        case VADisplayAttribRenderMode:
+            p->value = driver_data->render_mode = p->value;
+            p->min_value = 0;
+            p->max_value = 255;
+            break;
+        case VADisplayAttribRenderRect:
+            ((VARectangle *)(p->value))->x = driver_data->render_rect.x = ((VARectangle *)(p->value))->x;
+            ((VARectangle *)(p->value))->y = driver_data->render_rect.y = ((VARectangle *)(p->value))->y;
+            ((VARectangle *)(p->value))->width = driver_data->render_rect.width = ((VARectangle *)(p->value))->width;
+            ((VARectangle *)(p->value))->height = driver_data->render_rect.height = ((VARectangle *)(p->value))->height;
+            p->min_value = 0;
+            p->max_value = 255;
+            break;
+
         default:
             break;
         }
@@ -2044,10 +2169,12 @@ VAStatus psb_SetDisplayAttributes(
                     driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
             }
             break;
+
         case VADisplayAttribCSCMatrix:
             driver_data->load_csc_matrix = 1;
             memcpy(&(driver_data->csc_matrix[0][0]), (void *)p->value, sizeof(signed int) * 9);
             break;
+
         case VADisplayAttribBlendColor:
             driver_data->blend_color = p->value;
             break;
@@ -2057,6 +2184,7 @@ VAStatus psb_SetDisplayAttributes(
         case VADisplayAttribOverlayAutoPaintColorKey:
             driver_data->overlay_auto_paint_color_key = p->value;
             break;
+
         case VADisplayAttribRenderDevice:
             driver_data->render_device = p->value & VA_RENDER_DEVICE_MASK;
         case VADisplayAttribRenderMode:
@@ -2077,6 +2205,7 @@ VAStatus psb_SetDisplayAttributes(
             driver_data->render_rect.width = ((VARectangle *)(p->value))->width;
             driver_data->render_rect.height = ((VARectangle *)(p->value))->height;
             break;
+
         default:
             break;
         }

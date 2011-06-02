@@ -50,7 +50,7 @@
 
 #define PSB_MAX_IMAGE_FORMATS      3 /* sizeof(psb__CreateImageFormat)/sizeof(VAImageFormat) */
 #define PSB_MAX_SUBPIC_FORMATS     3 /* sizeof(psb__SubpicFormat)/sizeof(VAImageFormat) */
-#define PSB_MAX_DISPLAY_ATTRIBUTES 6 /* sizeof(psb__DisplayAttribute)/sizeof(VADisplayAttribute) */
+#define PSB_MAX_DISPLAY_ATTRIBUTES 18     /* sizeof(psb__DisplayAttribute)/sizeof(VADisplayAttribute) */
 
 #define VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD       0x0004
 #define PSB_SUPPORTED_SUBPIC_FLAGS      VA_SUBPICTURE_DESTINATION_IS_SCREEN_COORD /* No alpha or chroma key support */
