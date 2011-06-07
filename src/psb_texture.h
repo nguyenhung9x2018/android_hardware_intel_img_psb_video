@@ -131,7 +131,7 @@ struct psb_texture_s {
     PVR2DMEMINFO *extend_blt_meminfo[DRI2_BLIT_BUFFERS_NUM];
 };
 
-void psb_ctexture_init(VADriverContextP ctx);
+int psb_ctexture_init(VADriverContextP ctx);
 
 void psb_ctexture_deinit(VADriverContextP ctx);
 

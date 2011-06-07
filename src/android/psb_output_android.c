@@ -89,8 +89,10 @@ void *psb_android_output_init(VADriverContextP ctx)
     driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
     driver_data->color_key = 0x0; /*black*/
 
-    /* Init CTEXTURE for vaPutSurfaceBuf */
-    driver_data->ctexture = 1;
+    if (psb_parse_config("PSB_VIDEO_CTEXTURES", &put_surface[0]) == 0) {
+        psb__information_message("PSB_VIDEO_CTEXTURES is enabled for vaPutSurfaceBuf\n");
+        driver_data->ctexture = 1; /* Init CTEXTURE for vaPutSurfaceBuf */
+    }
 
     if (psb_parse_config("PSB_VIDEO_TS", &put_surface[0]) == 0) {
         psb__information_message("Putsurface use texstreaming\n");

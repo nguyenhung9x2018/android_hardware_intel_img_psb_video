@@ -109,17 +109,8 @@ VAStatus psb_initOutput(VADriverContextP ctx)
         return VA_STATUS_SUCCESS;
     }
 
-    if (getenv("PSB_VIDEO_EXTEND_FULLSCREEN")) {
+    if (getenv("PSB_VIDEO_EXTEND_FULLSCREEN"))
         driver_data->extend_fullscreen = 1;
-    }
-
-    if (getenv("PSB_VIDEO_NOTRD") || IS_MRST(driver_data)) {
-        psb__information_message("Force not to start psb xrandr thread.\n");
-        driver_data->use_xrandr_thread = 0;
-    } else {
-        psb__information_message("By default, use psb xrandr thread.\n");
-        driver_data->use_xrandr_thread = 1;
-    }
 
     fps = getenv("PSB_VIDEO_FPS");
     if (fps != NULL) {
@@ -160,8 +151,11 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     }
 
     //use client textureblit
-    if (driver_data->ctexture == 1)
-        psb_ctexture_init(ctx);
+    if (driver_data->ctexture == 1) {
+        int ret = psb_ctexture_init(ctx);
+        if (ret != 0)
+            driver_data->ctexture = 0;
+    }
 
     /*
     //use texture streaming

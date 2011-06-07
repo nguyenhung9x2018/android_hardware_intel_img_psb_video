@@ -67,6 +67,7 @@
 #include <wsbm/wsbm_fencemgr.h>
 #include <linux/videodev2.h>
 #include <sys/mman.h>
+#include <errno.h>
 
 #include "psb_def.h"
 #include "psb_ws_driver.h"
@@ -77,7 +78,7 @@
 #endif
 
 #define PSB_DRV_VERSION  PSB_PACKAGE_VERSION
-#define PSB_CHG_REVISION "(0X00000069)"
+#define PSB_CHG_REVISION "(0X0000006B)"
 
 #define PSB_STR_VENDOR_MRST     "Intel GMA500-MRST-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_MFLD     "Intel GMA500-MFLD-" PSB_DRV_VERSION " " PSB_CHG_REVISION
@@ -116,6 +117,7 @@ static int psb_get_device_info(VADriverContextP ctx);
 void psb_init_surface_pvr2dbuf(psb_driver_data_p driver_data);
 void psb_free_surface_pvr2dbuf(psb_driver_data_p driver_data);
 
+static FILE *psb_video_debug_fp = NULL;
 
 /*
  * read a config "env" for libva.conf or from environment setting
@@ -166,30 +168,11 @@ int psb_parse_config(char *env, char *env_value)
     return 1;
 }
 
-static FILE *psb_video_debug_fp = NULL;
-
-static void psb__open_log(void)
-{
-    char log_fn[1024];
-
-    if (psb_parse_config("PSB_VIDEO_DEBUG", &log_fn[0]) == 0) {
-        unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
-        if (strcmp(log_fn, "/dev/stdout") != 0)
-            sprintf(log_fn + strlen(log_fn), ".%d", suffix);
-        psb_video_debug_fp = fopen(log_fn, "w");
-    }
-}
-
-static void psb__close_log(void)
-{
-    if (psb_video_debug_fp != NULL)
-        fclose(psb_video_debug_fp);
-}
-
 void psb__error_message(const char *msg, ...)
 {
     va_list args;
     FILE *fp;
+    char tag[128];
 
     if (psb_video_debug_fp == NULL) /* not set the debug */
         fp = stderr;
@@ -201,8 +184,8 @@ void psb__error_message(const char *msg, ...)
     va_start(args, msg);
     vfprintf(fp, msg, args);
 #ifdef ANDROID
-    LOGD("(pid=%d,threadid=0x%08lx)", getpid(), pthread_self());
-    __android_log_vprint(ANDROID_LOG_ERROR,"pvr_drv_video", msg, args);
+    sprintf(tag, "pvr_drv_video[%d:0x%08lx]", getpid(), pthread_self());
+    __android_log_vprint(ANDROID_LOG_ERROR, tag, msg, args);
 #endif
     va_end(args);
 
@@ -214,19 +197,57 @@ void psb__information_message(const char *msg, ...)
 {
     if (psb_video_debug_fp) {
         va_list args;
+        char tag[128];
 
         fprintf(psb_video_debug_fp, "[0x%08lx]psb_drv_video(%d:0x%08lx) ",
                 GetTickCount(), getpid(), pthread_self());
         va_start(args, msg);
         vfprintf(psb_video_debug_fp, msg, args);
 #ifdef ANDROID
-        LOGD("(pid=%d,threadid=0x%08lx)", getpid(), pthread_self());
-        __android_log_vprint(ANDROID_LOG_ERROR,"pvr_drv_video", msg, args);
+        sprintf(tag, "pvr_drv_video[%d:0x%08lx]", getpid(), pthread_self());
+        __android_log_vprint(ANDROID_LOG_DEBUG, tag, msg, args);
 #endif
         va_end(args);
         fflush(psb_video_debug_fp);
         fsync(fileno(psb_video_debug_fp));
     }
+}
+
+
+static void psb__open_log(void)
+{
+    char log_fn[1024];
+    unsigned int suffix;
+    
+    if (psb_video_debug_fp != 0)
+        return;
+    
+    if (psb_parse_config("PSB_VIDEO_DEBUG", &log_fn[0]) != 0)
+        return;
+
+    suffix = 0xffff & ((unsigned int)time(NULL));    
+    if (strcmp(log_fn, "/dev/stdout") != 0)
+        sprintf(log_fn + strlen(log_fn), ".%d", suffix);
+    psb_video_debug_fp = fopen(log_fn, "w");
+
+    if (psb_video_debug_fp == 0) {
+        psb__error_message("Log file %s open failed, reason %s, fall back to stderr\n",
+                           log_fn, strerror(errno));
+        psb_video_debug_fp = stderr;
+    } else
+        psb__information_message("Log file %s open successfully\n", log_fn);
+}
+
+static void psb__close_log(void)
+{
+    /* rely on OS to close it incase multi-thread run into it
+     */
+    return;
+
+    /*
+    if (psb_video_debug_fp != NULL)
+        fclose(psb_video_debug_fp);
+    */
 }
 
 static int Angle2Rotation(int angle)
@@ -591,7 +612,9 @@ VAStatus psb_CreateConfig(
     }
 
     /* only VAProfileH264ConstrainedBaseline profile enable error concealment*/
-    if ((getenv("PSB_VIDEO_NOEC") == NULL) && (profile == VAProfileH264ConstrainedBaseline)) {
+    if (IS_MRST(driver_data) &&
+        (getenv("PSB_VIDEO_NOEC") == NULL)
+        && (profile == VAProfileH264ConstrainedBaseline)) {
         psb__information_message("profile is VAProfileH264ConstrainedBaseline, error concealment is enabled. \n");
         driver_data->ec_enabled = 1;
     } else {
@@ -3410,19 +3433,24 @@ static int psb_get_device_info(VADriverContextP ctx)
     arg.value = (uint64_t)((unsigned long) & device_info);
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
-    if (ret == 0) {
-        pci_device = (device_info >> 16) & 0xffff;
-        video_capability = device_info & 0xffff;
+    if (ret != 0) {
+        psb__information_message("failed to get video device info\n");
+        return ret;
+    }
+    
+    pci_device = (device_info >> 16) & 0xffff;
+    video_capability = device_info & 0xffff;
 
-        driver_data->dev_id = pci_device;
-        psb__information_message("Retrieve Device ID 0x%04x\n", driver_data->dev_id);
+    driver_data->dev_id = pci_device;
+    psb__information_message("Retrieve Device ID 0x%04x\n", driver_data->dev_id);
 
-        if ((IS_MRST(driver_data) && (pci_device != 0x4101)) ||
-            IS_MFLD(driver_data))
-            driver_data->encode_supported = 1;
-        else /* 0x4101 or other device hasn't encode support */
-            driver_data->encode_supported = 0;
+    if ((IS_MRST(driver_data) && (pci_device != 0x4101)) ||
+        IS_MFLD(driver_data))
+        driver_data->encode_supported = 1;
+    else /* 0x4101 or other device hasn't encode support */
+        driver_data->encode_supported = 0;
 
+    if (IS_MRST(driver_data)) {
         driver_data->decode_supported = !(video_capability & 0x2);
         driver_data->hd_decode_supported = !(video_capability & 0x3);
         driver_data->hd_encode_supported = !(video_capability & 0x4);
@@ -3435,11 +3463,11 @@ static int psb_get_device_info(VADriverContextP ctx)
                                  driver_data->encode_supported ? "support" : "not support",
                                  driver_data->hd_encode_supported ? "support" : "not support");
 
-
-        return ret;
+    } else {
+        driver_data->decode_supported = 1;
+        driver_data->hd_decode_supported = 1;
+        driver_data->hd_encode_supported = 1;
     }
-
-    psb__information_message("failed to get video device info\n");
-
+        
     return ret;
 }

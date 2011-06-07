@@ -201,7 +201,7 @@ void psb_fix_drmfd_closesequence(psb_driver_data_p driver_data)
 }
 
 
-void psb_ctexture_init(VADriverContextP ctx)
+int psb_ctexture_init(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
 
@@ -211,6 +211,7 @@ void psb_ctexture_init(VADriverContextP ctx)
     ret = pvr_context_create(&driver_data->hPVR2DContext);
     if (ret != PVR2D_OK) {
         psb__error_message("%s(): null PVR context!!", __func__);
+        return ret;
     }
 
     texture_priv->video_transfermatrix = PSB_VideoTransferMatrix_BT709;
@@ -261,6 +262,8 @@ void psb_ctexture_init(VADriverContextP ctx)
 
     psb_setup_coeffs(texture_priv);
     psb_fix_drmfd_closesequence(driver_data);
+
+    return 0;
 }
 
 void psb_ctexture_deinit(VADriverContextP ctx)
