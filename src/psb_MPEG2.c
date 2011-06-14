@@ -956,7 +956,7 @@ static void psb__MPEG2_set_operating_mode(context_MPEG2_p ctx)
 
     psb_cmdbuf_rendec_start_block(cmdbuf);
 
-    if (HAS_ROTATE(ctx->obj_context->msvdx_rotate))
+    if (CONTEXT_ROTATE(ctx->obj_context))
         psb__MPEG2_setup_alternative_frame(ctx);
 
     psb_cmdbuf_rendec_start_chunk(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE));
@@ -1577,7 +1577,7 @@ static VAStatus psb_MPEG2_EndPicture(
 
     psb__information_message("psb_MPEG2_EndPicture\n");
 
-    if (HAS_ROTATE(ctx->obj_context->msvdx_rotate)) {
+    if (CONTEXT_ROTATE(ctx->obj_context)) {
         if (!(ctx->pic_params->picture_coding_extension.bits.progressive_frame) &&
             !(ctx->pic_params->picture_coding_extension.bits.is_first_field))
             psb__MPEG2_insert_blit_cmd_to_rotate(ctx);

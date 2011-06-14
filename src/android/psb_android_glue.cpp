@@ -40,6 +40,7 @@
 #include "psb_android_glue.h"
 #include "psb_texstreaming.h"
 #include <cutils/log.h>
+#include <ui/Rect.h>
 
 using namespace android;
 
@@ -218,3 +219,15 @@ int psb_android_surfaceflinger_status(void** android_isurface, int *sf_compositi
 
     return 0;
 }
+
+void psb_android_get_destbox(short* destx, short* desty, unsigned short* destw, unsigned short* desth)
+{
+    if (isurface.get()) {
+        Rect pm = isurface->getVisibleRect();
+        *destx = pm.left;
+        *desty = pm.top;
+        *destw = pm.width();
+        *desth = pm.height();
+    }
+}
+

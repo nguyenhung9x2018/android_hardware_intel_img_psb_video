@@ -96,8 +96,14 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
 
     if (protected == 0)
         ret = psb_buffer_create(driver_data, psb_surface->size, psb_bt_surface, &psb_surface->buf);
-    else
-        ret = psb_buffer_create_rar(driver_data, psb_surface->size, &psb_surface->buf);
+    else {
+        if (IS_MRST(driver_data))
+            ret = psb_buffer_create_rar(driver_data, psb_surface->size, &psb_surface->buf);
+        if (IS_MFLD(driver_data)) { /* as normal */
+            ret = psb_buffer_create(driver_data, psb_surface->size, psb_bt_surface, &psb_surface->buf);
+            psb_surface->extra_info[6] = 1; /* set protected flag */
+        }
+    }
 
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }

@@ -784,6 +784,8 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
         REGIO_WRITE_FIELD_LITE(ctx->BE_PICSH_PPS0, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_PICSH_PPS0, BE_PICSH_CODING_TYPE,         ctx->pic_params->vop_fields.bits.vop_coding_type);
     }
 
+    psb_CheckInterlaceRotate(ctx->obj_context, ctx->pic_params);
+    
     return VA_STATUS_SUCCESS;
 }
 
@@ -1003,7 +1005,7 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
     }
     psb_cmdbuf_rendec_end_chunk(cmdbuf);
 
-    if (HAS_ROTATE(ctx->obj_context->msvdx_rotate))
+    if (CONTEXT_ROTATE(ctx->obj_context))
         psb__MPEG4_setup_alternative_frame(ctx);
 
     /* Send VDMC and VDEB commands                                                    */

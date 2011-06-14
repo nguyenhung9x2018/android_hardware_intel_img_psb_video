@@ -747,6 +747,8 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
         }
     }
 
+    psb_CheckInterlaceRotate(ctx->obj_context, pic_params);
+    
     return VA_STATUS_SUCCESS;
 }
 
@@ -1398,7 +1400,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /*          If this a two pass mode deblock, then we will perform the rotation as part of the
      *          2nd pass deblock procedure
      */
-    if (!ctx->two_pass_mode && HAS_ROTATE(ctx->obj_context->msvdx_rotate)) /* FIXME field coded should not issue */
+    if (!ctx->two_pass_mode && CONTEXT_ROTATE(ctx->obj_context)) /* FIXME field coded should not issue */
         psb__H264_setup_alternative_frame(ctx);
 
     /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
@@ -1827,7 +1829,7 @@ static VAStatus pnw_H264_EndPicture(
         uint32_t ext_stride_a = 0;
 
         psb__information_message("pnw_H264_EndPicture got two pass mode frame\n");
-        if (HAS_ROTATE(ctx->obj_context->msvdx_rotate)) {
+        if (CONTEXT_ROTATE(ctx->obj_context)) {
             ASSERT(rotate_surface);
             REGIO_WRITE_FIELD_LITE(rotation_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
             REGIO_WRITE_FIELD_LITE(rotation_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
@@ -1857,7 +1859,7 @@ static VAStatus pnw_H264_EndPicture(
             psb_buffer_p buffer_dst;
             uint32_t chroma_offset_dst;
 
-            if (HAS_ROTATE(ctx->obj_context->msvdx_rotate) == 0) {
+            if (CONTEXT_ROTATE(ctx->obj_context) == 0) {
                 buffer_dst = &target_surface->buf;
                 chroma_offset_dst = target_surface->chroma_offset;
             } else {

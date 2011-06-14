@@ -1328,7 +1328,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /*          If this a two pass mode deblock, then we will perform the rotation as part of the
      *          2nd pass deblock procedure
      */
-    if (/*!ctx->two_pass_mode &&*/ HAS_ROTATE(ctx->obj_context->msvdx_rotate)) /* FIXME field coded should not issue */
+    if (/*!ctx->two_pass_mode &&*/ CONTEXT_ROTATE(ctx->obj_context)) /* FIXME field coded should not issue */
         psb__H264_setup_alternative_frame(ctx);
 
     /* CHUNK: SEQ Commands 1 */
@@ -1873,7 +1873,7 @@ static VAStatus psb_H264_EndPicture(
     }
 #endif
 
-    if (ctx->two_pass_mode && (HAS_ROTATE(ctx->obj_context->msvdx_rotate) == 0)) {
+    if (ctx->two_pass_mode && (CONTEXT_ROTATE(ctx->obj_context) == 0)) {
         void *pMbData = NULL;
 
         psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;

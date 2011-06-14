@@ -102,19 +102,15 @@ VAStatus psb_initOutput(VADriverContextP ctx)
 
     pthread_mutex_init(&driver_data->output_mutex, NULL);
 
-    if (getenv("PSB_VIDEO_PUTSURFACE_DUMMY")) {
+    if (psb_parse_config("PSB_VIDEO_PUTSURFACE_DUMMY", &env_value[0]) == 0) {
         psb__information_message("vaPutSurface: dummy mode, return directly\n");
         driver_data->dummy_putsurface = 0;
 
         return VA_STATUS_SUCCESS;
     }
 
-    if (getenv("PSB_VIDEO_EXTEND_FULLSCREEN"))
-        driver_data->extend_fullscreen = 1;
-
-    fps = getenv("PSB_VIDEO_FPS");
-    if (fps != NULL) {
-        driver_data->fixed_fps = atoi(fps);
+    if (psb_parse_config("PSB_VIDEO_FPS", &env_value[0]) == 0) {
+        driver_data->fixed_fps = atoi(env_value);
         psb__information_message("Throttling at FPS=%d\n", driver_data->fixed_fps);
     } else
         driver_data->fixed_fps = 0;
@@ -129,6 +125,8 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
     driver_data->last_displaying_surface = VA_INVALID_SURFACE;
 
+    psb_InitRotate(ctx);
+    
 #ifdef ANDROID
     ws_priv = psb_android_output_init(ctx);
     driver_data->is_android = 1;
@@ -139,16 +137,8 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     driver_data->ws_priv = ws_priv;
 
     /* use client overlay  */
-    if (driver_data->coverlay == 1) {
-#ifndef ANDROID
-        psb_x11_output_p output = (psb_x11_output_p)(((psb_driver_data_p)ctx->pDriverData)->ws_priv);
-        output->pClipBoxList = NULL;
-        output->ui32NumClipBoxList = 0;
-        output->frame_count = 0;
-        output->bIsVisible = 0;
-#endif
+    if (driver_data->coverlay == 1)
         psb_coverlay_init(ctx);
-    }
 
     //use client textureblit
     if (driver_data->ctexture == 1) {
@@ -171,7 +161,6 @@ VAStatus psb_deinitOutput(
 )
 {
     INIT_DRIVER_DATA;
-    struct dri_state *dri_state = (struct dri_state *)ctx->dri_state;
 
     //use client textureblit
     if (driver_data->ctexture == 1)
@@ -182,11 +171,6 @@ VAStatus psb_deinitOutput(
     
 #ifndef ANDROID
     psb_x11_output_deinit(ctx);
-
-    /* close dri fd and release all drawable buffer */
-    if (driver_data->ctexture == 1) {
-	(*dri_state->close)(ctx);
-    }
 #else
     psb_android_output_deinit(ctx);
 #endif
@@ -1516,7 +1500,16 @@ VAStatus psb_SetSubpictureChromakey(
     INIT_DRIVER_DATA;
     (void)driver_data;
     /* TODO */
-    return VA_STATUS_ERROR_UNKNOWN;
+    if((chromakey_mask < chromakey_min) || (chromakey_mask > chromakey_max)){
+       psb__error_message("Invalid chromakey value %d, chromakey value should between min and max\n",chromakey_mask);
+       return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+    if(NULL == subpicture){
+       psb__error_message("Invalid subpicture value %d\n", subpicture);
+       return VA_STATUS_ERROR_INVALID_SUBPICTURE;
+    }
+
+    return VA_STATUS_SUCCESS;
 }
 
 VAStatus psb_SetSubpictureGlobalAlpha(
@@ -1526,9 +1519,15 @@ VAStatus psb_SetSubpictureGlobalAlpha(
 )
 {
     INIT_DRIVER_DATA;
+
     if (global_alpha < 0 || global_alpha > 1) {
 	psb__error_message("Invalid global alpha value %07f, global alpha value should between 0 and 1\n", global_alpha);
-	return VA_STATUS_ERROR_UNKNOWN;
+	return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    if(NULL == subpicture){
+       psb__error_message("Invalid subpicture value %d\n", subpicture);
+       return VA_STATUS_ERROR_INVALID_SUBPICTURE;
     }
 
     object_subpic_p obj_subpic = SUBPIC(subpicture);
@@ -2031,39 +2030,6 @@ VAStatus psb_GetDisplayAttributes(
     return VA_STATUS_SUCCESS;
 }
 
-static int Angle2Rotation(int angle)
-{
-    angle %= 360;
-    switch (angle) {
-    case 0:
-        return VA_ROTATION_NONE;
-    case 90:
-        return VA_ROTATION_90;
-    case 180:
-        return VA_ROTATION_180;
-    case 270:
-        return VA_ROTATION_270;
-    default:
-        return -1;
-    }
-}
-
-static int Rotation2Angle(int rotation)
-{
-    switch (rotation) {
-    case VA_ROTATION_NONE:
-        return 0;
-    case VA_ROTATION_90:
-        return 90;
-    case VA_ROTATION_180:
-        return 180;
-    case VA_ROTATION_270:
-        return 270;
-    default:
-        return -1;
-    }
-}
-
 /*
  * Set display attributes
  * Only attributes returned with VA_DISPLAY_ATTRIB_SETTABLE set in the "flags" field
@@ -2090,7 +2056,6 @@ VAStatus psb_SetDisplayAttributes(
 
     VADisplayAttribute *p = attr_list;
     int i, update_coeffs = 0;
-    int angle;
 
     if (num_attributes <= 0) {
         return VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -2150,18 +2115,7 @@ VAStatus psb_SetDisplayAttributes(
             break;
         case VADisplayAttribRotation:
             driver_data->va_rotate = p->value;
-            angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->mipi0_rotation);
-            driver_data->local_rotation = Angle2Rotation(angle);
-            angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->hdmi_rotation);
-            driver_data->extend_rotation = Angle2Rotation(angle);
-            if (driver_data->local_rotation == driver_data->extend_rotation) {
-                driver_data->msvdx_rotate = ROTATE_VA2MSVDX(driver_data->local_rotation);
-            } else {
-                driver_data->msvdx_rotate = ROTATE_VA2MSVDX(driver_data->va_rotate);
-                /*fallback to texblit path*/
-                if (driver_data->is_android == 0)
-                    driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
-            }
+            psb_RecalcRotate(ctx);
             break;
 
         case VADisplayAttribCSCMatrix:

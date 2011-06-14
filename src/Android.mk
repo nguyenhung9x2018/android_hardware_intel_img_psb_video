@@ -67,6 +67,7 @@ LOCAL_SRC_FILES :=		\
     pnw_hostheader.c	\
     pnw_hostjpeg.c		\
     pnw_jpeg.c		\
+    pnw_rotate.c		\
     powervr_iep_lite/csc/csc2.c \
     powervr_iep_lite/csc/csc2_data.c \
     powervr_iep_lite/fixedpointmaths/fixedpointmaths.c \

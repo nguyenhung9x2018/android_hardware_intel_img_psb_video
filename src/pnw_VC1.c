@@ -1315,6 +1315,8 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     }
     /************************************************************************************/
 
+    psb_CheckInterlaceRotate(ctx->obj_context, ctx->pic_params);
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -1904,7 +1906,7 @@ static void psb__VC1_program_output_register(context_VC1_p ctx, IMG_BOOL first_t
     *ctx->p_range_mapping_base1 = 0;
     //rotate_surface = ctx->decoded_surface->psb_surface_rotate;
 
-    if ((first_two_pass == 0) && HAS_ROTATE(obj_context->msvdx_rotate)) {
+    if ((first_two_pass == 0) && CONTEXT_ROTATE(obj_context)) {
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
         psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
         psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->chroma_offset + rotate_surface->buf.buffer_ofs);
@@ -2042,7 +2044,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     /* psb_cmdbuf_rendec_start_block( cmdbuf ); */
 
-//    if(HAS_ROTATE(ctx->obj_context->msvdx_rotate)) /* FIXME field coded should not issue */
+//    if(CONTEXT_ROTATE(ctx->obj_context)) /* FIXME field coded should not issue */
 //        psb__VC1_setup_alternative_frame(ctx);
 
     /* CHUNK: 1 - VC1SEQUENCE00 */
@@ -2113,7 +2115,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     psb__VC1_program_output_register(ctx, ctx->pic_params->picture_fields.bits.frame_coding_mode != VC1_FCM_P);
 
-    if (ctx->pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_P && HAS_ROTATE(ctx->obj_context->msvdx_rotate))
+    if (ctx->pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_P && CONTEXT_ROTATE(ctx->obj_context))
         //deblock_surface = ctx->decoded_surface->psb_surface_rotate;
         deblock_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
 

@@ -310,7 +310,7 @@ static VAStatus psb_buffer_init_rar(psb_driver_data_p driver_data)
         goto exit_error;
     }
 
-    psb__information_message("Grab whole camera device memory\n");
+    psb__information_message("Grab whole RAR device memory\n");
     ret = psb_buffer_create(driver_data, driver_data->rar_size, psb_bt_rar, (psb_buffer_p) driver_data->rar_bo);
 
     if (ret != VA_STATUS_SUCCESS) {
@@ -477,6 +477,92 @@ VAStatus psb_buffer_reference_rar(psb_driver_data_p driver_data,
 
     psb__information_message("Reference RAR buffer, handle 0x%08x, RAR region offset =0x%08x, RAR BO GPU offset hint=0x%08x\n",
                              rar_handle, rar_offset, wsbmBOOffsetHint(buf->drm_buf));
+
+    return VA_STATUS_SUCCESS;
+}
+
+
+static VAStatus psb_buffer_init_imr(psb_driver_data_p driver_data)
+{
+    int ret = 0;
+    RAR_desc_t *rar_rd;
+
+    /* hasn't grab IMR device memory region
+     * grab the whole IMR3 device memory
+     */
+    driver_data->rar_bo = calloc(1, sizeof(struct psb_buffer_s));
+    if (driver_data->rar_bo == NULL)
+        goto exit_error;
+
+    psb__information_message("Init IMR device\n");
+    if (psb_buffer_info_rar(driver_data)) {
+        psb__error_message("Get IMR region size failed\n");
+        goto exit_error;
+    }
+
+    psb__information_message("Grab whole camera device memory\n");
+    ret = psb_buffer_create(driver_data, driver_data->rar_size, psb_bt_rar, (psb_buffer_p) driver_data->rar_bo);
+
+    if (ret != VA_STATUS_SUCCESS) {
+        psb__error_message("Grab IMR device memory failed\n");
+        goto exit_error;
+    }
+
+    return VA_STATUS_SUCCESS;
+
+exit_error:
+    rar_rd = driver_data->rar_rd;
+
+    if (driver_data->rar_bo)
+        free(driver_data->rar_bo);
+
+    driver_data->rar_bo = NULL;
+
+    return VA_STATUS_ERROR_ALLOCATION_FAILED;
+}
+
+
+/*
+ * Reference one IMR buffer from offset
+ * only used to reference a slice IMR buffer which is created outside of video driver
+ */
+VAStatus psb_buffer_reference_imr(psb_driver_data_p driver_data,
+                                  uint32_t imr_offset,
+                                  psb_buffer_p buf
+                                 )
+{
+    VAStatus vaStatus;
+    int ret;
+
+    if (driver_data->rar_bo  == NULL) {
+        vaStatus = psb_buffer_init_imr(driver_data);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            psb__error_message("IMR init failed!\n");
+            return vaStatus;
+        }
+    }
+
+    /* don't need to assign the offset to buffer
+     * so that when destroy the buffer, we just
+     * need to unreference
+     */
+    /* buf->imr_offset = imr_offset; */
+
+    /* reference the global IMR BO */
+    ret = psb_buffer_reference(driver_data, buf, (psb_buffer_p) driver_data->rar_bo);
+    if (ret != VA_STATUS_SUCCESS) {
+        psb__error_message("Reference IMR device memory failed\n");
+        return ret;
+    }
+
+    buf->rar_handle = imr_offset;
+    buf->buffer_ofs = imr_offset;
+
+    /* reference the global IMR buffer, reset buffer type */
+    buf->type = psb_bt_rar_slice; /* don't need to IMR_release */
+
+    psb__information_message("Reference IMR buffer, IMR region offset =0x%08x, IMR BO GPU offset hint=0x%08x\n",
+                             imr_offset, wsbmBOOffsetHint(buf->drm_buf));
 
     return VA_STATUS_SUCCESS;
 }

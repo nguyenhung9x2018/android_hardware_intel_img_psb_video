@@ -1954,7 +1954,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     psb_cmdbuf_rendec_start_block(cmdbuf);
 
-    if (HAS_ROTATE(ctx->obj_context->msvdx_rotate)) /* FIXME field coded should not issue */
+    if (CONTEXT_ROTATE(ctx->obj_context)) /* FIXME field coded should not issue */
         psb__VC1_setup_alternative_frame(ctx);
 
     /* CHUNK: 1 - VC1SEQUENCE00 */

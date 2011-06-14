@@ -28,18 +28,22 @@
 #ifndef _PSB_OUTPUT_ANDROID_H_
 #define _PSB_OUTPUT_ANDROID_H_
 
-
 typedef struct _psb_android_output_s {
     /* information of output display */
     unsigned short screen_width;
     unsigned short screen_height;
+    int colorkey_dirty;
 
     /* for memory heap base used by putsurface */
     unsigned char* heap_addr;
 
-    /*HDMI extend video mode info*/
-    void* psb_HDMIExt_info;
+    void* psb_HDMIExt_info; /* HDMI extend video mode info */
     unsigned int sf_composition; /* surfaceflinger compostion */
+    /* save dest box here */
+    short destx;
+    short desty;
+    unsigned short destw;
+    unsigned short desth;
 } psb_android_output_s, *psb_android_output_p;
 
 #endif /*_PSB_OUTPUT_ANDROID_H_*/

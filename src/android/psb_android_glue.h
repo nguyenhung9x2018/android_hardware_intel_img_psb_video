@@ -60,6 +60,8 @@ extern "C" {
     int psb_android_register_isurface(void** surface, int bcd_id, int srcw, int srch);
     int psb_android_surfaceflinger_status(void** surface, int *sf_compostion, int *rotation);
 
+    void psb_android_get_destbox(short* destx, short* desty, unsigned short* destw, unsigned short* desth);
+
 #ifdef __cplusplus
 }
 #endif

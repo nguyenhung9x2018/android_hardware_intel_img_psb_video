@@ -1018,7 +1018,7 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
     }
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    if (HAS_ROTATE(ctx->obj_context->msvdx_rotate))
+    if (CONTEXT_ROTATE(ctx->obj_context))
         psb__MPEG4_setup_alternative_frame(ctx);
 
     /* Send VDMC and VDEB commands                                                    */

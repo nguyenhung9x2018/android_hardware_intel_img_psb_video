@@ -31,6 +31,7 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/dpms.h>
+#include <va/va_dricommon.h>
 #include <va/va_backend.h>
 #include "psb_output.h"
 #include "psb_surface.h"
@@ -272,6 +273,9 @@ void *psb_x11_output_init(VADriverContextP ctx)
         return NULL;
     }
 
+    if (getenv("PSB_VIDEO_EXTEND_FULLSCREEN"))
+        driver_data->extend_fullscreen = 1;
+    
     if (getenv("PSB_VIDEO_PUTSURFACE_X11")) {
         psb__information_message("Putsurface force to SW rendering\n");
         driver_data->output_method = PSB_PUTSURFACE_X11;
@@ -283,12 +287,32 @@ void *psb_x11_output_init(VADriverContextP ctx)
 
     output->output_drawable = 0;
     output->extend_drawable = 0;
+    output->pClipBoxList = NULL;
+    output->ui32NumClipBoxList = 0;
+    output->frame_count = 0;
+    output->bIsVisible = 0;
     
     /* always init CTEXTURE and COVERLAY */
     driver_data->coverlay = 1;
     driver_data->color_key = 0x11;
     driver_data->ctexture = 1;
 
+    driver_data->xrandr_dirty = 0;
+    driver_data->xrandr_update = 0;
+
+    if (getenv("PSB_VIDEO_EXTEND_FULLSCREEN")) {
+        driver_data->extend_fullscreen = 1;
+    }
+
+    driver_data->xrandr_thread_id = 0;
+    if (getenv("PSB_VIDEO_NOTRD") || IS_MRST(driver_data)) {
+        psb__information_message("Force not to start psb xrandr thread.\n");
+        driver_data->use_xrandr_thread = 0;
+    } else {
+        psb__information_message("By default, use psb xrandr thread.\n");
+        driver_data->use_xrandr_thread = 1;
+    }
+    
     if (IS_MFLD(driver_data) && /* force MFLD to use COVERLAY */
         (driver_data->output_method == PSB_PUTSURFACE_OVERLAY)) {
         psb__information_message("Use client overlay mode for post-processing\n");
@@ -330,7 +354,9 @@ error_handler(Display *dpy, XErrorEvent *error)
 
 void psb_x11_output_deinit(VADriverContextP ctx)
 {
+    INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
+    struct dri_state *dri_state = (struct dri_state *)ctx->dri_state;
 
     psb_x11_freeWindowClipBoxList(output->pClipBoxList);
     output->pClipBoxList = NULL;
@@ -341,6 +367,10 @@ void psb_x11_output_deinit(VADriverContextP ctx)
     }
     
     psb_deinit_xvideo(ctx);
+
+    /* close dri fd and release all drawable buffer */
+    if (driver_data->ctexture == 1)
+	(*dri_state->close)(ctx);
 }
 
 static void
@@ -410,6 +440,12 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
         driver_data->output_method = PSB_PUTSURFACE_CTEXTURE;
     }
 
+    if (IS_MFLD(driver_data) &&
+        (driver_data->xrandr_dirty & PSB_NEW_ROTATION)) {
+        psb_RecalcRotate(ctx);
+        driver_data->xrandr_dirty &= ~PSB_NEW_ROTATION;
+    }
+    
     return 0;
 }
 

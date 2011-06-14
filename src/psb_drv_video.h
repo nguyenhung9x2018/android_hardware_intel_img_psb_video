@@ -233,7 +233,8 @@ struct psb_driver_data_s {
     uint32_t color_key;
 
     /*output rotation info*/
-    int msvdx_rotate; /* msvdx rotate info programed to msvdx */
+    int disable_msvdx_rotate;
+    int msvdx_rotate_want; /* msvdx rotate info programed to msvdx */
     int va_rotate; /* VA rotate passed from APP */
     int mipi0_rotation; /* window manager rotation */
     int mipi1_rotation; /* window manager rotation */
@@ -279,13 +280,11 @@ struct object_config_s {
     format_vtable_p format_vtable;
 };
 
-#define ROTATE_VA2MSVDX(va_rotate) va_rotate
-#define HAS_ROTATE(msvdx_rotate) (msvdx_rotate != ROTATE_VA2MSVDX(VA_ROTATION_NONE))
-
 struct object_context_s {
     struct object_base_s base;
     VAContextID context_id;
     VAConfigID config_id;
+    VAProfile profile;
     VAEntrypoint entry_point;
     int picture_width;
     int picture_height;
@@ -331,13 +330,17 @@ struct object_context_s {
 
     int is_oold;
     int msvdx_rotate;
-
+    int interlaced_stream;
+    
     uint32_t msvdx_context;
 
     /* Debug */
     uint32_t frame_count;
     uint32_t slice_count;
 };
+
+#define ROTATE_VA2MSVDX(va_rotate)  (va_rotate)
+#define CONTEXT_ROTATE(obj_context) (obj_context->msvdx_rotate != ROTATE_VA2MSVDX(VA_ROTATION_NONE))
 
 struct object_surface_s {
     struct object_base_s base;
@@ -482,6 +485,39 @@ inline static char * buffer_type_to_string(int type)
         return "VAEncSliceParameterBufferType";
     default:
         return "UnknowBuffer";
+    }
+}
+
+inline static int Angle2Rotation(int angle)
+{
+    angle %= 360;
+    switch (angle) {
+    case 0:
+        return VA_ROTATION_NONE;
+    case 90:
+        return VA_ROTATION_90;
+    case 180:
+        return VA_ROTATION_180;
+    case 270:
+        return VA_ROTATION_270;
+    default:
+        return -1;
+    }
+}
+
+inline static int Rotation2Angle(int rotation)
+{
+    switch (rotation) {
+    case VA_ROTATION_NONE:
+        return 0;
+    case VA_ROTATION_90:
+        return 90;
+    case VA_ROTATION_180:
+        return 180;
+    case VA_ROTATION_270:
+        return 270;
+    default:
+        return -1;
     }
 }
 

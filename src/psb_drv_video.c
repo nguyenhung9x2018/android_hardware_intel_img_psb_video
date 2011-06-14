@@ -78,7 +78,7 @@
 #endif
 
 #define PSB_DRV_VERSION  PSB_PACKAGE_VERSION
-#define PSB_CHG_REVISION "(0X0000006B)"
+#define PSB_CHG_REVISION "(0X0000006F)"
 
 #define PSB_STR_VENDOR_MRST     "Intel GMA500-MRST-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_MFLD     "Intel GMA500-MFLD-" PSB_DRV_VERSION " " PSB_CHG_REVISION
@@ -174,6 +174,8 @@ void psb__error_message(const char *msg, ...)
     FILE *fp;
     char tag[128];
 
+    (void)tag;
+    
     if (psb_video_debug_fp == NULL) /* not set the debug */
         fp = stderr;
     else
@@ -199,6 +201,8 @@ void psb__information_message(const char *msg, ...)
         va_list args;
         char tag[128];
 
+        (void)tag;
+        
         fprintf(psb_video_debug_fp, "[0x%08lx]psb_drv_video(%d:0x%08lx) ",
                 GetTickCount(), getpid(), pthread_self());
         va_start(args, msg);
@@ -248,39 +252,6 @@ static void psb__close_log(void)
     if (psb_video_debug_fp != NULL)
         fclose(psb_video_debug_fp);
     */
-}
-
-static int Angle2Rotation(int angle)
-{
-    angle %= 360;
-    switch (angle) {
-    case 0:
-        return VA_ROTATION_NONE;
-    case 90:
-        return VA_ROTATION_90;
-    case 180:
-        return VA_ROTATION_180;
-    case 270:
-        return VA_ROTATION_270;
-    default:
-        return -1;
-    }
-}
-
-static int Rotation2Angle(int rotation)
-{
-    switch (rotation) {
-    case VA_ROTATION_NONE:
-        return 0;
-    case VA_ROTATION_90:
-        return 90;
-    case VA_ROTATION_180:
-        return 180;
-    case VA_ROTATION_270:
-        return 270;
-    default:
-        return -1;
-    }
 }
 
 
@@ -835,48 +806,6 @@ VAStatus psb_CreateSurfaces(
         psb_surface->extra_info[4] = fourcc;
 
         obj_surface->psb_surface = psb_surface;
-
-        /* Allocate alternative output surface */
-        if (HAS_ROTATE(driver_data->msvdx_rotate)) {
-            psb__information_message("Try to allocate surface for alternative rotate output\n");
-            psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
-            if (NULL == psb_surface) {
-                psb_surface_destroy(obj_surface->psb_surface);
-                obj_surface->surface_id = VA_INVALID_SURFACE;
-                /* object_heap_free( &driver_data->surface_heap, (object_base_p) obj_surface); */
-
-                vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-
-                DEBUG_FAILURE;
-                break;
-            }
-
-            if (driver_data->msvdx_rotate == ROTATE_VA2MSVDX(VA_ROTATION_180))
-                vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
-                                              (VA_RT_FORMAT_PROTECTED & format), psb_surface);
-            else {
-                vaStatus = psb_surface_create(driver_data, height_origin, ((width + 0x1f) & ~0x1f), VA_FOURCC_NV12,
-                                              (VA_RT_FORMAT_PROTECTED & format), psb_surface
-                                             );
-                obj_surface->width_r = height_origin;
-                obj_surface->height_r = ((width + 0x1f) & ~0x1f);
-            }
-            if (VA_STATUS_SUCCESS != vaStatus) {
-                free(psb_surface);
-                object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
-                obj_surface->surface_id = VA_INVALID_SURFACE;
-                psb_surface_destroy(obj_surface->psb_surface);
-
-                DEBUG_FAILURE;
-                break;
-            }
-            /* by default, surface fourcc is NV12 */
-            memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
-            psb_surface->extra_info[4] = VA_FOURCC_NV12;
-            SET_SURFACE_INFO_rotate(psb_surface, driver_data->msvdx_rotate);
-
-            obj_surface->psb_surface_rotate = psb_surface;
-        }
     }
 
     /* Error recovery */
@@ -1153,8 +1082,6 @@ VAStatus psb_CreateContext(
     obj_context->driver_data = driver_data;
     obj_context->current_render_target = NULL;
     obj_context->is_oold = driver_data->is_oold;
-    obj_context->msvdx_rotate = driver_data->msvdx_rotate;
-
     obj_context->context_id = contextID;
     obj_context->config_id = config_id;
     obj_context->picture_width = picture_width;
@@ -1303,7 +1230,7 @@ VAStatus psb_CreateContext(
     obj_context->slice_count = 0;
     obj_context->msvdx_context = ((driver_data->msvdx_context_base & 0xff0000) >> 16) |
                                  ((contextID & 0xff000000) >> 16);
-
+    obj_context->profile = obj_config->profile;
     obj_context->entry_point = obj_config->entrypoint;
 
     /* Error recovery */
@@ -1413,8 +1340,12 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
                                                         * should be shared between two process
                                                         */
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_shared, obj_buffer->psb_buffer);
-            else if (obj_buffer->type == VAProtectedSliceDataBufferType)
-                vaStatus = psb_buffer_reference_rar(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
+            else if (obj_buffer->type == VAProtectedSliceDataBufferType) {
+	      if (IS_MRST(driver_data))
+		  vaStatus = psb_buffer_reference_rar(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
+	      if (IS_MFLD(driver_data))
+		  vaStatus = psb_buffer_reference_imr(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
+	    }
             else
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
             if (VA_STATUS_SUCCESS != vaStatus) {
@@ -1487,9 +1418,10 @@ void psb__suspend_buffer(psb_driver_data_p driver_data, object_buffer_p obj_buff
         obj_context->buffers_unused_tail[type] = obj_buffer;
         obj_context->buffers_unused_count[type]++;
 
+        /*
         psb__information_message("Adding buffer %08x type %s to unused list. unused count = %d\n", obj_buffer->base.id,
                                  buffer_type_to_string(obj_buffer->type), obj_context->buffers_unused_count[type]);
-
+        */
         object_heap_suspend_object((object_base_p) obj_buffer, 1); /* suspend */
         return;
     }
@@ -1934,50 +1866,6 @@ VAStatus psb_DestroyBuffer(
     return vaStatus;
 }
 
-static VAStatus psb__create_surface_rotation(VADriverContextP ctx, object_surface_p obj_surface, int protected)
-{
-    INIT_DRIVER_DATA
-    int width, height;
-    psb_surface_p psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-
-    psb__information_message("Try to allocate surface for alternative rotate output\n");
-
-    if (NULL == psb_surface) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    width = obj_surface->width;
-    height = obj_surface->height;
-
-    if (driver_data->msvdx_rotate == ROTATE_VA2MSVDX(VA_ROTATION_180)) {
-        vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
-                                      protected, psb_surface);
-        obj_surface->width_r = width;
-        obj_surface->height_r = height;
-    } else {
-        vaStatus = psb_surface_create(driver_data, obj_surface->height_origin, ((width + 0x1f) & ~0x1f), VA_FOURCC_NV12,
-                                      protected, psb_surface
-                                     );
-        obj_surface->width_r = obj_surface->height_origin;
-        obj_surface->height_r = ((width + 0x1f) & ~0x1f);
-    }
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        free(psb_surface);
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    /* by default, surface fourcc is NV12 */
-    memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
-    psb_surface->extra_info[4] = VA_FOURCC_NV12;
-    SET_SURFACE_INFO_rotate(psb_surface, driver_data->msvdx_rotate);
-
-    obj_surface->psb_surface_rotate = psb_surface;
-    return vaStatus;
-}
 
 VAStatus psb_BeginPicture(
     VADriverContextP ctx,
@@ -2023,50 +1911,21 @@ VAStatus psb_BeginPicture(
         vaStatus = obj_context->format_vtable->beginPicture(obj_context);
     }
 
-    if (driver_data->xrandr_dirty & PSB_NEW_ROTATION) {
-        int angle;
-        angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->mipi0_rotation);
-        driver_data->local_rotation = Angle2Rotation(angle);
-        angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->hdmi_rotation);
-        driver_data->extend_rotation = Angle2Rotation(angle);
-#ifndef ANDROID
-        if ((driver_data->mipi1_rotation != VA_ROTATION_NONE) ||
-            ((driver_data->local_rotation != VA_ROTATION_NONE) &&
-             (driver_data->extend_rotation != VA_ROTATION_NONE) &&
-             (driver_data->local_rotation != driver_data->extend_rotation))) {
-            driver_data->msvdx_rotate = driver_data->va_rotate;
-            /*fallback to texblit path*/
-            driver_data->output_method = PSB_PUTSURFACE_CTEXTURE;
-        } else {
-            if (driver_data->output_method != PSB_PUTSURFACE_FORCE_CTEXTURE) {
-                driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
-                if (HAS_ROTATE(driver_data->local_rotation))
-                    driver_data->msvdx_rotate = ROTATE_VA2MSVDX(driver_data->local_rotation);
-                else
-                    driver_data->msvdx_rotate = ROTATE_VA2MSVDX(driver_data->extend_rotation);
-            }
-        }
-#endif
-        driver_data->xrandr_dirty &= ~PSB_NEW_ROTATION;
-    }
-    /* Create surface for rotation if needed */
-    if (HAS_ROTATE(driver_data->msvdx_rotate) == 0 && obj_surface->psb_surface_rotate) {
-        psb_surface_destroy(obj_surface->psb_surface_rotate);
-        obj_surface->psb_surface_rotate = NULL;
-        obj_surface->width_r = obj_surface->width;
-        obj_surface->height_r = obj_surface->height;
-        obj_context->msvdx_rotate = driver_data->msvdx_rotate;
-    } else if (HAS_ROTATE(driver_data->msvdx_rotate) &&
-               (!obj_surface->psb_surface_rotate ? 1 : (GET_SURFACE_INFO_rotate(obj_surface->psb_surface_rotate) != driver_data->msvdx_rotate))) {
-        if (!obj_surface->psb_surface_rotate) {
-            psb__create_surface_rotation(ctx, obj_surface, obj_surface->psb_surface->buf.type == psb_bt_rar_surface);
-        } else {
-            psb_surface_destroy(obj_surface->psb_surface_rotate);
-            free(obj_surface->psb_surface_rotate);
-            psb__create_surface_rotation(ctx, obj_surface, obj_surface->psb_surface->buf.type == psb_bt_rar_surface);
-        }
-        obj_context->msvdx_rotate = driver_data->msvdx_rotate;
-    }
+    /* want msvdx to do rotate
+     * but check per-context stream type: interlace or not
+     */
+    if (obj_context->interlaced_stream || driver_data->disable_msvdx_rotate)
+        obj_context->msvdx_rotate = 0;
+    else
+        obj_context->msvdx_rotate = driver_data->msvdx_rotate_want;
+
+    /* the main surface track current rotate information
+     * try to reuse the allocated rotate surfaces and don't destroy them
+     * thus the rotation info in obj_surface->psb_surface_rotate may not be updated
+     */
+    SET_SURFACE_INFO_rotate(obj_surface->psb_surface, obj_context->msvdx_rotate);
+    if (IS_MFLD(driver_data) && CONTEXT_ROTATE(obj_context))
+        psb_CreateRotateSurface(ctx, obj_surface, driver_data->msvdx_rotate_want);
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {
         psb_surface_p psb_surface = obj_surface->psb_surface;
@@ -3136,6 +2995,9 @@ VAStatus psb_Terminate(VADriverContextP ctx)
         free(driver_data->surface_mb_error);
 
     free(ctx->pDriverData);
+    free(ctx->vtable_egl);
+    free(ctx->vtable_tpi);
+
     ctx->pDriverData = NULL;
     psb__error_message("vaTerminate: goodbye\n\n");
 
@@ -3293,13 +3155,6 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->hd_encode_supported = 1;
         driver_data->hd_decode_supported = 1;
     }
-
-    driver_data->use_xrandr_thread = 0;
-    driver_data->xrandr_thread_id = 0;
-    driver_data->msvdx_rotate = ROTATE_VA2MSVDX(VA_ROTATION_NONE);
-    driver_data->va_rotate = VA_ROTATION_NONE;
-    driver_data->xrandr_dirty = 0;
-    driver_data->xrandr_update = 0;
 
     psb_init_surface_pvr2dbuf(driver_data);
 

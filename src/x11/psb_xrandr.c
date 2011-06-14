@@ -5,7 +5,7 @@
  *
  */
 
-
+#include <unistd.h>
 #include "psb_xrandr.h"
 #include "psb_x11.h"
 
@@ -143,7 +143,7 @@ static void psb_xrandr_hdmi_property(VADriverContextP ctx)
 
 static void psb_xrandr_mipi_location_init(psb_output_device_mode output_device_mode)
 {
-    psb_xrandr_crtc_p local_crtc, extend_crtc;
+    psb_xrandr_crtc_p local_crtc = NULL, extend_crtc = NULL;
 
     switch (output_device_mode) {
     case SINGLE_MIPI0:
@@ -188,7 +188,7 @@ static void psb_xrandr_mipi_location_init(psb_output_device_mode output_device_m
 
 static void psb_xrandr_hdmi_location_init(psb_output_device_mode output_device_mode)
 {
-    psb_xrandr_crtc_p local_crtc, extend_crtc;
+    psb_xrandr_crtc_p local_crtc = NULL, extend_crtc = NULL;
 
     switch (output_device_mode) {
     case SINGLE_HDMI:
@@ -457,6 +457,8 @@ void psb_xrandr_refresh(VADriverContextP ctx)
     }
 
     psb_xrandr_coordinate_init(ctx);
+
+    psb_RecalcRotate(ctx);
     pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
 }
 

@@ -59,6 +59,7 @@ int psb_xrandr_single_mode();
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 #define SURFACE(id) ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
+#define GET_SURFACE_INFO_rotate(psb_surface) ((int) (psb_surface)->extra_info[5])
 
 #ifndef VA_FOURCC_I420
 #define VA_FOURCC_I420          0x30323449
@@ -182,7 +183,6 @@ static void I830StopVideo(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
-    long offsetA = wsbmBOOffsetHint(pPriv->wsbo[0]) & 0x0FFFFFFF;
     I830OverlayRegPtr overlayA = (I830OverlayRegPtr)(pPriv->regmap[0]);
     I830OverlayRegPtr overlayC = (I830OverlayRegPtr)(pPriv->regmap[1]);
     struct drm_psb_register_rw_arg regs;
@@ -908,119 +908,31 @@ i830_display_video(
     }
 }
 
-/*
- * The source rectangle of the video is defined by (src_x, src_y, src_w, src_h).
- * The dest rectangle of the video is defined by (drw_x, drw_y, drw_w, drw_h).
- * id is a fourcc code for the format of the video.
- * buf is the pointer to the source data in system memory.
- * width and height are the w/h of the source data.
- * If "sync" is TRUE, then we must be finished with *buf at the point of return
- * (which we always are).
- * clipBoxes is the clipping region in screen space.
- * data is a pointer to our port private.
- * pDraw is a Drawable, which might not be the screen in the case of
- * compositing.  It's a new argument to the function in the 1.1 server.
- */
-static int I830PutImage(
+
+static void I830PutImageFlipRotateSurface(
     VADriverContextP ctx,
-    VASurfaceID surface,
-    short src_x, short src_y,
-    short src_w, short src_h,
-    short drw_x, short drw_y,
-    short drw_w, short drw_h,
-    int fourcc, int flags,
-    int overlayId,
+    object_surface_p obj_surface,    
+    int *src_w_new, int *src_h_new,
+    int *width_new, int *height_new,
+    psb_surface_p *psb_surface_new,
     int pipeId)
 {
-    INIT_DRIVER_DATA;
-    int x1, x2, y1, y2;
-    int width, height;
-    int top, left, npixels;
-    int pitch = 0, pitch2 = 0;
-    short tmp;
-    unsigned int pre_add;
-    unsigned int gtt_ofs;
-    struct _WsbmBufferObject *drm_buf;
-    BoxRec dstBox;
-    PsbPortPrivPtr pPriv;
-    object_surface_p obj_surface = SURFACE(surface);
+    int src_w = *src_w_new, src_h =  *src_h_new;
+    int width = *width_new, height = *height_new;
+    int  tmp = 0;
+    
     psb_surface_p psb_surface = NULL;
+    INIT_DRIVER_DATA;
+    PsbPortPrivPtr pPriv;
 
-    /* silent kw */
-    if (NULL == obj_surface)
-        return 1;
+    /* the primary surface doesn't have rotation */
+    if ((GET_SURFACE_INFO_rotate(*psb_surface_new) == 0) ||
+        ((pipeId == PIPEA) && (driver_data->local_rotation == VA_ROTATION_NONE)) || 
+        ((pipeId == PIPEB) && (driver_data->extend_rotation == VA_ROTATION_NONE)))
+        return;
 
-#if 0
-    if (pipeId == 0) {
-        psb_surface = obj_surface->psb_surface_rotate;
-        psb_buffer_p buf = &psb_surface->buf;
-        unsigned char *data, *chroma, *buffer, *header;
-        static FILE *pf = NULL;
-        int ret, i;
-        if (!psb_surface)
-            goto dump_out;
-        if (pf == NULL)
-            if ((pf = fopen("/home/dump.yuv", "w+")) == NULL)
-                printf("Open yuv file fails\n");
-
-        ret = psb_buffer_map(buf, &data);
-
-        if (ret)
-            printf("Map buffer fail\n");
-
-        for (i = 0; i < obj_surface->height_r; i++) {
-            fwrite(data, 1, obj_surface->width_r, pf);
-            data += psb_surface->stride;
-        }
-
-        buffer = malloc(obj_surface->height_r * obj_surface->width_r);
-        if (!buffer)
-            printf("Alloc chroma buffer fail\n");
-
-        header = buffer;
-        chroma = data;
-        for (i = 0; i < obj_surface->height_r / 2; i++) {
-            int j;
-            for (j = 0; j < obj_surface->width_r / 2; j++) {
-                *buffer++ = data[j*2];
-            }
-            data += psb_surface->stride;
-        }
-
-        data = chroma;
-        for (i = 0; i < obj_surface->height_r / 2; i++) {
-            int j;
-            for (j = 0; j < obj_surface->width_r / 2; j++) {
-                *buffer++ = data[j*2 + 1];
-            }
-            data += psb_surface->stride;
-        }
-
-        fwrite(header, obj_surface->height_r / 2, obj_surface->width_r, pf);
-        free(header);
-        psb_buffer_unmap(buf);
-dump_out:
-        ;
-    }
-#endif
     pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
-
-    switch (fourcc) {
-    case VA_FOURCC_NV12:
-        width = obj_surface->width;
-        height = obj_surface->height;
-        break;
-    default:
-        width = obj_surface->width;
-        height = obj_surface->height;
-        break;
-    }
-
-    /* rotate support here: more check?
-     * and for oold also?
-     */
-    psb_surface = obj_surface->psb_surface;
-
+    
     if (pipeId == PIPEA) {
         if (driver_data->local_rotation != VA_ROTATION_NONE) {
             psb_surface = obj_surface->psb_surface_rotate;
@@ -1063,8 +975,145 @@ dump_out:
         pPriv->rotation = driver_data->hdmi_rotation;
     }
 
+    *src_w_new = src_w;
+    *src_h_new = src_h;
+    *width_new = width;
+    *height_new = height;
+    *psb_surface_new = psb_surface;
+}
+
+
+static void I830PutImageFlipRotateDebug(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    short src_x, short src_y,
+    short src_w, short src_h,
+    short drw_x, short drw_y,
+    short drw_w, short drw_h,
+    int fourcc, int flags,
+    int overlayId,
+    int pipeId)
+{
+    INIT_DRIVER_DATA;
+    object_surface_p obj_surface = SURFACE(surface);
+    psb_surface_p psb_surface = NULL;
+
+    if (pipeId != 0)
+        return;
+    
+    psb_surface = obj_surface->psb_surface_rotate;
+    psb_buffer_p buf = &psb_surface->buf;
+    unsigned char *data, *chroma, *buffer, *header;
+    static FILE *pf = NULL;
+    int ret, i;
     if (!psb_surface)
-        psb_surface = obj_surface->psb_surface;
+        goto dump_out;
+    if (pf == NULL)
+        if ((pf = fopen("/home/dump.yuv", "w+")) == NULL)
+            printf("Open yuv file fails\n");
+
+    ret = psb_buffer_map(buf, &data);
+
+    if (ret)
+        printf("Map buffer fail\n");
+
+    for (i = 0; i < obj_surface->height_r; i++) {
+        fwrite(data, 1, obj_surface->width_r, pf);
+        data += psb_surface->stride;
+    }
+
+    buffer = malloc(obj_surface->height_r * obj_surface->width_r);
+    if (!buffer)
+        printf("Alloc chroma buffer fail\n");
+
+    header = buffer;
+    chroma = data;
+    for (i = 0; i < obj_surface->height_r / 2; i++) {
+        int j;
+        for (j = 0; j < obj_surface->width_r / 2; j++) {
+            *buffer++ = data[j*2];
+        }
+        data += psb_surface->stride;
+    }
+
+    data = chroma;
+    for (i = 0; i < obj_surface->height_r / 2; i++) {
+        int j;
+        for (j = 0; j < obj_surface->width_r / 2; j++) {
+            *buffer++ = data[j*2 + 1];
+        }
+        data += psb_surface->stride;
+    }
+
+    fwrite(header, obj_surface->height_r / 2, obj_surface->width_r, pf);
+    free(header);
+    psb_buffer_unmap(buf);
+  dump_out:
+    ;
+}
+
+
+/*
+ * The source rectangle of the video is defined by (src_x, src_y, src_w, src_h).
+ * The dest rectangle of the video is defined by (drw_x, drw_y, drw_w, drw_h).
+ * id is a fourcc code for the format of the video.
+ * buf is the pointer to the source data in system memory.
+ * width and height are the w/h of the source data.
+ * If "sync" is TRUE, then we must be finished with *buf at the point of return
+ * (which we always are).
+ * clipBoxes is the clipping region in screen space.
+ * data is a pointer to our port private.
+ * pDraw is a Drawable, which might not be the screen in the case of
+ * compositing.  It's a new argument to the function in the 1.1 server.
+ */
+static int I830PutImage(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    int src_x, int src_y,
+    int src_w, int src_h,
+    int drw_x, int drw_y,
+    int drw_w, int drw_h,
+    int fourcc, int flags,
+    int overlayId,
+    int pipeId)
+{
+    INIT_DRIVER_DATA;
+    int x1, x2, y1, y2;
+    int width, height;
+    int top, left, npixels;
+    int pitch = 0, pitch2 = 0;
+    unsigned int pre_add;
+    unsigned int gtt_ofs;
+    struct _WsbmBufferObject *drm_buf;
+    BoxRec dstBox;
+    PsbPortPrivPtr pPriv;
+    object_surface_p obj_surface = SURFACE(surface);
+    psb_surface_p psb_surface = NULL;
+
+    /* silent kw */
+    if (NULL == obj_surface)
+        return 1;
+
+    pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
+
+    switch (fourcc) {
+    case VA_FOURCC_NV12:
+        width = obj_surface->width;
+        height = obj_surface->height;
+        break;
+    default:
+        width = obj_surface->width;
+        height = obj_surface->height;
+        break;
+    }
+
+    /* rotate support here: more check?
+     * and for oold also?
+     */
+    psb_surface = obj_surface->psb_surface;
+    I830PutImageFlipRotateSurface(ctx, obj_surface,
+                                  &src_w, &src_h, &width, &height,
+                                  &psb_surface, pipeId);
 
     width = (width <= 1920) ? width : 1920;
 
