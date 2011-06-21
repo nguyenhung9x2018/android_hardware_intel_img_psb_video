@@ -331,6 +331,8 @@ static int psb_update_destbox(
 static int psb_check_outputmethod(
     VADriverContextP ctx,
     VASurfaceID surface,
+    unsigned short srcw,
+    unsigned short srch,
     void *android_isurface,
     psb_hdmi_mode *hdmi_mode
 )
@@ -340,6 +342,12 @@ static int psb_check_outputmethod(
     psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
     object_surface_p obj_surface;
     int rotation;
+
+    if ((srcw >= 2048) || (srch >= 2048)) {
+        psb__information_message("Clip size extend overlay hw limit, use texstreaming\n");
+        driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
+        return 0;
+    }
 
     /* use saved status to avoid per-frame checking */
     if ((driver_data->frame_count % driver_data->outputmethod_checkinterval) != 0) {
@@ -364,7 +372,9 @@ static int psb_check_outputmethod(
                                  driver_data->render_rect.width, driver_data->render_rect.height);
     }
 
-    if ((*hdmi_mode == EXTENDED_VIDEO) || (*hdmi_mode == CLONE))
+    if ((*hdmi_mode == EXTENDED_VIDEO) || (*hdmi_mode == CLONE)
+            || (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING)
+            || (driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY))
         return 0;
 
     /* HDMI is not enabled */
@@ -437,6 +447,12 @@ VAStatus psb_PutSurface(
         return vaStatus;
     }
 
+    if((NULL == cliprects) && (0 != number_cliprects)){
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
     if ((srcx < 0) || (srcx > obj_surface->width) || (srcw > (obj_surface->width - srcx)) ||
             (srcy < 0) || (srcy > obj_surface->height_origin) || (srch > (obj_surface->height_origin - srcy))) {
         psb__error_message("vaPutSurface: source rectangle passed from upper layer is not correct.\n");
@@ -478,7 +494,7 @@ VAStatus psb_PutSurface(
     }
 
     /* time for MFLD platform */
-    psb_check_outputmethod(ctx, surface, android_isurface, &hdmi_mode);
+    psb_check_outputmethod(ctx, surface, srcw, srch, android_isurface, &hdmi_mode);
 
     /* Extvideo: Use overlay to render external HDMI display */
     if (hdmi_mode == EXTENDED_VIDEO) {

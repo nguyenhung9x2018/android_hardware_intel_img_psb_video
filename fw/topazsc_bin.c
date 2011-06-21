@@ -56,7 +56,7 @@
 #include "MPG4SlaveFirmwareVBR_bin.h"
 
 
-#define FW_VER 0x5D
+#define FW_VER 0x5E
 #define FW_FILE_NAME "topazsc_fw.bin"
 
 #define FW_MASTER_INFO(codec,prefix) \

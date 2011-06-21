@@ -269,8 +269,8 @@ static VAStatus pnw__H263ES_process_picture_param(context_ENC_p ctx, object_buff
     ctx->dest_surface = SURFACE(pBuffer->reconstructed_picture);
     ctx->coded_buf = BUFFER(pBuffer->coded_buf);
 
-    ASSERT(ctx->Width == pBuffer->picture_width);
-    ASSERT(ctx->Height == pBuffer->picture_height);
+    ctx->RawWidth = pBuffer->picture_width;
+    ctx->RawHeight = pBuffer->picture_height;
 
     /* Insert do_header command here */
 
@@ -297,8 +297,8 @@ static VAStatus pnw__H263ES_process_picture_param(context_ENC_p ctx, object_buff
                                      pBuffer->picture_type,
                                      SourceFormatType,
                                      ctx->sRCParams.FrameRate,
-                                     ctx->Width,
-                                     ctx->Height);
+                                     ctx->RawWidth,
+                                     ctx->RawHeight);
 
     pnw_cmdbuf_insert_command_package(ctx->obj_context,
                                       ctx->ParallelCores - 1, /* Send to the last core as this will complete first */

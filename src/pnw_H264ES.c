@@ -422,13 +422,13 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
                                           MTX_CMDID_DO_HEADER,
                                           &cmdbuf->header_mem,
                                           ctx->pic_header_ofs);
-		if (need_sps && ctx->ParallelCores > 1 ) {
-		    pnw_cmdbuf_insert_command_package(ctx->obj_context,
-                                          0,
-                                          MTX_CMDID_DO_HEADER,
-                                          &cmdbuf->header_mem,
-                                          ctx->pic_header_ofs);
-		}
+	if (need_sps && ctx->ParallelCores > 1 ) {
+	    pnw_cmdbuf_insert_command_package(ctx->obj_context,
+		    0,
+		    MTX_CMDID_DO_HEADER,
+		    &cmdbuf->header_mem,
+		    ctx->pic_header_ofs);
+	}
     }
 
     if (ctx->ParallelCores == 1) {
@@ -689,11 +689,11 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
             break;
         }
 
-		if (rate_control_param->window_size > 65535) {
-			psb__error_message("window_size is too much!\n");
-			vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-			break;
-		}
+	if (rate_control_param->window_size > 65535) {
+	    psb__error_message("window_size is too much!\n");
+	    vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+	    break;
+	}
 
         psb__information_message("rate control changed from %d to %d\n",
                                  ctx->sRCParams.BitsPerSecond,
@@ -728,7 +728,7 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     case VAEncMiscParameterTypeMaxSliceSize:
         max_slice_size_param = (VAEncMiscParameterMaxSliceSize *)pBuffer->data;
 
-		if (ctx->max_slice_size < 1 || ctx->max_slice_size > 3110400) {
+		if (max_slice_size_param->max_slice_size < 1 || max_slice_size_param->max_slice_size > 3110400) {
 			psb__error_message("Invalid max_slice_size. It should be 1~ 3110400.\n");
 			vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 			break;

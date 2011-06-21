@@ -78,7 +78,7 @@
 #endif
 
 #define PSB_DRV_VERSION  PSB_PACKAGE_VERSION
-#define PSB_CHG_REVISION "(0X0000006F)"
+#define PSB_CHG_REVISION "(0X00000070)"
 
 #define PSB_STR_VENDOR_MRST     "Intel GMA500-MRST-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_MFLD     "Intel GMA500-MFLD-" PSB_DRV_VERSION " " PSB_CHG_REVISION
@@ -118,6 +118,7 @@ void psb_init_surface_pvr2dbuf(psb_driver_data_p driver_data);
 void psb_free_surface_pvr2dbuf(psb_driver_data_p driver_data);
 
 static FILE *psb_video_debug_fp = NULL;
+static int  debug_fp_count = 0;
 
 /*
  * read a config "env" for libva.conf or from environment setting
@@ -223,35 +224,36 @@ static void psb__open_log(void)
     char log_fn[1024];
     unsigned int suffix;
     
-    if (psb_video_debug_fp != 0)
+    if ((psb_video_debug_fp != NULL) && (psb_video_debug_fp != stderr)) {
+        debug_fp_count++;
         return;
+    }
     
     if (psb_parse_config("PSB_VIDEO_DEBUG", &log_fn[0]) != 0)
         return;
 
     suffix = 0xffff & ((unsigned int)time(NULL));    
-    if (strcmp(log_fn, "/dev/stdout") != 0)
-        sprintf(log_fn + strlen(log_fn), ".%d", suffix);
     psb_video_debug_fp = fopen(log_fn, "w");
-
     if (psb_video_debug_fp == 0) {
         psb__error_message("Log file %s open failed, reason %s, fall back to stderr\n",
                            log_fn, strerror(errno));
         psb_video_debug_fp = stderr;
-    } else
+    } else {
         psb__information_message("Log file %s open successfully\n", log_fn);
+        debug_fp_count++;
+    }
 }
 
 static void psb__close_log(void)
 {
-    /* rely on OS to close it incase multi-thread run into it
-     */
+    if ((psb_video_debug_fp != NULL) & (psb_video_debug_fp != stderr)) {
+        debug_fp_count--;
+        if (debug_fp_count == 0)
+            fclose(psb_video_debug_fp);
+    }
+    
     return;
 
-    /*
-    if (psb_video_debug_fp != NULL)
-        fclose(psb_video_debug_fp);
-    */
 }
 
 
@@ -534,6 +536,11 @@ VAStatus psb_CreateConfig(
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
+    if (NULL == attrib_list) {
+        vaStatus =  VA_STATUS_ERROR_INVALID_PARAMETER;
+        return vaStatus;
+    }
+
     if (NULL == format_vtable) {
         vaStatus = psb__error_unsupported_profile_entrypoint(driver_data, profile, entrypoint);
     }
@@ -548,6 +555,8 @@ VAStatus psb_CreateConfig(
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         return vaStatus;
     }
+
+
     MEMSET_OBJECT(obj_config, struct object_config_s);
 
     obj_config->profile = profile;
@@ -2999,7 +3008,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     free(ctx->vtable_tpi);
 
     ctx->pDriverData = NULL;
-    psb__error_message("vaTerminate: goodbye\n\n");
+    psb__information_message("vaTerminate: goodbye\n\n");
 
     psb__close_log();
 
@@ -3260,7 +3269,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
-    psb__error_message("vaInitilize: succeeded!\n\n");
+    psb__information_message("vaInitilize: succeeded!\n\n");
     
     return VA_STATUS_SUCCESS;
 }
