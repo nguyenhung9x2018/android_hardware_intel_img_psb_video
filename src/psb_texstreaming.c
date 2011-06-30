@@ -136,7 +136,10 @@ VAStatus psb_release_video_bcd(VADriverContextP ctx)
      */
 #ifdef ANDROID
     psb__information_message("In psb_release_video_bcd, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
-    psb_android_texture_streaming_destroy();
+    if (driver_data->output_method == PSB_PUTSURFACE_SUPSRC)
+        psb_android_dynamic_source_destroy();
+    else 
+        psb_android_texture_streaming_destroy();
 #endif
     BC_Video_ioctl_package ioctl_package;
     psb__information_message("In psb_release_video_bcd, call BC_Video_ioctl_release_buffer_device to release video buffer device id.\n");

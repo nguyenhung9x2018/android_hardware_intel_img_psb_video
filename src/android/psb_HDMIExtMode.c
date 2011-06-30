@@ -133,7 +133,7 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
     psb_HDMIExt_info = (psb_HDMIExt_info_p)calloc(1, sizeof(psb_HDMIExt_info_s));
     if (!psb_HDMIExt_info) {
         psb__error_message("%s : Failed to create psb_HDMIExt_info.\n", __FUNCTION__);
-        return VA_STATUS_ERROR_UNKNOWN;
+        return NULL;
     }
     memset(psb_HDMIExt_info, 0, sizeof(psb_HDMIExt_info_s));
 

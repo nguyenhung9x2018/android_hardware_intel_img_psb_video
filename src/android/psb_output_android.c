@@ -57,6 +57,11 @@
 #define GET_SURFACE_INFO_rotate(psb_surface) ((int) psb_surface->extra_info[5])
 #define GET_SURFACE_INFO_protect(psb_surface) ((int) psb_surface->extra_info[6])
 
+enum {
+    eWidiOff             = 1,
+    eWidiClone           = 2,
+    eWidiExtendedVideo   = 3,
+};
 
 void *psb_android_output_init(VADriverContextP ctx)
 {
@@ -106,6 +111,11 @@ void *psb_android_output_init(VADriverContextP ctx)
     if (psb_parse_config("PSB_VIDEO_COVERLAY", &put_surface[0]) == 0) {
         psb__information_message("Putsurface use client overlay\n");
         driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
+    }
+
+    if (psb_parse_config("PSB_VIDEO_SUPSRC", &put_surface[0]) == 0) {
+        psb__information_message("Putsurface use super src\n");
+        driver_data->output_method = PSB_PUTSURFACE_SUPSRC;
     }
 
     if (IS_MFLD(driver_data)) {
@@ -283,6 +293,48 @@ VAStatus psb_putsurface_ts(
     return VA_STATUS_SUCCESS;
 }
 
+static VAStatus psb_putsurface_dynamic_source(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    void *android_isurface,
+    unsigned short srcw,
+    unsigned short srch
+)
+{
+    INIT_DRIVER_DATA;
+    INIT_OUTPUT_PRIV;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    object_surface_p obj_surface = SURFACE(surface);
+    uint32_t ttm_handle, i;
+    psb_hdmi_mode hdmi_mode;
+    psb_surface_p psb_surface = obj_surface->psb_surface;
+
+    if (psb_android_dynamic_source_init(android_isurface, driver_data->bcd_id, srcw, srch, psb_surface->stride)) {
+        psb__error_message("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    if (psb_HDMIExt_update(ctx, output->psb_HDMIExt_info)) {
+        psb__error_message("%s: Failed to update HDMIExt info.\n", __FUNCTION__);
+        return -1;
+    }
+
+    hdmi_mode = psb_HDMIExt_get_mode(output);
+    ttm_handle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+
+    for (i = 0; i < driver_data->bcd_buffer_num; i++) {
+        if (driver_data->bcd_ttm_handles[i] == ttm_handle)
+            break;
+    }
+
+    if (i == driver_data->bcd_buffer_num) {
+        psb__error_message("Failed to get buffer index.\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+    psb_android_dynamic_source_display(i, (int)hdmi_mode);
+    return vaStatus;
+}
+
 static int psb_update_destbox(
     VADriverContextP ctx
 )
@@ -318,13 +370,6 @@ static int psb_update_destbox(
         LOGD("output->destbox = (%d,%d,%d,%d)\n", output->destx, output->desty, output->destw, output->desth);
     }
 
-    /*Use default destbox if can't get destbox from surfaceflinger.*/
-    if (output->destw == 0 || output->desth == 0) {
-        output->destx = destx;
-        output->desty = desty;
-        output->destw = (destw > output->screen_width) ? output->screen_width : destw;
-        output->desth = (desth > output->screen_height) ? output->screen_height : desth;
-    }
     return vaStatus;
 }
 
@@ -341,7 +386,7 @@ static int psb_check_outputmethod(
     INIT_OUTPUT_PRIV;
     psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
     object_surface_p obj_surface;
-    int rotation;
+    int rotation = 0, widi = 0;
 
     if ((srcw >= 2048) || (srch >= 2048)) {
         psb__information_message("Clip size extend overlay hw limit, use texstreaming\n");
@@ -372,14 +417,25 @@ static int psb_check_outputmethod(
                                  driver_data->render_rect.width, driver_data->render_rect.height);
     }
 
-    if ((*hdmi_mode == EXTENDED_VIDEO) || (*hdmi_mode == CLONE)
-            || (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING)
-            || (driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY))
+    if ((driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY)
+        || (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING))
         return 0;
+    
+    if ((*hdmi_mode == EXTENDED_VIDEO) || (*hdmi_mode == CLONE)) {
+        driver_data->msvdx_rotate_want = 0; /* disable msvdx rotate */
+        return 0;
+    }
 
     /* HDMI is not enabled */
-    psb_android_surfaceflinger_status(android_isurface, &output->sf_composition, &rotation);
-
+    psb_android_surfaceflinger_status(android_isurface, &output->sf_composition, &rotation, &widi);
+    if (widi == eWidiClone) {
+        psb__information_message("WIDI service is detected, use texstreaming\n");
+        driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
+        driver_data->msvdx_rotate_want = rotation;/* disable msvdx rotae */
+        
+        return 0;
+    }
+    
     /* only care local rotation */
     if (driver_data->msvdx_rotate_want != rotation) {
         psb__information_message("New rotation degree %d\n", rotation);
@@ -402,8 +458,8 @@ static int psb_check_outputmethod(
 
     if (rotation != 0) {
         int srf_rotate = GET_SURFACE_INFO_rotate(obj_surface->psb_surface);
-        if (srf_rotate == 0) { /* no rotated surface */
-            psb__information_message("Rotation degree %d, but no MSVDX rotate\n", rotation);
+        if (srf_rotate != rotation) { /* surface rotation isn't same with SF rotation*/
+            psb__information_message("SF rotation degree %d, MSVDX rotate %d\n", rotation, srf_rotate);
             driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
             return 0;
         }
@@ -447,7 +503,7 @@ VAStatus psb_PutSurface(
         return vaStatus;
     }
 
-    if((NULL == cliprects) && (0 != number_cliprects)){
+    if ((NULL == cliprects) && (0 != number_cliprects)) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
         DEBUG_FAILURE;
         return vaStatus;
@@ -488,6 +544,12 @@ VAStatus psb_PutSurface(
         return vaStatus;
     }
 
+    if (driver_data->output_method == PSB_PUTSURFACE_SUPSRC) {
+        psb__information_message("Use dynamic source to display.\n");
+        vaStatus = psb_putsurface_dynamic_source(ctx, surface, android_isurface, srcw, srch);
+        return vaStatus;
+    }
+
     if (psb_android_register_isurface(android_isurface, driver_data->bcd_id, srcw, srch)) {
         psb__error_message("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
         return VA_STATUS_ERROR_UNKNOWN;
@@ -524,6 +586,17 @@ VAStatus psb_PutSurface(
         return vaStatus;
     }
 
+    /*initialize output destbox.*/
+    if (output->destw == 0 || output->desth == 0) {
+        output->destx = (destx > 0) ? destx : 0;
+        output->desty = (desty > 0) ? desty : 0;
+        output->destw = ((output->destx + destw) > output->screen_width) ? (output->screen_width - output->destx) : destw;
+        output->desth = ((output->desty + desth) > output->screen_height) ? (output->screen_height - output->desty) : desth;
+    }
+
+    /*Update output destbox using layerbuffer's visible region*/
+    psb_update_destbox(ctx);
+
     /* local video playback */
     if ((driver_data->output_method == PSB_PUTSURFACE_TEXSTREAMING) ||
             (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING)) {
@@ -536,7 +609,6 @@ VAStatus psb_PutSurface(
                                      flags);
     } else {
         psb__information_message("MIPI: Use overlay to display.\n");
-        psb_update_destbox(ctx);
 
         /* Hack for repaint color key to black(0,0,0). */
         if (output->colorkey_dirty) {
@@ -545,12 +617,7 @@ VAStatus psb_PutSurface(
             psb__information_message("Hack for repainting color key for overlay.Ignore the error message \"Texture Streaming Fails...\".\n");
         }
 
-        /* Use overlay to render local display*/
-        if (destw > output->screen_width)
-            destw = output->screen_width;
-        if (desth > output->screen_height)
-            desth = output->screen_height;
-
+        psb__information_message("Overlay position = (%d,%d,%d,%d)\n", output->destx, output->desty, output->destw, output->desth);
         vaStatus = psb_putsurface_overlay(ctx, surface,
                                           srcx, srcy, srcw, srch,
                                           output->destx, output->desty, output->destw, output->desth,

@@ -299,6 +299,11 @@ VAStatus psb_CreateImage(
     if (img_fmt == NULL)
         return VA_STATUS_ERROR_UNKNOWN;
 
+    if(NULL == image){
+	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        return vaStatus;
+    }
+
     imageID = object_heap_allocate(&driver_data->image_heap);
     obj_image = IMAGE(imageID);
     if (NULL == obj_image) {
@@ -436,6 +441,11 @@ VAStatus psb_DeriveImage(
         vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
         DEBUG_FAILURE;
         return vaStatus;
+    }
+
+    if(NULL == image){
+	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+	return vaStatus;
     }
 
     fourcc = obj_surface->psb_surface->extra_info[4];

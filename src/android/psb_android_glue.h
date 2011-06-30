@@ -58,9 +58,12 @@ extern "C" {
     void psb_android_texture_streaming_destroy();
 
     int psb_android_register_isurface(void** surface, int bcd_id, int srcw, int srch);
-    int psb_android_surfaceflinger_status(void** surface, int *sf_compostion, int *rotation);
+    int psb_android_surfaceflinger_status(void** surface, int *sf_compostion, int *rotation, int *widi);
 
     void psb_android_get_destbox(short* destx, short* desty, unsigned short* destw, unsigned short* desth);
+    int psb_android_dynamic_source_init(void** android_isurface, int bcd_id, uint32_t srcw, uint32_t srch, uint32_t stride);
+    void psb_android_dynamic_source_display(int buffer_index, int hdmi_mode);
+    void psb_android_dynamic_source_destroy();
 
 #ifdef __cplusplus
 }

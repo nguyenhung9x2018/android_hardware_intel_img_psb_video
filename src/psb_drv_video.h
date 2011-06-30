@@ -109,6 +109,7 @@ enum psb_output_method_t {
     PSB_PUTSURFACE_COVERLAY,/* client overlay */
     PSB_PUTSURFACE_CTEXTURE,/* client textureblit */
     PSB_PUTSURFACE_TEXSTREAMING,/* texsteaming */
+    PSB_PUTSURFACE_SUPSRC,/* super src */
 
     PSB_PUTSURFACE_FORCE_TEXTURE,/* force texture xvideo */
     PSB_PUTSURFACE_FORCE_OVERLAY,/* force overlay xvideo */

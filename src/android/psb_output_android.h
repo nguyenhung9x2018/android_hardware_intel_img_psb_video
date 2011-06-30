@@ -38,7 +38,7 @@ typedef struct _psb_android_output_s {
     unsigned char* heap_addr;
 
     void* psb_HDMIExt_info; /* HDMI extend video mode info */
-    unsigned int sf_composition; /* surfaceflinger compostion */
+    int sf_composition; /* surfaceflinger compostion */
     /* save dest box here */
     short destx;
     short desty;

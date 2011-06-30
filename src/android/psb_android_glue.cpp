@@ -44,8 +44,11 @@
 
 using namespace android;
 
+#define LOG_TAG "pvr_drv_video"
+
 sp<ISurface> isurface;
 ISurface::BufferHeap mBufferHeap;
+unsigned int update_forced;
 
 unsigned char* psb_android_registerBuffers(void** android_isurface, int pid, int width, int height)
 {
@@ -88,13 +91,16 @@ int psb_android_register_isurface(void** android_isurface, int bcd_id, int srcw,
         isurface = static_cast<ISurface*>(*android_isurface);
         if (isurface.get()) {
             isurface->createTextureStreamSource();
-            LOGD("In psb_android_register_isurface: buffer_device_id is %d.\n", bcd_id);
+            LOGD("In psb_android_register_isurface: buffer_device_id is %d, srcw is %d, srch is %d.\n", bcd_id, srcw, srch);
             isurface->setTextureStreamID(bcd_id);
+            isurface->setTextureStreamDim(srcw, srch);
+            update_forced = 1;
             return 0;
         } else {
             return -1;
         }
     }
+    update_forced = 0;
     return 0;
 }
 
@@ -103,7 +109,7 @@ void psb_android_texture_streaming_set_texture_dim(unsigned short srcw,
 {
     static short saved_srcw, saved_srch;
     if(isurface.get() &&
-       ((saved_srcw != srcw) || (saved_srch != srch))) {
+       (update_forced || (saved_srcw != srcw) || (saved_srch != srch))) {
 #if 0
         /*
         Resolve issue - Green line in the bottom of display while video is played
@@ -131,7 +137,7 @@ void psb_android_texture_streaming_set_crop(short srcx,
 {
     static short saved_srcx, saved_srcy, saved_srcw, saved_srch;
     if(isurface.get() &&
-       ((saved_srcx != srcx) || (saved_srcy != srcy) || (saved_srcw != srcw) || (saved_srch != srch))) {
+       (update_forced || (saved_srcx != srcx) || (saved_srcy != srcy) || (saved_srcw != srcw) || (saved_srch != srch))) {
         /*assume crop will only be called from app layer*/
         isurface->setTextureStreamClipRect(srcx, srcy, srcw, srch);
         saved_srcx = srcx;
@@ -172,18 +178,18 @@ void psb_android_texture_streaming_set_blend(short destx,
     }
 
     if (isurface.get()) {
-        if ((saved_destx != destx) || (saved_desty != desty) || (saved_destw != destw) || (saved_desth != desth)) {
+        if(update_forced || (saved_destx != destx) || (saved_desty != desty) || (saved_destw != destw) || (saved_desth != desth)) {
             isurface->setTextureStreamPosRect(destx, desty, destw, desth);
             saved_destx = destx;
             saved_desty = desty;
             saved_destw = destw;
             saved_desth = desth;
         }
-        if (saved_background_color != background_color)
+        if(update_forced || (saved_background_color != background_color))
             isurface->setTextureStreamBorderColor(bg_red, bg_green, bg_blue, bg_alpha);
-        if (saved_blend_color != blend_color)
+        if(update_forced || (saved_blend_color != blend_color))
             isurface->setTextureStreamVideoColor(blend_red, blend_green, blend_blue, blend_alpha);
-        if (saved_blend_mode != blend_mode) {
+        if(update_forced || (saved_blend_mode != blend_mode)) {
             isurface->setTextureStreamBlendMode(blend_mode);
             saved_blend_mode = blend_mode;
         }
@@ -200,9 +206,10 @@ void psb_android_texture_streaming_destroy()
 {
     if (isurface.get())
         isurface->destroyTextureStreamSource();
+    isurface = NULL;
 }
 
-int psb_android_surfaceflinger_status(void** android_isurface, int *sf_compositioin, int *rotation)
+int psb_android_surfaceflinger_status(void** android_isurface, int *sf_compositioin, int *rotation, int *widi)
 {
     sp<ISurface> tmp_isurface;
 
@@ -215,6 +222,7 @@ int psb_android_surfaceflinger_status(void** android_isurface, int *sf_compositi
         else
 	    *sf_compositioin = 1; /* with composition */
         *rotation = (pm >> 8) & 0xff;
+        *widi = (pm >> 16) & 0xff;
     }
 
     return 0;
@@ -231,3 +239,32 @@ void psb_android_get_destbox(short* destx, short* desty, unsigned short* destw, 
     }
 }
 
+int psb_android_dynamic_source_init(void** android_isurface, int bcd_id, uint32_t srcw, uint32_t srch, uint32_t stride)
+{
+    if (isurface != *android_isurface) {
+        isurface = static_cast<ISurface*>(*android_isurface);
+        if (isurface.get()) {
+            isurface->createDynamicSource(srcw, srch, stride, 0x21/*NV12*/, 0/*orientation*/);
+            LOGD("In psb_android_register_isurface: buffer_device_id is %d.\n", bcd_id);
+            isurface->setDynamicBufferID(bcd_id);
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+void psb_android_dynamic_source_display(int buffer_index, int hdmi_mode)
+{
+    if (isurface.get()) {
+        isurface->setHDMIExtendedMode(hdmi_mode);
+        isurface->displayDynamicBuffer(buffer_index);
+    }
+}
+
+void psb_android_dynamic_source_destroy()
+{
+    if (isurface.get())
+        isurface->destroyDynamicSource();
+}

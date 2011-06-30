@@ -152,7 +152,7 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp)
     {
         VAPictureParameterBufferH264 *pic_params = pic_param_tmp;
         /* is it the right way to check? */
-        if (pic_params->pic_fields.bits.field_pic_flag) 
+        if (pic_params->pic_fields.bits.field_pic_flag || pic_params->seq_fields.bits.mb_adaptive_frame_field_flag) 
             obj_context->interlaced_stream = 1;
         else
             obj_context->interlaced_stream = 0;

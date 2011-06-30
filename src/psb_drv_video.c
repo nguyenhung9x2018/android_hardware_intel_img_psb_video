@@ -532,6 +532,11 @@ VAStatus psb_CreateConfig(
         }
     }
 
+    if(NULL == config_id){
+	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+	return vaStatus;
+    }
+
     if (num_attribs < 0) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
     }
@@ -961,6 +966,13 @@ VAStatus psb_DestroySurfaces(
     }
 
     if (NULL == surface_list) {
+/* This is a workaround for bug 3419. If libva surfaces and context are pre-allocated,
+ * mix call the function with NULL & 0 parameters to notify video driver when decoder is destroyed.
+ */
+#ifdef ANDROID
+        psb__information_message("In psb_release_video_bcd, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
+        psb_android_texture_streaming_destroy();
+#endif
         return VA_STATUS_ERROR_INVALID_SURFACE;
     }
 
