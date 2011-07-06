@@ -288,6 +288,8 @@ VAStatus psb_putsurface_ts(
     }
 
     psb_android_texture_streaming_display(i);
+
+    driver_data->overlay_idle_frame++;
     output->colorkey_dirty = 1;
 
     return VA_STATUS_SUCCESS;
@@ -431,7 +433,7 @@ static int psb_check_outputmethod(
     if (widi == eWidiClone) {
         psb__information_message("WIDI service is detected, use texstreaming\n");
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
-        driver_data->msvdx_rotate_want = rotation;/* disable msvdx rotae */
+        driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
         
         return 0;
     }
@@ -622,7 +624,11 @@ VAStatus psb_PutSurface(
                                           srcx, srcy, srcw, srch,
                                           output->destx, output->desty, output->destw, output->desth,
                                           flags, OVERLAY_A, PIPEA);
+        driver_data->overlay_idle_frame = 0;
     }
+
+    if (driver_data->overlay_idle_frame == 10)
+        psb_coverlay_stop(ctx);
 
     driver_data->frame_count++;
 

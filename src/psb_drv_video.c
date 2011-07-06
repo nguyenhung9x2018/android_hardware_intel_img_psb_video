@@ -832,7 +832,9 @@ VAStatus psb_CreateSurfaces(
         }
     }
 
-    vaStatus = psb_register_video_bcd(ctx, width, height, buffer_stride, num_surfaces, surface_list);
+    /* bcd only supporte NV12 */
+    if(fourcc == VA_FOURCC_NV12)
+        vaStatus = psb_register_video_bcd(ctx, width, height, buffer_stride, num_surfaces, surface_list);
 
     return vaStatus;
 }

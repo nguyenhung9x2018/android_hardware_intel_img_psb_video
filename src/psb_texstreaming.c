@@ -63,12 +63,7 @@ VAStatus psb_register_video_bcd(
     buf_param.height = height;
     buf_param.fourcc = BC_PIX_FMT_NV12;
     buf_param.type = BC_MEMORY_USERPTR;
-#ifdef ANDROID
-    driver_data->bcd_ioctrl_num = IS_MFLD(driver_data) ? 0x32 : 0x2c;
-#else
-    driver_data->bcd_ioctrl_num = 0x32;
-#endif
-
+    driver_data->bcd_ioctrl_num = driver_data->getParamIoctlOffset + 1;
     psb__information_message("In psb_register_video_bcd, call BC_Video_ioctl_request_buffers to request buffers in BCD driver.\n");
     psb__information_message("buffer count is %d, width is %d, stride is %d, height is %d.\n", num_surfaces, width, stride, height);
     ioctl_package.ioctl_cmd = BC_Video_ioctl_request_buffers;
