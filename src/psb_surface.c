@@ -137,7 +137,7 @@ VAStatus psb_surface_create_for_userptr(
     psb_surface->size = size;
     psb_surface->extra_info[4] = VA_FOURCC_NV12;
 
-    ret = psb_buffer_create(driver_data, psb_surface->size, psb_bt_surface, &psb_surface->buf);
+    ret = psb_buffer_create(driver_data, psb_surface->size, psb_bt_cpu_vpu, &psb_surface->buf);
 
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }
@@ -267,4 +267,43 @@ VAStatus psb_surface_query_status(psb_surface_p psb_surface, VASurfaceStatus *st
         *status = VASurfaceRendering;
 
     return VA_STATUS_SUCCESS;
+}
+
+/*
+ * Set current displaying surface info to kernel
+ * so that other component can access it in another process
+ */
+int psb_surface_set_displaying(psb_driver_data_p driver_data, 
+			       int width, int height,
+			       psb_surface_p psb_surface)
+{
+    struct drm_lnc_video_getparam_arg arg;
+    struct drm_video_displaying_frameinfo value;
+    int ret = 0;
+
+    if (psb_surface) {
+        value.buf_handle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+        value.width = width;
+        value.height = height;
+        value.size = psb_surface->size;
+        value.format = psb_surface->extra_info[4];
+        value.luma_stride = psb_surface->stride;
+        value.chroma_u_stride = psb_surface->stride;
+        value.chroma_v_stride = psb_surface->stride;
+        value.luma_offset = psb_surface->luma_offset;
+        value.chroma_u_offset = psb_surface->chroma_offset;
+        value.chroma_v_offset = psb_surface->chroma_offset;
+    } else /* clean kernel displaying surface info */
+        memset(&value, 0, sizeof(value));
+    
+    arg.key = IMG_VIDEO_SET_DISPLAYING_FRAME;
+    arg.value = (uint64_t)((unsigned long) & value);
+    ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
+                              &arg, sizeof(arg));
+    if (ret != 0)
+        psb__error_message("IMG_VIDEO_SET_DISPLAYING_FRAME failed\n");
+    else
+        psb__error_message("IMG_VIDEO_SET_DISPLAYING_FRAME okay\n");
+    
+    return ret;
 }

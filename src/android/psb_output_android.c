@@ -526,6 +526,9 @@ VAStatus psb_PutSurface(
         return VA_STATUS_SUCCESS;
     }
 
+    /* set the current displaying video frame into kernel */
+    psb_surface_set_displaying(driver_data, obj_surface->width, obj_surface->height, obj_surface->psb_surface);
+    
     /* exit MRST path at first */
     if (IS_MRST(driver_data)) {
         if (driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) { /* overlay is for testing, not POR */
@@ -632,5 +635,6 @@ VAStatus psb_PutSurface(
 
     driver_data->frame_count++;
 
+    
     return vaStatus;
 }

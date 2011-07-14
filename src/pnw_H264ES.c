@@ -422,13 +422,7 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
                                           MTX_CMDID_DO_HEADER,
                                           &cmdbuf->header_mem,
                                           ctx->pic_header_ofs);
-	if (need_sps && ctx->ParallelCores > 1 ) {
-	    pnw_cmdbuf_insert_command_package(ctx->obj_context,
-		    0,
-		    MTX_CMDID_DO_HEADER,
-		    &cmdbuf->header_mem,
-		    ctx->pic_header_ofs);
-	}
+
     }
 
     if (ctx->ParallelCores == 1) {

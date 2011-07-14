@@ -474,6 +474,12 @@ static VAStatus pnw_jpeg_EndPicture(
 
         ui32RemainMCUs -= ui32NoMCUsToEncode;
     }
+    pnw_cmdbuf_insert_command_package(ctx->obj_context,
+                                      1 ,
+                                      MTX_CMDID_NULL,
+                                      NULL,
+                                      0);
+
 
     psb_buffer_unmap(&cmdbuf->pic_params);
     cmdbuf->pic_params_p = NULL;

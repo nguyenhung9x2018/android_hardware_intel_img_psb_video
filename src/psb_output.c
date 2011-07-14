@@ -152,7 +152,7 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     if (driver_data->ctexstreaming == 1)
     psb_ctexstreaing_init(ctx);
     */
-
+    
     return VA_STATUS_SUCCESS;
 }
 
@@ -182,9 +182,11 @@ VAStatus psb_deinitOutput(
     if (driver_data->ctexstreaming == 1)
         psb_ctexstreaing_deinit(ctx);
     */
-
+    /* clean the displaying surface information in kernel */
+    psb_surface_set_displaying(driver_data, 0, 0, NULL);
+    
     pthread_mutex_destroy(&driver_data->output_mutex);
-
+    
     return VA_STATUS_SUCCESS;
 }
 

@@ -2150,6 +2150,8 @@ VAStatus psb_SyncSurface(
     object_surface_p obj_surface;
     int decode = 0, encode = 0, rc_enable = 0;
 
+    psb__information_message("psb_SyncSurface: 0x%08x\n", render_target);
+
     obj_surface = SURFACE(render_target);
     if (NULL == obj_surface) {
         vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;

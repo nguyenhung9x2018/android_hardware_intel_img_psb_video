@@ -80,11 +80,9 @@ I830ResetVideo(VADriverContextP ctx, PsbPortPrivPtr pPriv)
     I830OverlayRegPtr overlayC = (I830OverlayRegPtr)(pPriv->regmap[1]);
     long offsetA = wsbmBOOffsetHint(pPriv->wsbo[0]) & 0x0FFFFFFF;
     long offsetC = wsbmBOOffsetHint(pPriv->wsbo[1]) & 0x0FFFFFFF;
-    struct drm_psb_register_rw_arg regs;
 
     memset(overlayA, 0, sizeof(*overlayA));
     memset(overlayC, 0, sizeof(*overlayC));
-    memset(&regs, 0, sizeof(regs));
 
     overlayA->OCLRC0 = (pPriv->contrast.Value << 18) | (pPriv->brightness.Value & 0xff);
     overlayA->OCLRC1 = pPriv->saturation.Value;
@@ -110,22 +108,6 @@ I830ResetVideo(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 
     overlayC->DWINSZ = 0x00000000;
     overlayC->OCONFIG = CC_OUT_8BIT;
-    regs.overlay_read_mask = OVC_REGRWBITS_OVADD;
-    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
-    regs.overlay_read_mask = 0;
-    regs.overlay_write_mask = OVC_REGRWBITS_OVADD;
-    regs.overlay.OVADD &= ~(0xffff << 16);
-    regs.overlay.OVADD |= offsetC;
-    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
-
-    memset(&regs, 0, sizeof(regs));
-    regs.overlay_read_mask = OV_REGRWBITS_OVADD;
-    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
-    regs.overlay_read_mask = 0;
-    regs.overlay_write_mask = OV_REGRWBITS_OVADD;
-    regs.overlay.OVADD &= ~(0xffff << 16);
-    regs.overlay.OVADD |= offsetA;
-    drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
 }
 
 static uint32_t I830BoundGammaElt(uint32_t elt, uint32_t eltPrev)
@@ -440,6 +422,19 @@ i830_display_video(
     int i32EnableIEP = 1;
     char * pcEnableIEPBLE = NULL;
     int i32EnableIEPBLE = 0;
+
+    /*before enabling overlay, make sure overlay is disabled first.*/
+    if ((overlayId == OVERLAY_A) && !pPriv->overlayA_enabled) {
+        memset(&regs, 0, sizeof(regs));
+        regs.overlay_read_mask = OV_REGRWBITS_OVADD;
+        drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+
+        overlay->OCMD &= ~OVERLAY_ENABLE;
+        regs.overlay_read_mask = 0;
+        regs.overlay_write_mask = OV_REGRWBITS_OVADD;
+        drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+    }
+
     /* FIXME: don't know who and why add this
      *        comment it for full screen scale issue
      *        any concern contact qiang.miao@intel.com
@@ -911,7 +906,7 @@ i830_display_video(
 
 static void I830PutImageFlipRotateSurface(
     VADriverContextP ctx,
-    object_surface_p obj_surface,    
+    object_surface_p obj_surface,
     int *src_w_new, int *src_h_new,
     int *width_new, int *height_new,
     psb_surface_p *psb_surface_new,
@@ -920,19 +915,19 @@ static void I830PutImageFlipRotateSurface(
     int src_w = *src_w_new, src_h =  *src_h_new;
     int width = *width_new, height = *height_new;
     int  tmp = 0;
-    
+
     psb_surface_p psb_surface = NULL;
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv;
 
     /* the primary surface doesn't have rotation */
     if ((GET_SURFACE_INFO_rotate(*psb_surface_new) == 0) ||
-        ((pipeId == PIPEA) && (driver_data->local_rotation == VA_ROTATION_NONE)) || 
-        ((pipeId == PIPEB) && (driver_data->extend_rotation == VA_ROTATION_NONE)))
+            ((pipeId == PIPEA) && (driver_data->local_rotation == VA_ROTATION_NONE)) ||
+            ((pipeId == PIPEB) && (driver_data->extend_rotation == VA_ROTATION_NONE)))
         return;
 
     pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
-    
+
     if (pipeId == PIPEA) {
         if (driver_data->local_rotation != VA_ROTATION_NONE) {
             psb_surface = obj_surface->psb_surface_rotate;
@@ -1000,7 +995,7 @@ static void I830PutImageFlipRotateDebug(
 
     if (pipeId != 0)
         return;
-    
+
     psb_surface = obj_surface->psb_surface_rotate;
     psb_buffer_p buf = &psb_surface->buf;
     unsigned char *data, *chroma, *buffer, *header;
@@ -1048,7 +1043,7 @@ static void I830PutImageFlipRotateDebug(
     fwrite(header, obj_surface->height_r / 2, obj_surface->width_r, pf);
     free(header);
     psb_buffer_unmap(buf);
-  dump_out:
+dump_out:
     ;
 }
 
@@ -1114,6 +1109,7 @@ static int I830PutImage(
     I830PutImageFlipRotateSurface(ctx, obj_surface,
                                   &src_w, &src_h, &width, &height,
                                   &psb_surface, pipeId);
+
 
     width = (width <= 1920) ? width : 1920;
 
@@ -1421,7 +1417,7 @@ int psb_coverlay_init(VADriverContextP ctx)
 
     if (pPriv->is_mfld && driver_data->is_android) {
         psb__information_message("Android ExtVideo: set PIPEB(HDMI)display plane on the bottom.\n");
-        
+
         memset(&regs, 0, sizeof(regs));
         regs.display_read_mask = REGRWBITS_DSPBCNTR;
         drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
@@ -1429,7 +1425,7 @@ int psb_coverlay_init(VADriverContextP ctx)
         regs.display_write_mask = REGRWBITS_DSPBCNTR;
         drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
     }
-    
+
     psbSetupImageVideoOverlay(ctx, pPriv);
 
     I830ResetVideo(ctx, pPriv);

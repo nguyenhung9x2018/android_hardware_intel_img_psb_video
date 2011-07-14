@@ -131,4 +131,11 @@ VAStatus psb_surface_sync(psb_surface_p psb_surface);
  */
 VAStatus psb_surface_query_status(psb_surface_p psb_surface, VASurfaceStatus *status);
 
+/*
+ * Set current displaying surface info to kernel
+ */
+int psb_surface_set_displaying(psb_driver_data_p driver_data, 
+			       int width, int height,
+			       psb_surface_p psb_surface);
+
 #endif /* _PSB_SURFACE_H_ */
