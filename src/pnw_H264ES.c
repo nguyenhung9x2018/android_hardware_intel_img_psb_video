@@ -722,11 +722,12 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     case VAEncMiscParameterTypeMaxSliceSize:
         max_slice_size_param = (VAEncMiscParameterMaxSliceSize *)pBuffer->data;
 
-		if (max_slice_size_param->max_slice_size < 1 || max_slice_size_param->max_slice_size > 3110400) {
-			psb__error_message("Invalid max_slice_size. It should be 1~ 3110400.\n");
-			vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-			break;
-		}
+	/*The max slice size should not be bigger than 1920x1080x1.5x8 */
+	if (max_slice_size_param->max_slice_size > 24883200) {
+	    psb__error_message("Invalid max_slice_size. It should be 1~ 3110400.\n");
+	    vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+	    break;
+	}
 
         if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
             break;

@@ -44,6 +44,7 @@ typedef struct _psb_android_output_s {
     short desty;
     unsigned short destw;
     unsigned short desth;
+    int new_destbox;
 } psb_android_output_s, *psb_android_output_p;
 
 #endif /*_PSB_OUTPUT_ANDROID_H_*/

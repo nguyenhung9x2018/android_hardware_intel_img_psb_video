@@ -362,11 +362,7 @@ static int psb_update_destbox(
         output->desty = desty;
         output->destw = destw;
         output->desth = desth;
-
-        /*destbox is ready. Set the new rotation for overlay*/
-        driver_data->local_rotation = driver_data->msvdx_rotate_want;
-        if (driver_data->local_rotation == 3)
-            driver_data->local_rotation = VA_ROTATION_270;
+        output->new_destbox = 1;
 
         LOGD("==========New Destbox=============\n");
         LOGD("output->destbox = (%d,%d,%d,%d)\n", output->destx, output->desty, output->destw, output->desth);
@@ -419,12 +415,22 @@ static int psb_check_outputmethod(
                                  driver_data->render_rect.width, driver_data->render_rect.height);
     }
 
-    if ((driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY)
-        || (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING))
-        return 0;
-    
     if ((*hdmi_mode == EXTENDED_VIDEO) || (*hdmi_mode == CLONE)) {
         driver_data->msvdx_rotate_want = 0; /* disable msvdx rotate */
+        return 0;
+    }
+
+    /*Update output destbox using layerbuffer's visible region*/
+    psb_update_destbox(ctx);
+
+    if ((driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY)
+            || (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING))
+        return 0;
+
+    /*If overlay can not get correct destbox, use texstreaming.*/
+    if (output->destw == 0 || output->desth == 0) {
+        psb__information_message("No proper destbox, use texstreaming %d\n");
+        driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
         return 0;
     }
 
@@ -434,10 +440,10 @@ static int psb_check_outputmethod(
         psb__information_message("WIDI service is detected, use texstreaming\n");
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
         driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
-        
+
         return 0;
     }
-    
+
     /* only care local rotation */
     if (driver_data->msvdx_rotate_want != rotation) {
         psb__information_message("New rotation degree %d\n", rotation);
@@ -591,17 +597,6 @@ VAStatus psb_PutSurface(
         return vaStatus;
     }
 
-    /*initialize output destbox.*/
-    if (output->destw == 0 || output->desth == 0) {
-        output->destx = (destx > 0) ? destx : 0;
-        output->desty = (desty > 0) ? desty : 0;
-        output->destw = ((output->destx + destw) > output->screen_width) ? (output->screen_width - output->destx) : destw;
-        output->desth = ((output->desty + desth) > output->screen_height) ? (output->screen_height - output->desty) : desth;
-    }
-
-    /*Update output destbox using layerbuffer's visible region*/
-    psb_update_destbox(ctx);
-
     /* local video playback */
     if ((driver_data->output_method == PSB_PUTSURFACE_TEXSTREAMING) ||
             (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING)) {
@@ -614,6 +609,20 @@ VAStatus psb_PutSurface(
                                      flags);
     } else {
         psb__information_message("MIPI: Use overlay to display.\n");
+
+        /*initialize output destbox using default destbox if it has not been initialized until here.*/
+        if (output->destw == 0 || output->desth == 0) {
+            output->destx = (destx > 0) ? destx : 0;
+            output->desty = (desty > 0) ? desty : 0;
+            output->destw = ((output->destx + destw) > output->screen_width) ? (output->screen_width - output->destx) : destw;
+            output->desth = ((output->desty + desth) > output->screen_height) ? (output->screen_height - output->desty) : desth;
+        }
+
+        if (output->new_destbox) {
+            driver_data->local_rotation = driver_data->msvdx_rotate_want;
+            psb__information_message("New Render rotation = %d\n", driver_data->local_rotation);
+            output->new_destbox = 0;
+        }
 
         /* Hack for repaint color key to black(0,0,0). */
         if (output->colorkey_dirty) {
@@ -630,7 +639,7 @@ VAStatus psb_PutSurface(
         driver_data->overlay_idle_frame = 0;
     }
 
-    if (driver_data->overlay_idle_frame == 10)
+    if (driver_data->overlay_idle_frame == 2)
         psb_coverlay_stop(ctx);
 
     driver_data->frame_count++;

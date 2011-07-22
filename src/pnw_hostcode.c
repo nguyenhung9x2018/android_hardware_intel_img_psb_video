@@ -187,7 +187,8 @@ static void LoadMPEG4Bias(
     IMG_UINT32 count = 0, cmd_word = 0;
     uint32_t *pCount;
 
-    cmd_word = (MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT;
+    cmd_word = ((MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
+                ((i32Core & MTX_CMDWORD_CORE_MASK) <<  MTX_CMDWORD_CORE_SHIFT);
     *cmdbuf->cmd_idx++ = cmd_word;
     pCount = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx++;
@@ -242,7 +243,8 @@ static void LoadH263Bias(
     IMG_UINT32 count = 0, cmd_word = 0;
     uint32_t *pCount;
 
-    cmd_word = (MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT;
+    cmd_word = ((MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
+                ((i32Core & MTX_CMDWORD_CORE_MASK) <<  MTX_CMDWORD_CORE_SHIFT);
     *cmdbuf->cmd_idx++ = cmd_word;
     pCount = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx++;
@@ -298,7 +300,8 @@ static void LoadH264Bias(
     IMG_UINT32 count = 0, cmd_word = 0;
     uint32_t *pCount;
 
-    cmd_word = (MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT;
+    cmd_word = ((MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
+                ((i32Core & MTX_CMDWORD_CORE_MASK) <<  MTX_CMDWORD_CORE_SHIFT);
     *cmdbuf->cmd_idx++ = cmd_word;
     pCount = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx++;

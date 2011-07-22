@@ -920,9 +920,8 @@ static void I830PutImageFlipRotateSurface(
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv;
 
-    /* the primary surface doesn't have rotation */
-    if ((GET_SURFACE_INFO_rotate(*psb_surface_new) == 0) ||
-            ((pipeId == PIPEA) && (driver_data->local_rotation == VA_ROTATION_NONE)) ||
+    /* local/extend display doesn't have render rotation */
+    if(((pipeId == PIPEA) && (driver_data->local_rotation == VA_ROTATION_NONE)) ||
             ((pipeId == PIPEB) && (driver_data->extend_rotation == VA_ROTATION_NONE)))
         return;
 
