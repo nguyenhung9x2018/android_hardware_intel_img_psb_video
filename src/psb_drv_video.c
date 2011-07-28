@@ -1576,11 +1576,14 @@ VAStatus psb__CreateBuffer(
     psb__information_message("Requesting buffer creation, size=%d,elements=%d,type=%s\n", size, num_elements,
                              buffer_type_to_string(type));
 
+    /* on MFLD, data is IMR offset, and could be 0 */
+    /* 
     if ((type == VAProtectedSliceDataBufferType) && (data == NULL)) {
         psb__error_message("RAR: Create protected slice buffer, but RAR handle is NULL\n");
         return VA_STATUS_ERROR_UNSUPPORTED_BUFFERTYPE ;
     }
-
+    */
+    
     if (obj_buffer && obj_buffer->psb_buffer) {
         if (psb_bs_queued == obj_buffer->psb_buffer->status) {
             /* Buffer is still queued, allocate new buffer instead */

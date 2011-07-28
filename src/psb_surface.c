@@ -302,8 +302,6 @@ int psb_surface_set_displaying(psb_driver_data_p driver_data,
                               &arg, sizeof(arg));
     if (ret != 0)
         psb__error_message("IMG_VIDEO_SET_DISPLAYING_FRAME failed\n");
-    else
-        psb__error_message("IMG_VIDEO_SET_DISPLAYING_FRAME okay\n");
     
     return ret;
 }

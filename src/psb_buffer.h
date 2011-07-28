@@ -173,12 +173,5 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
         int id_or_ofs,
         int size,
         const unsigned long * user_ptr);
-#ifdef ANDROID
-#define DRM_PSB_FLAG_MEM_CI (1<<9)
-#define DRM_PSB_FLAG_MEM_RAR (1<<10)
-#else
-#define DRM_PSB_FLAG_MEM_CI     (1 << 3) /* TTM_PL_FLAG_PRIV0 */
-#define DRM_PSB_FLAG_MEM_RAR    (1 << 5) /* TTM_PL_FLAG_PRIV2 */
-#endif
 
 #endif /* _PSB_BUFFER_H_ */

@@ -240,6 +240,7 @@ static int psb_buffer_info_rar(psb_driver_data_p driver_data)
     if (ret == 0) {
         driver_data->rar_phyaddr = rar_info[0];
         driver_data->rar_size = rar_info[1];
+        driver_data->rar_size = driver_data->rar_size & 0xfffff000; /* page align */
         psb__information_message("RAR region physical address = 0x%08x, size=%dK\n",
                                  driver_data->rar_phyaddr,  driver_data->rar_size / 1024);
 
@@ -485,7 +486,6 @@ VAStatus psb_buffer_reference_rar(psb_driver_data_p driver_data,
 static VAStatus psb_buffer_init_imr(psb_driver_data_p driver_data)
 {
     int ret = 0;
-    RAR_desc_t *rar_rd;
 
     /* hasn't grab IMR device memory region
      * grab the whole IMR3 device memory
@@ -511,8 +511,6 @@ static VAStatus psb_buffer_init_imr(psb_driver_data_p driver_data)
     return VA_STATUS_SUCCESS;
 
 exit_error:
-    rar_rd = driver_data->rar_rd;
-
     if (driver_data->rar_bo)
         free(driver_data->rar_bo);
 
