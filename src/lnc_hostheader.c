@@ -70,7 +70,7 @@ static void Show_Bits(
         }
 
         snprintf(Txt, sizeof(Txt), "%s ", Txt);
-        printf(Txt);
+        printf("%s", Txt);
         if ((uiLp + 1) % 8 == 0) printf("\n");
     }
 
