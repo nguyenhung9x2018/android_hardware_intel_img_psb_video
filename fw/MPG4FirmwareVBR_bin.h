@@ -1,3 +1,4 @@
+
 // This file was automatically generated from ../release/MPG4FirmwareVBR.dnl using dnl2c.
 
 extern unsigned long aui32MPG4VBR_MTXTOPAZFWText[];

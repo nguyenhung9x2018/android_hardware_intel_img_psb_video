@@ -1,3 +1,4 @@
+
 // This file was automatically generated from ../release/H264FirmwareCBR.dnl using dnl2c.
 
 extern unsigned long aui32H264CBR_MTXTOPAZFWText[];

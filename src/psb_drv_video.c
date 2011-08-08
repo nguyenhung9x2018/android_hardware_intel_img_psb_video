@@ -1,27 +1,27 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK 
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-
-/*
  * Authors:
  *    Waldo Bastian <waldo.bastian@intel.com>
  *
@@ -72,6 +72,7 @@
 #include "psb_def.h"
 #include "psb_ws_driver.h"
 #include "ci_va.h"
+#include "pnw_rotate.h"
 
 #ifndef PSB_PACKAGE_VERSION
 #define PSB_PACKAGE_VERSION "Undefined"
@@ -232,7 +233,10 @@ static void psb__open_log(void)
     if (psb_parse_config("PSB_VIDEO_DEBUG", &log_fn[0]) != 0)
         return;
 
-    suffix = 0xffff & ((unsigned int)time(NULL));    
+    suffix = 0xffff & ((unsigned int)time(NULL));
+    snprintf(log_fn + strnlen(log_fn, 1024),
+             (1024 - 8 - strnlen(log_fn, 1024)),
+             ".%d.%d", getpid(), suffix);
     psb_video_debug_fp = fopen(log_fn, "w");
     if (psb_video_debug_fp == 0) {
         psb__error_message("Log file %s open failed, reason %s, fall back to stderr\n",
@@ -727,8 +731,10 @@ VAStatus psb_CreateSurfaces(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i, height_origin, buffer_stride = 0;
+    int protected = (VA_RT_FORMAT_PROTECTED & format);
     unsigned long fourcc;
 
+    format = format & (~VA_RT_FORMAT_PROTECTED);
     if (num_surfaces <= 0) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
         DEBUG_FAILURE;
@@ -803,9 +809,7 @@ VAStatus psb_CreateSurfaces(
         }
 
         vaStatus = psb_surface_create(driver_data, width, height, fourcc,
-                                      (VA_RT_FORMAT_PROTECTED & format), psb_surface
-                                     );
-
+                                      protected, psb_surface);
         if (VA_STATUS_SUCCESS != vaStatus) {
             free(psb_surface);
             object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
@@ -1491,6 +1495,14 @@ static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p
             lnc_cmdbuf_destroy(obj_context->lnc_cmdbuf_list[i]);
             free(obj_context->lnc_cmdbuf_list[i]);
             obj_context->lnc_cmdbuf_list[i] = NULL;
+        }
+    }
+
+    for (i = 0; i < LNC_MAX_CMDBUFS_ENCODE; i++) {
+        if (obj_context->pnw_cmdbuf_list[i]) {
+            pnw_cmdbuf_destroy(obj_context->pnw_cmdbuf_list[i]);
+            free(obj_context->pnw_cmdbuf_list[i]);
+            obj_context->pnw_cmdbuf_list[i] = NULL;
         }
     }
 

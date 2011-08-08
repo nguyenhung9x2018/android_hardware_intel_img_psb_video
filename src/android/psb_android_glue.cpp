@@ -1,26 +1,26 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-/*
  * Authors:
  *    Zhaohan Ren  <zhaohan.ren@intel.com>
  *    Jiang Fei  <jiang.fei@intel.com>
@@ -147,6 +147,14 @@ void psb_android_texture_streaming_set_crop(short srcx,
     }
 }
 
+
+void psb_android_texture_streaming_set_rotate(int rotate)
+{
+    if (isurface.get()) {
+        isurface->setTextureStreamRotate(rotate);
+    }
+}
+
 void psb_android_texture_streaming_set_blend(short destx,
         short desty,
         unsigned short destw,
@@ -239,32 +247,4 @@ void psb_android_get_destbox(short* destx, short* desty, unsigned short* destw, 
     }
 }
 
-int psb_android_dynamic_source_init(void** android_isurface, int bcd_id, uint32_t srcw, uint32_t srch, uint32_t stride)
-{
-    if (isurface != *android_isurface) {
-        isurface = static_cast<ISurface*>(*android_isurface);
-        if (isurface.get()) {
-            isurface->createDynamicSource(srcw, srch, stride, 0x21/*NV12*/, 0/*orientation*/);
-            LOGD("In psb_android_register_isurface: buffer_device_id is %d.\n", bcd_id);
-            isurface->setDynamicBufferID(bcd_id);
-            return 0;
-        } else {
-            return -1;
-        }
-    }
-    return 0;
-}
 
-void psb_android_dynamic_source_display(int buffer_index, int hdmi_mode)
-{
-    if (isurface.get()) {
-        isurface->setHDMIExtendedMode(hdmi_mode);
-        isurface->displayDynamicBuffer(buffer_index);
-    }
-}
-
-void psb_android_dynamic_source_destroy()
-{
-    if (isurface.get())
-        isurface->destroyDynamicSource();
-}

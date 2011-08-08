@@ -1,37 +1,35 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-
-/*
  * Authors:
  *    Shengquan Yuan  <shengquan.yuan@intel.com>
  *    Binglin Chen <binglin.chen@intel.com>
  *    Jason Hu <jason.hu@intel.com>
  *    Zeng Li <zeng.li@intel.com>
- *
  */
 
 /*
- * Most of rendering codes are ported from xf86-video-intel/src/intel_video.c
+ * Most of rendering codes are ported from xf86-video-i810/src/i810_overlay.c
  */
 
 #include <errno.h>
@@ -50,11 +48,6 @@
 #else
 int psb_xrandr_single_mode();
 #endif
-
-#include "img_iep_defs.h"
-#include "csc2.h"
-#include "iep_lite_api.h"
-#include "iep_lite_utils.h"
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 #define SURFACE(id) ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
@@ -234,7 +227,7 @@ static void I830SwitchPipe(VADriverContextP ctx , int overlayId, int pipeId)
     else
         return;  /*No overlay enabled, do nothing.*/
 
-    printf("Overlay %d switch to pipe %d\n", overlayId, pipeId);
+    psb__information_message("Overlay %d switch to pipe %d\n", overlayId, pipeId);
     memset(&regs, 0, sizeof(regs));
     memset(overlay, 0, sizeof(*overlay));
     overlay->OCLRC0 = (pPriv->contrast.Value << 18) | (pPriv->brightness.Value & 0xff);
@@ -417,10 +410,7 @@ i830_display_video(
     unsigned int        offset = wsbmBOOffsetHint(pPriv->wsbo[overlayId]) & 0x0FFFFFFF;
     I830OverlayRegPtr   overlay = (I830OverlayRegPtr)(pPriv->regmap[overlayId]);
     struct drm_psb_register_rw_arg regs;
-    CSC_sHSBCSettings   sHSBCSettings;
-    char * pcEnableIEP = NULL;
-    int i32EnableIEP = 1;
-    char * pcEnableIEPBLE = NULL;
+    int i32EnableIEP = 0;
     int i32EnableIEPBLE = 0;
 
     /*before enabling overlay, make sure overlay is disabled first.*/
@@ -449,13 +439,6 @@ i830_display_video(
         drw_h = drw_h / 4;
     }
 #endif
-    //FIXME(Ben):There is a hardware bug which prevents overlay from
-    //           being reenabled after being disabled.  Until this is
-    //           fixed, don't disable the overlay.  We just make it
-    //           fully transparent and set it's window size to zero.
-    //           once hardware is fixed, remove this line disabling
-    //           CONST_ALPHA_ENABLE.
-    //    if(IS_MRST(pDevice))
     overlay->DCLRKM &= ~CONST_ALPHA_ENABLE;
     if (pPriv->subpicture_enabled)
         overlay->DCLRKM &= ~DEST_KEY_ENABLE;
@@ -780,27 +763,9 @@ i830_display_video(
     }
 
     if (pPriv->is_mfld) {
-        pcEnableIEP = getenv("ENABLE_IEP");
-        if (pcEnableIEP) {
-            if (strcmp(pcEnableIEP, "0") == 0) {
-                i32EnableIEP = 0;
-            } else if (strcmp(pcEnableIEP, "1") == 0) {
-                i32EnableIEP = 1;
-            }
-        } else {
             i32EnableIEP = 0;
-        }
 
-        pcEnableIEPBLE = getenv("ENABLE_IEP_BLE");
-        if (pcEnableIEPBLE) {
-            if (strcmp(pcEnableIEPBLE, "0") == 0) {
-                i32EnableIEPBLE = 0;
-            } else if (strcmp(pcEnableIEPBLE, "1") == 0) {
-                i32EnableIEPBLE = 1;
-            }
-        } else {
             i32EnableIEPBLE = 0;
-        }
 
         if (i32EnableIEP == 0) {
             overlay->OCONFIG = CC_OUT_8BIT;
@@ -808,61 +773,7 @@ i830_display_video(
             overlay->OCONFIG |= IEP_LITE_BYPASS;
             regs.overlay.OVADD = offset | 1;
             regs.overlay.IEP_ENABLED = 0;
-        } else {
-#if 0
-            printf("ble black %d white %d\n",
-                   driver_data->ble_black_mode.value,
-                   driver_data->ble_white_mode.value);
-#endif
-            if (i32EnableIEPBLE == 1) {
-                IEP_LITE_BlackLevelExpanderConfigure(pPriv->p_iep_lite_context,
-                                                     driver_data->ble_black_mode.value,
-                                                     driver_data->ble_white_mode.value);
-                iep_lite_RenderCompleteCallback(pPriv->p_iep_lite_context);
-                regs.overlay.IEP_ENABLED = 1;
-                regs.overlay.OVADD = offset | 0x1d;
-            } else {
-                regs.overlay.IEP_ENABLED = 0;
-                regs.overlay.OVADD = offset | 0xd;
-            }
-#if 0
-            printf("bs gain %d, scc gain %d\n",
-                   driver_data->blueStretch_gain.value,
-                   driver_data->skinColorCorrection_gain.value);
-#endif
-            IEP_LITE_BlueStretchConfigure(pPriv->p_iep_lite_context,
-                                          driver_data->blueStretch_gain.value);
-            IEP_LITE_SkinColourCorrectionConfigure(pPriv->p_iep_lite_context,
-                                                   driver_data->skinColorCorrection_gain.value);
-
-#if 0
-            printf("hue %d saturation %d brightness %d contrast %d\n",
-                   driver_data->hue.value,
-                   driver_data->saturation.value,
-                   driver_data->brightness.value,
-                   driver_data->contrast.value);
-#endif
-#if 0
-            sHSBCSettings.i32Hue            = (img_int32)(5.25f * (1 << 25));
-            sHSBCSettings.i32Saturation = (img_int32)(1.07f * (1 << 25));
-            sHSBCSettings.i32Brightness = (img_int32)(-10.1f * (1 << 10));
-            sHSBCSettings.i32Contrast   = (img_int32)(0.99f * (1 << 25));
-#else
-            sHSBCSettings.i32Hue            = (img_int32) driver_data->hue.value;
-            sHSBCSettings.i32Saturation = (img_int32) driver_data->saturation.value;
-            sHSBCSettings.i32Brightness = (img_int32) driver_data->brightness.value;
-            sHSBCSettings.i32Contrast   = (img_int32) driver_data->contrast.value;
-#endif
-            IEP_LITE_CSCConfigure(pPriv->p_iep_lite_context,
-                                  CSC_COLOURSPACE_YCC_BT601,
-                                  CSC_COLOURSPACE_RGB,
-                                  &sHSBCSettings);
-            if (driver_data->load_csc_matrix) {
-                IEP_LITE_UploadCSCMatrix(pPriv->p_iep_lite_context,
-                                         driver_data->csc_matrix);
-            }
-            overlay->OCONFIG = 0x18;
-        }
+        } 
     } else {
         overlay->OCONFIG = CC_OUT_8BIT;
         overlay->OCONFIG |= IEP_LITE_BYPASS;
@@ -938,15 +849,18 @@ static void I830PutImageFlipRotateSurface(
                 src_h = tmp;
             }
         }
-        if ((driver_data->mipi0_rotation == VA_ROTATION_NONE) ||
-                (driver_data->mipi0_rotation == VA_ROTATION_180)) {
+        if ((driver_data->local_rotation == VA_ROTATION_NONE) ||
+                (driver_data->local_rotation == VA_ROTATION_180)) {
             pPriv->width_save = pPriv->display_width;
             pPriv->height_save = pPriv->display_height;
         } else {
             pPriv->width_save = pPriv->display_height;
             pPriv->height_save = pPriv->display_width;
         }
-        pPriv->rotation = driver_data->mipi0_rotation;
+        if (driver_data->is_android == 0)
+            pPriv->rotation = driver_data->local_rotation;
+        else
+            pPriv->rotation = 0;
     } else if (pipeId == PIPEB) {
         if (driver_data->extend_rotation != VA_ROTATION_NONE) {
             psb_surface = obj_surface->psb_surface_rotate;
@@ -958,15 +872,18 @@ static void I830PutImageFlipRotateSurface(
                 src_h = tmp;
             }
         }
-        if ((driver_data->hdmi_rotation == VA_ROTATION_NONE) ||
-                (driver_data->hdmi_rotation == VA_ROTATION_180)) {
+        if ((driver_data->extend_rotation == VA_ROTATION_NONE) ||
+                (driver_data->extend_rotation == VA_ROTATION_180)) {
             pPriv->width_save = pPriv->extend_display_width;
             pPriv->height_save = pPriv->extend_display_height;
         } else {
             pPriv->width_save = pPriv->extend_display_height;
             pPriv->height_save = pPriv->extend_display_width;
         }
-        pPriv->rotation = driver_data->hdmi_rotation;
+        if (driver_data->is_android == 0)
+            pPriv->rotation = driver_data->extend_rotation;
+        else
+            pPriv->rotation = 0;
     }
 
     *src_w_new = src_w;
@@ -1377,13 +1294,6 @@ psbSetupImageVideoOverlay(VADriverContextP ctx, PsbPortPrivPtr pPriv)
     overlayC = (I830OverlayRegPtr)(pPriv->regmap[1]);
 
     if (pPriv->is_mfld) {
-        pPriv->p_iep_lite_context = (void *)calloc(1, sizeof(IEP_LITE_sContext));
-        if (NULL == pPriv->p_iep_lite_context)
-            goto out_err_bo1;
-
-        IEP_LITE_Initialise(pPriv->p_iep_lite_context, (unsigned int)&overlayA->IEP_SPACE[0]);
-        IEP_LITE_Initialise(pPriv->p_iep_lite_context, (unsigned int)&overlayC->IEP_SPACE[0]);
-
         driver_data->ble_black_mode.value = 1;
         driver_data->ble_white_mode.value = 3;
         driver_data->blueStretch_gain.value = 200;

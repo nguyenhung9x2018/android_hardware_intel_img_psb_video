@@ -1,26 +1,26 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-/*
  * Authors:
  *    Zhaohan Ren  <zhaohan.ren@intel.com>
  *    Shengquan Yuan  <shengquan.yuan@intel.com>
@@ -42,8 +42,10 @@
 #include "psb_texstreaming.h"
 #include "psb_output_android.h"
 #include "psb_HDMIExtMode.h"
+#include "pnw_rotate.h"
 #include <wsbm/wsbm_manager.h>
 #include <psb_drm.h>
+#include <hardware.h>
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define INIT_OUTPUT_PRIV    psb_android_output_p output = (psb_android_output_p)(((psb_driver_data_p)ctx->pDriverData)->ws_priv)
@@ -62,6 +64,22 @@ enum {
     eWidiClone           = 2,
     eWidiExtendedVideo   = 3,
 };
+
+inline int va2hw_rotation(int va_rotate)
+{
+    switch (va_rotate) {
+    case VA_ROTATION_90:
+        return HAL_TRANSFORM_ROT_270;
+    case VA_ROTATION_180:
+        return HAL_TRANSFORM_ROT_180;
+    case HAL_TRANSFORM_ROT_270:
+        return HAL_TRANSFORM_ROT_90;
+    defaut:
+        return 0;
+    }
+
+    return 0;
+}
 
 void *psb_android_output_init(VADriverContextP ctx)
 {
@@ -111,11 +129,6 @@ void *psb_android_output_init(VADriverContextP ctx)
     if (psb_parse_config("PSB_VIDEO_COVERLAY", &put_surface[0]) == 0) {
         psb__information_message("Putsurface use client overlay\n");
         driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
-    }
-
-    if (psb_parse_config("PSB_VIDEO_SUPSRC", &put_surface[0]) == 0) {
-        psb__information_message("Putsurface use super src\n");
-        driver_data->output_method = PSB_PUTSURFACE_SUPSRC;
     }
 
     if (IS_MFLD(driver_data)) {
@@ -268,7 +281,9 @@ VAStatus psb_putsurface_ts(
         srch = obj_surface->height_origin;
     }
     psb_android_texture_streaming_set_texture_dim(srcw, srch);
-
+    if (driver_data->va_rotate)
+        psb_android_texture_streaming_set_rotate(va2hw_rotation(driver_data->va_rotate));
+    
 #if 0
     /* use cliprect for crop */
     if (cliprects && (number_cliprects == 1))
@@ -295,47 +310,6 @@ VAStatus psb_putsurface_ts(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus psb_putsurface_dynamic_source(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    void *android_isurface,
-    unsigned short srcw,
-    unsigned short srch
-)
-{
-    INIT_DRIVER_DATA;
-    INIT_OUTPUT_PRIV;
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    object_surface_p obj_surface = SURFACE(surface);
-    uint32_t ttm_handle, i;
-    psb_hdmi_mode hdmi_mode;
-    psb_surface_p psb_surface = obj_surface->psb_surface;
-
-    if (psb_android_dynamic_source_init(android_isurface, driver_data->bcd_id, srcw, srch, psb_surface->stride)) {
-        psb__error_message("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    if (psb_HDMIExt_update(ctx, output->psb_HDMIExt_info)) {
-        psb__error_message("%s: Failed to update HDMIExt info.\n", __FUNCTION__);
-        return -1;
-    }
-
-    hdmi_mode = psb_HDMIExt_get_mode(output);
-    ttm_handle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
-
-    for (i = 0; i < driver_data->bcd_buffer_num; i++) {
-        if (driver_data->bcd_ttm_handles[i] == ttm_handle)
-            break;
-    }
-
-    if (i == driver_data->bcd_buffer_num) {
-        psb__error_message("Failed to get buffer index.\n");
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-    psb_android_dynamic_source_display(i, (int)hdmi_mode);
-    return vaStatus;
-}
 
 static int psb_update_destbox(
     VADriverContextP ctx
@@ -350,7 +324,7 @@ static int psb_update_destbox(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     psb_android_get_destbox(&destx, &desty, &destw, &desth);
-    psb__information_message("destbox = (%d,%d,%d,%d)\n", destx, desty, destw, desth);
+    /*psb__information_message("destbox = (%d,%d,%d,%d)\n", destx, desty, destw, desth);*/
     if ((destx >= 0) && (desty >= 0) &&
             ((destx + destw) <= output->screen_width) &&
             ((desty + desth) <= output->screen_height) &&
@@ -416,7 +390,15 @@ static int psb_check_outputmethod(
     }
 
     if ((*hdmi_mode == EXTENDED_VIDEO) || (*hdmi_mode == CLONE)) {
-        driver_data->msvdx_rotate_want = 0; /* disable msvdx rotate */
+        /* need to handle VA rotation, and set WM rotate to 0
+         * for Android, MIPI0/HDMI has the same WM rotation always
+         */
+        if (driver_data->mipi0_rotation != 0) {
+            driver_data->mipi0_rotation = 0;
+            driver_data->hdmi_rotation = 0;
+            psb_RecalcRotate(ctx);
+        }
+        
         return 0;
     }
 
@@ -424,7 +406,7 @@ static int psb_check_outputmethod(
     psb_update_destbox(ctx);
 
     if ((driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY)
-            || (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING))
+        || (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING))
         return 0;
 
     /*If overlay can not get correct destbox, use texstreaming.*/
@@ -445,9 +427,12 @@ static int psb_check_outputmethod(
     }
 
     /* only care local rotation */
-    if (driver_data->msvdx_rotate_want != rotation) {
-        psb__information_message("New rotation degree %d\n", rotation);
-        driver_data->msvdx_rotate_want = rotation;
+    if (driver_data->mipi0_rotation != rotation) {
+        psb__information_message("New rotation degree %d of MIPI0 WM, Recalc rotation\n", rotation);
+        driver_data->mipi0_rotation = rotation;
+        driver_data->hdmi_rotation = rotation;
+
+        psb_RecalcRotate(ctx);
     }
 
     obj_surface = SURFACE(surface);
@@ -464,16 +449,17 @@ static int psb_check_outputmethod(
         return 0;
     }
 
-    if (rotation != 0) {
+    if (driver_data->local_rotation != 0) { /* final rotation is not 0 */
         int srf_rotate = GET_SURFACE_INFO_rotate(obj_surface->psb_surface);
-        if (srf_rotate != rotation) { /* surface rotation isn't same with SF rotation*/
-            psb__information_message("SF rotation degree %d, MSVDX rotate %d\n", rotation, srf_rotate);
+        if ((srf_rotate != driver_data->local_rotation) || (NULL == obj_surface->psb_surface_rotate)) { /* surface rotation isn't same with the final rotation */
+            psb__information_message("SF rotation degree %d, MSVDX rotate %d, rotate surface 0x%08x\n", rotation, srf_rotate, obj_surface->psb_surface_rotate);
             driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
             return 0;
         }
     }
 
-    psb__information_message("Rotation degree %d, use overlay\n", rotation);
+    psb__information_message("Surfaceflinger rotation %d, final rotation degree %d, use overlay\n",
+                             rotation, driver_data->local_rotation);
     driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
 
     return 0;
@@ -555,12 +541,6 @@ VAStatus psb_PutSurface(
         return vaStatus;
     }
 
-    if (driver_data->output_method == PSB_PUTSURFACE_SUPSRC) {
-        psb__information_message("Use dynamic source to display.\n");
-        vaStatus = psb_putsurface_dynamic_source(ctx, surface, android_isurface, srcw, srch);
-        return vaStatus;
-    }
-
     if (psb_android_register_isurface(android_isurface, driver_data->bcd_id, srcw, srch)) {
         psb__error_message("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
         return VA_STATUS_ERROR_UNKNOWN;
@@ -599,7 +579,7 @@ VAStatus psb_PutSurface(
 
     /* local video playback */
     if ((driver_data->output_method == PSB_PUTSURFACE_TEXSTREAMING) ||
-            (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING)) {
+        (driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXSTREAMING)) {
         psb__information_message("MIPI: Use texstreaming to display.\n");
 
         vaStatus = psb_putsurface_ts(ctx, surface, android_isurface,

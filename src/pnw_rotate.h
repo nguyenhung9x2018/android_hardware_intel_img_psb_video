@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -23,15 +22,25 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *    Waldo Bastian <waldo.bastian@intel.com>
- *
+ *    Zeng Li <zeng.li@intel.com>
+ *    Jason Hu <jason.hu@intel.com>
+ *    Shengquan Yuan  <shengquan.yuan@intel.com>
  */
 
-#ifndef _PSB_VC1_H_
-#define _PSB_VC1_H_
+void psb_InitRotate(VADriverContextP ctx);
+void psb_RecalcRotate(VADriverContextP ctx);
+void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp);
+VAStatus psb_DestroyRotateSurface(
+    VADriverContextP ctx,
+    object_surface_p obj_surface,
+    int rotate
+);
+VAStatus psb_CreateRotateSurface(
+    VADriverContextP ctx,
+    object_surface_p obj_surface,
+    int msvdx_rotate
+);
 
-#include "psb_drv_video.h"
 
-extern struct format_vtable_s psb_VC1_vtable;
 
-#endif /* _PSB_VC1_H_ */
+

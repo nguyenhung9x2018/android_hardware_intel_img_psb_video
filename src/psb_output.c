@@ -1,26 +1,26 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-/*
  * Authors:
  *    Shengquan Yuan  <shengquan.yuan@intel.com>
  *    Zhaohan Ren  <zhaohan.ren@intel.com>
@@ -42,10 +42,7 @@
 #include "psb_surface.h"
 #include "psb_buffer.h"
 #include "psb_surface_ext.h"
-#include "img_iep_defs.h"
-#include "csc2.h"
-#include "iep_lite_api.h"
-#include "iep_lite_utils.h"
+#include "pnw_rotate.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -1962,26 +1959,6 @@ VAStatus psb_GetDisplayAttributes(
             p->value = (driver_data->saturation.value / (1 << 25)) * 50;
             p->min_value = 0;
             p->max_value = 100;
-            break;
-        case VADisplayAttribBLEBlackMode:
-            p->value = driver_data->ble_black_mode.value = p->value;
-            p->min_value = IEP_LITE_BLE_OFF;
-            p->max_value = IEP_LITE_BLE_HIGH;
-            break;
-        case VADisplayAttribBLEWhiteMode:
-            p->value = driver_data->ble_white_mode.value = p->value;
-            p->min_value = IEP_LITE_BLE_OFF;
-            p->max_value = IEP_LITE_BLE_HIGH;
-            break;
-        case VADisplayAttribBlueStretch:
-            p->value = driver_data->blueStretch_gain.value = p->value;
-            p->min_value = 0;
-            p->max_value = 255;
-            break;
-        case VADisplayAttribSkinColorCorrection:
-            p->value = driver_data->skinColorCorrection_gain.value = p->value;
-            p->min_value = 0;
-            p->max_value = 255;
             break;
         case VADisplayAttribBackgroundColor:
             p->value = driver_data->clear_color;

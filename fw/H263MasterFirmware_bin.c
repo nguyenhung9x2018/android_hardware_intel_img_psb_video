@@ -1,25 +1,34 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
- * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
+ * Copyright (c) 2010 Intel Corporation. All rights reserved.
+ * Copyright (c) Imagination Technologies Limited, UK 
+ * Redistribution. Redistribution and use in binary form, without modification, 
+ * are permitted provided that the following conditions are met:
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Redistributions must reproduce the above copyright notice and the following
+ * disclaimer in the documentation and/or other materials provided with the 
+ * distribution.Neither the name of Intel Corporation nor the names of its 
+ * suppliers may be used to endorse or promote products derived from this 
+ * software without specific prior written permission. No reverse engineering, 
+ * decompilation, or disassembly of this software is permitted.
+ * Limited patent license. Intel Corporation grants a world-wide, royalty-free, 
+ * non-exclusive license under patents it now or hereafter owns or controls 
+ * to make, have made, use, import,offer to sell and sell ("utilize") this 
+ * software, but solely to the extent that any such patent is necessary to 
+ * Utilize the software alone. The patent license shall not apply to any 
+ * combinations which include this software. No hardware per se is licensed hereunder.
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
+ * DISCLAIMER. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 
 // This file was automatically generated from ../release/H263MasterFirmware.dnl using dnl2c.
 
