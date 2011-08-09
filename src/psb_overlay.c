@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -183,6 +183,7 @@ static void I830StopVideo(VADriverContextP ctx)
             overlayC->OCMD &= ~OVERLAY_ENABLE;
             regs.overlay_read_mask = 0;
             regs.overlay_write_mask = OVC_REGRWBITS_OVADD;
+            regs.overlay.b_wait_vblank = 1;
             drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
 
             memset(&regs, 0, sizeof(regs));
@@ -196,6 +197,7 @@ static void I830StopVideo(VADriverContextP ctx)
             overlayA->OCMD &= ~OVERLAY_ENABLE;
             regs.overlay_read_mask = 0;
             regs.overlay_write_mask = OV_REGRWBITS_OVADD;
+            regs.overlay.b_wait_vblank = 1;
             drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
             pPriv->overlayA_enabled = 0;
         }
@@ -207,6 +209,7 @@ static void I830StopVideo(VADriverContextP ctx)
         overlayA->OCMD &= ~OVERLAY_ENABLE;
         regs.overlay_read_mask = 0;
         regs.overlay_write_mask = OV_REGRWBITS_OVADD;
+        regs.overlay.b_wait_vblank = 1;
         drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
         pPriv->overlayA_enabled = 0;
     }
@@ -763,9 +766,9 @@ i830_display_video(
     }
 
     if (pPriv->is_mfld) {
-            i32EnableIEP = 0;
+        i32EnableIEP = 0;
 
-            i32EnableIEPBLE = 0;
+        i32EnableIEPBLE = 0;
 
         if (i32EnableIEP == 0) {
             overlay->OCONFIG = CC_OUT_8BIT;
@@ -773,7 +776,8 @@ i830_display_video(
             overlay->OCONFIG |= IEP_LITE_BYPASS;
             regs.overlay.OVADD = offset | 1;
             regs.overlay.IEP_ENABLED = 0;
-        } 
+            regs.overlay.buffer_handle = wsbmKBufHandle(wsbmKBuf(pPriv->wsbo[overlayId]));
+	}
     } else {
         overlay->OCONFIG = CC_OUT_8BIT;
         overlay->OCONFIG |= IEP_LITE_BYPASS;
@@ -832,7 +836,7 @@ static void I830PutImageFlipRotateSurface(
     PsbPortPrivPtr pPriv;
 
     /* local/extend display doesn't have render rotation */
-    if(((pipeId == PIPEA) && (driver_data->local_rotation == VA_ROTATION_NONE)) ||
+    if (((pipeId == PIPEA) && (driver_data->local_rotation == VA_ROTATION_NONE)) ||
             ((pipeId == PIPEB) && (driver_data->extend_rotation == VA_ROTATION_NONE)))
         return;
 

@@ -186,6 +186,7 @@ int lnc_ospm_start(psb_driver_data_p driver_data, int encode)
         */
     } else if (IS_MFLD(driver_data)) {
         psb__information_message("OSPM:set PM_QoS parameters\n");
+	return 0;
         /*
         if (encode)
             lnc_handle_pm_qos(driver_data);
@@ -228,6 +229,7 @@ int lnc_ospm_stop(psb_driver_data_p driver_data, int encode)
         if (encode)
             lnc_handle_pm_qos(driver_data);
         */
+	return 0;
     }
 
     if (encode) {

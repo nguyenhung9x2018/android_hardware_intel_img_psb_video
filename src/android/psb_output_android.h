@@ -32,7 +32,6 @@ typedef struct _psb_android_output_s {
     /* information of output display */
     unsigned short screen_width;
     unsigned short screen_height;
-    int colorkey_dirty;
 
     /* for memory heap base used by putsurface */
     unsigned char* heap_addr;

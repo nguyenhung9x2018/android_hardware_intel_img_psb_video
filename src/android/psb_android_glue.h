@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -28,7 +28,8 @@
 
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
     unsigned char* psb_android_registerBuffers(void** surface, int pid, int width, int height);
 
@@ -40,7 +41,7 @@ extern "C" {
 
     void psb_android_texture_streaming_set_texture_dim(unsigned short srcw,
             unsigned short srch);
-    
+
     void psb_android_texture_streaming_set_rotate(int rotate);
 
     void psb_android_texture_streaming_set_crop(short srcx,
@@ -56,6 +57,8 @@ extern "C" {
             unsigned int blend_color,
             unsigned short blend_mode);
 
+    void psb_android_texture_streaming_set_background_color(unsigned int background_color);
+    void psb_android_texture_streaming_resetParams();
     void psb_android_texture_streaming_destroy();
 
     int psb_android_register_isurface(void** surface, int bcd_id, int srcw, int srch);
