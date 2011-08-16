@@ -404,7 +404,8 @@ static int psb_check_outputmethod(
         return 0;
 
     /*If overlay can not get correct destbox, use texstreaming.*/
-    if (output->destw == 0 || output->desth == 0) {
+    if (output->destw == 0 || output->desth == 0 ||
+        ((output->destw == srcw) && (output->desth == srch))) {
         psb__information_message("No proper destbox, use texstreaming %d\n");
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
         return 0;
@@ -427,8 +428,8 @@ static int psb_check_outputmethod(
         driver_data->hdmi_rotation = rotation;
 
         psb_RecalcRotate(ctx);
-        output->new_destbox = 0;
     }
+    output->new_destbox = 0;
 
     obj_surface = SURFACE(surface);
     if (GET_SURFACE_INFO_protect(obj_surface->psb_surface)) {

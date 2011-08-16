@@ -141,7 +141,6 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp)
     switch (obj_context->profile) {
     case VAProfileMPEG2Simple:
     case VAProfileMPEG2Main:
-        obj_context->interlaced_stream = 0; /* todo */
         break;
     case VAProfileMPEG4Simple:
     case VAProfileMPEG4AdvancedSimple:
@@ -152,8 +151,6 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp)
     
         if (pic_params->vol_fields.bits.interlaced)
             obj_context->interlaced_stream = 1; /* is it the right way to check? */
-        else
-            obj_context->interlaced_stream = 0;
         break;
     }
     case VAProfileH264Baseline:
@@ -165,8 +162,6 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp)
         /* is it the right way to check? */
         if (pic_params->pic_fields.bits.field_pic_flag || pic_params->seq_fields.bits.mb_adaptive_frame_field_flag) 
             obj_context->interlaced_stream = 1;
-        else
-            obj_context->interlaced_stream = 0;
         
         break;
     }
@@ -179,8 +174,6 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp)
         /* is it the right way to check? */    
         if (pic_params->sequence_fields.bits.interlace && (pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI))
             obj_context->interlaced_stream = 1;
-        else
-            obj_context->interlaced_stream = 0;
         
         break;
     }

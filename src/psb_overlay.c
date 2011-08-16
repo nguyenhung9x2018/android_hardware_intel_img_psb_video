@@ -1135,6 +1135,15 @@ static int I830PutImage(
         drm_buf = psb_surface->buf.drm_buf;
         gtt_ofs = wsbmBOOffsetHint(drm_buf) & 0x0FFFFFFF;
 
+	/*skip pad bytes.*/
+        if (driver_data->local_rotation == VA_ROTATION_90) {
+            left += ((src_w + 0xf) & ~0xf) - src_w;
+        } else if (driver_data->local_rotation == VA_ROTATION_270) {
+            top += ((src_h + 0xf) & ~0xf) - src_h;
+        } else if (driver_data->local_rotation == VA_ROTATION_180) {
+            left += ((src_w + 0xf) & ~0xf) - src_w;
+            top += ((src_h + 0xf) & ~0xf) - src_h;
+        }
         pPriv->YBuf0offset = pre_add + gtt_ofs  + top * pitch2 + left;
         pPriv->YBuf1offset = pPriv->YBuf0offset;
         pPriv->UBuf0offset = pre_add + gtt_ofs + (pitch2  * height) + top * (pitch2 / 2) + left;
