@@ -138,6 +138,40 @@ VAStatus psb_surface_create_for_userptr(
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }
 
+VAStatus psb_surface_create_from_kbuf(
+        psb_driver_data_p driver_data,
+        int width, int height,
+        unsigned size, /* total buffer size need to be allocated */
+        unsigned int fourcc, /* expected fourcc */
+        int kbuf_handle,
+        unsigned int luma_stride, /* luma stride, could be width aligned with a special value */
+        unsigned int chroma_u_stride, /* chroma stride */
+        unsigned int chroma_v_stride,
+        unsigned int luma_offset, /* could be 0 */
+        unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
+        unsigned int chroma_v_offset,
+        psb_surface_p psb_surface /* out */
+        )
+{
+    int ret;
+
+    if ((width <= 0) || (width > 5120) || (height <= 0) || (height > 5120))
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+    psb_surface->stride_mode = STRIDE_NA;
+    psb_surface->stride = luma_stride;
+
+
+    psb_surface->luma_offset = luma_offset;
+    psb_surface->chroma_offset = chroma_u_offset;
+    psb_surface->size = size;
+    psb_surface->extra_info[4] = VA_FOURCC_NV12;
+
+    ret = psb_kbuffer_reference(driver_data, &psb_surface->buf, psb_surface->ref_buf,kbuf_handle);
+
+    return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
+}
+
 
 /* id_or_ofs: it is frame ID or frame offset in camear device memory
  *     for CI frame: it it always frame offset currently

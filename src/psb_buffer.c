@@ -215,7 +215,46 @@ VAStatus psb_buffer_reference(psb_driver_data_p driver_data,
     return VA_STATUS_SUCCESS;
 }
 
+VAStatus psb_kbuffer_reference(psb_driver_data_p driver_data,
+                              psb_buffer_p buf,
+                              psb_buffer_p reference_buf,
+                              int kbuf_handle
+                             )
+{
+    int ret = 0;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
 
+    memcpy(buf, reference_buf, sizeof(*buf));
+    buf->drm_buf = NULL;
+
+    ret = LOCK_HARDWARE(driver_data);
+    if (ret) {
+        UNLOCK_HARDWARE(driver_data);
+        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+        DEBUG_FAILURE_RET;
+        return vaStatus;
+    }
+
+    ret = wsbmGenBuffers(driver_data->main_pool,
+                         1,
+                         &buf->drm_buf,
+                         4096,  /* page alignment */
+                         0);
+    if (!buf->drm_buf) {
+        psb__error_message("failed to gen wsbm buffers\n");
+        UNLOCK_HARDWARE(driver_data);
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    }
+
+    ret = wsbmBOSetReferenced(buf->drm_buf,kbuf_handle );
+    UNLOCK_HARDWARE(driver_data);
+    if (ret) {
+        psb__error_message("failed to alloc wsbm buffers\n");
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    }
+
+    return VA_STATUS_SUCCESS;
+}
 /*
  * Destroy buffer
  */

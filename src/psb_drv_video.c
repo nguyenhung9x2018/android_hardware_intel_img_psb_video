@@ -1601,7 +1601,11 @@ VAStatus psb__CreateBuffer(
             /* Buffer was used for this frame, allocate new buffer instead */
             psb__information_message("Skipping idle buffer %08x, recently used. Unused = %d\n", obj_buffer->base.id, unused_count);
             obj_buffer = NULL;
-        }
+        } else if (obj_context->frame_count - obj_buffer->last_used < 2) {
+            /* Buffer was used for previous frame, allocate new buffer instead */
+            psb__information_message("Skipping idle buffer %08x used by frame %d. Unused = %d\n", obj_buffer->base.id, obj_buffer->last_used, unused_count);
+            obj_buffer = NULL;
+	}
     }
 
     if (obj_buffer) {
@@ -2733,6 +2737,142 @@ VAStatus psb_CreateSurfacesForUserPtr(
     return vaStatus;
 }
 
+VAStatus  psb_CreateSurfaceFromKbuf(
+    VADriverContextP ctx,
+    int width,
+    int height,
+    int format,
+    VASurfaceID *surface,       /* out */
+    unsigned int kbuf_handle, /* kernel buffer handle*/
+    unsigned size, /* kernel buffer size */
+    unsigned int kBuf_fourcc, /* expected fourcc */
+    unsigned int luma_stride, /* luma stride, could be width aligned with a special value */
+    unsigned int chroma_u_stride, /* chroma stride */
+    unsigned int chroma_v_stride,
+    unsigned int luma_offset, /* could be 0 */
+    unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
+    unsigned int chroma_v_offset
+)
+{
+    INIT_DRIVER_DATA
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    int i ;
+    unsigned long buffer_stride;
+
+    psb__information_message("Create surface: width %d, height %d, format 0x%08x"
+            "\n\t\t\t\t\tnum_surface %d, buffer size %d, fourcc 0x%08x"
+            "\n\t\t\t\t\tluma_stride %d, chroma u stride %d, chroma v stride %d"
+            "\n\t\t\t\t\tluma_offset %d, chroma u offset %d, chroma v offset %d\n",
+            width, height, format,
+            size, kBuf_fourcc,
+            luma_stride, chroma_u_stride, chroma_v_stride,
+            luma_offset, chroma_u_offset, chroma_v_offset);
+
+    if (NULL == surface) {
+        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    /* We only support one format */
+    if ((VA_RT_FORMAT_YUV420 != format)
+            && (VA_RT_FORMAT_YUV422 != format)) {
+        vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    /* We only support NV12/YV12 */
+    if (((VA_RT_FORMAT_YUV420 == format) && (kBuf_fourcc != VA_FOURCC_NV12)) ||
+            ((VA_RT_FORMAT_YUV422 == format) && (kBuf_fourcc != VA_FOURCC_YV16))) {
+        psb__error_message("Only support NV12/YV16 format\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
+    if (VA_STATUS_SUCCESS != vaStatus) {
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    if ((size < width * height * 1.5) ||
+            (luma_stride < width) ||
+            (chroma_u_stride * 2 < width) ||
+            (chroma_v_stride * 2 < width) ||
+            (chroma_u_offset < luma_offset + width * height) ||
+            (chroma_v_offset < luma_offset + width * height)) {
+
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    int surfaceID;
+    object_surface_p obj_surface;
+    psb_surface_p psb_surface;
+
+    surfaceID = object_heap_allocate(&driver_data->surface_heap);
+    obj_surface = SURFACE(surfaceID);
+    if (NULL == obj_surface) {
+        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+        DEBUG_FAILURE;
+    }
+    MEMSET_OBJECT(obj_surface, struct object_surface_s);
+
+    obj_surface->surface_id = surfaceID;
+    surface = surfaceID;
+    obj_surface->context_id = -1;
+    obj_surface->width = width;
+    obj_surface->height = height;
+    obj_surface->width_r = width;
+    obj_surface->height_r = height;
+    obj_surface->height_origin = height;
+
+    psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
+    if (NULL == psb_surface) {
+        object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
+        obj_surface->surface_id = VA_INVALID_SURFACE;
+
+        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+        DEBUG_FAILURE;
+    }
+
+    vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
+            size,
+            kBuf_fourcc,
+            kbuf_handle,
+            luma_stride,
+            chroma_u_stride,
+            chroma_v_stride,
+            luma_offset,
+            chroma_u_offset,
+            chroma_v_offset,
+            psb_surface);
+
+    if (VA_STATUS_SUCCESS != vaStatus) {
+        free(psb_surface);
+        object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
+        obj_surface->surface_id = VA_INVALID_SURFACE;
+
+        DEBUG_FAILURE;
+    }
+    buffer_stride = psb_surface->stride;
+    /* by default, surface fourcc is NV12 */
+    memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
+    psb_surface->extra_info[4] = kBuf_fourcc;
+    obj_surface->psb_surface = psb_surface;
+
+    /* Error recovery */
+    if (VA_STATUS_SUCCESS != vaStatus) {
+        object_surface_p obj_surface = SURFACE(surface);
+        psb__destroy_surface(driver_data, obj_surface);
+        surface = VA_INVALID_SURFACE;
+    }
+
+    return vaStatus;
+}
+
 
 VAStatus psb_PutSurfaceBuf(
     VADriverContextP ctx,
@@ -3115,6 +3255,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     tpi->vaCreateSurfaceFromCIFrame = psb_CreateSurfaceFromCIFrame;
     tpi->vaCreateSurfaceFromV4L2Buf = psb_CreateSurfaceFromV4L2Buf;
     tpi->vaCreateSurfacesForUserPtr = psb_CreateSurfacesForUserPtr;
+    tpi->vaCreateSurfaceFromKBuf= psb_CreateSurfaceFromKbuf;
     tpi->vaPutSurfaceBuf = psb_PutSurfaceBuf;
 
     ctx->vtable_egl = calloc(1, sizeof(struct VADriverVTableEGL));

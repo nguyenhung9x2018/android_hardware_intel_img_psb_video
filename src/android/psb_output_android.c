@@ -58,6 +58,7 @@
 
 #define GET_SURFACE_INFO_rotate(psb_surface) ((int) psb_surface->extra_info[5])
 #define GET_SURFACE_INFO_protect(psb_surface) ((int) psb_surface->extra_info[6])
+#define MAX_OVERLAY_IDLE_FRAME 4
 
 enum {
     eWidiOff             = 1,
@@ -641,7 +642,7 @@ VAStatus psb_PutSurface(
                                           flags, OVERLAY_A, PIPEA);
     }
 
-    if (driver_data->overlay_idle_frame == 2)
+    if (driver_data->overlay_idle_frame == MAX_OVERLAY_IDLE_FRAME)
         psb_coverlay_stop(ctx);
 
     driver_data->frame_count++;

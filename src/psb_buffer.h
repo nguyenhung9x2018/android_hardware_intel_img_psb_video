@@ -96,6 +96,14 @@ VAStatus psb_buffer_reference(psb_driver_data_p driver_data,
                               psb_buffer_p buf,
                               psb_buffer_p reference_buf
                              );
+/*
+ * 
+ */
+VAStatus psb_kbuffer_reference(psb_driver_data_p driver_data,
+                              psb_buffer_p buf,
+                              psb_buffer_p reference_buf,
+                              int kbuf_handle
+                             );
 
 /*
  * Suspend buffer
