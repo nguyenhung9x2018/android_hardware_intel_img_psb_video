@@ -1016,17 +1016,17 @@ VAStatus psb_DestroySurfaces(
     return VA_STATUS_SUCCESS;
 }
 
-int psb_new_context(psb_driver_data_p driver_data)
+int psb_new_context(psb_driver_data_p driver_data, int ctx_type)
 {
     struct drm_lnc_video_getparam_arg arg;
     int ret = 0;
 
     arg.key = IMG_VIDEO_NEW_CONTEXT;
-    arg.value = (uint64_t)((unsigned long) & driver_data->drv_ctx_id);
+    arg.value = (uint64_t)((unsigned long) & ctx_type);
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
     if (ret != 0)
-        psb__error_message("Set context %d failed\n", driver_data->drv_ctx_id);
+        psb__error_message("Set context %d failed\n", ctx_type);
 
     return ret;
 }
@@ -1299,8 +1299,7 @@ VAStatus psb_CreateContext(
     } else
         lnc_ospm_start(driver_data, encode);
 
-	driver_data->context_id = (obj_config->profile << 8) | obj_config->entrypoint;
-    psb_new_context(driver_data);
+    psb_new_context(driver_data, (obj_config->profile << 8) | obj_config->entrypoint);
 
     return vaStatus;
 }

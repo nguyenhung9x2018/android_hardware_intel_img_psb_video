@@ -1162,7 +1162,7 @@ int psb_context_submit_cmdbuf(object_context_p obj_context)
         MEMIO_WRITE_FIELD(msg, FW_VA_RENDER_FIRST_MB_IN_SLICE,    obj_context->first_mb);
         MEMIO_WRITE_FIELD(msg, FW_VA_RENDER_FLAGS,                obj_context->flags);
     } else {
-        MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_CONTEXT, driver_data->drv_ctx_id); /* context is 8 bits */
+        MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_CONTEXT, (obj_context->msvdx_context)); /* context is 8 bits */
 
         /* Point to CMDBUFFER */
         uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf,
