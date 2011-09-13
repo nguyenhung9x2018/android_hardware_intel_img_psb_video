@@ -265,6 +265,7 @@ struct psb_driver_data_s {
     PVR2DMEMINFO *subpicBuf[VIDEO_BUFFER_NUM];
 
     int is_android;
+	int drv_ctx_id;
 };
 
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)

@@ -159,6 +159,9 @@ int main()
     fw_DE2 = sFirmware1163_SS;
     /* fw_DE2 = sFirmware1163_FS; */
     /* fw_DE2 = sFirmware1133_FS; */
+    fw_DE2 = sFirmware1300_SS;
+    fw_DE2 = sFirmware1311_SS;
+    fw_DE2 = sFirmware1313_SS;
 
     fw.ver = 0x0496;
     fw.text_size = fw_DE2.uiTextSize / 4;
