@@ -73,7 +73,7 @@ inline int va2hw_rotation(int va_rotate)
         return HAL_TRANSFORM_ROT_270;
     case VA_ROTATION_180:
         return HAL_TRANSFORM_ROT_180;
-    case HAL_TRANSFORM_ROT_270:
+    case VA_ROTATION_270:
         return HAL_TRANSFORM_ROT_90;
 defaut:
         return 0;
@@ -353,6 +353,10 @@ static int psb_check_outputmethod(
     psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
     object_surface_p obj_surface;
     int rotation = 0, widi = 0;
+    int delta_rotation = 0;
+    int srf_rotate; /* primary surface rotation */
+    psb_surface_p rotate_surface; /* rotate surface */
+    int rotate_srf_rotate = -1; /* degree of the rotate surface */
 
     if ((srcw >= 2048) || (srch >= 2048)) {
         psb__information_message("Clip size extend overlay hw limit, use texstreaming\n");
@@ -374,11 +378,11 @@ static int psb_check_outputmethod(
     }
 
     *hdmi_mode = psb_HDMIExt_get_mode(output);
-    psb__information_message("hdmi_mode = %d\n", *hdmi_mode);
     if (*hdmi_mode != OFF) {
         psb_HDMIExt_get_prop(output, &driver_data->render_rect.width, &driver_data->render_rect.height,
                              &driver_data->render_rect.x, &driver_data->render_rect.y);
-        psb__information_message("Render Rect: (%d,%d,%d,%d)\n",
+        psb__information_message("HDMI mode is on (%d), Render Rect: (%d,%d,%d,%d)\n",
+                                 *hdmi_mode,
                                  driver_data->render_rect.x, driver_data->render_rect.y,
                                  driver_data->render_rect.width, driver_data->render_rect.height);
     }
@@ -406,7 +410,8 @@ static int psb_check_outputmethod(
     /*If overlay can not get correct destbox, use texstreaming.*/
     if (output->destw == 0 || output->desth == 0 ||
         ((output->destw == srcw) && (output->desth == srch))) {
-        psb__information_message("No proper destbox, use texstreaming %d\n");
+        psb__information_message("No proper destbox, use texstreaming (%dx%d+%d+%d)\n",
+                                 output->destw, output->desth, output->destx, output->desty);
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
         return 0;
     }
@@ -422,7 +427,9 @@ static int psb_check_outputmethod(
     }
 
     /* only care local rotation */
-    if (output->new_destbox && driver_data->mipi0_rotation != rotation) {
+    delta_rotation = Rotation2Angle(driver_data->mipi0_rotation) - Rotation2Angle(rotation);
+    if ((((abs(delta_rotation) == 90) || (abs(delta_rotation) == 270)) && output->new_destbox) ||
+        (abs(delta_rotation) == 180)) {
         psb__information_message("New rotation degree %d of MIPI0 WM, Recalc rotation\n", rotation);
         driver_data->mipi0_rotation = rotation;
         driver_data->hdmi_rotation = rotation;
@@ -445,17 +452,25 @@ static int psb_check_outputmethod(
         return 0;
     }
 
-    if (driver_data->local_rotation != 0) { /* final rotation is not 0 */
-        int srf_rotate = GET_SURFACE_INFO_rotate(obj_surface->psb_surface);
-        if ((srf_rotate != driver_data->local_rotation) || (NULL == obj_surface->psb_surface_rotate)) { /* surface rotation isn't same with the final rotation */
-            psb__information_message("SF rotation degree %d, MSVDX rotate %d, rotate surface 0x%08x\n", rotation, srf_rotate, obj_surface->psb_surface_rotate);
-            driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
-            return 0;
-        }
+    srf_rotate = GET_SURFACE_INFO_rotate(obj_surface->psb_surface);
+    rotate_surface = obj_surface->psb_surface_rotate;
+    if (rotate_surface != NULL)
+        rotate_srf_rotate = GET_SURFACE_INFO_rotate(rotate_surface);
+    
+    psb__information_message("SF rotation %d, VA rotation %d, final MSVDX rotation %d\n",
+                             rotation, driver_data->va_rotate, driver_data->local_rotation);
+    psb__information_message("Primary surface rotation %d, rotated surface rotation %d\n",
+                             srf_rotate, rotate_srf_rotate);
+
+    /* The surface rotation is not same with the final rotation */
+    if ((driver_data->local_rotation != 0) && 
+        ((srf_rotate != driver_data->local_rotation) || (rotate_srf_rotate != driver_data->local_rotation))) {
+        psb__information_message("Use texstreaming due to different VA surface rotation and final rotaion\n",
+                                 srf_rotate, rotate_srf_rotate);
+        driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
+        return 0;
     }
 
-    psb__information_message("Surfaceflinger rotation %d, final rotation degree %d, use overlay\n",
-                             rotation, driver_data->local_rotation);
     driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
 
     return 0;
@@ -531,7 +546,7 @@ VAStatus psb_PutSurface(
     buffer_index = i;
 
     /* set the current displaying video frame into kernel */
-    psb_surface_set_displaying(driver_data, obj_surface->width, obj_surface->height, obj_surface->psb_surface);
+    psb_surface_set_displaying(driver_data, obj_surface->width, obj_surface->height_origin, obj_surface->psb_surface);
 
     /* exit MRST path at first */
     if (IS_MRST(driver_data)) {

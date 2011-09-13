@@ -94,6 +94,7 @@ int psb_android_register_isurface(void** android_isurface, int bcd_id, int srcw,
             LOGD("In psb_android_register_isurface: buffer_device_id is %d, srcw is %d, srch is %d.\n", bcd_id, srcw, srch);
             isurface->setTextureStreamID(bcd_id);
             isurface->setTextureStreamDim(srcw, srch);
+            isurface->resetTextureStreamParams();
             update_forced = 1;
             return 0;
         } else {

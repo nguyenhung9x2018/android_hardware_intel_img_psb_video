@@ -121,9 +121,11 @@ void psb_RecalcRotate(VADriverContextP ctx)
             new_rotate = driver_data->extend_rotation;
         else
             new_rotate = driver_data->local_rotation;
-        
-        if (driver_data->output_method != PSB_PUTSURFACE_FORCE_CTEXTURE)
-            driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
+
+        if (driver_data->is_android == 0) {
+            if (driver_data->output_method != PSB_PUTSURFACE_FORCE_CTEXTURE)
+                driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
+        }
     }
 
     if (old_rotate != new_rotate) {

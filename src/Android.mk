@@ -82,7 +82,6 @@ LOCAL_C_INCLUDES :=			\
     $(TARGET_OUT_HEADERS)/libva	\
     $(TOPDIR)hardware/intel/include/drm     \
     $(TARGET_OUT_HEADERS)/libttm	\
-    $(TARGET_OUT_HEADERS)/libmemrar	\
     $(TARGET_OUT_HEADERS)/libwsbm	\
     $(TARGET_OUT_HEADERS)/libpsb_drm\
     $(TARGET_OUT_HEADERS)/opengles  \
@@ -96,7 +95,7 @@ LOCAL_C_INCLUDES :=			\
 LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := pvr_drv_video
 
-LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libmemrar libpvr2d libcutils \
+LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libpvr2d libcutils \
                 libui libutils libbinder libsurfaceflinger_client
 
 ifeq ($(strip $(PSBVIDEO_LOG_ENABLE)),true)

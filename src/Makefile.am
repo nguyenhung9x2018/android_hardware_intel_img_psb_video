@@ -25,7 +25,7 @@
 pvr_drv_video_la_LTLIBRARIES = pvr_drv_video.la
 pvr_drv_video_ladir = /usr/lib/dri
 pvr_drv_video_la_LDFLAGS = -lwsbm -pthread -module -avoid-version -Wl,--no-undefined
-pvr_drv_video_la_LIBADD = -ldrm -lX11 -lXrandr -lva-x11 -lXv -lm -lXext /usr/lib/libmemrar.a -lpvr2d  
+pvr_drv_video_la_LIBADD = -ldrm -lX11 -lXrandr -lva-x11 -lXv -lm -lXext -lpvr2d  
 AM_CFLAGS = -DDEBUG -DLINUX -I$(top_srcdir)/src/hwdefs $(DRM_CFLAGS) \
 		-I$(top_srcdir)/src/powervr_iep_lite/include \
 		-I$(top_srcdir)/src/powervr_iep_lite/include/win32 \

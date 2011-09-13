@@ -141,6 +141,8 @@ static VAStatus pnw_H264ES_CreateContext(
         ctx->sRCParams.RCEnable = IMG_TRUE;
     } else
         return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
+
+    psb__information_message("eCodec is %d\n", ctx->eCodec);
     ctx->eFormat = IMG_CODEC_PL12;      /* use default */
 
     ctx->Slices = 1;
@@ -214,6 +216,11 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
+    if (!pSequenceParams->bits_per_second) {
+	    pSequenceParams->bits_per_second = ctx->Height * ctx->Width * 30 * 12;
+	    psb__information_message("bits_per_second is 0, set to %d\n",
+			    pSequenceParams->bits_per_second);
+    }
     ctx->sRCParams.bBitrateChanged =
         (pSequenceParams->bits_per_second == ctx->sRCParams.BitsPerSecond ?
          IMG_FALSE : IMG_TRUE);
@@ -645,7 +652,10 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     VAEncMiscParameterFrameRate *frame_rate_param;
 
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-
+    if (ctx->eCodec != IMG_CODEC_H264_VCM) {
+	    psb__information_message("Only VCM mode allow rate control setting.Ignore.\n");
+	    return VA_STATUS_SUCCESS;
+    }
     ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
 
     /* Transfer ownership of VAEncMiscParameterBuffer data */

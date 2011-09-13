@@ -32,8 +32,6 @@
 
 #include "psb_drv_video.h"
 
-#include <RAR/rar.h>
-
 //#include "xf86mm.h"
 
 /* For TopazSC, it indicates the next frame should be skipped */
@@ -141,28 +139,6 @@ VAStatus psb_buffer_create_camera(psb_driver_data_p driver_data,
                                   int id_or_ofs
                                  );
 
-/*
- * Create RAR buffer
- */
-VAStatus psb_buffer_create_rar(psb_driver_data_p driver_data,
-                               unsigned int size,
-                               psb_buffer_p buf
-                              );
-
-/*
- * Destroy RAR buffer
- */
-VAStatus psb_buffer_destroy_rar(psb_driver_data_p driver_data,
-                                psb_buffer_p buf
-                               );
-
-/*
- * Reference one RAR buffer from handle
- */
-VAStatus psb_buffer_reference_rar(psb_driver_data_p driver_data,
-                                  uint32_t rar_handle,
-                                  psb_buffer_p buf
-                                 );
 /*
  * Create one buffer from user buffer
  * id_or_ofs is CI frame ID (actually now is frame offset), or V4L2 buffer offset

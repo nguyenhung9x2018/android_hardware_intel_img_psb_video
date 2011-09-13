@@ -1368,8 +1368,6 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
                                                         */
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_shared, obj_buffer->psb_buffer);
             else if (obj_buffer->type == VAProtectedSliceDataBufferType) {
-	      if (IS_MRST(driver_data))
-		  vaStatus = psb_buffer_reference_rar(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
 	      if (IS_MFLD(driver_data))
 		  vaStatus = psb_buffer_reference_imr(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
 	    }
@@ -1445,10 +1443,8 @@ void psb__suspend_buffer(psb_driver_data_p driver_data, object_buffer_p obj_buff
         obj_context->buffers_unused_tail[type] = obj_buffer;
         obj_context->buffers_unused_count[type]++;
 
-        /*
         psb__information_message("Adding buffer %08x type %s to unused list. unused count = %d\n", obj_buffer->base.id,
                                  buffer_type_to_string(obj_buffer->type), obj_context->buffers_unused_count[type]);
-        */
         object_heap_suspend_object((object_base_p) obj_buffer, 1); /* suspend */
         return;
     }
@@ -1963,7 +1959,7 @@ VAStatus psb_BeginPicture(
      */
     SET_SURFACE_INFO_rotate(obj_surface->psb_surface, obj_context->msvdx_rotate);
     if (IS_MFLD(driver_data) && CONTEXT_ROTATE(obj_context))
-        psb_CreateRotateSurface(ctx, obj_surface, driver_data->msvdx_rotate_want);
+        psb_CreateRotateSurface(ctx, obj_surface, obj_context->msvdx_rotate);
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {
         psb_surface_p psb_surface = obj_surface->psb_surface;
@@ -2056,6 +2052,8 @@ VAStatus psb_RenderPicture(
                 return vaStatus;
             }
             buffer_list[i] = obj_buffer;
+            psb__information_message("Render buffer %08x type %s\n", obj_buffer->base.id,
+                                     buffer_type_to_string(obj_buffer->type));
         }
     }
 
@@ -3005,16 +3003,6 @@ VAStatus psb_Terminate(VADriverContextP ctx)
         psb_buffer_destroy((psb_buffer_p)driver_data->rar_bo);
         free(driver_data->rar_bo);
         driver_data->rar_bo = NULL;
-    }
-
-    if (driver_data->rar_rd) {
-        RAR_desc_t *rar_rd = driver_data->rar_rd;
-
-        psb__information_message("vaTerminate: tear down RAR device\n");
-
-        RAR_fini(rar_rd);
-        free(driver_data->rar_rd);
-        driver_data->rar_rd = NULL;
     }
 
     if (driver_data->ws_priv) {

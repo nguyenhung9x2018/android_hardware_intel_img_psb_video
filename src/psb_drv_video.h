@@ -153,7 +153,6 @@ struct psb_driver_data_s {
     void *                      rar_bo;
     uint32_t                    rar_phyaddr;
     uint32_t                    rar_size;
-    void *                      rar_rd;
 
     int encode_supported;
     int decode_supported;

@@ -228,7 +228,7 @@ void psb_buffer_destroy(psb_buffer_p buf)
         ASSERT(buf->driver_data);
         wsbmBOUnreference(&buf->drm_buf);
         if (buf->rar_handle)
-            psb_buffer_destroy_rar(buf->driver_data, buf);
+            buf->rar_handle = 0;
         buf->driver_data = NULL;
         buf->status = psb_bs_unfinished;
     }
