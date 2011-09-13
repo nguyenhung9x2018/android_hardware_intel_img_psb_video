@@ -51,6 +51,7 @@ typedef enum _psb_hdmi_mode {
     CLONE,
     EXTENDED_VIDEO,
     EXTENDED_DESKTOP,
+    UNDEFINED,
 } psb_hdmi_mode;
 
 typedef struct _psb_extvideo_prop_s {
@@ -64,20 +65,17 @@ typedef struct _psb_extvideo_prop_s {
 
 typedef struct _psb_HDMIExt_info_s {
     /*MIPI infos*/
-    uint32_t mipi_fb_id;
+    uint32_t mipi_crtc_id;
     /*hdmi infos*/
     uint32_t hdmi_connector_id;
     uint32_t hdmi_encoder_id;
     uint32_t hdmi_crtc_id;
-    uint32_t hdmi_fb_id;
-    drmModeConnection hdmi_connection;
 
     psb_hdmi_mode hdmi_mode;
     psb_extvideo_prop_p hdmi_extvideo_prop;
 } psb_HDMIExt_info_s, *psb_HDMIExt_info_p;
 
-VAStatus psb_HDMIExt_get_prop(psb_android_output_p output, unsigned short *xres, unsigned short *yres,
-                              short *xoffset, short *yoffset);
+VAStatus psb_HDMIExt_get_prop(psb_android_output_p output, unsigned short *xres, unsigned short *yres);
 
 psb_hdmi_mode psb_HDMIExt_get_mode(psb_android_output_p output);
 VAStatus psb_HDMIExt_update(VADriverContextP ctx, psb_HDMIExt_info_p psb_HDMIExt_info);

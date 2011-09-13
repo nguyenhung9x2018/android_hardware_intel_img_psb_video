@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -33,8 +33,7 @@
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 
 VAStatus psb_HDMIExt_get_prop(psb_android_output_p output,
-                              unsigned short *xres, unsigned short *yres,
-                              short *xoffset, short *yoffset)
+                              unsigned short *xres, unsigned short *yres)
 {
     psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
 
@@ -45,8 +44,7 @@ VAStatus psb_HDMIExt_get_prop(psb_android_output_p output,
     }
     *xres = psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_XRes;
     *yres = psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_YRes;
-    *xoffset = 0;
-    *yoffset = 0;
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -69,54 +67,63 @@ VAStatus psb_HDMIExt_update(VADriverContextP ctx, psb_HDMIExt_info_p psb_HDMIExt
     drmModeEncoder *hdmi_encoder = NULL;
     int width = 0, height = 0;
     char *strHeight = NULL;
+    struct drm_lnc_video_getparam_arg arg;
+    int hdmi_state = 0;
+    static int hdmi_connected_frame = 0;
 
-    hdmi_connector = drmModeGetConnector(driver_data->drm_fd, psb_HDMIExt_info->hdmi_connector_id);
-    if ((!hdmi_connector->encoder_id) || (hdmi_connector->connection == DRM_MODE_DISCONNECTED)) {
-        psb__information_message("%s : HDMI : DISCONNECTED.\n", __FUNCTION__);
-        psb_HDMIExt_info->hdmi_connection = DRM_MODE_DISCONNECTED;
-    } else {
-        hdmi_encoder = drmModeGetEncoder(driver_data->drm_fd, hdmi_connector->encoder_id);
-        psb_HDMIExt_info->hdmi_crtc_id = hdmi_encoder->crtc_id;
-        if (!psb_HDMIExt_info->hdmi_crtc_id) {
-            psb__information_message("%s : hdmi_crtc_id = 0. HDMI : no crtc attached.\n", __FUNCTION__);
-            psb_HDMIExt_info->hdmi_connection = DRM_MODE_DISCONNECTED;
+    arg.key = IMG_VIDEO_GET_HDMI_STATE;
+    arg.value = (uint64_t)(&hdmi_state);
+    drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
+                        &arg, sizeof(arg));
+
+    if (hdmi_state == 1) {
+        if (hdmi_connected_frame < 6) {
+            psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = UNDEFINED;
+            psb_HDMIExt_info->hdmi_mode = UNDEFINED;
+            hdmi_connected_frame ++;
         } else {
-            psb_extvideo_prop_p hdmi_extvideo_prop = psb_HDMIExt_info->hdmi_extvideo_prop;
+            psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = EXTENDED_VIDEO;
+            psb_HDMIExt_info->hdmi_mode = EXTENDED_VIDEO;
 
-            psb__information_message("%s :  psb_HDMIExt_info->hdmi_crtc_id= %d.\n", __FUNCTION__,
-                                     psb_HDMIExt_info->hdmi_crtc_id);
-            /*Update HDMI fb id*/
-            hdmi_crtc = drmModeGetCrtc(driver_data->drm_fd, psb_HDMIExt_info->hdmi_crtc_id);
-            if (!hdmi_crtc) {
-                /* No CRTC attached to HDMI. */
-                psb__information_message("%s : Failed to get hdmi crtc. HDMI : OFF\n", __FUNCTION__);
-                psb_HDMIExt_info->hdmi_connection = DRM_MODE_DISCONNECTED;
-            } else {
-                psb_HDMIExt_info->hdmi_connection = DRM_MODE_CONNECTED;
+            if ((psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_XRes == 0 ||
+                    psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_YRes == 0)) {
+                psb_extvideo_prop_p hdmi_extvideo_prop = psb_HDMIExt_info->hdmi_extvideo_prop;
+
+                hdmi_connector = drmModeGetConnector(driver_data->drm_fd, psb_HDMIExt_info->hdmi_connector_id);
+                if (!hdmi_connector) {
+                    psb__error_message("%s : Failed to get hdmi connector\n", __FUNCTION__);
+                    return VA_STATUS_ERROR_UNKNOWN;
+                }
+
+                hdmi_encoder = drmModeGetEncoder(driver_data->drm_fd, hdmi_connector->encoder_id);
+                if (!hdmi_encoder) {
+                    psb__error_message("%s : Failed to get hdmi encoder\n", __FUNCTION__);
+                    return VA_STATUS_ERROR_UNKNOWN;
+                }
+
+                hdmi_crtc = drmModeGetCrtc(driver_data->drm_fd, hdmi_encoder->crtc_id);
+                if (!hdmi_crtc) {
+                    /* No CRTC attached to HDMI. */
+                    psb__error_message("%s : Failed to get hdmi crtc\n", __FUNCTION__);
+                    return VA_STATUS_ERROR_UNKNOWN;
+                }
+
                 strHeight = strstr(hdmi_crtc->mode.name, "x");
                 hdmi_extvideo_prop->ExtVideoMode_XRes = (unsigned short)atoi(hdmi_crtc->mode.name);
                 hdmi_extvideo_prop->ExtVideoMode_YRes = (unsigned short)atoi(strHeight + 1);
-                psb_HDMIExt_info->hdmi_fb_id = hdmi_crtc->buffer_id;
-                psb__information_message("%s : psb_HDMIExt_info->hdmi_fb_id = %d, size = %d x %d\n", __FUNCTION__,
-                                         psb_HDMIExt_info->hdmi_fb_id, hdmi_extvideo_prop->ExtVideoMode_XRes, hdmi_extvideo_prop->ExtVideoMode_YRes);
+                psb__information_message("%s : size = %d x %d\n", __FUNCTION__,
+                     hdmi_extvideo_prop->ExtVideoMode_XRes, hdmi_extvideo_prop->ExtVideoMode_YRes);
                 drmModeFreeCrtc(hdmi_crtc);
+                drmModeFreeEncoder(hdmi_encoder);
+                drmModeFreeConnector(hdmi_connector);
             }
         }
-        drmModeFreeEncoder(hdmi_encoder);
-    }
-    drmModeFreeConnector(hdmi_connector);
-
-    /*Update hdmi mode and hdmi ExtVideo prop*/
-    if (psb_HDMIExt_info->hdmi_connection == DRM_MODE_DISCONNECTED) {
+    } else {
         psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = OFF;
         psb_HDMIExt_info->hdmi_mode = OFF;
-    } else if (psb_HDMIExt_info->hdmi_fb_id == psb_HDMIExt_info->mipi_fb_id) {
-        psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = CLONE;
-        psb_HDMIExt_info->hdmi_mode = CLONE;
-    } else {
-        psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = EXTENDED_VIDEO;
-        psb_HDMIExt_info->hdmi_mode = EXTENDED_VIDEO;
+        hdmi_connected_frame = 0;
     }
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -187,23 +194,11 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
         goto exit;
     }
 
-    mipi_crtc_id = mipi_encoder->crtc_id;
+    psb_HDMIExt_info->mipi_crtc_id = mipi_encoder->crtc_id;
     psb__information_message("%s : mipi_crtc_id = %d\n", __FUNCTION__,
                              mipi_crtc_id);
 
     drmModeFreeEncoder(mipi_encoder);
-
-    /*Update MIPI fb id*/
-    mipi_crtc = drmModeGetCrtc(driver_data->drm_fd, mipi_crtc_id);
-    if (!mipi_crtc) {
-        /* No CRTC attached to MIPI. */
-        psb__error_message("%s : MIPI : OFF\n", __FUNCTION__);
-        goto exit;
-    }
-    psb_HDMIExt_info->mipi_fb_id = mipi_crtc->buffer_id;
-    psb__information_message("%s : psb_HDMIExt_info->mipi_fb_id = %d\n", __FUNCTION__,
-                             psb_HDMIExt_info->mipi_fb_id);
-    drmModeFreeCrtc(mipi_crtc);
 
     if (psb_HDMIExt_update(ctx, psb_HDMIExt_info))
         goto exit;

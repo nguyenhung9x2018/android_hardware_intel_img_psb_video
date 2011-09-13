@@ -380,8 +380,29 @@ static int psb_check_outputmethod(
 
     *hdmi_mode = psb_HDMIExt_get_mode(output);
     if (*hdmi_mode != OFF) {
-        psb_HDMIExt_get_prop(output, &driver_data->render_rect.width, &driver_data->render_rect.height,
-                             &driver_data->render_rect.x, &driver_data->render_rect.y);
+        unsigned short _destw, _desth;
+        short _pos_x, _pos_y;
+        unsigned short crtc_width = 0, crtc_height = 0;
+        float _slope_xy = (float)srch / srcw;
+
+        psb_HDMIExt_get_prop(output, &crtc_width, &crtc_height);
+
+        /*recalculate the render box to fit the ratio of height/width*/
+        _destw = (short)(crtc_height / _slope_xy);
+        _desth = (short)(crtc_width * _slope_xy);
+        if (_destw <= crtc_width) {
+            _desth = crtc_height;
+            _pos_x = (crtc_width - _destw) >> 1;
+            _pos_y = 0;
+        } else {
+            _destw = crtc_width;
+            _pos_x = 0;
+            _pos_y = (crtc_height - _desth) >> 1;
+        }
+        driver_data->render_rect.x = _pos_x;
+        driver_data->render_rect.y = _pos_y;
+        driver_data->render_rect.width = _destw;
+        driver_data->render_rect.height = _desth;
         psb__information_message("HDMI mode is on (%d), Render Rect: (%d,%d,%d,%d)\n",
                                  *hdmi_mode,
                                  driver_data->render_rect.x, driver_data->render_rect.y,
@@ -395,6 +416,7 @@ static int psb_check_outputmethod(
         if (driver_data->mipi0_rotation != 0) {
             driver_data->mipi0_rotation = 0;
             driver_data->hdmi_rotation = 0;
+            output->new_destbox = 1;
             psb_RecalcRotate(ctx);
         }
 
@@ -576,6 +598,11 @@ VAStatus psb_PutSurface(
 
     /* time for MFLD platform */
     psb_check_outputmethod(ctx, surface, srcw, srch, android_isurface, &hdmi_mode);
+
+    if (hdmi_mode == UNDEFINED) {
+        psb__information_message("HDMI: Undefined mode, drop the frame.\n");
+        return vaStatus;
+    }
 
     /* Extvideo: Use overlay to render external HDMI display */
     if (hdmi_mode == EXTENDED_VIDEO) {

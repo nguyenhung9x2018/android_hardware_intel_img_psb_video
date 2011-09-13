@@ -167,7 +167,7 @@ VAStatus psb_surface_create_from_kbuf(
     psb_surface->size = size;
     psb_surface->extra_info[4] = VA_FOURCC_NV12;
 
-    ret = psb_kbuffer_reference(driver_data, &psb_surface->buf, psb_surface->ref_buf,kbuf_handle);
+    ret = psb_kbuffer_reference(driver_data, &psb_surface->buf, kbuf_handle);
 
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }

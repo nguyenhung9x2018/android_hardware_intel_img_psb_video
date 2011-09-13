@@ -1602,7 +1602,7 @@ VAStatus psb__CreateBuffer(
             /* Buffer was used for this frame, allocate new buffer instead */
             psb__information_message("Skipping idle buffer %08x, recently used. Unused = %d\n", obj_buffer->base.id, unused_count);
             obj_buffer = NULL;
-        } else if (obj_context->frame_count - obj_buffer->last_used < 2) {
+        } else if (obj_context->frame_count - obj_buffer->last_used < 5) {
             /* Buffer was used for previous frame, allocate new buffer instead */
             psb__information_message("Skipping idle buffer %08x used by frame %d. Unused = %d\n", obj_buffer->base.id, obj_buffer->last_used, unused_count);
             obj_buffer = NULL;
@@ -2760,7 +2760,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     int i ;
     unsigned long buffer_stride;
 
-    psb__information_message("Create surface: width %d, height %d, format 0x%08x"
+   psb__information_message("Create surface: width %d, height %d, format 0x%08x"
             "\n\t\t\t\t\tnum_surface %d, buffer size %d, fourcc 0x%08x"
             "\n\t\t\t\t\tluma_stride %d, chroma u stride %d, chroma v stride %d"
             "\n\t\t\t\t\tluma_offset %d, chroma u offset %d, chroma v offset %d\n",
@@ -2784,6 +2784,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     }
 
     /* We only support NV12/YV12 */
+    
     if (((VA_RT_FORMAT_YUV420 == format) && (kBuf_fourcc != VA_FOURCC_NV12)) ||
             ((VA_RT_FORMAT_YUV422 == format) && (kBuf_fourcc != VA_FOURCC_YV16))) {
         psb__error_message("Only support NV12/YV16 format\n");
@@ -2821,7 +2822,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     MEMSET_OBJECT(obj_surface, struct object_surface_s);
 
     obj_surface->surface_id = surfaceID;
-    surface = surfaceID;
+    *surface = surfaceID;
     obj_surface->context_id = -1;
     obj_surface->width = width;
     obj_surface->height = height;

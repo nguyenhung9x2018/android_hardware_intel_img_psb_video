@@ -217,14 +217,12 @@ VAStatus psb_buffer_reference(psb_driver_data_p driver_data,
 
 VAStatus psb_kbuffer_reference(psb_driver_data_p driver_data,
                               psb_buffer_p buf,
-                              psb_buffer_p reference_buf,
                               int kbuf_handle
                              )
 {
     int ret = 0;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    memcpy(buf, reference_buf, sizeof(*buf));
     buf->drm_buf = NULL;
 
     ret = LOCK_HARDWARE(driver_data);
