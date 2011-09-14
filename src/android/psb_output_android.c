@@ -379,15 +379,31 @@ static int psb_check_outputmethod(
     }
 
     *hdmi_mode = psb_HDMIExt_get_mode(output);
-    if (*hdmi_mode != OFF) {
+    if ((*hdmi_mode == EXTENDED_VIDEO) || (*hdmi_mode == CLONE)) {
         unsigned short _destw, _desth;
         short _pos_x, _pos_y;
         unsigned short crtc_width = 0, crtc_height = 0;
-        float _slope_xy = (float)srch / srcw;
+        float _slope_xy;
+
+        /* need to handle VA rotation, and set WM rotate to 0
+         * for Android, MIPI0/HDMI has the same WM rotation always
+         */
+        if (driver_data->mipi0_rotation != 0) {
+            driver_data->mipi0_rotation = 0;
+            driver_data->hdmi_rotation = 0;
+            output->new_destbox = 1;
+            psb_RecalcRotate(ctx);
+        }
 
         psb_HDMIExt_get_prop(output, &crtc_width, &crtc_height);
 
         /*recalculate the render box to fit the ratio of height/width*/
+        if ((driver_data->extend_rotation == VA_ROTATION_90) ||
+            (driver_data->extend_rotation == VA_ROTATION_270))
+            _slope_xy = (float)srcw / srch;
+        else
+            _slope_xy = (float)srch / srcw;
+
         _destw = (short)(crtc_height / _slope_xy);
         _desth = (short)(crtc_width * _slope_xy);
         if (_destw <= crtc_width) {
@@ -407,19 +423,6 @@ static int psb_check_outputmethod(
                                  *hdmi_mode,
                                  driver_data->render_rect.x, driver_data->render_rect.y,
                                  driver_data->render_rect.width, driver_data->render_rect.height);
-    }
-
-    if ((*hdmi_mode == EXTENDED_VIDEO) || (*hdmi_mode == CLONE)) {
-        /* need to handle VA rotation, and set WM rotate to 0
-         * for Android, MIPI0/HDMI has the same WM rotation always
-         */
-        if (driver_data->mipi0_rotation != 0) {
-            driver_data->mipi0_rotation = 0;
-            driver_data->hdmi_rotation = 0;
-            output->new_destbox = 1;
-            psb_RecalcRotate(ctx);
-        }
-
         return 0;
     }
 
@@ -479,14 +482,14 @@ static int psb_check_outputmethod(
     rotate_surface = obj_surface->psb_surface_rotate;
     if (rotate_surface != NULL)
         rotate_srf_rotate = GET_SURFACE_INFO_rotate(rotate_surface);
-    
+
     psb__information_message("SF rotation %d, VA rotation %d, final MSVDX rotation %d\n",
                              rotation, driver_data->va_rotate, driver_data->local_rotation);
     psb__information_message("Primary surface rotation %d, rotated surface rotation %d\n",
                              srf_rotate, rotate_srf_rotate);
 
     /* The surface rotation is not same with the final rotation */
-    if ((driver_data->local_rotation != 0) && 
+    if ((driver_data->local_rotation != 0) &&
         ((srf_rotate != driver_data->local_rotation) || (rotate_srf_rotate != driver_data->local_rotation))) {
         psb__information_message("Use texstreaming due to different VA surface rotation and final rotaion\n",
                                  srf_rotate, rotate_srf_rotate);

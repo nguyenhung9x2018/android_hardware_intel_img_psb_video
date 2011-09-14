@@ -1030,7 +1030,13 @@ static int I830PutImage(
                                   &src_w, &src_h, &width, &height,
                                   &psb_surface, pipeId);
 
+    if ((pipeId == PIPEB) && (driver_data->extend_rotation != VA_ROTATION_NONE) &&
+        (NULL == psb_surface)) {
+        /*BZ:9432. rotate surface may not be ready, so we have to discard this frame.*/
+        psb__information_message("Android HDMI video mode: discard this frame if rotate surface hasn't be ready.\n");
 
+        return 1;
+    }
     width = (width <= 1920) ? width : 1920;
 
     /* If dst width and height are less than 1/8th the src size, the
@@ -1135,7 +1141,7 @@ static int I830PutImage(
         drm_buf = psb_surface->buf.drm_buf;
         gtt_ofs = wsbmBOOffsetHint(drm_buf) & 0x0FFFFFFF;
 
-	/*skip pad bytes.*/
+        /*skip pad bytes.*/
         if (driver_data->local_rotation == VA_ROTATION_90) {
             left += ((src_w + 0xf) & ~0xf) - src_w;
         } else if (driver_data->local_rotation == VA_ROTATION_270) {
