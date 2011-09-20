@@ -598,6 +598,7 @@ VAStatus psb_PutSurface(
         psb__error_message("In psb_PutSurface, android_isurface is not a valid isurface object.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
+    driver_data->ts_source_created = 1;
 
     /* time for MFLD platform */
     psb_check_outputmethod(ctx, surface, srcw, srch, android_isurface, &hdmi_mode);

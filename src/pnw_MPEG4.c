@@ -624,11 +624,14 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
     case PICTURE_CODING_P:
         ctx->forward_ref_surface = SURFACE(ctx->pic_params->forward_reference_picture);
         ctx->backward_ref_surface = NULL;
-        if (NULL == ctx->forward_ref_surface) {
+
+        if(ctx->pic_params->forward_reference_picture == VA_INVALID_SURFACE)
+            ctx->forward_ref_surface = NULL;
+        if (NULL == ctx->forward_ref_surface && ctx->pic_params->forward_reference_picture != VA_INVALID_SURFACE) {
             return VA_STATUS_ERROR_INVALID_SURFACE;
         }
         psb__information_message("PICTURE_CODING_P\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
-        psb__information_message("Forward ref  = %08x (%08x)\n", ctx->forward_ref_surface->psb_surface, ctx->pic_params->forward_reference_picture);
+        psb__information_message("Forward ref  = %08x (%08x)\n", (ctx->forward_ref_surface ? ctx->forward_ref_surface->psb_surface : 0), ctx->pic_params->forward_reference_picture);
         psb__information_message("Backward ref = NULL\n");
         break;
 

@@ -129,8 +129,11 @@ VAStatus psb_release_video_bcd(VADriverContextP ctx)
      *otherwise, will get "Erroneous page count" error.
      */
 #ifdef ANDROID
-    psb__information_message("Destroy texture streaming source.\n");
-    psb_android_texture_streaming_destroy();
+    if (driver_data->ts_source_created) {
+        psb__information_message("Destroy texture streaming source.\n");
+        psb_android_texture_streaming_destroy();
+        driver_data->ts_source_created = 0;
+    }
 #endif
     BC_Video_ioctl_package ioctl_package;
     psb__information_message("Release video buffer device id.\n");

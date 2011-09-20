@@ -45,6 +45,11 @@
 #include "psb_output_android.h"
 
 #define DRM_MODE_CONNECTOR_MIPI    15
+#define HDMI_MODE_OFF			0
+#define HDMI_MODE_CLONE 		1
+#define HDMI_MODE_EXT_VIDEO 		2
+#define HDMI_MODE_EXT_DESKTOP 		3
+#define HDMI_MODE_CLONE_ROTATION 	4
 
 typedef enum _psb_hdmi_mode {
     OFF,

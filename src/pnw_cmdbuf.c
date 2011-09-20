@@ -427,11 +427,6 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 #if 1
         req->presumed_gpu_offset = (uint64_t)wsbmBOOffsetHint(buffer_list[i]->drm_buf);
         req->presumed_flags = PSB_USE_PRESUMED;
-        if ((req->presumed_gpu_offset >> 28) & 0x1) {
-            psb__error_message("buffer is at the address topaz can not access\n");
-            ret = -1;
-            goto out;
-        }
 #else
         req->presumed_flags = 0;
 #endif

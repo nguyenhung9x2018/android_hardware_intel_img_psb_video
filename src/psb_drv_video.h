@@ -249,6 +249,7 @@ struct psb_driver_data_s {
     uint32_t *bcd_ttm_handles;
     uint32_t xrandr_dirty;
     uint32_t xrandr_update;
+    uint32_t ts_source_created;
     /*only VAProfileH264ConstrainedBaseline profile enable error concealment*/
     uint32_t ec_enabled;
 

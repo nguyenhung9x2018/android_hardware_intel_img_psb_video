@@ -976,8 +976,11 @@ VAStatus psb_DestroySurfaces(
  * mix call the function with NULL & 0 parameters to notify video driver when decoder is destroyed.
  */
 #ifdef ANDROID
-        psb__information_message("In psb_release_video_bcd, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
-        psb_android_texture_streaming_destroy();
+        if (driver_data->ts_source_created) {
+            psb__information_message("In psb_release_video_bcd, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
+            psb_android_texture_streaming_destroy();
+            driver_data->ts_source_created = 0;
+        }
 #endif
         return VA_STATUS_ERROR_INVALID_SURFACE;
     }
