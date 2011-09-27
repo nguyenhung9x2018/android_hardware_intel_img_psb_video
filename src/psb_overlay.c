@@ -777,7 +777,7 @@ i830_display_video(
             regs.overlay.OVADD = offset | 1;
             regs.overlay.IEP_ENABLED = 0;
             regs.overlay.buffer_handle = wsbmKBufHandle(wsbmKBuf(pPriv->wsbo[overlayId]));
-	}
+        }
     } else {
         overlay->OCONFIG = CC_OUT_8BIT;
         overlay->OCONFIG |= IEP_LITE_BYPASS;
