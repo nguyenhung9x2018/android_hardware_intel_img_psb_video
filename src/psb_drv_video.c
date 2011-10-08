@@ -2382,9 +2382,8 @@ VAStatus psb_LockSurface(
     }
 
     psb_surface = obj_surface->psb_surface;
-    if (buffer_name) {
-        /* todo */
-    }
+    if (buffer_name)
+        *buffer_name = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
 
     if (buffer) { /* map the surface buffer */
         uint32_t srf_buf_ofs = 0;

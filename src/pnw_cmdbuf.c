@@ -447,8 +447,6 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     ca.engine = engine;
     ca.fence_flags = fence_flags;
     ca.fence_arg = (uint64_t)((unsigned long)fence_rep);
-    ca.damage = damage;
-
 
     do {
         ret = drmCommandWrite(fd, ioctl_offset, &ca, sizeof(ca));

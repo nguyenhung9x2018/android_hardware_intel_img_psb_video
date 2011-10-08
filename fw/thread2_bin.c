@@ -34,7 +34,7 @@
 /******************************************************************************
 @File        ../release/thread0_bin.c
 @Title
-@Copyright   Copyright (C)  Imagination Technologies Limited. All Rights Reserved. Strictly Confidential.
+@Copyright   Copyright (C)  Imagination Technologies Limited. All Rights Reserved.
 @Platform
 @Description This file was automatically generated from ../release/thread0.dnl using dnl2c.
 ******************************************************************************/
@@ -1151,7 +1151,7 @@ const FIRMWARE sFirmware1100_SS = {
 /******************************************************************************
 @File        ../release/thread0_bin.c
 @Title
-@Copyright   Copyright (C)  Imagination Technologies Limited. All Rights Reserved. Strictly Confidential.
+@Copyright   Copyright (C)  Imagination Technologies Limited. All Rights Reserved.
 @Platform
 @Description This file was automatically generated from ../release/thread0.dnl using dnl2c.
 ******************************************************************************/

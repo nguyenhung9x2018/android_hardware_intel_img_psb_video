@@ -494,15 +494,8 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     ca.reloc_offset = relocBufOffset;
     ca.num_relocs = numRelocs;
 
-    ca.damage = damage;
     ca.fence_flags = fence_flags;
     ca.engine = engine;
-
-    ca.feedback_ops = 0;
-    ca.feedback_handle = 0;
-    ca.feedback_offset = 0;
-    ca.feedback_breakpoints = 0;
-    ca.feedback_size = 0;
 
 #if 0
     psb__information_message("PSB submit: buffer_list   = %08x\n", ca.buffer_list);

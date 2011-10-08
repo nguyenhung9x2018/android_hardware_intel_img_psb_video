@@ -302,6 +302,13 @@ VAStatus psb_putsurface_ts(
     driver_data->overlay_idle_frame++;
     update_forced = 0;
 
+    /* current surface is being displayed */
+    if (driver_data->cur_displaying_surface != VA_INVALID_SURFACE)
+        driver_data->last_displaying_surface = driver_data->cur_displaying_surface;
+
+    obj_surface->display_timestamp = GetTickCount();
+    driver_data->cur_displaying_surface = surface;
+
     return VA_STATUS_SUCCESS;
 }
 

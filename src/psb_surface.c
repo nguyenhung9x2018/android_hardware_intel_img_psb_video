@@ -133,7 +133,7 @@ VAStatus psb_surface_create_for_userptr(
     psb_surface->size = size;
     psb_surface->extra_info[4] = VA_FOURCC_NV12;
 
-    ret = psb_buffer_create(driver_data, psb_surface->size, psb_bt_cpu_vpu, &psb_surface->buf);
+    ret = psb_buffer_create(driver_data, psb_surface->size, psb_bt_cpu_vpu_shared, &psb_surface->buf);
 
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }

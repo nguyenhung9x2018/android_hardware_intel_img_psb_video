@@ -244,8 +244,11 @@ VAStatus psb_CreateRotateSurface(
             SET_SURFACE_INFO_rotate(psb_surface, msvdx_rotate);
             return VA_STATUS_SUCCESS;
         } else { /* free the old rotate surface */
+            /*FIX ME: No sync mechanism to hold surface buffer b/w msvdx and display(overlay).
+            So Disable dynamic surface destroy/create for avoiding buffer corruption.
             psb_surface_destroy(obj_surface->psb_surface_rotate);
-            memset(psb_surface, 0, sizeof(*psb_surface));
+            memset(psb_surface, 0, sizeof(*psb_surface));*/
+            return VA_STATUS_SUCCESS;
         }
     } else 
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));

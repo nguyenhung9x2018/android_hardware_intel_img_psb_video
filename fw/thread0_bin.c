@@ -37,7 +37,7 @@
 
  @Title
 
- @Copyright    Copyright (C)  Imagination Technologies Limited. All Rights Reserved. Strictly Confidential.
+ @Copyright    Copyright (C)  Imagination Technologies Limited. All Rights Reserved.
 
  @Platform
 

@@ -250,7 +250,8 @@ VAStatus psb_kbuffer_reference(psb_driver_data_p driver_data,
         psb__error_message("failed to alloc wsbm buffers\n");
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
-
+    buf->pl_flags = wsbmBOPlacementHint(buf->drm_buf);
+    
     return VA_STATUS_SUCCESS;
 }
 /*
