@@ -525,9 +525,8 @@ VAStatus psb_PutSurface(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
     psb_hdmi_mode hdmi_mode = OFF;
-    int sf_composition = 0, buffer_index = 0, i = 0;
-    uint32_t ttm_handle;
-    psb_surface_p psb_surface;
+    int sf_composition = 0, buffer_index, i = 0;
+    int ret = 0;
 
     obj_surface = SURFACE(surface);
     if (NULL == obj_surface) {
@@ -557,22 +556,28 @@ VAStatus psb_PutSurface(
         return VA_STATUS_SUCCESS;
     }
 
-    /*get bcd buffer index of current surface*/
-    psb_surface = obj_surface->psb_surface;
-    ttm_handle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
-
-    for (i = 0; i < driver_data->bcd_buffer_num; i++) {
-        if (driver_data->bcd_ttm_handles[i] == ttm_handle)
-            break;
+    /* init overlay */
+    if (!driver_data->coverlay_init &&
+        (driver_data->output_method != PSB_PUTSURFACE_FORCE_TEXSTREAMING)) {
+        ret = psb_coverlay_init(ctx);
+        if (ret != 0) {
+            psb__information_message("vaPutSurface: psb_coverlay_init failed. Fallback to texture streaming.\n");
+            driver_data->output_method = PSB_PUTSURFACE_FORCE_TEXSTREAMING;
+            driver_data->coverlay_init = 0;
+        }
+        else
+            driver_data->coverlay_init = 1;
     }
-    if (i == driver_data->bcd_buffer_num) {
-        psb__error_message("Failed to get buffer index.\n");
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-    buffer_index = i;
 
     /* set the current displaying video frame into kernel */
-    psb_surface_set_displaying(driver_data, obj_surface->width, obj_surface->height_origin, obj_surface->psb_surface);
+    psb_surface_set_displaying(driver_data, obj_surface->width,
+                               obj_surface->height_origin,
+                               obj_surface->psb_surface);
+
+    /* get the BCD index of current surface */
+    buffer_index = psb_get_video_bcd(ctx, surface);
+    if (buffer_index == -1)
+        psb__error_message("The surface is not registered in BCD, shoud use overlay\n");
 
     /* exit MRST path at first */
     if (IS_MRST(driver_data)) {

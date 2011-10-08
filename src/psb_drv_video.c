@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -177,7 +177,7 @@ void psb__error_message(const char *msg, ...)
     char tag[128];
 
     (void)tag;
-    
+
     if (psb_video_debug_fp == NULL) /* not set the debug */
         fp = stderr;
     else
@@ -204,7 +204,7 @@ void psb__information_message(const char *msg, ...)
         char tag[128];
 
         (void)tag;
-        
+
         fprintf(psb_video_debug_fp, "[0x%08lx]psb_drv_video(%d:0x%08lx) ",
                 GetTickCount(), getpid(), pthread_self());
         va_start(args, msg);
@@ -224,12 +224,12 @@ static void psb__open_log(void)
 {
     char log_fn[1024];
     unsigned int suffix;
-    
+
     if ((psb_video_debug_fp != NULL) && (psb_video_debug_fp != stderr)) {
         debug_fp_count++;
         return;
     }
-    
+
     if (psb_parse_config("PSB_VIDEO_DEBUG", &log_fn[0]) != 0)
         return;
 
@@ -255,7 +255,7 @@ static void psb__close_log(void)
         if (debug_fp_count == 0)
             fclose(psb_video_debug_fp);
     }
-    
+
     return;
 
 }
@@ -834,11 +834,13 @@ VAStatus psb_CreateSurfaces(
             psb__destroy_surface(driver_data, obj_surface);
             surface_list[i] = VA_INVALID_SURFACE;
         }
+        psb__error_message("CreateSurfaces failed\n");
+        return vaStatus;
     }
 
-    /* bcd only supporte NV12 */
-    if(fourcc == VA_FOURCC_NV12)
-        vaStatus = psb_register_video_bcd(ctx, width, height, buffer_stride, num_surfaces, surface_list);
+    if (fourcc == VA_FOURCC_NV12)
+        psb_add_video_bcd(ctx, width, height, buffer_stride,
+                          num_surfaces, surface_list);
 
     return vaStatus;
 }
@@ -1588,13 +1590,13 @@ VAStatus psb__CreateBuffer(
                              buffer_type_to_string(type));
 
     /* on MFLD, data is IMR offset, and could be 0 */
-    /* 
+    /*
     if ((type == VAProtectedSliceDataBufferType) && (data == NULL)) {
         psb__error_message("RAR: Create protected slice buffer, but RAR handle is NULL\n");
         return VA_STATUS_ERROR_UNSUPPORTED_BUFFERTYPE ;
     }
     */
-    
+
     if (obj_buffer && obj_buffer->psb_buffer) {
         if (psb_bs_queued == obj_buffer->psb_buffer->status) {
             /* Buffer is still queued, allocate new buffer instead */
@@ -2633,7 +2635,7 @@ VAStatus psb_CreateSurfacesForUserPtr(
         psb__error_message("Only support NV12/YV16 format\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
-    
+
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
     if (VA_STATUS_SUCCESS != vaStatus) {
         DEBUG_FAILURE;
@@ -2786,7 +2788,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     }
 
     /* We only support NV12/YV12 */
-    
+
     if (((VA_RT_FORMAT_YUV420 == format) && (kBuf_fourcc != VA_FOURCC_NV12)) ||
             ((VA_RT_FORMAT_YUV422 == format) && (kBuf_fourcc != VA_FOURCC_YV16))) {
         psb__error_message("Only support NV12/YV16 format\n");
@@ -3434,7 +3436,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     }
 
     psb__information_message("vaInitilize: succeeded!\n\n");
-    
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -3465,7 +3467,7 @@ static int psb_get_device_info(VADriverContextP ctx)
         psb__information_message("failed to get video device info\n");
         return ret;
     }
-    
+
     pci_device = (device_info >> 16) & 0xffff;
     video_capability = device_info & 0xffff;
 
@@ -3496,6 +3498,6 @@ static int psb_get_device_info(VADriverContextP ctx)
         driver_data->hd_decode_supported = 1;
         driver_data->hd_encode_supported = 1;
     }
-        
+
     return ret;
 }

@@ -82,7 +82,7 @@ typedef struct bc_buf_params {
     enum BC_memory type;
 } bc_buf_params_t;
 
-VAStatus psb_register_video_bcd(
+int psb_add_video_bcd(
     VADriverContextP ctx,
     int width,
     int height,
@@ -90,8 +90,12 @@ VAStatus psb_register_video_bcd(
     int num_surfaces,
     VASurfaceID *surface_list
 );
-
-VAStatus psb_release_video_bcd(VADriverContextP ctx);
+int psb_get_video_bcd(
+    VADriverContextP ctx,
+    VASurfaceID surface
+);
+int psb_register_video_bcd(VADriverContextP ctx);
+int psb_release_video_bcd(VADriverContextP ctx);
 
 /*add for texture streaming end*/
 #endif /*_PSB_TEXSTREAMING_H*/

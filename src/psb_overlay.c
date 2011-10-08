@@ -1243,7 +1243,7 @@ psbPortPrivDestroy(VADriverContextP ctx, PsbPortPrivPtr pPriv)
     pPriv->p_iep_lite_context = NULL;
 }
 
-static PsbPortPrivPtr
+static int
 psbSetupImageVideoOverlay(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 {
     INIT_DRIVER_DATA;
@@ -1331,7 +1331,7 @@ out_err_bo0:
     wsbmBOUnreference(&pPriv->wsbo[0]);
 
 out_err:
-    return 0;
+    return -1;
 }
 
 int psb_coverlay_init(VADriverContextP ctx)
@@ -1339,9 +1339,16 @@ int psb_coverlay_init(VADriverContextP ctx)
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = &driver_data->coverlay_priv;
     struct drm_psb_register_rw_arg regs;
+    int ret;
 
     memset(pPriv, 0, sizeof(PsbPortPrivRec));
     pPriv->is_mfld = IS_MFLD(driver_data);
+
+    ret = psbSetupImageVideoOverlay(ctx, pPriv);
+    if (ret != 0) {
+        psb__error_message("psb_coverlay_init : Create overlay cmd buffer failed.\n");
+        return -1;
+    }
 
     if (pPriv->is_mfld && driver_data->is_android) {
         psb__information_message("Android ExtVideo: set PIPEB(HDMI)display plane on the bottom.\n");
@@ -1353,8 +1360,6 @@ int psb_coverlay_init(VADriverContextP ctx)
         regs.display_write_mask = REGRWBITS_DSPBCNTR;
         drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
     }
-
-    psbSetupImageVideoOverlay(ctx, pPriv);
 
     I830ResetVideo(ctx, pPriv);
     I830UpdateGamma(ctx, pPriv);

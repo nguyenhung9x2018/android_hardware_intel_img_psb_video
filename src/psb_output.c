@@ -133,9 +133,6 @@ VAStatus psb_initOutput(VADriverContextP ctx)
 #endif
     driver_data->ws_priv = ws_priv;
 
-    /* use client overlay  */
-    if (driver_data->coverlay == 1)
-        psb_coverlay_init(ctx);
 
     //use client textureblit
     if (driver_data->ctexture == 1) {
@@ -163,8 +160,10 @@ VAStatus psb_deinitOutput(
     if (driver_data->ctexture == 1)
         psb_ctexture_deinit(ctx);
 
-    if (driver_data->coverlay == 1)
+    if (driver_data->coverlay_init) {
         psb_coverlay_deinit(ctx);
+        driver_data->coverlay_init = 0;
+    }
     
 #ifndef ANDROID
     psb_x11_output_deinit(ctx);

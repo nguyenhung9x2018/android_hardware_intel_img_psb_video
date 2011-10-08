@@ -169,6 +169,7 @@ struct psb_driver_data_s {
 
     /* whether the post-processing use client overlay or not */
     int coverlay;
+    int coverlay_init;
     PsbPortPrivRec coverlay_priv;
 
 
@@ -242,14 +243,20 @@ struct psb_driver_data_s {
     int extend_rotation; /* final device rotate: VA rotate+wm rotate */
     
     unsigned int outputmethod_checkinterval;
+
     uint32_t bcd_id;
     uint32_t bcd_ioctrl_num;
     uint32_t bcd_registered;
     uint32_t bcd_buffer_num;
+    int bcd_buffer_width;
+    int bcd_buffer_height;
+    int bcd_buffer_stride;
+    VASurfaceID *bcd_buffer_surfaces;
     uint32_t *bcd_ttm_handles;
+    uint32_t ts_source_created;
+
     uint32_t xrandr_dirty;
     uint32_t xrandr_update;
-    uint32_t ts_source_created;
     /*only VAProfileH264ConstrainedBaseline profile enable error concealment*/
     uint32_t ec_enabled;
 

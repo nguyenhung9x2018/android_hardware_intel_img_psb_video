@@ -511,6 +511,11 @@ VAStatus psb_PutSurface(
         psb__information_message("Using client Overlay for PutSurface\n");
 
         srcw = srcw <= 1920 ? srcw : 1920;
+        /* init overlay*/
+        if (!driver_data->coverlay_init) {
+            psb_coverlay_init(ctx);
+            driver_data->coverlay_init = 1;
+        }
 
         psb_putsurface_coverlay(
             ctx, surface, draw,
