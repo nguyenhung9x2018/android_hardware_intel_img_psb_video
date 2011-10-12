@@ -504,6 +504,36 @@ static VAStatus psb__validate_config(object_config_p obj_config)
     return VA_STATUS_SUCCESS;
 }
 
+static int psb_get_active_entrypoint_number(
+		VADriverContextP ctx,
+		unsigned int entrypoint)
+{
+    INIT_DRIVER_DATA;
+    struct drm_lnc_video_getparam_arg arg;
+    int count= 0;
+    int ret;
+
+    if (VAEntrypointVLD > entrypoint ||
+	    entrypoint > VAEntrypointEncPicture) {
+	psb__error_message("%s :Invalid entrypoint %d.\n",
+		__FUNCTION__, entrypoint);
+	return -1;
+    }
+
+    arg.key = PNW_VIDEO_QUERY_ENTRY;
+    arg.value = (uint64_t)((unsigned long) &count);
+    arg.arg = (uint64_t)(&entrypoint);
+    ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
+		    &arg, sizeof(arg));
+    if (ret) {
+	psb__error_message("%s drmCommandWriteRead fails %d.\n",
+		__FUNCTION__, ret);
+	return -1;
+    }
+
+    return count;
+}
+
 VAStatus psb_CreateConfig(
     VADriverContextP ctx,
     VAProfile profile,
@@ -556,6 +586,17 @@ VAStatus psb_CreateConfig(
 
     if (VA_STATUS_SUCCESS != vaStatus) {
         return vaStatus;
+    }
+
+    if ((IS_MFLD(driver_data)) &&
+	     (VAEntrypointEncPicture == entrypoint)) {
+	/*Only allow one encoding entrypoint at the sametime.*/
+	if (psb_get_active_entrypoint_number(ctx, VAEntrypointEncSlice) > 0 ||
+			psb_get_active_entrypoint_number(ctx, VAEntrypointEncPicture)) {
+	    psb__error_message("There already is a active encoding entrypoint %d.\n",
+		    entrypoint);
+	    return VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
+	}
     }
 
     configID = object_heap_allocate(&driver_data->config_heap);
