@@ -80,7 +80,7 @@ LOCAL_C_INCLUDES :=			\
     $(TOPDIR)hardware/intel/include         \
     $(TOPDIR)hardware/intel/include/eurasia/pvr2d              \
     $(TARGET_OUT_HEADERS)/libva	\
-    $(TOPDIR)hardware/intel/include/drm     \
+    $(TOPDIR)hardware/intel/linux-2.6/include/drm     \
     $(TARGET_OUT_HEADERS)/libttm	\
     $(TARGET_OUT_HEADERS)/libwsbm	\
     $(TARGET_OUT_HEADERS)/libpsb_drm\

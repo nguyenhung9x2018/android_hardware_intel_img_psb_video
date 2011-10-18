@@ -179,7 +179,7 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
     buf->rar_handle = 0;
     buf->buffer_ofs = 0;
     buf->type = psb_bt_user_buffer;
-    buf->user_ptr = (void *)user_ptr;
+    buf->user_ptr = (unsigned char *)user_ptr;
     buf->driver_data = driver_data;
 
     allignment = 4096;
@@ -201,7 +201,7 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
 
 #ifndef ANDROID
     extern int wsbmBODataUB(struct _WsbmBufferObject * buf,
-                            unsigned size, const void * data,
+                            unsigned size, const unsigned char * data,
                             struct _WsbmBufferPool * newPool, uint32_t placement, const unsigned long * user_ptr);
 
     /* here use the placement when gen buffer setted */

@@ -83,7 +83,7 @@ defaut:
     return 0;
 }
 
-void *psb_android_output_init(VADriverContextP ctx)
+unsigned char *psb_android_output_init(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     char put_surface[1024];
@@ -144,7 +144,7 @@ void *psb_android_output_init(VADriverContextP ctx)
         }
     }
 
-    return output;
+    return (unsigned char *)output;
 }
 
 VAStatus psb_android_output_deinit(VADriverContextP ctx)
@@ -251,7 +251,7 @@ VAStatus psb_putsurface_coverlay(
 VAStatus psb_putsurface_ts(
     VADriverContextP ctx,
     VASurfaceID surface,
-    void *android_isurface,
+    unsigned char *android_isurface,
     int buffer_index,
     short srcx,
     short srcy,
@@ -452,8 +452,15 @@ static int psb_check_outputmethod(
     /* HDMI is not enabled */
     psb_android_surfaceflinger_status(android_isurface, &output->sf_composition, &rotation, &widi);
     if (widi == eWidiClone) {
-        psb__information_message("WIDI service is detected, use texstreaming\n");
+        psb__information_message("WIDI in clone mode, use texstreaming\n");
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
+        driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
+
+        return 0;
+    }
+    if (widi == eWidiExtendedVideo) {
+        psb__information_message("WIDI in extend video mode, disable local displaying\n");
+        driver_data->output_method = PSB_PUTSURFACE_NONE;
         driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
 
         return 0;
@@ -614,6 +621,8 @@ VAStatus psb_PutSurface(
 
     /* time for MFLD platform */
     psb_check_outputmethod(ctx, surface, srcw, srch, android_isurface, &hdmi_mode);
+    if (driver_data->output_method == PSB_PUTSURFACE_NONE)
+        return VA_STATUS_SUCCESS;
 
     if (hdmi_mode == UNDEFINED) {
         psb__information_message("HDMI: Undefined mode, drop the frame.\n");

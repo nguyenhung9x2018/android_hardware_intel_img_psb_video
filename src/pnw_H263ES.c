@@ -323,7 +323,7 @@ static VAStatus pnw__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
     VAEncSliceParameterBuffer *pBuffer;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
-    int i;
+    unsigned int i;
     int slice_param_idx;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
@@ -378,8 +378,7 @@ static VAStatus pnw__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
                    HEADER_SIZE);
 
             pnw__H263_prepare_GOBslice_header(
-                cmdbuf->header_mem_p + ctx->slice_header_ofs
-                + ctx->obj_context->slice_count * HEADER_SIZE,
+                cmdbuf->header_mem_p + ctx->slice_header_ofs + ctx->obj_context->slice_count * HEADER_SIZE,
                 ctx->obj_context->slice_count,
                 ctx->obj_context->frame_count);
 

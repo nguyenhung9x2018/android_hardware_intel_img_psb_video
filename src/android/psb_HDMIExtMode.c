@@ -72,7 +72,7 @@ VAStatus psb_HDMIExt_update(VADriverContextP ctx, psb_HDMIExt_info_p psb_HDMIExt
     static int hdmi_connected_frame = 0;
 
     arg.key = IMG_VIDEO_GET_HDMI_STATE;
-    arg.value = (uint64_t)(&hdmi_state);
+    arg.value = (uint64_t)((unsigned int)&hdmi_state);
     drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                         &arg, sizeof(arg));
 

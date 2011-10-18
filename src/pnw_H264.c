@@ -32,6 +32,7 @@
 #include "psb_def.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
+#include "pnw_rotate.h"
 
 #include "hwdefs/reg_io2.h"
 #include "hwdefs/msvdx_offsets.h"
@@ -485,7 +486,7 @@ static VAStatus pnw_H264_CreateContext(
         DEBUG_FAILURE;
     }
     if (vaStatus == VA_STATUS_SUCCESS) {
-        void *vlc_packed_data_address;
+        unsigned char *vlc_packed_data_address;
         if (0 ==  psb_buffer_map(&ctx->vlc_packed_table, &vlc_packed_data_address)) {
             memcpy(vlc_packed_data_address, ui16H264VLCTableData, sizeof(ui16H264VLCTableData));
             psb_buffer_unmap(&ctx->vlc_packed_table);
@@ -747,7 +748,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
         }
     }
 
-    psb_CheckInterlaceRotate(ctx->obj_context, pic_params);
+    psb_CheckInterlaceRotate(ctx->obj_context, (unsigned char *)pic_params);
     
     return VA_STATUS_SUCCESS;
 }
@@ -1067,7 +1068,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
     VAPictureParameterBufferH264 *pic_params = ctx->pic_params;
     uint32_t reg_value;
-    int i;
+    unsigned int i;
 
     /* psb_cmdbuf_rendec_start_block( cmdbuf ); */
 
@@ -1110,7 +1111,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
 
     psb_cmdbuf_rendec_end(cmdbuf);
 
-#warning "TODO: MUST be done after fe slice1 (which gives MB address) "
+    //#warning "TODO: MUST be done after fe slice1 (which gives MB address) "
     /*          REGIO_WRITE_REGISTER(0, MSVDX_VEC_H264, CR_VEC_H264_FE_BASE_ADDR_SGM, gui32SliceGroupType6BaseAddressHack); */
 
     /* CHUNK: SCA */
@@ -1159,7 +1160,6 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /* send DPB information (for P and B slices?) only needed once per frame */
 //      if ( sh->slice_type == ST_B || sh->slice_type == ST_P )
     if (pic_params->num_ref_frames > 0) {
-        int i;
         IMG_BOOL is_used[16];
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES));
 
@@ -1423,7 +1423,7 @@ static VAStatus psb__H264_add_slice_param(context_H264_p ctx, object_buffer_p ob
 {
     ASSERT(obj_buffer->type == VASliceParameterBufferType);
     if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        void *new_list;
+        unsigned char *new_list;
         ctx->slice_param_list_size += 8;
         new_list = realloc(ctx->slice_param_list,
                            sizeof(object_buffer_p) * ctx->slice_param_list_size);
@@ -1586,7 +1586,7 @@ static const  IMG_UINT32 ui32H264VLCTableRegValPair[] = {
 static void psb__H264_write_VLC_tables(context_H264_p ctx)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    int i;
+    unsigned int i;
 
     psb_cmdbuf_skip_start_block(cmdbuf, SKIP_ON_CONTEXT_SWITCH);
 
@@ -1710,7 +1710,7 @@ static VAStatus psb__H264_process_slice_data(context_H264_p ctx, object_buffer_p
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VASliceParameterBufferH264 *slice_param;
     int buffer_idx = 0;
-    int element_idx = 0;
+    unsigned int element_idx = 0;
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 
@@ -1873,8 +1873,9 @@ static VAStatus pnw_H264_EndPicture(
                 buffer_dst = &target_surface->buf;
                 chroma_offset_dst = target_surface->chroma_offset;
             } else {
-                if (!rotate_surface)
+                if (!rotate_surface) {
                     ASSERT(0);
+                }
 
                 buffer_dst = &rotate_surface->buf;
                 chroma_offset_dst = rotate_surface->chroma_offset;

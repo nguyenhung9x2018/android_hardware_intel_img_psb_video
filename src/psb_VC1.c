@@ -503,8 +503,8 @@ static VAStatus psb_VC1_CreateContext(
     }
     if (vaStatus == VA_STATUS_SUCCESS) {
         void *vlc_packed_data_address;
-        if (0 ==  psb_buffer_map(&ctx->vlc_packed_table, &vlc_packed_data_address)) {
-            psb__VC1_pack_vlc_tables(vlc_packed_data_address, gaui16vc1VlcTableData, gui16vc1VlcTableSize);
+        if (0 ==  psb_buffer_map(&ctx->vlc_packed_table, (unsigned char **)&vlc_packed_data_address)) {
+            psb__VC1_pack_vlc_tables((unsigned short *)vlc_packed_data_address, gaui16vc1VlcTableData, gui16vc1VlcTableSize);
             psb_buffer_unmap(&ctx->vlc_packed_table);
             psb__VC1_pack_index_table_info(ctx->vlc_packed_index_table, gaui16vc1VlcIndexData);
         } else {
@@ -1287,7 +1287,7 @@ static VAStatus psb__VC1_add_slice_param(context_VC1_p ctx, object_buffer_p obj_
 {
     ASSERT(obj_buffer->type == VASliceParameterBufferType);
     if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        void *new_list;
+        unsigned char *new_list;
         ctx->slice_param_list_size += 8;
         new_list = realloc(ctx->slice_param_list,
                            sizeof(object_buffer_p) * ctx->slice_param_list_size);
@@ -2597,7 +2597,7 @@ static VAStatus psb__VC1_process_slice_data(context_VC1_p ctx, object_buffer_p o
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VASliceParameterBufferVC1 *slice_param;
     int buffer_idx = 0;
-    int element_idx = 0;
+    unsigned int element_idx = 0;
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 

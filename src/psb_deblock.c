@@ -545,7 +545,7 @@ int h264_secondPass(
 
 int psb_cmdbuf_second_pass(object_context_p obj_context,
                            uint32_t OperatingModeCmd,
-                           void * pvParamBase,
+                           unsigned char * pvParamBase,
                            uint32_t PicWidthInMbs,
                            uint32_t FrameHeightInMbs,
                            psb_buffer_p target_buffer,
@@ -564,7 +564,7 @@ int psb_cmdbuf_second_pass(object_context_p obj_context,
 
     item_loc = psb_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->regio_buf);
 
-    cmdbuf->regio_idx = cmdbuf->regio_base;
+    cmdbuf->regio_idx = (uint32_t *)cmdbuf->regio_base;
     cmd_size = cmdbuf->regio_idx++;
 
     h264_pollForSpaceForNCommands(4);

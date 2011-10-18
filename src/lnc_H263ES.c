@@ -292,7 +292,7 @@ static VAStatus lnc__H263ES_process_picture_param(context_ENC_p ctx, object_buff
      */
     cmdbuf->cmd_idx_saved_frameskip = cmdbuf->cmd_idx;
     if (!(ctx->sRCParams.RCEnable && ctx->sRCParams.FrameSkip)) {
-        lnc__H263_prepare_picture_header(cmdbuf->header_mem_p + ctx->pic_header_ofs,
+        lnc__H263_prepare_picture_header((IMG_UINT32 *)(cmdbuf->header_mem_p + ctx->pic_header_ofs),
                                          ctx->obj_context->frame_count,
                                          pBuffer->picture_type,
                                          SourceFormatType,
@@ -318,7 +318,7 @@ static VAStatus lnc__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
     VAEncSliceParameterBuffer *pBuffer;
     lnc_cmdbuf_p cmdbuf = ctx->obj_context->lnc_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
-    int i;
+    unsigned int i;
     int slice_param_idx;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
@@ -372,7 +372,7 @@ static VAStatus lnc__H263ES_process_slice_param(context_ENC_p ctx, object_buffer
         /* Insert Do Header command, relocation is needed */
         if (ctx->obj_context->slice_count) {  /*First slice of a frame need not slice header*/
             lnc__H263_prepare_GOBslice_header(
-                cmdbuf->header_mem_p + ctx->slice_header_ofs + ctx->obj_context->slice_count * HEADER_SIZE,
+                (IMG_UINT32 *)(cmdbuf->header_mem_p + ctx->slice_header_ofs + ctx->obj_context->slice_count * HEADER_SIZE),
                 ctx->obj_context->slice_count,
                 ctx->obj_context->frame_count);
 

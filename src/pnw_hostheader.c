@@ -2408,7 +2408,7 @@ static void pnw__H264_writebits_SEI_picture_timing_header(
 
                 if (ui8time_offset_length > 0) {
                     // Two's complement storage : If time_offset<0 = ((2 ^ v) + time_offset)
-                    if (i32time_offset < 0)
+                    if ((int)i32time_offset < 0)
                         pnw__write_upto32bits_elements(pMTX_Header,
                                                        aui32ElementPointers,
                                                        (IMG_UINT32)((2 ^ ui8time_offset_length) + i32time_offset),
@@ -2575,7 +2575,7 @@ void pnw__H264_prepare_SEI_picture_timing_header(
 
 
 void pnw__H264_prepare_sequence_header(
-    IMG_UINT32 *pHeaderMemory,
+    unsigned char *pHeaderMemory,
     IMG_UINT32 uiPicWidthInMbs,
     IMG_UINT32 uiPicHeightInMbs,
     IMG_BOOL VUI_present, H264_VUI_PARAMS *VUI_params,
@@ -2583,10 +2583,11 @@ void pnw__H264_prepare_sequence_header(
     IMG_UINT8 uiLevel,
     IMG_UINT8 uiProfile)
 {
-    H264_SEQUENCE_HEADER_PARAMS SHParams = {0, };
+    H264_SEQUENCE_HEADER_PARAMS SHParams;
     MTX_HEADER_PARAMS   *mtx_hdr;
 
     /* Route output elements to memory provided */
+    memset(&SHParams, 0, sizeof(SHParams));
     mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
 
     /* Setup Sequence Header information  */
@@ -2669,7 +2670,7 @@ void pnw__H264_prepare_sequence_header(
     pnw__H264_getelements_sequence_header(mtx_hdr, &SHParams, psCropParams);
 }
 
-void pnw__H264_prepare_picture_header(IMG_UINT32 *pHeaderMemory, IMG_BOOL bCabacEnabled, IMG_INT8 CQPOffset)
+void pnw__H264_prepare_picture_header(unsigned char *pHeaderMemory, IMG_BOOL bCabacEnabled, IMG_INT8 CQPOffset)
 {
     MTX_HEADER_PARAMS *mtx_hdr;
 
@@ -2693,7 +2694,7 @@ void pnw__H264_prepare_picture_header(IMG_UINT32 *pHeaderMemory, IMG_BOOL bCabac
 }
 
 void pnw__H264_prepare_slice_header(
-    IMG_UINT32 *pHeaderMemory,
+    unsigned char *pHeaderMemory,
     IMG_BOOL    bIntraSlice,
     IMG_UINT32 uiDisableDeblockingFilterIDC,
     IMG_UINT32 uiFrameNumber,
@@ -2705,9 +2706,11 @@ void pnw__H264_prepare_slice_header(
     IMG_BOOL bIsLongTermRef,
     IMG_UINT16 uiIdrPicId)
 {
-    H264_SLICE_HEADER_PARAMS SlHParams = {0};
+    H264_SLICE_HEADER_PARAMS SlHParams;
     MTX_HEADER_PARAMS *mtx_hdr;
 
+    memset(&SlHParams, 0, sizeof(SlHParams));
+    
     /* Route output elements to memory provided */
     mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
 
@@ -2778,7 +2781,7 @@ void pnw__H264_prepare_slice_header(
 //}
 
 void pnw__MPEG4_prepare_sequence_header(
-    IMG_UINT32 *pHeaderMemory,
+    unsigned char *pHeaderMemory,
     IMG_BOOL bBFrame,
     MPEG4_PROFILE_TYPE sProfile,
     IMG_UINT8 Profile_and_level_indication,
@@ -2816,7 +2819,7 @@ void pnw__MPEG4_prepare_sequence_header(
 }
 
 void pnw__MPEG4_prepare_vop_header(
-    IMG_UINT32 *pHeaderMem,
+    unsigned char *pHeaderMem,
     IMG_BOOL bIsVOP_coded,
     IMG_UINT32 VOP_time_increment,
     IMG_UINT8 sSearch_range,
@@ -2850,7 +2853,7 @@ void pnw__MPEG4_prepare_vop_header(
 }
 
 void pnw__H263_prepare_sequence_header(
-    IMG_UINT32 *pHeaderMem,
+    unsigned char *pHeaderMem,
     IMG_UINT8 Profile_and_level_indication)
 {
     MTX_HEADER_PARAMS *mtx_hdr;
@@ -2873,7 +2876,7 @@ void pnw__H263_prepare_sequence_header(
 }
 
 void pnw__H263_prepare_picture_header(
-    IMG_UINT32 *pHeaderMem,
+    unsigned char *pHeaderMem,
     IMG_UINT8 Temporal_Ref,
     H263_PICTURE_CODING_TYPE PictureCodingType,
     H263_SOURCE_FORMAT_TYPE SourceFormatType,
@@ -2905,7 +2908,7 @@ void pnw__H263_prepare_picture_header(
 }
 
 void pnw__H263_prepare_GOBslice_header(
-    IMG_UINT32 *pHeaderMem,
+    unsigned char *pHeaderMem,
     IMG_UINT8 GOBNumber,
     IMG_UINT8 GOBFrameId)
 {

@@ -168,7 +168,7 @@ static VAStatus pnw_jpeg_CreateContext(
     /*It will be figured out when known the size of whole coded buffer.*/
     jpeg_ctx_p->ui32SizePerCodedBuffer = 0;
 
-    jpeg_ctx_p->ctx = ctx;
+    jpeg_ctx_p->ctx = (unsigned char *)ctx;
     /*Reuse header_mem(76*4 bytes) and pic_params_size(256 bytes)
      *  as pMemInfoMTXSetup(JPEG_MTX_DMA_SETUP 24x4 bytes) and
      *  pMemInfoTableBlock JPEG_MTX_QUANT_TABLE(128byes)*/
@@ -320,7 +320,7 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
                              "coded segment size per scan is %d\n",
                              ctx->coded_buf->size, jpeg_ctx->ui32SizePerCodedBuffer);
 
-    vaStatus = psb_buffer_map(ctx->coded_buf->psb_buffer, &jpeg_ctx->jpeg_coded_buf.pMemInfo);
+    vaStatus = psb_buffer_map(ctx->coded_buf->psb_buffer, (unsigned char **)&jpeg_ctx->jpeg_coded_buf.pMemInfo);
     if (vaStatus) {
         psb__error_message("ERROR: Map coded_buf failed!");
         return vaStatus;
@@ -499,14 +499,14 @@ static VAStatus pnw_jpeg_EndPicture(
     return VA_STATUS_SUCCESS;
 }
 
-VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, void *raw_coded_buf)
+VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, unsigned char *raw_coded_buf)
 {
     INIT_CONTEXT_JPEG;
     IMG_UINT16 ui16BCnt;
     TOPAZSC_JPEG_ENCODER_CONTEXT *pContext = ctx->jpeg_ctx;
     BUFFER_HEADER* pBufHeader;
     STREAMTYPEW s_streamW;
-    void *pSegStart = raw_coded_buf;
+    unsigned char *pSegStart = raw_coded_buf;
 
     if (pSegStart == NULL) {
         return VA_STATUS_ERROR_UNKNOWN;

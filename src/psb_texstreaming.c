@@ -28,6 +28,7 @@
 
 #include <va/va.h>
 #include <va/va_backend.h>
+#include <wsbm/wsbm_manager.h>
 
 #ifdef ANDROID
 #include "android/psb_android_glue.h"
@@ -94,12 +95,6 @@ int psb_register_video_bcd(VADriverContextP ctx)
         return -1;
     }
     psb__information_message("BCD:set_buffer_phyaddr to bind buffer id with physical address.\n");
-
-    driver_data->bcd_ttm_handles = (uint32_t *)calloc(num_surfaces, sizeof(uint32_t));
-    if (NULL == driver_data->bcd_ttm_handles) {
-        psb__error_message("BCD: out of memory.\n");
-        return -1;
-    }
     for (i = 0; i < num_surfaces; i++) {
         psb_surface_p psb_surface;
         object_surface_p obj_surface = SURFACE(surface_list[i]);
@@ -109,7 +104,6 @@ int psb_register_video_bcd(VADriverContextP ctx)
         /*get ttm buffer handle*/
         buf_pa.handle = wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf));
         buf_pa.index = i;
-        driver_data->bcd_ttm_handles[buf_pa.index] = buf_pa.handle;
         ioctl_package.ioctl_cmd = BC_Video_ioctl_set_buffer_phyaddr;
         ioctl_package.device_id = driver_data->bcd_id;
         ioctl_package.inputparam = (int)(&buf_pa);
@@ -157,10 +151,6 @@ int psb_release_video_bcd(VADriverContextP ctx)
     }
     driver_data->bcd_registered = 0;
     driver_data->bcd_buffer_num = 0;
-    if (driver_data->bcd_ttm_handles) {
-        free(driver_data->bcd_ttm_handles);
-        driver_data->bcd_ttm_handles = NULL;
-    }
     if (driver_data->bcd_buffer_surfaces) {
         free(driver_data->bcd_buffer_surfaces);
         driver_data->bcd_buffer_surfaces = NULL;
@@ -180,7 +170,8 @@ int psb_get_video_bcd(
     INIT_DRIVER_DATA;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VASurfaceID *surface_list;
-    int ret = 0, i;
+    int ret = 0;
+    unsigned int i;
 
     if (driver_data->bcd_registered == 0) {
         ret = psb_register_video_bcd(ctx);

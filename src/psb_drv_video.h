@@ -147,10 +147,10 @@ struct psb_driver_data_s {
     uint32_t                    msvdx_context_base;
     int                         video_sd_disabled;
     int                         video_hd_disabled;
-    void *                      camera_bo;
+    unsigned char *                      camera_bo;
     uint32_t                    camera_phyaddr;
     uint32_t                    camera_size;
-    void *                      rar_bo;
+    unsigned char *                      rar_bo;
     uint32_t                    rar_phyaddr;
     uint32_t                    rar_size;
 
@@ -183,7 +183,7 @@ struct psb_driver_data_s {
     struct psb_texstreaing ctexstreaing_priv;
     */
 
-    void *ws_priv; /* window system related data structure */
+    unsigned char *ws_priv; /* window system related data structure */
 
 
     VASurfaceID cur_displaying_surface;
@@ -252,7 +252,6 @@ struct psb_driver_data_s {
     int bcd_buffer_height;
     int bcd_buffer_stride;
     VASurfaceID *bcd_buffer_surfaces;
-    uint32_t *bcd_ttm_handles;
     uint32_t ts_source_created;
 
     uint32_t xrandr_dirty;
@@ -265,10 +264,10 @@ struct psb_driver_data_s {
     drm_psb_msvdx_decode_status_t *msvdx_decode_status;
     VASurfaceDecodeMBErrors *surface_mb_error;
 
-    void *hPVR2DContext;
+    unsigned char *hPVR2DContext;
 
-    uint32_t wrapped_surface_id[VIDEO_BUFFER_NUM];
-    uint32_t wrapped_subpic_id[VIDEO_BUFFER_NUM];
+    VAGenericID wrapped_surface_id[VIDEO_BUFFER_NUM];
+    VAGenericID wrapped_subpic_id[VIDEO_BUFFER_NUM];
     PVR2DMEMINFO *videoBuf[VIDEO_BUFFER_NUM];
     PVR2DMEMINFO *subpicBuf[VIDEO_BUFFER_NUM];
 
@@ -303,7 +302,7 @@ struct object_context_s {
     VASurfaceID current_render_surface_id;
     psb_driver_data_p driver_data;
     format_vtable_p format_vtable;
-    void *format_data;
+    unsigned char *format_data;
     struct psb_cmdbuf_s *cmdbuf_list[PSB_MAX_CMDBUFS];
     struct lnc_cmdbuf_s *lnc_cmdbuf_list[LNC_MAX_CMDBUFS_ENCODE];
     struct pnw_cmdbuf_s *pnw_cmdbuf_list[PNW_MAX_CMDBUFS_ENCODE];
@@ -371,12 +370,12 @@ struct object_buffer_s {
     object_buffer_p ptr_next; /* Generic ptr for linked list */
     object_buffer_p *pptr_prev_next; /* Generic ptr for linked list */
     struct psb_buffer_s *psb_buffer;
-    void *buffer_data;
+    unsigned char *buffer_data;
     VACodedBufferSegment codedbuf_mapinfo[8]; /* for VAEncCodedBufferType */
     unsigned int size;
     unsigned int alloc_size;
-    int max_num_elements;
-    int num_elements;
+    unsigned int max_num_elements;
+    unsigned int num_elements;
     object_context_p context;
     VABufferType type;
     uint32_t last_used;
@@ -407,11 +406,11 @@ struct object_subpic_s {
     /* flags */
     unsigned int flags; /* see below */
 
-    void *surfaces; /* surfaces, associated with this subpicture */
+    unsigned char *surfaces; /* surfaces, associated with this subpicture */
 };
 
 #define MEMSET_OBJECT(ptr, data_struct) \
-        memset((void *)ptr + sizeof(struct object_base_s),\
+        memset((unsigned char *)ptr + sizeof(struct object_base_s),\
                 0,                          \
                sizeof(data_struct) - sizeof(struct object_base_s))
 

@@ -44,6 +44,10 @@
 
 using namespace android;
 
+#ifdef  LOG_TAG
+#undef  LOG_TAG
+#endif
+
 #define LOG_TAG "pvr_drv_video"
 
 sp<ISurface> isurface;
@@ -167,8 +171,8 @@ void psb_android_texture_streaming_set_blend(short destx,
     static unsigned short saved_destx, saved_desty, saved_destw, saved_desth;
     static unsigned int saved_background_color, saved_blend_color;
     static int saved_blend_mode = -1;
-    unsigned short bg_red, bg_green, bg_blue, bg_alpha;
-    unsigned short blend_red, blend_green, blend_blue, blend_alpha;
+    unsigned short bg_red=0, bg_green=0, bg_blue=0, bg_alpha=0;
+    unsigned short blend_red=0, blend_green=0, blend_blue=0, blend_alpha=0;
 
     if (saved_background_color != background_color) {
         bg_alpha = (background_color & 0xff000000) >> 24;

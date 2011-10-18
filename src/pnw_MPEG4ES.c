@@ -287,7 +287,7 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VAEncPictureParameterBufferMPEG4 *pBuffer;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
-    unsigned long *pPictureHeaderMem;
+    unsigned int *pPictureHeaderMem;
     MTX_HEADER_PARAMS *psPicHeader;
     int i;
     IMG_BOOL bIsVOPCoded = IMG_TRUE;
@@ -316,12 +316,12 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
 
     ctx->FCode = 4 - 1; /* 4 is default value of "ui8Search_range" */
 
-    pPictureHeaderMem = cmdbuf->header_mem_p + ctx->pic_header_ofs;
+    pPictureHeaderMem = (unsigned int *)(cmdbuf->header_mem_p + ctx->pic_header_ofs);
     psPicHeader = (MTX_HEADER_PARAMS *)pPictureHeaderMem;
 
     memset(pPictureHeaderMem, 0, HEADER_SIZE);
 
-    pnw__MPEG4_prepare_vop_header(pPictureHeaderMem,
+    pnw__MPEG4_prepare_vop_header((unsigned char *)pPictureHeaderMem,
                                   bIsVOPCoded,
                                   pBuffer->vop_time_increment, /* In testbench, this should be FrameNum */
                                   4,/* default value is 4,search range */
@@ -332,7 +332,7 @@ static VAStatus pnw__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
     psPicHeader->Elements |= 0x100;
     pPictureHeaderMem += ((HEADER_SIZE)  >> 3);
 
-    pnw__MPEG4_prepare_vop_header(pPictureHeaderMem,
+    pnw__MPEG4_prepare_vop_header((unsigned char *)pPictureHeaderMem,
                                   IMG_FALSE,
                                   pBuffer->vop_time_increment, /* In testbench, this should be FrameNum */
                                   4,/* default value is 4,search range */
@@ -359,7 +359,7 @@ static VAStatus pnw__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     VAEncSliceParameterBuffer *pBuffer;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
-    int i;
+    unsigned int i;
     int slice_param_idx;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);

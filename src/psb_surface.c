@@ -41,7 +41,7 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
                             psb_surface_p psb_surface /* out */
                            )
 {
-    int ret;
+    int ret = 0;
 
     if (fourcc == VA_FOURCC_NV12) {
         if ((width <= 0) || (width > 5120) || (height <= 0) || (height > 5120)) {
@@ -252,7 +252,7 @@ VAStatus psb_surface_create_camera_from_ub(psb_driver_data_p driver_data,
  */
 VAStatus psb_surface_set_chroma(psb_surface_p psb_surface, int chroma)
 {
-    void *surface_data;
+    unsigned char *surface_data;
     int ret = psb_buffer_map(&psb_surface->buf, &surface_data);
 
     if (ret) return VA_STATUS_ERROR_UNKNOWN;

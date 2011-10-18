@@ -310,7 +310,7 @@ typedef struct _PsbPortPrivRec {
     ov_psb_fixed32 saturation;
     ov_psb_fixed32 hue;
 
-    void * p_iep_lite_context;
+    unsigned char * p_iep_lite_context;
 
     /* hwoverlay */
     uint32_t gamma0;

@@ -91,14 +91,14 @@ typedef struct _RC_PARAMS_ {
     IMG_UINT32  IntraFreq;
     IMG_UINT16  IDRFreq;
 
-    IMG_INT16   MinQP;
+    IMG_UINT16   MinQP;
     IMG_BOOL    RCEnable;
     IMG_BOOL    FrameSkip;
 
     IMG_UINT8   Slices;
     IMG_UINT8   VCMBitrateMargin;
-    IMG_INT32   InitialLevel;
-    IMG_INT32   InitialDelay;
+    IMG_UINT32   InitialLevel;
+    IMG_UINT32   InitialDelay;
 } IMG_RC_PARAMS;
 
 /*!
@@ -127,7 +127,7 @@ typedef struct {
 
     IMG_INT32   BitRate;                        /* Bit Rate (bps) */
     IMG_INT32   BufferSize;             /* Size of Buffer */
-    IMG_INT32   InitialLevel;   /* Initial Level of Buffer */
+    IMG_UINT32   InitialLevel;   /* Initial Level of Buffer */
     IMG_INT32   InitialDelay;   /* Initial Delay of Buffer */
 
     IMG_UINT8   ScaleFactor;            /* Scale Factor (H264 only) */
@@ -158,11 +158,11 @@ struct coded_buf_aux_info {
 struct context_ENC_s {
     object_context_p obj_context; /* back reference */
 
-    IMG_INT16       Width;
-    IMG_INT16       Height;
-    IMG_INT16       RawWidth;
-    IMG_INT16       RawHeight;
-    IMG_INT16       Slices;
+    IMG_UINT32       Width;
+    IMG_UINT32       Height;
+    IMG_UINT16       RawWidth;
+    IMG_UINT16       RawHeight;
+    IMG_UINT16       Slices;
     enum drm_lnc_topaz_codec eCodec;
     IMG_FORMAT      eFormat;
     unsigned int    FCode;

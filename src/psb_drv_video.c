@@ -79,7 +79,7 @@
 #endif
 
 #define PSB_DRV_VERSION  PSB_PACKAGE_VERSION
-#define PSB_CHG_REVISION "(0X00000070)"
+#define PSB_CHG_REVISION "(0X00000071)"
 
 #define PSB_STR_VENDOR_MRST     "Intel GMA500-MRST-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_MFLD     "Intel GMA500-MFLD-" PSB_DRV_VERSION " " PSB_CHG_REVISION
@@ -522,7 +522,7 @@ static int psb_get_active_entrypoint_number(
 
     arg.key = PNW_VIDEO_QUERY_ENTRY;
     arg.value = (uint64_t)((unsigned long) &count);
-    arg.arg = (uint64_t)(&entrypoint);
+    arg.arg = (uint64_t)((unsigned int)&entrypoint);
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
 		    &arg, sizeof(arg));
     if (ret) {
@@ -617,7 +617,7 @@ VAStatus psb_CreateConfig(
     obj_config->attrib_count = 1;
 
     for (i = 0; i < num_attribs; i++) {
-        if (attrib_list[i].type < VAConfigAttribRTFormat || attrib_list[i].type > VAConfigAttribRateControl)
+        if (attrib_list[i].type > VAConfigAttribRateControl)
             return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
 
         vaStatus = psb__update_attribute(obj_config, &(attrib_list[i]));
@@ -1019,6 +1019,7 @@ VAStatus psb_DestroySurfaces(
  * mix call the function with NULL & 0 parameters to notify video driver when decoder is destroyed.
  */
 #ifdef ANDROID
+#include "android/psb_android_glue.h"
         if (driver_data->ts_source_created) {
             psb__information_message("In psb_release_video_bcd, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
             psb_android_texture_streaming_destroy();
@@ -1364,7 +1365,7 @@ static VAStatus psb__allocate_malloc_buffer(object_buffer_p obj_buffer, int size
 
 static VAStatus psb__unmap_buffer(object_buffer_p obj_buffer);
 
-static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_buffer_p obj_buffer, int size, void *data, VABufferType type)
+static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_buffer_p obj_buffer, int size, unsigned char *data, VABufferType type)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
@@ -1389,7 +1390,7 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
         }
     }
 
-    if (obj_buffer->alloc_size < size) {
+    if (obj_buffer->alloc_size < (unsigned int)size) {
         psb__information_message("Buffer size mismatch: Need %d, currently have %d\n", size, obj_buffer->alloc_size);
         if (obj_buffer->psb_buffer) {
             if (obj_buffer->buffer_data) {
@@ -1603,7 +1604,7 @@ VAStatus psb__CreateBuffer(
     VABufferType type,  /* in */
     unsigned int size,          /* in */
     unsigned int num_elements, /* in */
-    void *data,         /* in */
+    unsigned char *data,         /* in */
     VABufferID *buf_desc    /* out */
 )
 {
@@ -1904,7 +1905,7 @@ VAStatus psb_MapBuffer(
          */
         if (obj_buffer->type == VAEncCodedBufferType)
             psb_codedbuf_map_mangle(ctx, obj_buffer, pbuf);
-        /* *(IMG_UINT32 *)((void *)obj_buffer->buffer_data + 4) = 16; */
+        /* *(IMG_UINT32 *)((unsigned char *)obj_buffer->buffer_data + 4) = 16; */
     } else {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -2370,7 +2371,7 @@ VAStatus psb_QuerySurfaceError(
 
         arg.key = IMG_VIDEO_MB_ERROR;
         arg.arg = (uint64_t)((unsigned long) & handle);
-        arg.value = (uint64_t)decode_status;
+        arg.value = (uint64_t)((unsigned long)decode_status);
         ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                                   &arg, sizeof(arg));
 
@@ -2411,7 +2412,7 @@ VAStatus psb_LockSurface(
 {
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    void *surface_data;
+    unsigned char *surface_data;
     int ret;
 
     object_surface_p obj_surface = SURFACE(surface);
@@ -2490,7 +2491,7 @@ VAStatus psb_GetEGLClientBufferFromSurface(
     }
 
     psb_surface_p psb_surface = obj_surface->psb_surface;
-    *buffer = (void *)psb_surface->bc_buffer;
+    *buffer = (unsigned char *)psb_surface->bc_buffer;
 
     return vaStatus;
 }
@@ -2620,8 +2621,8 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
 
 VAStatus psb_CreateSurfacesForUserPtr(
     VADriverContextP ctx,
-    int width,
-    int height,
+    int Width,
+    int Height,
     int format,
     int num_surfaces,
     VASurfaceID *surface_list,       /* out */
@@ -2640,6 +2641,10 @@ VAStatus psb_CreateSurfacesForUserPtr(
     int i, height_origin;
     unsigned long buffer_stride;
 
+    /* silient compiler warning */
+    unsigned int width = (unsigned int)Width;
+    unsigned int height = (unsigned int)Height;
+    
     psb__information_message("Create surface: width %d, height %d, format 0x%08x"
                              "\n\t\t\t\t\tnum_surface %d, buffer size %d, fourcc 0x%08x"
                              "\n\t\t\t\t\tluma_stride %d, chroma u stride %d, chroma v stride %d"
@@ -2784,8 +2789,8 @@ VAStatus psb_CreateSurfacesForUserPtr(
 
 VAStatus  psb_CreateSurfaceFromKbuf(
     VADriverContextP ctx,
-    int width,
-    int height,
+    int _width,
+    int _height,
     int format,
     VASurfaceID *surface,       /* out */
     unsigned int kbuf_handle, /* kernel buffer handle*/
@@ -2804,6 +2809,10 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     int i ;
     unsigned long buffer_stride;
 
+    /* silient compiler warning */
+    unsigned int width = (unsigned int)_width;
+    unsigned int height = (unsigned int)_height;
+    
    psb__information_message("Create surface: width %d, height %d, format 0x%08x"
             "\n\t\t\t\t\tnum_surface %d, buffer size %d, fourcc 0x%08x"
             "\n\t\t\t\t\tluma_stride %d, chroma u stride %d, chroma v stride %d"
@@ -2911,9 +2920,9 @@ VAStatus  psb_CreateSurfaceFromKbuf(
 
     /* Error recovery */
     if (VA_STATUS_SUCCESS != vaStatus) {
-        object_surface_p obj_surface = SURFACE(surface);
+        object_surface_p obj_surface = SURFACE(surfaceID);
         psb__destroy_surface(driver_data, obj_surface);
-        surface = VA_INVALID_SURFACE;
+        *surface = VA_INVALID_SURFACE;
     }
 
     return vaStatus;
@@ -3208,6 +3217,9 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     if (driver_data->surface_mb_error)
         free(driver_data->surface_mb_error);
 
+    if (driver_data->bcd_buffer_surfaces)
+        free(driver_data->bcd_buffer_surfaces);
+
     free(ctx->pDriverData);
     free(ctx->vtable_egl);
     free(ctx->vtable_tpi);
@@ -3301,7 +3313,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     tpi->vaCreateSurfaceFromCIFrame = psb_CreateSurfaceFromCIFrame;
     tpi->vaCreateSurfaceFromV4L2Buf = psb_CreateSurfaceFromV4L2Buf;
     tpi->vaCreateSurfacesForUserPtr = psb_CreateSurfacesForUserPtr;
-    tpi->vaCreateSurfaceFromKBuf= psb_CreateSurfaceFromKbuf;
+    tpi->vaCreateSurfaceFromKBuf = psb_CreateSurfaceFromKbuf;
     tpi->vaPutSurfaceBuf = psb_PutSurfaceBuf;
 
     ctx->vtable_egl = calloc(1, sizeof(struct VADriverVTableEGL));
@@ -3312,7 +3324,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     va_egl->vaGetEGLClientBufferFromSurface = psb_GetEGLClientBufferFromSurface;
 
     driver_data = (psb_driver_data_p) calloc(1, sizeof(*driver_data));
-    ctx->pDriverData = (void *) driver_data;
+    ctx->pDriverData = (unsigned char *) driver_data;
     if (NULL == driver_data) {
         if (ctx->vtable_tpi)
             free(ctx->vtable_tpi);

@@ -495,7 +495,7 @@ IMG_ERRORCODE AllocateCodedDataBuffers(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext)
             pContext->sScan_Encode_Info.aBufferTable[ui8Loop].i8MTXNumber = 0; // Indicates buffer is idle
             pContext->sScan_Encode_Info.aBufferTable[ui8Loop].ui16ScanNumber = 0; // Indicates buffer is idle
             pContext->sScan_Encode_Info.aBufferTable[ui8Loop].pMemInfo =
-                pContext->jpeg_coded_buf.pMemInfo + PNW_JPEG_HEADER_MAX_SIZE + ui8Loop * pContext->ui32SizePerCodedBuffer;
+                (unsigned char *)pContext->jpeg_coded_buf.pMemInfo + PNW_JPEG_HEADER_MAX_SIZE + ui8Loop * pContext->ui32SizePerCodedBuffer;
 
         }
 
@@ -1776,9 +1776,9 @@ IMG_ERRORCODE SubmitScanToMTX(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
 }
 
 
-void pnw_jpeg_set_default_qmatix(void *pMemInfoTableBlock)
+void pnw_jpeg_set_default_qmatix(unsigned char *pMemInfoTableBlock)
 {
-    JPEG_MTX_QUANT_TABLE *pQTable =  pMemInfoTableBlock;
+    JPEG_MTX_QUANT_TABLE *pQTable =  (JPEG_MTX_QUANT_TABLE *)pMemInfoTableBlock;
     memcpy(pQTable->aui8LumaQuantParams, gQuantLuma, QUANT_TABLE_SIZE_BYTES);
     memcpy(pQTable->aui8ChromaQuantParams, gQuantChroma, QUANT_TABLE_SIZE_BYTES);
     return;

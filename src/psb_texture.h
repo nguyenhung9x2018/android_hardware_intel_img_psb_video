@@ -108,8 +108,8 @@ struct psb_texture_s {
 
     /* struct dri_drawable *extend_dri_drawable; */
     /* struct dri_drawable *dri_drawable; */
-    void *extend_dri_drawable;
-    void *dri_drawable;
+    unsigned char *extend_dri_drawable;
+    unsigned char *dri_drawable;
 
     uint32_t dri_init_flag;
     uint32_t extend_dri_init_flag;

@@ -32,6 +32,7 @@
 #include "psb_def.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
+#include "pnw_rotate.h"
 
 #include "vc1_header.h"
 #include "vc1_defs.h"
@@ -491,7 +492,7 @@ static VAStatus pnw_VC1_CreateContext(
     }
 
     if (vaStatus == VA_STATUS_SUCCESS) {
-        void *preload;
+        unsigned char *preload;
         if (0 ==  psb_buffer_map(&ctx->preload_buffer, &preload)) {
             memset(preload, 0, PRELOAD_BUFFER_SIZE);
             psb_buffer_unmap(&ctx->preload_buffer);
@@ -534,8 +535,8 @@ static VAStatus pnw_VC1_CreateContext(
         DEBUG_FAILURE;
     }
     if (vaStatus == VA_STATUS_SUCCESS) {
-        void *vlc_packed_data_address;
-        if (0 ==  psb_buffer_map(&ctx->vlc_packed_table, &vlc_packed_data_address)) {
+        uint16_t *vlc_packed_data_address;
+        if (0 ==  psb_buffer_map(&ctx->vlc_packed_table, (unsigned char **)&vlc_packed_data_address)) {
             psb__VC1_pack_vlc_tables(vlc_packed_data_address, gaui16vc1VlcTableData, gui16vc1VlcTableSize);
             psb_buffer_unmap(&ctx->vlc_packed_table);
             psb__VC1_pack_index_table_info(ctx->vlc_packed_index_table, gaui16vc1VlcIndexData);
@@ -1314,7 +1315,7 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     }
     /************************************************************************************/
 
-    psb_CheckInterlaceRotate(ctx->obj_context, ctx->pic_params);
+    psb_CheckInterlaceRotate(ctx->obj_context, (void *)ctx->pic_params);
 
     return VA_STATUS_SUCCESS;
 }
@@ -1344,7 +1345,7 @@ static VAStatus psb__VC1_add_slice_param(context_VC1_p ctx, object_buffer_p obj_
 {
     ASSERT(obj_buffer->type == VASliceParameterBufferType);
     if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        void *new_list;
+        unsigned char *new_list;
         ctx->slice_param_list_size += 8;
         new_list = realloc(ctx->slice_param_list,
                            sizeof(object_buffer_p) * ctx->slice_param_list_size);
@@ -1758,7 +1759,7 @@ static void psb__VC1_write_VLC_tables(context_VC1_p ctx)
 static void psb__VC1_build_VLC_tables(context_VC1_p ctx)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    int i;
+    unsigned int i;
     uint16_t RAM_location = 0;
     uint32_t reg_value;
 
@@ -2673,7 +2674,7 @@ static void psb__VC1_Send_Parse_Header_Cmd(context_VC1_p ctx, IMG_BOOL new_pic)
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
     //pParseHeaderCMD                                  = (PARSE_HEADER_CMD*)mCtrlAlloc.AllocateSpace(sizeof(PARSE_HEADER_CMD));
-    pParseHeaderCMD = (void *)cmdbuf->cmd_idx;
+    pParseHeaderCMD = (PARSE_HEADER_CMD* )cmdbuf->cmd_idx;
     cmdbuf->cmd_idx += sizeof(PARSE_HEADER_CMD) / sizeof(uint32_t);
 
     pParseHeaderCMD->ui32Cmd                 = CMD_PARSE_HEADER;
@@ -2902,7 +2903,7 @@ static VAStatus psb__VC1_process_slice_data(context_VC1_p ctx, object_buffer_p o
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VASliceParameterBufferVC1 *slice_param;
     int buffer_idx = 0;
-    int element_idx = 0;
+    unsigned int element_idx = 0;
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 

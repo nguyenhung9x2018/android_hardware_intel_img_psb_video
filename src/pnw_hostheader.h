@@ -225,7 +225,7 @@ typedef enum _H263_SOURCE_FORMAT_ENUM {
 
 /* H264 header preparation */
 void pnw__H264_prepare_sequence_header(
-    IMG_UINT32 *pHeaderMemory,
+    unsigned char *pHeaderMemory,
     IMG_UINT32 uiPicWidthInMbs,
     IMG_UINT32 uiPicHeightInMbs,
     IMG_BOOL VUI_present, H264_VUI_PARAMS *VUI_params,
@@ -233,10 +233,10 @@ void pnw__H264_prepare_sequence_header(
     IMG_UINT8 uiLevel,
     IMG_UINT8 uiProfile);
 
-void pnw__H264_prepare_picture_header(IMG_UINT32 *pHeaderMemory, IMG_BOOL bCabacEnaled, IMG_INT8 CQPOffset);
+void pnw__H264_prepare_picture_header(unsigned char *pHeaderMemory, IMG_BOOL bCabacEnaled, IMG_INT8 CQPOffset);
 
 void pnw__H264_prepare_slice_header(
-    IMG_UINT32 *pHeaderMemory,
+    unsigned char *pHeaderMemory,
     IMG_BOOL    bIntraSlice,
     IMG_UINT32 uiDisableDeblockingFilterIDC,
     IMG_UINT32 uiFrameNumber,
@@ -248,14 +248,14 @@ void pnw__H264_prepare_slice_header(
     IMG_BOOL bIsLOngTermRef,
     IMG_UINT16 uiIdrPicId);
 
-void pnw__H264_prepare_eodofstream_header(IMG_UINT32 *pHeaderMemory);
-void pnw__H264_prepare_endofpicture_header(IMG_UINT32 *pHeaderMemory);
-void pnw__H264_prepare_endofsequence_header(IMG_UINT32 *pHeaderMemory);
+void pnw__H264_prepare_eodofstream_header(unsigned char *pHeaderMemory);
+void pnw__H264_prepare_endofpicture_header(unsigned char *pHeaderMemory);
+void pnw__H264_prepare_endofsequence_header(unsigned char *pHeaderMemory);
 
 
 /* MPEG4 header preparation */
 void pnw__MPEG4_prepare_sequence_header(
-    IMG_UINT32 *pHeaderMemory,
+    unsigned char *pHeaderMemory,
     IMG_BOOL bBFrame,
     MPEG4_PROFILE_TYPE sProfile,
     IMG_UINT8 Profile_and_level_indication,
@@ -266,7 +266,7 @@ void pnw__MPEG4_prepare_sequence_header(
     IMG_UINT32 VopTimeResolution);
 
 void pnw__MPEG4_prepare_vop_header(
-    IMG_UINT32 *pHeaderMem,
+    unsigned char *pHeaderMem,
     IMG_BOOL bIsVOP_coded,
     IMG_UINT32 VOP_time_increment,
     IMG_UINT8 sSearch_range,
@@ -276,11 +276,11 @@ void pnw__MPEG4_prepare_vop_header(
 
 /* H263 header preparation */
 void pnw__H263_prepare_sequence_header(
-    IMG_UINT32 *pHeaderMem,
+    unsigned char *pHeaderMem,
     IMG_UINT8 Profile_and_level_indication);
 
 void pnw__H263_prepare_picture_header(
-    IMG_UINT32 *pHeaderMem,
+    unsigned char *pHeaderMem,
     IMG_UINT8 Temporal_Ref,
     H263_PICTURE_CODING_TYPE PictureCodingType,
     H263_SOURCE_FORMAT_TYPE SourceFormatType,
@@ -289,7 +289,7 @@ void pnw__H263_prepare_picture_header(
     IMG_UINT16 PictureHeigth);
 
 void pnw__H263_prepare_GOBslice_header(
-    IMG_UINT32 *pHeaderMem,
+    unsigned char *pHeaderMem,
     IMG_UINT8 GOBNumber,
     IMG_UINT8 GOBFrameId);
 

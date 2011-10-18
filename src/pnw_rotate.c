@@ -136,7 +136,7 @@ void psb_RecalcRotate(VADriverContextP ctx)
 }
 
 
-void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp)
+void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_param_tmp)
 {
     int interaced_stream;
 
@@ -149,7 +149,7 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp)
     case VAProfileMPEG4Main:
     case VAProfileH263Baseline:
     {
-        VAPictureParameterBufferMPEG4 *pic_params = pic_param_tmp;
+        VAPictureParameterBufferMPEG4 *pic_params = (VAPictureParameterBufferMPEG4 *)pic_param_tmp;
     
         if (pic_params->vol_fields.bits.interlaced)
             obj_context->interlaced_stream = 1; /* is it the right way to check? */
@@ -160,7 +160,7 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp)
     case VAProfileH264High:
     case VAProfileH264ConstrainedBaseline:
     {
-        VAPictureParameterBufferH264 *pic_params = pic_param_tmp;
+        VAPictureParameterBufferH264 *pic_params = (VAPictureParameterBufferH264 *)pic_param_tmp;
         /* is it the right way to check? */
         if (pic_params->pic_fields.bits.field_pic_flag || pic_params->seq_fields.bits.mb_adaptive_frame_field_flag) 
             obj_context->interlaced_stream = 1;
@@ -171,7 +171,7 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, void *pic_param_tmp)
     case VAProfileVC1Main:
     case VAProfileVC1Advanced:
     {
-        VAPictureParameterBufferVC1 *pic_params = pic_param_tmp;
+        VAPictureParameterBufferVC1 *pic_params = (VAPictureParameterBufferVC1 *)pic_param_tmp;
     
         /* is it the right way to check? */    
         if (pic_params->sequence_fields.bits.interlace && (pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI))

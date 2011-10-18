@@ -249,7 +249,7 @@ static VAStatus lnc__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     }
 
     lnc__MPEG4_prepare_sequence_header(
-        cmdbuf->header_mem_p + ctx->seq_header_ofs,
+        (IMG_UINT32 *)(cmdbuf->header_mem_p + ctx->seq_header_ofs),
         0, /* BFrame? */
         profile, /* sProfile */
         seq_params->profile_and_level_indication, /* */
@@ -310,7 +310,7 @@ static VAStatus lnc__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
      */
     cmdbuf->cmd_idx_saved_frameskip = cmdbuf->cmd_idx;
 
-    lnc__MPEG4_prepare_vop_header(cmdbuf->header_mem_p + ctx->pic_header_ofs,
+    lnc__MPEG4_prepare_vop_header((IMG_UINT32 *)(cmdbuf->header_mem_p + ctx->pic_header_ofs),
                                   bIsVOPCoded,
                                   pBuffer->vop_time_increment, /* In testbench, this should be FrameNum */
                                   4,/* default value is 4,search range */
@@ -332,7 +332,7 @@ static VAStatus lnc__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     VAEncSliceParameterBuffer *pBuffer;
     lnc_cmdbuf_p cmdbuf = ctx->obj_context->lnc_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
-    int i;
+    unsigned int i;
     int slice_param_idx;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);

@@ -156,7 +156,7 @@ VAStatus psb__CreateBuffer(
     VABufferType type,      /* in */
     unsigned int size,      /* in */
     unsigned int num_elements, /* in */
-    void *data,             /* in */
+    unsigned char *data,             /* in */
     VABufferID *buf_desc    /* out */
 );
 

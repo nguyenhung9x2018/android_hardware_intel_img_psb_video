@@ -72,7 +72,7 @@
 /* Format is: opcode, width, symbol. All VLC tables are concatenated. Index            */
 /* infomation is stored in gui16mpeg2VlcIndexData[]                                    */
 #define VLC_PACK(a,b,c)         ( ( (a) << 12 ) | ( (b) << 9  ) | (c) )
-const static IMG_UINT16 gaui16mpeg2VlcTableDataPacked[] = {
+static const IMG_UINT16 gaui16mpeg2VlcTableDataPacked[] = {
     VLC_PACK(6 , 0 , 0) ,
     VLC_PACK(0 , 0 , 6) ,
     VLC_PACK(4 , 2 , 4) ,
@@ -657,7 +657,7 @@ static VAStatus psb_MPEG2_CreateContext(
         DEBUG_FAILURE;
     }
     if (vaStatus == VA_STATUS_SUCCESS) {
-        void *vlc_packed_data_address;
+        unsigned char *vlc_packed_data_address;
         if (0 ==  psb_buffer_map(&ctx->vlc_packed_table, &vlc_packed_data_address)) {
             memcpy(vlc_packed_data_address, gaui16mpeg2VlcTableDataPacked, sizeof(gaui16mpeg2VlcTableDataPacked));
             psb_buffer_unmap(&ctx->vlc_packed_table);
@@ -872,7 +872,7 @@ static VAStatus psb__MPEG2_add_slice_param(context_MPEG2_p ctx, object_buffer_p 
 {
     ASSERT(obj_buffer->type == VASliceParameterBufferType);
     if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        void *new_list;
+        unsigned char *new_list;
         ctx->slice_param_list_size += 8;
         new_list = realloc(ctx->slice_param_list,
                            sizeof(object_buffer_p) * ctx->slice_param_list_size);
@@ -1371,7 +1371,7 @@ static VAStatus psb__MPEG2_process_slice_data(context_MPEG2_p ctx, object_buffer
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VASliceParameterBufferMPEG2 *slice_param;
     int buffer_idx = 0;
-    int element_idx = 0;
+    unsigned int element_idx = 0;
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 

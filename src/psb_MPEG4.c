@@ -31,6 +31,7 @@
 #include "psb_def.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
+#include "pnw_rotate.h"
 
 #include "hwdefs/reg_io2.h"
 #include "hwdefs/msvdx_offsets.h"
@@ -106,7 +107,7 @@ typedef enum {
 
 /* Format is: opcode, width, symbol. All VLC tables are concatenated.                 */
 #define VLC_PACK(a,b,c)         ( ( (a) << 12 ) | ( (b) << 9  ) | (c) )
-const static IMG_UINT16 gaui16mpeg4VlcTableDataPacked[] = {
+static const IMG_UINT16 gaui16mpeg4VlcTableDataPacked[] = {
     VLC_PACK(4 , 0 , 12),    VLC_PACK(5 , 0 , 7),    VLC_PACK(4 , 2 , 13),    VLC_PACK(4 , 3 , 16),    VLC_PACK(5 , 0 , 9),    VLC_PACK(4 , 5 , 17),
     VLC_PACK(2 , 2 , 1),    VLC_PACK(3 , 2 , 0),    VLC_PACK(3 , 2 , 0),    VLC_PACK(4 , 2 , 36),    VLC_PACK(3 , 2 , 0),    VLC_PACK(4 , 0 , 0),
     VLC_PACK(0 , 0 , 6),    VLC_PACK(0 , 0 , 7),    VLC_PACK(2 , 1 , 8),    VLC_PACK(0 , 1 , 10),    VLC_PACK(2 , 1 , 13),    VLC_PACK(0 , 2 , 15),
@@ -502,7 +503,7 @@ static VAStatus psb_MPEG4_CreateContext(
         DEBUG_FAILURE;
     }
     if (vaStatus == VA_STATUS_SUCCESS) {
-        void *vlc_packed_data_address;
+        unsigned char *vlc_packed_data_address;
         if (0 ==  psb_buffer_map(&ctx->vlc_packed_table, &vlc_packed_data_address)) {
             memcpy(vlc_packed_data_address, gaui16mpeg4VlcTableDataPacked, sizeof(gaui16mpeg4VlcTableDataPacked));
             psb_buffer_unmap(&ctx->vlc_packed_table);
@@ -782,7 +783,7 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
         REGIO_WRITE_FIELD_LITE(ctx->BE_PICSH_PPS0, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_PICSH_PPS0, BE_PICSH_CODING_TYPE,         ctx->pic_params->vop_fields.bits.vop_coding_type);
     }
 
-    psb_CheckInterlaceRotate(ctx->obj_context, ctx->pic_params);
+    psb_CheckInterlaceRotate(ctx->obj_context, (unsigned char *)ctx->pic_params);
     
     return VA_STATUS_SUCCESS;
 }
@@ -869,7 +870,7 @@ static VAStatus psb__MPEG4_add_slice_param(context_MPEG4_p ctx, object_buffer_p 
 {
     ASSERT(obj_buffer->type == VASliceParameterBufferType);
     if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        void *new_list;
+        unsigned char *new_list;
         ctx->slice_param_list_size += 8;
         new_list = realloc(ctx->slice_param_list,
                            sizeof(object_buffer_p) * ctx->slice_param_list_size);
@@ -1333,7 +1334,7 @@ static VAStatus psb__MPEG4_process_slice_data(context_MPEG4_p ctx, object_buffer
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VASliceParameterBufferMPEG4 *slice_param;
     int buffer_idx = 0;
-    int element_idx = 0;
+    unsigned int element_idx = 0;
 
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));

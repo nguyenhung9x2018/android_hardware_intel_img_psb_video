@@ -155,7 +155,7 @@ static unsigned long PVRCalculateStride(unsigned long widthInPixels, unsigned in
     return ((ulActiveLinelenInPixels * bitsPerPixel) + 7) >> 3;
 }
 
-static int pvr_context_create(void **pvr_ctx)
+static int pvr_context_create(unsigned char **pvr_ctx)
 {
     int ret = 0;
     int pvr_devices = PVR2DEnumerateDevices(0);
@@ -359,7 +359,7 @@ static void psb_calculate_subpic_size(int surf_width, int surf_height, int dst_w
 
 static PPVR2DMEMINFO psb_check_subpic_buffer(psb_driver_data_p driver_data, PsbVASurfaceRec* surface_subpic)
 {
-    int i, j;
+    unsigned int i, j;
     unsigned char* tmp_buffer;
     unsigned char tmp;
     PVR2DERROR ePVR2DStatus;
@@ -373,7 +373,7 @@ static PPVR2DMEMINFO psb_check_subpic_buffer(psb_driver_data_p driver_data, PsbV
 
     /* Wrap a un-wrapped buffer and return */
     for (i = 0; i < VIDEO_BUFFER_NUM; i++) {
-        if (driver_data->wrapped_subpic_id[i] == -1) {
+        if (driver_data->wrapped_subpic_id[i] == VA_INVALID_ID) {
             tmp_buffer = NULL;
             tmp_buffer = wsbmBOMap(surface_subpic->bo, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
             for (j = 0; j < surface_subpic->size; j = j + 4096) {
@@ -413,8 +413,8 @@ void psb_init_surface_pvr2dbuf(psb_driver_data_p driver_data)
     for (i = 0; i < VIDEO_BUFFER_NUM; i++) {
         driver_data->videoBuf[i] = NULL;
         driver_data->subpicBuf[i] = NULL;
-        driver_data->wrapped_surface_id[i] = -1;
-        driver_data->wrapped_subpic_id[i] = -1;
+        driver_data->wrapped_surface_id[i] = VA_INVALID_ID;
+        driver_data->wrapped_subpic_id[i] = VA_INVALID_ID;
     }
 
 }
@@ -425,19 +425,19 @@ void psb_free_surface_pvr2dbuf(psb_driver_data_p driver_data)
     PVR2DERROR ePVR2DStatus;
 
     for (i = 0; i < VIDEO_BUFFER_NUM; i++) {
-        if ((driver_data->wrapped_surface_id[i] != -1) && driver_data->videoBuf[i]) {
+        if ((driver_data->wrapped_surface_id[i] != VA_INVALID_ID) && driver_data->videoBuf[i]) {
             ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, driver_data->videoBuf[i]);
             if (ePVR2DStatus != PVR2D_OK)
                 psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
         }
 
-        if ((driver_data->wrapped_subpic_id[i] != -1) && driver_data->subpicBuf[i]) {
+        if ((driver_data->wrapped_subpic_id[i] != VA_INVALID_ID) && driver_data->subpicBuf[i]) {
             ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, driver_data->subpicBuf[i]);
             if (ePVR2DStatus != PVR2D_OK)
                 psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
         }
 
-        driver_data->wrapped_surface_id[i] = -1;
+        driver_data->wrapped_surface_id[i] = VA_INVALID_ID;
         driver_data->wrapped_subpic_id[i] = -1;
 
 	driver_data->videoBuf[i] = NULL;
@@ -464,7 +464,7 @@ static PPVR2DMEMINFO psb_wrap_surface_pvr2dbuf(psb_driver_data_p driver_data, VA
 
     /* Wrap a un-wrapped buffer and return */
     for (i = 0; i < VIDEO_BUFFER_NUM; i++) {
-        if (driver_data->wrapped_surface_id[i] == -1) {
+        if (driver_data->wrapped_surface_id[i] == VA_INVALID_ID) {
             tmp_buffer = NULL;
             tmp_buffer = wsbmBOMap(psb_surface->buf.drm_buf, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
             for (j = 0; j < psb_surface->size; j = j + 4096) {
@@ -504,7 +504,7 @@ void psb_putsurface_textureblit(
     unsigned int placement, int wrap_dst)
 {
     INIT_DRIVER_DATA;
-    int i;
+    unsigned int i;
     unsigned char *tmp_palette;
     struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
     object_surface_p obj_surface;

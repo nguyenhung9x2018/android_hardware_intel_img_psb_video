@@ -277,7 +277,7 @@ void psb_buffer_destroy(psb_buffer_p buf)
  *
  * Returns 0 on success
  */
-int psb_buffer_map(psb_buffer_p buf, void **address /* out */)
+int psb_buffer_map(psb_buffer_p buf, unsigned char **address /* out */)
 {
     int ret;
 
@@ -356,7 +356,7 @@ int psb_codedbuf_map_mangle(
     object_context_p obj_context = obj_buffer->context;
     INIT_DRIVER_DATA;
     VACodedBufferSegment *p = &obj_buffer->codedbuf_mapinfo[0];
-    void *raw_codedbuf;
+    unsigned char *raw_codedbuf;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int next_buf_off;
     int i;
@@ -387,7 +387,7 @@ int psb_codedbuf_map_mangle(
         p->status = *((unsigned long *) raw_codedbuf + 1); /* 2nd DW
                                                         * is rc status */
         p->reserved = 0;
-        p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+        p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
         lnc_H264_append_aux_info(obj_context,
                                  obj_buffer,
                                  (unsigned char *)p->buf,
@@ -416,7 +416,7 @@ int psb_codedbuf_map_mangle(
         case VAProfileMPEG4Main:
             /* one segment */
             p->size = *((unsigned long *) raw_codedbuf);
-            p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+            p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
             psb__information_message("coded buffer size %d\n", p->size);
             break;
 
@@ -426,7 +426,7 @@ int psb_codedbuf_map_mangle(
         case VAProfileH264ConstrainedBaseline:
             /* 1st segment */
             p->size = *((unsigned long *) raw_codedbuf);
-            p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+            p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
 
             psb__information_message("1st segment coded buffer size %d\n", p->size);
             if (pnw_get_parallel_core_number(obj_context) == 2) {
@@ -439,7 +439,7 @@ int psb_codedbuf_map_mangle(
                 p[1].buf = p->buf;
                 p[1].next = NULL;
                 p->size = *(unsigned long *)((unsigned long)raw_codedbuf + next_buf_off);
-                p->buf = (void *)(((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off)) + 4); /* skip 4DWs */
+                p->buf = (unsigned char *)(((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off)) + 4); /* skip 4DWs */
                 psb__information_message("2nd segment coded buffer offset: 0x%08x,  size: %d\n",
                                          next_buf_off, p->size);
             } else
@@ -449,7 +449,7 @@ int psb_codedbuf_map_mangle(
         case VAProfileH263Baseline:
             /* one segment */
             p->size = *((unsigned long *) raw_codedbuf);
-            p->buf = (void *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
+            p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
             psb__information_message("coded buffer size %d\n", p->size);
             break;
 
@@ -461,7 +461,7 @@ int psb_codedbuf_map_mangle(
             /*Max resolution 4096x4096 use 6 segments*/
             for (i = 0; i < PNW_JPEG_MAX_SCAN_NUM + 1; i++) {
                 p->size = *(unsigned long *)((unsigned long)raw_codedbuf + next_buf_off);
-                p->buf = (void *)((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 4);  /* skip 4DWs */
+                p->buf = (unsigned char *)((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 4);  /* skip 4DWs */
                 next_buf_off = *((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 3);
 
                 psb__information_message("JPEG coded buffer segment %d size: %d\n", i, p->size);

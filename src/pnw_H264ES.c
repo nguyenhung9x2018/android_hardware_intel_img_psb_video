@@ -323,8 +323,8 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
                 free(pSequenceParams);
                 return VA_STATUS_ERROR_ALLOCATION_FAILED;
             }
-            memcpy((void *)ctx->save_seq_header_p,
-                   (void *)(cmdbuf->header_mem_p + ctx->seq_header_ofs),
+            memcpy((unsigned char *)ctx->save_seq_header_p,
+                   (unsigned char *)(cmdbuf->header_mem_p + ctx->seq_header_ofs),
                    HEADER_SIZE);
         }
     }
@@ -408,8 +408,8 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
         if (need_sps) {
             psb__information_message("TOPAZ: insert a SPS before IDR frame\n");
             /* reuse the previous SPS */
-            memcpy((void *)(cmdbuf->header_mem_p + ctx->seq_header_ofs),
-                   (void *)ctx->save_seq_header_p,
+            memcpy((unsigned char *)(cmdbuf->header_mem_p + ctx->seq_header_ofs),
+                   (unsigned char *)ctx->save_seq_header_p,
                    HEADER_SIZE);
 
             cmdbuf->cmd_idx_saved[PNW_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
@@ -559,12 +559,12 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
     VAEncSliceParameterBuffer *pBuf_per_core, *pBuffer;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
-    int i, j, slice_per_core;
+    unsigned int i, j, slice_per_core;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
 
     cmdbuf = ctx->obj_context->pnw_cmdbuf;
-    psPicParams = cmdbuf->pic_params_p;
+    psPicParams = (PIC_PARAMS *)cmdbuf->pic_params_p;
 
     /* Transfer ownership of VAEncPictureParameterBufferH264 data */
     pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
@@ -763,7 +763,7 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
                                  air_param->air_num_mbs, air_param->air_threshold,
                                  air_param->air_auto);
 
-        if (((ctx->Height * ctx->Width) >> 8) < air_param->air_num_mbs)
+        if (((ctx->Height * ctx->Width) >> 8) < (int)air_param->air_num_mbs)
             air_param->air_num_mbs = ((ctx->Height * ctx->Width) >> 8);
         if (air_param->air_threshold == 0)
             psb__information_message("%s: air threshold is set to zero\n",

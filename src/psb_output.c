@@ -82,9 +82,9 @@ static VAImageFormat psb__CreateImageFormat[] = {
     psb__ImageYV16
 };
 
-void *psb_x11_output_init(VADriverContextP ctx);
+unsigned char *psb_x11_output_init(VADriverContextP ctx);
 VAStatus psb_x11_output_deinit(VADriverContextP ctx);
-void *psb_android_output_init(VADriverContextP ctx);
+unsigned char *psb_android_output_init(VADriverContextP ctx);
 VAStatus psb_android_output_deinit(VADriverContextP ctx);
 
 int psb_coverlay_init(VADriverContextP ctx);
@@ -93,7 +93,7 @@ int psb_coverlay_deinit(VADriverContextP ctx);
 VAStatus psb_initOutput(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
-    void *ws_priv = NULL;
+    unsigned char *ws_priv = NULL;
     char *fps = NULL;
     char env_value[1024];
 
@@ -218,8 +218,8 @@ static void psb__VAImageCheckRegion(
     int *src_y,
     int *dest_x,
     int *dest_y,
-    unsigned int *width,
-    unsigned int *height
+    int *width,
+    int *height
 )
 {
     /* check for image */
@@ -719,10 +719,11 @@ VAStatus psb_GetImage(
         return vaStatus;
     }
 
-    psb__VAImageCheckRegion(obj_surface, &obj_image->image, &src_x, &src_y, &dest_x, &dest_y, &width, &height);
+    psb__VAImageCheckRegion(obj_surface, &obj_image->image, &src_x, &src_y, &dest_x, &dest_y,
+                            (int *)&width, (int *)&height);
 
     psb_surface_p psb_surface = obj_surface->psb_surface;
-    void *surface_data;
+    unsigned char *surface_data;
     ret = psb_buffer_map(&psb_surface->buf, &surface_data);
     if (ret) {
         return VA_STATUS_ERROR_UNKNOWN;
@@ -735,7 +736,7 @@ VAStatus psb_GetImage(
         return vaStatus;
     }
 
-    void *image_data;
+    unsigned char *image_data;
     ret = psb_buffer_map(obj_buffer->psb_buffer, &image_data);
     if (ret) {
         psb__error_message("Map buffer failed\n");
@@ -749,7 +750,7 @@ VAStatus psb_GetImage(
     switch (obj_image->image.format.fourcc) {
     case VA_FOURCC_NV12: {
         unsigned char *source_y, *src_uv, *dst_y, *dst_uv;
-        int i;
+        unsigned int i;
         /* copy Y plane */
         dst_y = image_data;
         source_y = surface_data + y * psb_surface->stride + x;
@@ -841,10 +842,11 @@ static VAStatus psb_PutImage2(
         return vaStatus;
     }
 
-    psb__VAImageCheckRegion(obj_surface, &obj_image->image, &src_x, &src_y, &dest_x, &dest_y, &width, &height);
+    psb__VAImageCheckRegion(obj_surface, &obj_image->image, &src_x, &src_y, &dest_x, &dest_y,
+                            (int *)&width, (int *)&height);
 
     psb_surface_p psb_surface = obj_surface->psb_surface;
-    void *surface_data;
+    unsigned char *surface_data;
     ret = psb_buffer_map(&psb_surface->buf, &surface_data);
     if (ret) {
         return VA_STATUS_ERROR_UNKNOWN;
@@ -857,7 +859,7 @@ static VAStatus psb_PutImage2(
         return vaStatus;
     }
 
-    void *image_data;
+    unsigned char *image_data;
     ret = psb_buffer_map(obj_buffer->psb_buffer, &image_data);
     if (ret) {
         psb_buffer_unmap(&psb_surface->buf);
@@ -868,7 +870,7 @@ static VAStatus psb_PutImage2(
 
     switch (obj_image->image.format.fourcc) {
     case VA_FOURCC_NV12: {
-        char *source_y, *src_uv, *dst_y, *dst_uv;
+        unsigned char *source_y, *src_uv, *dst_y, *dst_uv;
         unsigned int i;
 
         /* copy Y plane */
@@ -948,8 +950,8 @@ static void psb__VAImageCheckRegion2(
     unsigned int *src_height,
     int *dest_x,
     int *dest_y,
-    unsigned int *dest_width,
-    unsigned int *dest_height
+    int *dest_width,
+    int *dest_height
 )
 {
     /* check for image */
@@ -967,8 +969,8 @@ static void psb__VAImageCheckRegion2(
     if (*dest_y < 0) *dest_y = 0;
     if (*dest_y > surface->height) *dest_y = surface->height - 1;
 
-    if (((*dest_width) + (*dest_x)) > surface->width) *dest_width = surface->width - *dest_x;
-    if (((*dest_height) + (*dest_y)) > surface->height) *dest_height = surface->height - *dest_x;
+    if (((*dest_width) + (*dest_x)) > (int)surface->width) *dest_width = surface->width - *dest_x;
+    if (((*dest_height) + (*dest_y)) > (int)surface->height) *dest_height = surface->height - *dest_x;
 }
 
 VAStatus psb_PutImage(
@@ -1016,10 +1018,10 @@ VAStatus psb_PutImage(
 
     psb__VAImageCheckRegion2(obj_surface, &obj_image->image,
                              &src_x, &src_y, &src_width, &src_height,
-                             &dest_x, &dest_y, &dest_width, &dest_height);
+                             &dest_x, &dest_y, (int *)&dest_width, (int *)&dest_height);
 
     psb_surface_p psb_surface = obj_surface->psb_surface;
-    void *surface_data;
+    unsigned char *surface_data;
     ret = psb_buffer_map(&psb_surface->buf, &surface_data);
     if (ret) {
         return VA_STATUS_ERROR_UNKNOWN;
@@ -1032,7 +1034,7 @@ VAStatus psb_PutImage(
         return vaStatus;
     }
 
-    void *image_data;
+    unsigned char *image_data;
     ret = psb_buffer_map(obj_buffer->psb_buffer, &image_data);
     if (ret) {
         psb_buffer_unmap(&psb_surface->buf);
@@ -1049,9 +1051,9 @@ VAStatus psb_PutImage(
         float yratio = (float) src_height / dest_height;
 
         /* dst_y/dst_uv: Y/UV plane of destination */
-        dst_y = surface_data + dest_y * psb_surface->stride + dest_x;
-        dst_uv = surface_data + psb_surface->stride * obj_surface->height
-                 + (dest_y / 2) * psb_surface->stride + dest_x;
+        dst_y = (unsigned char *)(surface_data + dest_y * psb_surface->stride + dest_x);
+        dst_uv = (unsigned short *)(surface_data + psb_surface->stride * obj_surface->height
+                                    + (dest_y / 2) * psb_surface->stride + dest_x);
 
         for (j = 0; j < dest_height; j++)  {
             unsigned char *dst_y_tmp = dst_y;
@@ -1078,7 +1080,7 @@ VAStatus psb_PutImage(
             dst_y += psb_surface->stride;
 
             if (j & 1)
-                dst_uv = (unsigned short *)((void *)dst_uv + psb_surface->stride);
+                dst_uv = (unsigned short *)((unsigned char *)dst_uv + psb_surface->stride);
         }
         break;
     }
@@ -1186,10 +1188,10 @@ static VAStatus psb__LinkSubpictIntoSurface(
 
     if (found == 0) { /* new node, link into the list */
         if (NULL == obj_surface->subpictures) {
-            obj_surface->subpictures = surface_subpic;
+            obj_surface->subpictures = (void *)surface_subpic;
         } else { /* insert as the head */
-            surface_subpic->next = obj_surface->subpictures;
-            obj_surface->subpictures = surface_subpic;
+            surface_subpic->next = (PsbVASurfacePtr)obj_surface->subpictures;
+            obj_surface->subpictures = (void *)surface_subpic;
         }
         obj_surface->subpic_count++;
     }
@@ -1226,10 +1228,10 @@ static VAStatus psb__LinkSurfaceIntoSubpict(
     subpic_surface->next = NULL;
 
     if (NULL == obj_subpic->surfaces) {
-        obj_subpic->surfaces = subpic_surface;
+        obj_subpic->surfaces = (void *)subpic_surface;
     } else { /* insert as the head */
-        subpic_surface->next = obj_subpic->surfaces;
-        obj_subpic->surfaces = subpic_surface;
+        subpic_surface->next = (subpic_surface_p)obj_subpic->surfaces;
+        obj_subpic->surfaces = (void *)subpic_surface;
     }
 
     return VA_STATUS_SUCCESS;
@@ -1258,7 +1260,7 @@ static VAStatus psb__DelinkSubpictFromSurface(
 
     if (found == 1) {
         if (pre_surface_subpic == NULL) { /* remove the first node */
-            obj_surface->subpictures = surface_subpic->next;
+            obj_surface->subpictures = (void *)surface_subpic->next;
         } else {
             pre_surface_subpic->next = surface_subpic->next;
         }
@@ -1293,7 +1295,7 @@ static VAStatus psb__DelinkSurfaceFromSubpict(
 
     if (found == 1) {
         if (pre_subpic_surface == NULL) { /* remove the first node */
-            obj_subpic->surfaces = subpic_surface->next;
+            obj_subpic->surfaces = (void *)subpic_surface->next;
         } else {
             pre_subpic_surface->next = subpic_surface->next;
         }
@@ -1512,7 +1514,8 @@ VAStatus psb_SetSubpictureChromakey(
        psb__error_message("Invalid chromakey value %d, chromakey value should between min and max\n",chromakey_mask);
        return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
-    if(NULL == subpicture){
+    object_subpic_p obj_subpic = SUBPIC(subpicture);
+    if(NULL == obj_subpic) {
        psb__error_message("Invalid subpicture value %d\n", subpicture);
        return VA_STATUS_ERROR_INVALID_SUBPICTURE;
     }
@@ -1533,12 +1536,12 @@ VAStatus psb_SetSubpictureGlobalAlpha(
 	return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
-    if(NULL == subpicture){
+    object_subpic_p obj_subpic = SUBPIC(subpicture);
+    if(NULL == obj_subpic) {
        psb__error_message("Invalid subpicture value %d\n", subpicture);
        return VA_STATUS_ERROR_INVALID_SUBPICTURE;
     }
 
-    object_subpic_p obj_subpic = SUBPIC(subpicture);
     obj_subpic->global_alpha = global_alpha * 255;
 
     return VA_STATUS_SUCCESS;
@@ -2108,7 +2111,7 @@ VAStatus psb_SetDisplayAttributes(
 
         case VADisplayAttribCSCMatrix:
             driver_data->load_csc_matrix = 1;
-            memcpy(&(driver_data->csc_matrix[0][0]), (void *)p->value, sizeof(signed int) * 9);
+            memcpy(&(driver_data->csc_matrix[0][0]), (unsigned char *)p->value, sizeof(signed int) * 9);
             break;
 
         case VADisplayAttribBlendColor:

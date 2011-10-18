@@ -70,7 +70,7 @@ struct psb_buffer_s {
     uint32_t rar_handle;
     unsigned int buffer_ofs; /* several buffers may share one BO (camera/RAR), and use offset to distinguish it */
     struct psb_buffer_s *next;
-    void *user_ptr; /* user pointer for user buffers */
+    unsigned char *user_ptr; /* user pointer for user buffers */
     psb_driver_data_p driver_data; /* for RAR buffer release */
 };
 
@@ -119,7 +119,7 @@ void psb_buffer_destroy(psb_buffer_p buf);
  *
  * Returns 0 on success
  */
-int psb_buffer_map(psb_buffer_p buf, void **address /* out */);
+int psb_buffer_map(psb_buffer_p buf, unsigned char **address /* out */);
 
 int psb_buffer_sync(psb_buffer_p buf);
 
@@ -156,5 +156,10 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
         int id_or_ofs,
         int size,
         const unsigned long * user_ptr);
+
+VAStatus psb_buffer_reference_imr(psb_driver_data_p driver_data,
+                                  uint32_t imr_offset,
+                                  psb_buffer_p buf
+                                  );
 
 #endif /* _PSB_BUFFER_H_ */

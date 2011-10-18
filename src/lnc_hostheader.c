@@ -2071,9 +2071,11 @@ void lnc__H264_prepare_sequence_header(
     IMG_UINT8 uiLevel,
     IMG_UINT8 uiProfile)
 {
-    H264_SEQUENCE_HEADER_PARAMS SHParams = {0, };
+    H264_SEQUENCE_HEADER_PARAMS SHParams;
     MTX_HEADER_PARAMS   *mtx_hdr;
 
+    memset(&SHParams, 0, sizeof(SHParams));
+    
     /* Route output elements to memory provided */
     mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
 
