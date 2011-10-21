@@ -417,7 +417,6 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
         struct psb_validate_arg *arg = &(arg_list[i]);
         struct psb_validate_req *req = &arg->d.req;
 
-        memset(arg, 0, sizeof(*arg));
         req->next = (unsigned long) & (arg_list[i+1]);
 
         req->buffer_handle = wsbmKBufHandle(wsbmKBuf(buffer_list[i]->drm_buf));
@@ -434,8 +433,9 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     }
     arg_list[buffer_count-1].d.req.next = 0;
 
-    memset(&ca, 0, sizeof(ca));
-
+    ca.oom_handle = 0;
+    ca.oom_offset = 0;
+    ca.oom_size   = 0;
     ca.buffer_list = (uint64_t)((unsigned long)arg_list);
     ca.clip_rects = (uint64_t)((unsigned long)clipRects);
     ca.cmdbuf_handle = cmdBufHandle;

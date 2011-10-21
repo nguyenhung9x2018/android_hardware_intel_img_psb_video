@@ -457,7 +457,6 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
         struct psb_validate_arg *arg = &(arg_list[i]);
         struct psb_validate_req *req = &arg->d.req;
 
-        memset(arg, 0, sizeof(*arg));
         req->next = (unsigned long) & (arg_list[i+1]);
 
         req->buffer_handle = wsbmKBufHandle(wsbmKBuf(buffer_list[i]->drm_buf));
@@ -473,14 +472,8 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 
     ca.buffer_list = (uint64_t)((unsigned long)arg_list);
     ca.clip_rects = (uint64_t)((unsigned long)clipRects);
-    ca.scene_arg = 0;
     ca.fence_arg = (uint64_t)((unsigned long)fence_arg);
 
-    ca.ta_flags = 0;
-
-    ca.ta_handle = 0;
-    ca.ta_offset = 0;
-    ca.ta_size = 0;
 
     ca.oom_handle = 0;
     ca.oom_offset = 0;
