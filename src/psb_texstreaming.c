@@ -183,7 +183,7 @@ int psb_get_video_bcd(
 
     surface_list = driver_data->bcd_buffer_surfaces;
 
-    for (i=0; i<driver_data->bcd_buffer_num; i++) {
+    for (i = 0; i < driver_data->bcd_buffer_num; i++) {
         if (surface == surface_list[i])
             break;
     }
@@ -228,7 +228,7 @@ int psb_add_video_bcd(
 
     driver_data->bcd_buffer_num += num_surfaces;
     driver_data->bcd_buffer_surfaces = realloc(driver_data->bcd_buffer_surfaces,
-                                               driver_data->bcd_buffer_num * sizeof(VASurfaceID));
+                                       driver_data->bcd_buffer_num * sizeof(VASurfaceID));
     memcpy(driver_data->bcd_buffer_surfaces + oldbuf_num,
            &surface_list[0],
            num_surfaces * sizeof(VASurfaceID));

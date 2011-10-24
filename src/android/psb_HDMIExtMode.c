@@ -38,7 +38,7 @@ VAStatus psb_HDMIExt_get_prop(psb_android_output_p output,
     psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
 
     if (!psb_HDMIExt_info || !psb_HDMIExt_info->hdmi_extvideo_prop ||
-            (psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode == OFF)) {
+        (psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode == OFF)) {
         psb__error_message("%s : Failed to get HDMI prop\n", __FUNCTION__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -82,7 +82,7 @@ VAStatus psb_HDMIExt_update(VADriverContextP ctx, psb_HDMIExt_info_p psb_HDMIExt
         psb_HDMIExt_info->hdmi_mode = EXTENDED_VIDEO;
 
         if ((psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_XRes == 0 ||
-                psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_YRes == 0)) {
+             psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_YRes == 0)) {
             psb_extvideo_prop_p hdmi_extvideo_prop = psb_HDMIExt_info->hdmi_extvideo_prop;
 
             hdmi_connector = drmModeGetConnector(driver_data->drm_fd, psb_HDMIExt_info->hdmi_connector_id);
@@ -170,7 +170,7 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
             psb_HDMIExt_info->hdmi_connector_id = connector->connector_id;
 
         if ((connector->connector_type == /*DRM_MODE_CONNECTOR_MIPI*/15) &&
-                (!mipi_connector_id)) {
+            (!mipi_connector_id)) {
             mipi_connector_id = connector->connector_id;
             mipi_encoder_id = connector->encoder_id;
         }
@@ -179,8 +179,8 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
     }
 
     if (!mipi_connector_id ||
-            !psb_HDMIExt_info->hdmi_connector_id ||
-            !mipi_encoder_id) {
+        !psb_HDMIExt_info->hdmi_connector_id ||
+        !mipi_encoder_id) {
         psb__error_message("%s : Failed to get connector id or mipi encoder id. mipi_connector_id=%d, hdmi_connector_id=%d, mipi_encoder_id=%d\n", __FUNCTION__,
                            mipi_connector_id, psb_HDMIExt_info->hdmi_connector_id, mipi_encoder_id);
         goto exit;

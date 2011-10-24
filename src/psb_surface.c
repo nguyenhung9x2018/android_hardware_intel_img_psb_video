@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -139,19 +139,19 @@ VAStatus psb_surface_create_for_userptr(
 }
 
 VAStatus psb_surface_create_from_kbuf(
-        psb_driver_data_p driver_data,
-        int width, int height,
-        unsigned size, /* total buffer size need to be allocated */
-        unsigned int fourcc, /* expected fourcc */
-        int kbuf_handle,
-        unsigned int luma_stride, /* luma stride, could be width aligned with a special value */
-        unsigned int chroma_u_stride, /* chroma stride */
-        unsigned int chroma_v_stride,
-        unsigned int luma_offset, /* could be 0 */
-        unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
-        unsigned int chroma_v_offset,
-        psb_surface_p psb_surface /* out */
-        )
+    psb_driver_data_p driver_data,
+    int width, int height,
+    unsigned size, /* total buffer size need to be allocated */
+    unsigned int fourcc, /* expected fourcc */
+    int kbuf_handle,
+    unsigned int luma_stride, /* luma stride, could be width aligned with a special value */
+    unsigned int chroma_u_stride, /* chroma stride */
+    unsigned int chroma_v_stride,
+    unsigned int luma_offset, /* could be 0 */
+    unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
+    unsigned int chroma_v_offset,
+    psb_surface_p psb_surface /* out */
+)
 {
     int ret;
 
@@ -303,9 +303,9 @@ VAStatus psb_surface_query_status(psb_surface_p psb_surface, VASurfaceStatus *st
  * Set current displaying surface info to kernel
  * so that other component can access it in another process
  */
-int psb_surface_set_displaying(psb_driver_data_p driver_data, 
-			       int width, int height,
-			       psb_surface_p psb_surface)
+int psb_surface_set_displaying(psb_driver_data_p driver_data,
+                               int width, int height,
+                               psb_surface_p psb_surface)
 {
     struct drm_lnc_video_getparam_arg arg;
     struct drm_video_displaying_frameinfo value;
@@ -325,13 +325,13 @@ int psb_surface_set_displaying(psb_driver_data_p driver_data,
         value.chroma_v_offset = psb_surface->chroma_offset;
     } else /* clean kernel displaying surface info */
         memset(&value, 0, sizeof(value));
-    
+
     arg.key = IMG_VIDEO_SET_DISPLAYING_FRAME;
     arg.value = (uint64_t)((unsigned long) & value);
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
     if (ret != 0)
         psb__error_message("IMG_VIDEO_SET_DISPLAYING_FRAME failed\n");
-    
+
     return ret;
 }

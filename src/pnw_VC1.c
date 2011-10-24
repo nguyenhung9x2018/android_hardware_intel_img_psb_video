@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -812,10 +812,10 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     }
 
     if (ctx->forward_ref_surface)
-        ctx->forward_ref_fcm = GET_SURFACE_INFO_picture_coding_type(ctx->forward_ref_surface->psb_surface );
+        ctx->forward_ref_fcm = GET_SURFACE_INFO_picture_coding_type(ctx->forward_ref_surface->psb_surface);
 
     if (ctx->backward_ref_surface)
-        ctx->backward_ref_fcm = GET_SURFACE_INFO_picture_coding_type(ctx->backward_ref_surface->psb_surface );
+        ctx->backward_ref_fcm = GET_SURFACE_INFO_picture_coding_type(ctx->backward_ref_surface->psb_surface);
 
 #if 0
     if (NULL == ctx->forward_ref_surface) {
@@ -2674,7 +2674,7 @@ static void psb__VC1_Send_Parse_Header_Cmd(context_VC1_p ctx, IMG_BOOL new_pic)
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
     //pParseHeaderCMD                                  = (PARSE_HEADER_CMD*)mCtrlAlloc.AllocateSpace(sizeof(PARSE_HEADER_CMD));
-    pParseHeaderCMD = (PARSE_HEADER_CMD* )cmdbuf->cmd_idx;
+    pParseHeaderCMD = (PARSE_HEADER_CMD*)cmdbuf->cmd_idx;
     cmdbuf->cmd_idx += sizeof(PARSE_HEADER_CMD) / sizeof(uint32_t);
 
     pParseHeaderCMD->ui32Cmd                 = CMD_PARSE_HEADER;

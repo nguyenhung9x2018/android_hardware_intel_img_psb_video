@@ -328,12 +328,12 @@ static int psb_update_destbox(
     psb_android_get_destbox(&destx, &desty, &destw, &desth);
     /*psb__information_message("destbox = (%d,%d,%d,%d)\n", destx, desty, destw, desth);*/
     if ((destx >= 0) && (desty >= 0) &&
-            ((destx + destw) <= output->screen_width) &&
-            ((desty + desth) <= output->screen_height) &&
-            (output->destx != destx ||
-             output->desty != desty ||
-             output->destw != destw ||
-             output->desth != desth)) {
+        ((destx + destw) <= output->screen_width) &&
+        ((desty + desth) <= output->screen_height) &&
+        (output->destx != destx ||
+         output->desty != desty ||
+         output->destw != destw ||
+         output->desth != desth)) {
         output->destx = destx;
         output->desty = desty;
         output->destw = destw;
@@ -556,7 +556,7 @@ VAStatus psb_PutSurface(
     }
 
     if ((srcx < 0) || (srcx > obj_surface->width) || (srcw > (obj_surface->width - srcx)) ||
-            (srcy < 0) || (srcy > obj_surface->height_origin) || (srch > (obj_surface->height_origin - srcy))) {
+        (srcy < 0) || (srcy > obj_surface->height_origin) || (srch > (obj_surface->height_origin - srcy))) {
         psb__error_message("vaPutSurface: source rectangle passed from upper layer is not correct.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -578,8 +578,7 @@ VAStatus psb_PutSurface(
             psb__information_message("vaPutSurface: psb_coverlay_init failed. Fallback to texture streaming.\n");
             driver_data->output_method = PSB_PUTSURFACE_FORCE_TEXSTREAMING;
             driver_data->coverlay_init = 0;
-        }
-        else
+        } else
             driver_data->coverlay_init = 1;
     }
 

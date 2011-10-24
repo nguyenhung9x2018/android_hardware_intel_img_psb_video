@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -274,7 +274,7 @@ void *psb_x11_output_init(VADriverContextP ctx)
 
     if (getenv("PSB_VIDEO_EXTEND_FULLSCREEN"))
         driver_data->extend_fullscreen = 1;
-    
+
     if (getenv("PSB_VIDEO_PUTSURFACE_X11")) {
         psb__information_message("Putsurface force to SW rendering\n");
         driver_data->output_method = PSB_PUTSURFACE_X11;
@@ -290,7 +290,7 @@ void *psb_x11_output_init(VADriverContextP ctx)
     output->ui32NumClipBoxList = 0;
     output->frame_count = 0;
     output->bIsVisible = 0;
-    
+
     /* always init CTEXTURE and COVERLAY */
     driver_data->coverlay = 1;
     driver_data->color_key = 0x11;
@@ -311,7 +311,7 @@ void *psb_x11_output_init(VADriverContextP ctx)
         psb__information_message("By default, use psb xrandr thread.\n");
         driver_data->use_xrandr_thread = 1;
     }
-    
+
     if (IS_MFLD(driver_data) && /* force MFLD to use COVERLAY */
         (driver_data->output_method == PSB_PUTSURFACE_OVERLAY)) {
         psb__information_message("Use client overlay mode for post-processing\n");
@@ -364,12 +364,12 @@ void psb_x11_output_deinit(VADriverContextP ctx)
         XDestroyWindow(ctx->native_dpy, output->extend_drawable);
         output->extend_drawable = 0;
     }
-    
+
     psb_deinit_xvideo(ctx);
 
     /* close dri fd and release all drawable buffer */
     if (driver_data->ctexture == 1)
-	(*dri_state->close)(ctx);
+        (*dri_state->close)(ctx);
 }
 
 static void
@@ -411,12 +411,12 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
 
     /* Assign default value for MRST */
     if (IS_MRST(driver_data))
-	driver_data->output_method = PSB_PUTSURFACE_OVERLAY;
+        driver_data->output_method = PSB_PUTSURFACE_OVERLAY;
     else if (IS_MFLD(driver_data))
-	driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
+        driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
 
     if (driver_data->overlay_auto_paint_color_key)
-	driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
+        driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
 
     /* Avoid call is_window()/XGetWindowAttributes() every frame */
     if (output->output_drawable_save != draw) {
@@ -427,13 +427,13 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
             output->is_pixmap = 0;
     }
 
-    /*FIXME: overlay path can't handle subpicture scaling. when surface size > dest box, fallback to texblit.*/    
+    /*FIXME: overlay path can't handle subpicture scaling. when surface size > dest box, fallback to texblit.*/
     if ((output->is_pixmap == 1)
         || (IS_MRST(driver_data) && obj_surface->subpic_count > 0)
         || (IS_MFLD(driver_data) && obj_surface->subpic_count && ((width > destw) || (height > desth)))
         || (width >= 2048)
         || (height >= 2048)
-        ) {        
+       ) {
         psb__information_message("Putsurface fall back to use Client Texture\n");
 
         driver_data->output_method = PSB_PUTSURFACE_CTEXTURE;
@@ -444,7 +444,7 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
         psb_RecalcRotate(ctx);
         driver_data->xrandr_dirty &= ~PSB_NEW_ROTATION;
     }
-    
+
     return 0;
 }
 

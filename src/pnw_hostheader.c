@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -756,7 +756,7 @@ static void pnw__H264_writebits_sequence_header(
         pnw__write_upto8bits_elements(pMTX_Header,
                                       // constrain_set0_flag = 1 for BP constraints
                                       aui32ElementPointers, (0 << 7) |
-				      // constrain_set1_flag  = 1 for MP constraints and Constrained Baseline profile.
+                                      // constrain_set1_flag  = 1 for MP constraints and Constrained Baseline profile.
                                       ((pSHParams->ucProfile == SH_PROFILE_BP ? 1 : 0) << 6) |
                                       (0 << 5) |        // constrain_set2_flag = 1 for HP
                                       // constrain_set3_flag = 1 for level 1b, 0 for others
@@ -2710,7 +2710,7 @@ void pnw__H264_prepare_slice_header(
     MTX_HEADER_PARAMS *mtx_hdr;
 
     memset(&SlHParams, 0, sizeof(SlHParams));
-    
+
     /* Route output elements to memory provided */
     mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
 

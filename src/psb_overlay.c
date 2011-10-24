@@ -158,10 +158,16 @@ static void I830StopVideo(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
-    I830OverlayRegPtr overlayA = (I830OverlayRegPtr)(pPriv->regmap[0]);
-    I830OverlayRegPtr overlayC = (I830OverlayRegPtr)(pPriv->regmap[1]);
+    I830OverlayRegPtr overlayA, overlayC;
     struct drm_psb_register_rw_arg regs;
 
+    if (!pPriv->overlayA_enabled && !pPriv->overlayC_enabled) {
+        psb__information_message("I830StopVideo : no overlay has been enabled, do nothing.\n");
+        return;
+    }
+
+    overlayA = (I830OverlayRegPtr)(pPriv->regmap[0]);
+    overlayC = (I830OverlayRegPtr)(pPriv->regmap[1]);
 #if 0
     REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
 #endif
@@ -451,7 +457,7 @@ i830_display_video(
     overlay->DCLRKV = pPriv->colorKey;
 #if USE_ROTATION_FUNC
     if (((pipeId == PIPEA) && (driver_data->mipi0_rotation != VA_ROTATION_NONE)) ||
-            ((pipeId == PIPEB) && (driver_data->hdmi_rotation != VA_ROTATION_NONE))) {
+        ((pipeId == PIPEB) && (driver_data->hdmi_rotation != VA_ROTATION_NONE))) {
         switch (pPriv->rotation) {
         case VA_ROTATION_NONE:
             break;
@@ -837,7 +843,7 @@ static void I830PutImageFlipRotateSurface(
 
     /* local/extend display doesn't have render rotation */
     if (((pipeId == PIPEA) && (driver_data->local_rotation == VA_ROTATION_NONE)) ||
-            ((pipeId == PIPEB) && (driver_data->extend_rotation == VA_ROTATION_NONE)))
+        ((pipeId == PIPEB) && (driver_data->extend_rotation == VA_ROTATION_NONE)))
         return;
 
     pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
@@ -854,7 +860,7 @@ static void I830PutImageFlipRotateSurface(
             }
         }
         if ((driver_data->local_rotation == VA_ROTATION_NONE) ||
-                (driver_data->local_rotation == VA_ROTATION_180)) {
+            (driver_data->local_rotation == VA_ROTATION_180)) {
             pPriv->width_save = pPriv->display_width;
             pPriv->height_save = pPriv->display_height;
         } else {
@@ -877,7 +883,7 @@ static void I830PutImageFlipRotateSurface(
             }
         }
         if ((driver_data->extend_rotation == VA_ROTATION_NONE) ||
-                (driver_data->extend_rotation == VA_ROTATION_180)) {
+            (driver_data->extend_rotation == VA_ROTATION_180)) {
             pPriv->width_save = pPriv->extend_display_width;
             pPriv->height_save = pPriv->extend_display_height;
         } else {
@@ -1175,9 +1181,9 @@ static int I830PutImage(
 
 #if USE_DISPLAY_C_SPRITE
     if (fourcc == FOURCC_RGBA   \
-            || (fourcc == FOURCC_XVVA   \
-                && (pPriv->rotation != RR_Rotate_0) \
-                && (vaPtr->dst_srf.fourcc == VA_FOURCC_RGBA)))
+        || (fourcc == FOURCC_XVVA   \
+            && (pPriv->rotation != RR_Rotate_0) \
+            && (vaPtr->dst_srf.fourcc == VA_FOURCC_RGBA)))
         i830_display_video_sprite(pScrn, crtc, width, height, dstPitch,
                                   &dstBox, sprite_offset);
     else
@@ -1229,8 +1235,7 @@ static void psbPortPrivCreate(PsbPortPrivPtr pPriv)
 static void
 psbPortPrivDestroy(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 {
-    if (pPriv->overlayA_enabled)
-        I830StopVideo(ctx);
+    I830StopVideo(ctx);
 
     wsbmBOUnmap(pPriv->wsbo[0]);
     wsbmBOUnreference(&pPriv->wsbo[0]);

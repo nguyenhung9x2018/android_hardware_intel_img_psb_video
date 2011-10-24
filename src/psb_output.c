@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -123,7 +123,7 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     driver_data->last_displaying_surface = VA_INVALID_SURFACE;
 
     psb_InitRotate(ctx);
-    
+
 #ifdef ANDROID
     ws_priv = psb_android_output_init(ctx);
     driver_data->is_android = 1;
@@ -146,7 +146,7 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     if (driver_data->ctexstreaming == 1)
     psb_ctexstreaing_init(ctx);
     */
-    
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -164,7 +164,7 @@ VAStatus psb_deinitOutput(
         psb_coverlay_deinit(ctx);
         driver_data->coverlay_init = 0;
     }
-    
+
 #ifndef ANDROID
     psb_x11_output_deinit(ctx);
 #else
@@ -180,9 +180,9 @@ VAStatus psb_deinitOutput(
     */
     /* clean the displaying surface information in kernel */
     psb_surface_set_displaying(driver_data, 0, 0, NULL);
-    
+
     pthread_mutex_destroy(&driver_data->output_mutex);
-    
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -297,8 +297,8 @@ VAStatus psb_CreateImage(
     if (img_fmt == NULL)
         return VA_STATUS_ERROR_UNKNOWN;
 
-    if(NULL == image){
-	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+    if (NULL == image) {
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
         return vaStatus;
     }
 
@@ -441,9 +441,9 @@ VAStatus psb_DeriveImage(
         return vaStatus;
     }
 
-    if(NULL == image){
-	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-	return vaStatus;
+    if (NULL == image) {
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        return vaStatus;
     }
 
     fourcc = obj_surface->psb_surface->extra_info[4];
@@ -1510,14 +1510,14 @@ VAStatus psb_SetSubpictureChromakey(
     INIT_DRIVER_DATA;
     (void)driver_data;
     /* TODO */
-    if((chromakey_mask < chromakey_min) || (chromakey_mask > chromakey_max)){
-       psb__error_message("Invalid chromakey value %d, chromakey value should between min and max\n",chromakey_mask);
-       return VA_STATUS_ERROR_INVALID_PARAMETER;
+    if ((chromakey_mask < chromakey_min) || (chromakey_mask > chromakey_max)) {
+        psb__error_message("Invalid chromakey value %d, chromakey value should between min and max\n", chromakey_mask);
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
     object_subpic_p obj_subpic = SUBPIC(subpicture);
-    if(NULL == obj_subpic) {
-       psb__error_message("Invalid subpicture value %d\n", subpicture);
-       return VA_STATUS_ERROR_INVALID_SUBPICTURE;
+    if (NULL == obj_subpic) {
+        psb__error_message("Invalid subpicture value %d\n", subpicture);
+        return VA_STATUS_ERROR_INVALID_SUBPICTURE;
     }
 
     return VA_STATUS_SUCCESS;
@@ -1532,14 +1532,14 @@ VAStatus psb_SetSubpictureGlobalAlpha(
     INIT_DRIVER_DATA;
 
     if (global_alpha < 0 || global_alpha > 1) {
-	psb__error_message("Invalid global alpha value %07f, global alpha value should between 0 and 1\n", global_alpha);
-	return VA_STATUS_ERROR_INVALID_PARAMETER;
+        psb__error_message("Invalid global alpha value %07f, global alpha value should between 0 and 1\n", global_alpha);
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
     object_subpic_p obj_subpic = SUBPIC(subpicture);
-    if(NULL == obj_subpic) {
-       psb__error_message("Invalid subpicture value %d\n", subpicture);
-       return VA_STATUS_ERROR_INVALID_SUBPICTURE;
+    if (NULL == obj_subpic) {
+        psb__error_message("Invalid subpicture value %d\n", subpicture);
+        return VA_STATUS_ERROR_INVALID_SUBPICTURE;
     }
 
     obj_subpic->global_alpha = global_alpha * 255;
@@ -1788,96 +1788,96 @@ static  VADisplayAttribute psb__DisplayAttribute[] = {
     },
     {
         VADisplayAttribRotation,
-	VA_ROTATION_NONE,
-	VA_ROTATION_270,
-	VA_ROTATION_NONE,
-	VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-    },    
+        VA_ROTATION_NONE,
+        VA_ROTATION_270,
+        VA_ROTATION_NONE,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
     {
         VADisplayAttribOutofLoopDeblock,
-	VA_OOL_DEBLOCKING_FALSE,
+        VA_OOL_DEBLOCKING_FALSE,
         VA_OOL_DEBLOCKING_TRUE,
         VA_OOL_DEBLOCKING_FALSE,
-	VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-    },    
-   {
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
+    {
         VADisplayAttribBLEBlackMode,
         0x00000000,
         0xffffffff,
         0x00000000,
-	VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-   },   
-   {
-         VADisplayAttribBLEWhiteMode,
-         0x00000000,
-         0xffffffff,
-         0x00000000,
-	 VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
     },
-    
     {
-          VADisplayAttribBlueStretch,
-          0x00000000,
-          0xffffffff,
-          0x00000000,
-          VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-    },    
+        VADisplayAttribBLEWhiteMode,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
+
     {
-         VADisplayAttribSkinColorCorrection,
-         0x00000000,
-         0xffffffff,
-         0x00000000,
-	 VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-    },    
+        VADisplayAttribBlueStretch,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
     {
-         VADisplayAttribBlendColor,
-         0x00000000,
-         0xffffffff,
-         0x00000000,
-         VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-    },    
+        VADisplayAttribSkinColorCorrection,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
     {
-         VADisplayAttribOverlayColorKey,
-         0x00000000,
-         0xffffffff,
-         0x00000000,
-	 VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-     },     
-     {
-          VADisplayAttribOverlayAutoPaintColorKey,
-          0x00000000,
-          0xffffffff,
-          0x00000000,
-	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-     },
-     {
-          VADisplayAttribCSCMatrix,
-          0x00000000,
-          0xffffffff,
-          0x00000000,
-	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-     },
-     {
-          VADisplayAttribRenderDevice,
-          0x00000000,
-          0xffffffff,
-          0x00000000,
-	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-     },
-     {
-          VADisplayAttribRenderMode,
-          0x00000000,
-          0xffffffff,
-          0x00000000,
-	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-     },
-     {
-          VADisplayAttribRenderRect,
-          0x00000000,
-          0xffffffff,
-          0x00000000,
-	  VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-     }
+        VADisplayAttribBlendColor,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
+    {
+        VADisplayAttribOverlayColorKey,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
+    {
+        VADisplayAttribOverlayAutoPaintColorKey,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
+    {
+        VADisplayAttribCSCMatrix,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
+    {
+        VADisplayAttribRenderDevice,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
+    {
+        VADisplayAttribRenderMode,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    },
+    {
+        VADisplayAttribRenderRect,
+        0x00000000,
+        0xffffffff,
+        0x00000000,
+        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
+    }
 };
 
 /*
@@ -1978,16 +1978,16 @@ VAStatus psb_GetDisplayAttributes(
             p->min_value = 0;
             p->max_value = 1;
             break;
-	case VADisplayAttribRotation:
-	    p->value = driver_data->va_rotate = p->value;
-	    p->min_value = VA_ROTATION_NONE;
-	    p->max_value = VA_ROTATION_270;
-	    break;
-	case VADisplayAttribOutofLoopDeblock:
-	    p->value = driver_data->is_oold = p->value;
-	    p->min_value = VA_OOL_DEBLOCKING_FALSE;
-	    p->max_value = VA_OOL_DEBLOCKING_TRUE;
-	    break;
+        case VADisplayAttribRotation:
+            p->value = driver_data->va_rotate = p->value;
+            p->min_value = VA_ROTATION_NONE;
+            p->max_value = VA_ROTATION_270;
+            break;
+        case VADisplayAttribOutofLoopDeblock:
+            p->value = driver_data->is_oold = p->value;
+            p->min_value = VA_OOL_DEBLOCKING_FALSE;
+            p->max_value = VA_OOL_DEBLOCKING_TRUE;
+            break;
         case VADisplayAttribCSCMatrix:
             p->value = driver_data->load_csc_matrix = p->value;
             p->min_value = 0;
@@ -2132,7 +2132,7 @@ VAStatus psb_SetDisplayAttributes(
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
             }
             if (((p->value & VA_RENDER_MODE_LOCAL_OVERLAY) && (p->value & VA_RENDER_MODE_LOCAL_GPU)) ||
-                    ((p->value & VA_RENDER_MODE_EXTERNAL_OVERLAY) && (p->value & VA_RENDER_MODE_EXTERNAL_GPU))) {
+                ((p->value & VA_RENDER_MODE_EXTERNAL_OVERLAY) && (p->value & VA_RENDER_MODE_EXTERNAL_GPU))) {
                 psb__error_message("%s:Invalid parameter. Conflict setting for VADisplayAttribRenderMode.\n", __FUNCTION__);
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
             }

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -565,7 +565,7 @@ static VAStatus psb__H264_allocate_colocated_buffer(context_H264_p ctx, object_s
             return VA_STATUS_ERROR_UNKNOWN;
         }
         psb__information_message("psb_H264: Allocating colocated buffer for surface %08x size = %08x\n", surface, size);
-        
+
         buf = &(ctx->colocated_buffers[index]);
         vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, buf);
         if (VA_STATUS_SUCCESS != vaStatus) {
@@ -584,7 +584,7 @@ static psb_buffer_p psb__H264_lookup_colocated_buffer(context_H264_p ctx, psb_su
     if (!index) {
         return NULL;
     }
-    
+
     return &(ctx->colocated_buffers[index-1]); /* 0 means unset, index is offset by 1 */
 }
 
@@ -624,8 +624,8 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
 
     if ((obj_buffer->num_elements != 1) ||
         (obj_buffer->size != sizeof(VAPictureParameterBufferH264)) ||
-       (NULL == target_surface) ||
-       (NULL == obj_buffer->buffer_data)) {
+        (NULL == target_surface) ||
+        (NULL == obj_buffer->buffer_data)) {
         psb__error_message("picture parameter buffer is not valid.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -668,9 +668,9 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
 
     //uint32_t colocated_size = (ctx->picture_width_mb + extra_size) * (ctx->picture_height_mb + extra_size) * 192;
     /*for resolution change feature, need allocat co-located buffer according the size of surface*/
-    uint32_t size_mb = ((ctx->obj_context->current_render_target->width + 15)/16) * 
-                ((ctx->obj_context->current_render_target->height + 15)/16);
-	uint32_t colocated_size = ((size_mb + 100) * 128 + 0xfff) & ~0xfff;
+    uint32_t size_mb = ((ctx->obj_context->current_render_target->width + 15) / 16) *
+                       ((ctx->obj_context->current_render_target->height + 15) / 16);
+    uint32_t colocated_size = ((size_mb + 100) * 128 + 0xfff) & ~0xfff;
 
     vaStatus = psb__H264_allocate_colocated_buffer(ctx, ctx->obj_context->current_render_target, colocated_size);
     if (VA_STATUS_SUCCESS != vaStatus) {
@@ -785,8 +785,8 @@ static VAStatus psb__H264_process_iq_matrix(context_H264_p ctx, object_buffer_p 
     ASSERT(obj_buffer->size == sizeof(VAIQMatrixBufferH264));
 
     if ((obj_buffer->num_elements != 1) ||
-       (obj_buffer->size != sizeof(VAIQMatrixBufferH264)) ||
-       (NULL == obj_buffer->buffer_data)) {
+        (obj_buffer->size != sizeof(VAIQMatrixBufferH264)) ||
+        (NULL == obj_buffer->buffer_data)) {
         psb__error_message("iq matrix buffer is not valid.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -808,7 +808,7 @@ static VAStatus psb__H264_process_slice_group_map(context_H264_p ctx, object_buf
     ASSERT(obj_buffer->num_elements == 1);
 //    ASSERT(obj_buffer->size == ...);
 
-    if((obj_buffer->num_elements != 1) ||
+    if ((obj_buffer->num_elements != 1) ||
         (NULL == obj_buffer->psb_buffer)) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -1599,7 +1599,7 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 
-#if 0    
+#if 0
     psb__information_message("H264 process slice %d\n", ctx->slice_count);
     psb__information_message("    profile = %s\n", profile2str[ctx->profile]);
     psb__information_message("    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
@@ -1609,7 +1609,7 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
     psb__information_message("    slice type = %s\n", slice2str[(slice_param->slice_type % 5)]);
     psb__information_message("    weighted_pred_flag = %d weighted_bipred_idc = %d\n", ctx->pic_params->pic_fields.bits.weighted_pred_flag, ctx->pic_params->pic_fields.bits.weighted_bipred_idc);
 #endif
-    
+
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
         (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
         if (0 == slice_param->slice_data_size) {
@@ -1714,7 +1714,7 @@ static VAStatus psb__H264_process_slice_data(context_H264_p ctx, object_buffer_p
     ASSERT(ctx->pic_params);
     ASSERT(ctx->slice_param_list_idx);
 
-    if((!ctx->pic_params) || (!ctx->slice_param_list_idx)) {
+    if ((!ctx->pic_params) || (!ctx->slice_param_list_idx)) {
         /* Picture params missing */
         psb__error_message("picture/slice parameter buffer should not be empty.\n");
         return VA_STATUS_ERROR_UNKNOWN;

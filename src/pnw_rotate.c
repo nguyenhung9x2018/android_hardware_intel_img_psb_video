@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -74,7 +74,7 @@ void psb_InitRotate(VADriverContextP ctx)
 {
     char env_value[64];
     INIT_DRIVER_DATA;
-    
+
     /* VA rotate from APP */
     driver_data->va_rotate = VA_ROTATION_NONE;
 
@@ -132,7 +132,7 @@ void psb_RecalcRotate(VADriverContextP ctx)
         psb__information_message("MSVDX: new rotation %d desired\n", new_rotate);
         driver_data->msvdx_rotate_want = new_rotate;
     }
-    
+
 }
 
 
@@ -147,10 +147,9 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_p
     case VAProfileMPEG4Simple:
     case VAProfileMPEG4AdvancedSimple:
     case VAProfileMPEG4Main:
-    case VAProfileH263Baseline:
-    {
+    case VAProfileH263Baseline: {
         VAPictureParameterBufferMPEG4 *pic_params = (VAPictureParameterBufferMPEG4 *)pic_param_tmp;
-    
+
         if (pic_params->vol_fields.bits.interlaced)
             obj_context->interlaced_stream = 1; /* is it the right way to check? */
         break;
@@ -158,25 +157,23 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_p
     case VAProfileH264Baseline:
     case VAProfileH264Main:
     case VAProfileH264High:
-    case VAProfileH264ConstrainedBaseline:
-    {
+    case VAProfileH264ConstrainedBaseline: {
         VAPictureParameterBufferH264 *pic_params = (VAPictureParameterBufferH264 *)pic_param_tmp;
         /* is it the right way to check? */
-        if (pic_params->pic_fields.bits.field_pic_flag || pic_params->seq_fields.bits.mb_adaptive_frame_field_flag) 
+        if (pic_params->pic_fields.bits.field_pic_flag || pic_params->seq_fields.bits.mb_adaptive_frame_field_flag)
             obj_context->interlaced_stream = 1;
-        
+
         break;
     }
     case VAProfileVC1Simple:
     case VAProfileVC1Main:
-    case VAProfileVC1Advanced:
-    {
+    case VAProfileVC1Advanced: {
         VAPictureParameterBufferVC1 *pic_params = (VAPictureParameterBufferVC1 *)pic_param_tmp;
-    
-        /* is it the right way to check? */    
+
+        /* is it the right way to check? */
         if (pic_params->sequence_fields.bits.interlace && (pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_FLDI))
             obj_context->interlaced_stream = 1;
-        
+
         break;
     }
     default:
@@ -187,7 +184,7 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_p
         object_surface_p obj_surface = obj_context->current_render_target;
 
         psb__information_message("Intelaced stream, no MSVDX rotate\n");
-        
+
         SET_SURFACE_INFO_rotate(obj_surface->psb_surface, 0);
         obj_context->msvdx_rotate = 0;
     }
@@ -206,7 +203,7 @@ VAStatus psb_DestroyRotateSurface(
     INIT_DRIVER_DATA;
     psb_surface_p psb_surface = obj_surface->psb_surface_rotate;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    
+
     /* Allocate alternative output surface */
     if (psb_surface) {
         psb__information_message("Try to allocate surface for alternative rotate output\n");
@@ -217,7 +214,7 @@ VAStatus psb_DestroyRotateSurface(
         obj_surface->width_r = obj_surface->width;
         obj_surface->height_r = obj_surface->height;
     }
-    
+
     return vaStatus;
 }
 
@@ -237,7 +234,7 @@ VAStatus psb_CreateRotateSurface(
 
     INIT_DRIVER_DATA;
 
-    psb_surface = obj_surface->psb_surface_rotate;    
+    psb_surface = obj_surface->psb_surface_rotate;
     if (psb_surface) {
         CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need_realloc);
         if (need_realloc == 0) {
@@ -250,11 +247,11 @@ VAStatus psb_CreateRotateSurface(
             memset(psb_surface, 0, sizeof(*psb_surface));*/
             return VA_STATUS_SUCCESS;
         }
-    } else 
+    } else
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
 
     psb__information_message("Try to allocate surface for alternative rotate output\n");
-    
+
     width = obj_surface->width;
     height = obj_surface->height;
 
@@ -269,7 +266,7 @@ VAStatus psb_CreateRotateSurface(
         obj_surface->width_r = obj_surface->height_origin;
         obj_surface->height_r = ((width + 0x1f) & ~0x1f);
     }
-    
+
     if (VA_STATUS_SUCCESS != vaStatus) {
         free(psb_surface);
         obj_surface->psb_surface_rotate = NULL;
@@ -277,10 +274,10 @@ VAStatus psb_CreateRotateSurface(
         DEBUG_FAILURE;
         return vaStatus;
     }
-    
-    SET_SURFACE_INFO_rotate(psb_surface, msvdx_rotate);    
+
+    SET_SURFACE_INFO_rotate(psb_surface, msvdx_rotate);
     obj_surface->psb_surface_rotate = psb_surface;
-    
+
     return vaStatus;
 }
 

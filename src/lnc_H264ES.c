@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -90,16 +90,16 @@ static VAStatus lnc_H264ES_ValidateConfig(
     int i;
     /* Check all attributes */
     for (i = 0; i < obj_config->attrib_count; i++) {
-	 switch (obj_config->attrib_list[i].type) {
-	 case VAConfigAttribRTFormat:
-		 /* Ignore */
-		 break;
-         case VAConfigAttribRateControl:
-	         break;
-	 default:
-		 return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
-	 }
- }
+        switch (obj_config->attrib_list[i].type) {
+        case VAConfigAttribRTFormat:
+            /* Ignore */
+            break;
+        case VAConfigAttribRateControl:
+            break;
+        default:
+            return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
+        }
+    }
 
     return VA_STATUS_SUCCESS;
 }
@@ -691,8 +691,8 @@ static VAStatus lnc__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
             break;
         }
 
-	if (max_slice_size_param->max_slice_size != 0)
-		max_slice_size_param->max_slice_size -= WORST_CASE_SLICE_HEADER_SIZE;
+        if (max_slice_size_param->max_slice_size != 0)
+            max_slice_size_param->max_slice_size -= WORST_CASE_SLICE_HEADER_SIZE;
 
         if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
             break;

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -552,7 +552,7 @@ static VAStatus psb__H264_allocate_colocated_buffer(context_H264_p ctx, object_s
         }
 
         psb__information_message("pnw_H264: Allocating colocated buffer for surface %08x size = %08x\n", surface, size);
-        
+
         buf = &(ctx->colocated_buffers[index]);
         vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, buf);
         if (VA_STATUS_SUCCESS != vaStatus) {
@@ -749,7 +749,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     }
 
     psb_CheckInterlaceRotate(ctx->obj_context, (unsigned char *)pic_params);
-    
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -1217,7 +1217,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
                                      pic_params->ReferenceFrames[i].TopFieldOrderCnt,
                                      pic_params->ReferenceFrames[i].BottomFieldOrderCnt,
                                      is_used[i] ? "used" : "");
-            */ 
+            */
             if (ref_surface && is_used[i] && buffer)
                 // GET_SURFACE_INFO_is_used(ref_surface->psb_surface))
             {
@@ -1408,10 +1408,10 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     if (!ctx->two_pass_mode && CONTEXT_ROTATE(ctx->obj_context)) {/* FIXME field coded should not issue */
         psb__information_message("Setup rotate surface (%d) into command stream\n",
                                  ctx->obj_context->msvdx_rotate);
-        
+
         psb__H264_setup_alternative_frame(ctx);
     }
-    
+
 
     /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
 }
@@ -1626,7 +1626,7 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
     psb__information_message("    slice type = %s\n", slice2str[(slice_param->slice_type % 5)]);
     psb__information_message("    weighted_pred_flag = %d weighted_bipred_idc = %d\n", ctx->pic_params->pic_fields.bits.weighted_pred_flag, ctx->pic_params->pic_fields.bits.weighted_bipred_idc);
 #endif
-    
+
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
         (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
         if (0 == slice_param->slice_data_size) {

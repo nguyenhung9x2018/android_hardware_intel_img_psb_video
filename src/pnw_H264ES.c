@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -83,16 +83,16 @@ static VAStatus pnw_H264ES_ValidateConfig(
     int i;
     /* Check all attributes */
     for (i = 0; i < obj_config->attrib_count; i++) {
-	 switch (obj_config->attrib_list[i].type) {
-	 case VAConfigAttribRTFormat:
-		 /* Ignore */
-		 break;
-         case VAConfigAttribRateControl:
-	         break;
-	 default:
-		 return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
-	 }
- }
+        switch (obj_config->attrib_list[i].type) {
+        case VAConfigAttribRTFormat:
+            /* Ignore */
+            break;
+        case VAConfigAttribRateControl:
+            break;
+        default:
+            return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
+        }
+    }
 
     return VA_STATUS_SUCCESS;
 }
@@ -217,9 +217,9 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     obj_buffer->size = 0;
 
     if (!pSequenceParams->bits_per_second) {
-	    pSequenceParams->bits_per_second = ctx->Height * ctx->Width * 30 * 12;
-	    psb__information_message("bits_per_second is 0, set to %d\n",
-			    pSequenceParams->bits_per_second);
+        pSequenceParams->bits_per_second = ctx->Height * ctx->Width * 30 * 12;
+        psb__information_message("bits_per_second is 0, set to %d\n",
+                                 pSequenceParams->bits_per_second);
     }
     ctx->sRCParams.bBitrateChanged =
         (pSequenceParams->bits_per_second == ctx->sRCParams.BitsPerSecond ?
@@ -653,8 +653,8 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
 
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     if (ctx->eCodec != IMG_CODEC_H264_VCM) {
-	    psb__information_message("Only VCM mode allow rate control setting.Ignore.\n");
-	    return VA_STATUS_SUCCESS;
+        psb__information_message("Only VCM mode allow rate control setting.Ignore.\n");
+        return VA_STATUS_SUCCESS;
     }
     ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
 
@@ -693,18 +693,18 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
             break;
         }
 
-	if (rate_control_param->window_size > 65535) {
-	    psb__error_message("window_size is too much!\n");
-	    vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-	    break;
-	}
+        if (rate_control_param->window_size > 65535) {
+            psb__error_message("window_size is too much!\n");
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
 
         psb__information_message("rate control changed from %d to %d\n",
                                  ctx->sRCParams.BitsPerSecond,
                                  rate_control_param->bits_per_second);
 
         if ((rate_control_param->bits_per_second == ctx->sRCParams.BitsPerSecond) &&
-			(rate_control_param->window_size != 0) &&
+            (rate_control_param->window_size != 0) &&
             (ctx->sRCParams.BufferSize == ctx->sRCParams.BitsPerSecond / 1000 * rate_control_param->window_size) &&
             (ctx->sRCParams.MinQP == rate_control_param->min_qp) &&
             (ctx->sRCParams.InitialQp == rate_control_param->initial_qp))
@@ -732,12 +732,12 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     case VAEncMiscParameterTypeMaxSliceSize:
         max_slice_size_param = (VAEncMiscParameterMaxSliceSize *)pBuffer->data;
 
-	/*The max slice size should not be bigger than 1920x1080x1.5x8 */
-	if (max_slice_size_param->max_slice_size > 24883200) {
-	    psb__error_message("Invalid max_slice_size. It should be 1~ 3110400.\n");
-	    vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-	    break;
-	}
+        /*The max slice size should not be bigger than 1920x1080x1.5x8 */
+        if (max_slice_size_param->max_slice_size > 24883200) {
+            psb__error_message("Invalid max_slice_size. It should be 1~ 3110400.\n");
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
 
         if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
             break;

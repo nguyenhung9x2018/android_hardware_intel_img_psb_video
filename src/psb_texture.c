@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -243,8 +243,8 @@ int psb_ctexture_init(VADriverContextP ctx)
     texture_priv->desth_save = 0;
     texture_priv->local_rotation_save = -1;
     texture_priv->extend_rotation_save = -1;
-    texture_priv->dri_drawable= NULL;
-    texture_priv->extend_dri_drawable= NULL;
+    texture_priv->dri_drawable = NULL;
+    texture_priv->extend_dri_drawable = NULL;
 
     for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
         texture_priv->blt_meminfo[i] = NULL;
@@ -317,10 +317,10 @@ void psb_ctexture_deinit(VADriverContextP ctx)
     }
 
     if (driver_data->hPVR2DContext) {
-	ePVR2DStatus = PVR2DDestroyDeviceContext(driver_data->hPVR2DContext);
-	if (ePVR2DStatus != PVR2D_OK)
-	    psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
-	driver_data->hPVR2DContext = NULL;
+        ePVR2DStatus = PVR2DDestroyDeviceContext(driver_data->hPVR2DContext);
+        if (ePVR2DStatus != PVR2D_OK)
+            psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+        driver_data->hPVR2DContext = NULL;
     }
 
     if (driver_data->dup_drm_fd)
@@ -440,8 +440,8 @@ void psb_free_surface_pvr2dbuf(psb_driver_data_p driver_data)
         driver_data->wrapped_surface_id[i] = VA_INVALID_ID;
         driver_data->wrapped_subpic_id[i] = -1;
 
-	driver_data->videoBuf[i] = NULL;
-	driver_data->subpicBuf[i] = NULL;
+        driver_data->videoBuf[i] = NULL;
+        driver_data->subpicBuf[i] = NULL;
     }
 }
 
@@ -547,7 +547,7 @@ void psb_putsurface_textureblit(
     pVaVideoMemInfo = psb_wrap_surface_pvr2dbuf(driver_data, surface);
     if (!pVaVideoMemInfo) {
         psb__error_message("%s: Failed to get source PVR2DMEMINFO!\n", __func__);
-	return;
+        return;
     }
 
     /* wrap the dest source */
@@ -555,10 +555,10 @@ void psb_putsurface_textureblit(
     if (wrap_dst == 0) {
 
         pDstMeminfo = (PPVR2DMEMINFO)dst;
-	if (IS_MRST(driver_data))
-	    sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 32);
-	if (IS_MFLD(driver_data))
-	    sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 8);
+        if (IS_MRST(driver_data))
+            sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 32);
+        if (IS_MFLD(driver_data))
+            sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 8);
         sBltVP.sDst.Format = PVR2D_ARGB8888;
 
     } else {
@@ -620,9 +620,9 @@ void psb_putsurface_textureblit(
                 return;
             }
 
-	    object_subpic_p obj_subpic = SUBPIC(surface_subpic->subpic_id);
-	    sBltVP.AlphaBlendingFunc = PVR2D_ALPHA_OP_GLOBAL;
-	    sBltVP.subpicGlobalAlpha[i] = obj_subpic->global_alpha;
+            object_subpic_p obj_subpic = SUBPIC(surface_subpic->subpic_id);
+            sBltVP.AlphaBlendingFunc = PVR2D_ALPHA_OP_GLOBAL;
+            sBltVP.subpicGlobalAlpha[i] = obj_subpic->global_alpha;
 
             sBltVP.sSrcSubpic[i].pSurfMemInfo = pVaVideoSubpicMemInfo;
             sBltVP.sSrcSubpic[i].SurfOffset = 0;
@@ -668,7 +668,7 @@ void psb_putsurface_textureblit(
 //#ifndef ANDROID /* MRST Android not enable this API, uncomment for MRST */
     ePVR2DStatus = PVR2DBltVideo(driver_data->hPVR2DContext, &sBltVP);
 //#endif
-    
+
     if (ePVR2DStatus != PVR2D_OK)
         psb__error_message("%s: failed to do PVR2DBltVideo with error code %d\n",
                            __FUNCTION__, ePVR2DStatus);

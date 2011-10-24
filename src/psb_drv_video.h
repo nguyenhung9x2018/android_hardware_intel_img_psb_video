@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -133,7 +133,7 @@ struct psb_driver_data_s {
     uint32_t                    dev_id;
     int                         drm_fd;
     int                         dup_drm_fd;
-    
+
     /*  PM_QoS */
     int                         pm_qos_fd;
     int                         dri2;
@@ -241,7 +241,7 @@ struct psb_driver_data_s {
     int hdmi_rotation; /* window manager rotation */
     int local_rotation; /* final device rotate: VA rotate+wm rotate */
     int extend_rotation; /* final device rotate: VA rotate+wm rotate */
-    
+
     unsigned int outputmethod_checkinterval;
 
     uint32_t bcd_id;
@@ -337,7 +337,7 @@ struct object_context_s {
     int is_oold;
     int msvdx_rotate;
     int interlaced_stream;
-    
+
     uint32_t msvdx_context;
 
     /* Debug */

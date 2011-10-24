@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -188,7 +188,7 @@ static void LoadMPEG4Bias(
     uint32_t *pCount;
 
     cmd_word = ((MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
-                ((i32Core & MTX_CMDWORD_CORE_MASK) <<  MTX_CMDWORD_CORE_SHIFT);
+               ((i32Core & MTX_CMDWORD_CORE_MASK) <<  MTX_CMDWORD_CORE_SHIFT);
     *cmdbuf->cmd_idx++ = cmd_word;
     pCount = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx++;
@@ -244,7 +244,7 @@ static void LoadH263Bias(
     uint32_t *pCount;
 
     cmd_word = ((MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
-                ((i32Core & MTX_CMDWORD_CORE_MASK) <<  MTX_CMDWORD_CORE_SHIFT);
+               ((i32Core & MTX_CMDWORD_CORE_MASK) <<  MTX_CMDWORD_CORE_SHIFT);
     *cmdbuf->cmd_idx++ = cmd_word;
     pCount = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx++;
@@ -301,7 +301,7 @@ static void LoadH264Bias(
     uint32_t *pCount;
 
     cmd_word = ((MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
-                ((i32Core & MTX_CMDWORD_CORE_MASK) <<  MTX_CMDWORD_CORE_SHIFT);
+               ((i32Core & MTX_CMDWORD_CORE_MASK) <<  MTX_CMDWORD_CORE_SHIFT);
     *cmdbuf->cmd_idx++ = cmd_word;
     pCount = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx++;
@@ -936,7 +936,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
                              &src_surface->psb_surface->buf);
 
         RELOC_PIC_PARAMS_PNW(&psPicParams->SrcVBase,
-                             srf_buf_offset + src_surface->psb_surface->chroma_offset* 5 / 4,
+                             srf_buf_offset + src_surface->psb_surface->chroma_offset * 5 / 4,
                              &src_surface->psb_surface->buf);
 
         break;

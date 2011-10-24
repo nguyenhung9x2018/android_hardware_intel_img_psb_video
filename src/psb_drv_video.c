@@ -505,30 +505,30 @@ static VAStatus psb__validate_config(object_config_p obj_config)
 }
 
 static int psb_get_active_entrypoint_number(
-		VADriverContextP ctx,
-		unsigned int entrypoint)
+    VADriverContextP ctx,
+    unsigned int entrypoint)
 {
     INIT_DRIVER_DATA;
     struct drm_lnc_video_getparam_arg arg;
-    int count= 0;
+    int count = 0;
     int ret;
 
     if (VAEntrypointVLD > entrypoint ||
-	    entrypoint > VAEntrypointEncPicture) {
-	psb__error_message("%s :Invalid entrypoint %d.\n",
-		__FUNCTION__, entrypoint);
-	return -1;
+        entrypoint > VAEntrypointEncPicture) {
+        psb__error_message("%s :Invalid entrypoint %d.\n",
+                           __FUNCTION__, entrypoint);
+        return -1;
     }
 
     arg.key = PNW_VIDEO_QUERY_ENTRY;
     arg.value = (uint64_t)((unsigned long) &count);
     arg.arg = (uint64_t)((unsigned int)&entrypoint);
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
-		    &arg, sizeof(arg));
+                              &arg, sizeof(arg));
     if (ret) {
-	psb__error_message("%s drmCommandWriteRead fails %d.\n",
-		__FUNCTION__, ret);
-	return -1;
+        psb__error_message("%s drmCommandWriteRead fails %d.\n",
+                           __FUNCTION__, ret);
+        return -1;
     }
 
     return count;
@@ -566,9 +566,9 @@ VAStatus psb_CreateConfig(
         }
     }
 
-    if(NULL == config_id){
-	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-	return vaStatus;
+    if (NULL == config_id) {
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        return vaStatus;
     }
 
     if (num_attribs < 0) {
@@ -589,14 +589,14 @@ VAStatus psb_CreateConfig(
     }
 
     if ((IS_MFLD(driver_data)) &&
-	     (VAEntrypointEncPicture == entrypoint)) {
-	/*Only allow one encoding entrypoint at the sametime.*/
-	if (psb_get_active_entrypoint_number(ctx, VAEntrypointEncSlice) > 0 ||
-			psb_get_active_entrypoint_number(ctx, VAEntrypointEncPicture)) {
-	    psb__error_message("There already is a active encoding entrypoint %d.\n",
-		    entrypoint);
-	    return VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-	}
+        (VAEntrypointEncPicture == entrypoint)) {
+        /*Only allow one encoding entrypoint at the sametime.*/
+        if (psb_get_active_entrypoint_number(ctx, VAEntrypointEncSlice) > 0 ||
+            psb_get_active_entrypoint_number(ctx, VAEntrypointEncPicture)) {
+            psb__error_message("There already is a active encoding entrypoint %d.\n",
+                               entrypoint);
+            return VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
+        }
     }
 
     configID = object_heap_allocate(&driver_data->config_heap);
@@ -1015,9 +1015,9 @@ VAStatus psb_DestroySurfaces(
     }
 
     if (NULL == surface_list) {
-/* This is a workaround for bug 3419. If libva surfaces and context are pre-allocated,
- * mix call the function with NULL & 0 parameters to notify video driver when decoder is destroyed.
- */
+        /* This is a workaround for bug 3419. If libva surfaces and context are pre-allocated,
+         * mix call the function with NULL & 0 parameters to notify video driver when decoder is destroyed.
+         */
 #ifdef ANDROID
 #include "android/psb_android_glue.h"
         if (driver_data->ts_source_created) {
@@ -1415,10 +1415,9 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
                                                         */
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_shared, obj_buffer->psb_buffer);
             else if (obj_buffer->type == VAProtectedSliceDataBufferType) {
-	      if (IS_MFLD(driver_data))
-		  vaStatus = psb_buffer_reference_imr(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
-	    }
-            else
+                if (IS_MFLD(driver_data))
+                    vaStatus = psb_buffer_reference_imr(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
+            } else
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
             if (VA_STATUS_SUCCESS != vaStatus) {
                 free(obj_buffer->psb_buffer);
@@ -1652,7 +1651,7 @@ VAStatus psb__CreateBuffer(
             /* Buffer was used for previous frame, allocate new buffer instead */
             psb__information_message("Skipping idle buffer %08x used by frame %d. Unused = %d\n", obj_buffer->base.id, obj_buffer->last_used, unused_count);
             obj_buffer = NULL;
-	}
+        }
     }
 
     if (obj_buffer) {
@@ -2644,7 +2643,7 @@ VAStatus psb_CreateSurfacesForUserPtr(
     /* silient compiler warning */
     unsigned int width = (unsigned int)Width;
     unsigned int height = (unsigned int)Height;
-    
+
     psb__information_message("Create surface: width %d, height %d, format 0x%08x"
                              "\n\t\t\t\t\tnum_surface %d, buffer size %d, fourcc 0x%08x"
                              "\n\t\t\t\t\tluma_stride %d, chroma u stride %d, chroma v stride %d"
@@ -2812,15 +2811,15 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     /* silient compiler warning */
     unsigned int width = (unsigned int)_width;
     unsigned int height = (unsigned int)_height;
-    
-   psb__information_message("Create surface: width %d, height %d, format 0x%08x"
-            "\n\t\t\t\t\tnum_surface %d, buffer size %d, fourcc 0x%08x"
-            "\n\t\t\t\t\tluma_stride %d, chroma u stride %d, chroma v stride %d"
-            "\n\t\t\t\t\tluma_offset %d, chroma u offset %d, chroma v offset %d\n",
-            width, height, format,
-            size, kBuf_fourcc,
-            luma_stride, chroma_u_stride, chroma_v_stride,
-            luma_offset, chroma_u_offset, chroma_v_offset);
+
+    psb__information_message("Create surface: width %d, height %d, format 0x%08x"
+                             "\n\t\t\t\t\tnum_surface %d, buffer size %d, fourcc 0x%08x"
+                             "\n\t\t\t\t\tluma_stride %d, chroma u stride %d, chroma v stride %d"
+                             "\n\t\t\t\t\tluma_offset %d, chroma u offset %d, chroma v offset %d\n",
+                             width, height, format,
+                             size, kBuf_fourcc,
+                             luma_stride, chroma_u_stride, chroma_v_stride,
+                             luma_offset, chroma_u_offset, chroma_v_offset);
 
     if (NULL == surface) {
         vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
@@ -2830,7 +2829,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
 
     /* We only support one format */
     if ((VA_RT_FORMAT_YUV420 != format)
-            && (VA_RT_FORMAT_YUV422 != format)) {
+        && (VA_RT_FORMAT_YUV422 != format)) {
         vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
         DEBUG_FAILURE;
         return vaStatus;
@@ -2839,7 +2838,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     /* We only support NV12/YV12 */
 
     if (((VA_RT_FORMAT_YUV420 == format) && (kBuf_fourcc != VA_FOURCC_NV12)) ||
-            ((VA_RT_FORMAT_YUV422 == format) && (kBuf_fourcc != VA_FOURCC_YV16))) {
+        ((VA_RT_FORMAT_YUV422 == format) && (kBuf_fourcc != VA_FOURCC_YV16))) {
         psb__error_message("Only support NV12/YV16 format\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -2851,11 +2850,11 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     }
 
     if ((size < width * height * 1.5) ||
-            (luma_stride < width) ||
-            (chroma_u_stride * 2 < width) ||
-            (chroma_v_stride * 2 < width) ||
-            (chroma_u_offset < luma_offset + width * height) ||
-            (chroma_v_offset < luma_offset + width * height)) {
+        (luma_stride < width) ||
+        (chroma_u_stride * 2 < width) ||
+        (chroma_v_stride * 2 < width) ||
+        (chroma_u_offset < luma_offset + width * height) ||
+        (chroma_v_offset < luma_offset + width * height)) {
 
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
         DEBUG_FAILURE;
@@ -2894,16 +2893,16 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     }
 
     vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
-            size,
-            kBuf_fourcc,
-            kbuf_handle,
-            luma_stride,
-            chroma_u_stride,
-            chroma_v_stride,
-            luma_offset,
-            chroma_u_offset,
-            chroma_v_offset,
-            psb_surface);
+                                            size,
+                                            kBuf_fourcc,
+                                            kbuf_handle,
+                                            luma_stride,
+                                            chroma_u_stride,
+                                            chroma_v_stride,
+                                            luma_offset,
+                                            chroma_u_offset,
+                                            chroma_v_offset,
+                                            psb_surface);
 
     if (VA_STATUS_SUCCESS != vaStatus) {
         free(psb_surface);

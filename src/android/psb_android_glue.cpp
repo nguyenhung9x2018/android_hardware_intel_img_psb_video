@@ -114,7 +114,7 @@ void psb_android_texture_streaming_set_texture_dim(unsigned short srcw,
 {
     static short saved_srcw, saved_srch;
     if (isurface.get() &&
-       (update_forced || (saved_srcw != srcw) || (saved_srch != srch))) {
+        (update_forced || (saved_srcw != srcw) || (saved_srch != srch))) {
 #if 0
         /*
         Resolve issue - Green line in the bottom of display while video is played
@@ -142,7 +142,7 @@ void psb_android_texture_streaming_set_crop(short srcx,
 {
     static short saved_srcx, saved_srcy, saved_srcw, saved_srch;
     if (isurface.get() &&
-       (update_forced || (saved_srcx != srcx) || (saved_srcy != srcy) || (saved_srcw != srcw) || (saved_srch != srch))) {
+        (update_forced || (saved_srcx != srcx) || (saved_srcy != srcy) || (saved_srcw != srcw) || (saved_srch != srch))) {
         /*assume crop will only be called from app layer*/
         isurface->setTextureStreamClipRect(srcx, srcy, srcw, srch);
         saved_srcx = srcx;
@@ -171,8 +171,8 @@ void psb_android_texture_streaming_set_blend(short destx,
     static unsigned short saved_destx, saved_desty, saved_destw, saved_desth;
     static unsigned int saved_background_color, saved_blend_color;
     static int saved_blend_mode = -1;
-    unsigned short bg_red=0, bg_green=0, bg_blue=0, bg_alpha=0;
-    unsigned short blend_red=0, blend_green=0, blend_blue=0, blend_alpha=0;
+    unsigned short bg_red = 0, bg_green = 0, bg_blue = 0, bg_alpha = 0;
+    unsigned short blend_red = 0, blend_green = 0, blend_blue = 0, blend_alpha = 0;
 
     if (saved_background_color != background_color) {
         bg_alpha = (background_color & 0xff000000) >> 24;

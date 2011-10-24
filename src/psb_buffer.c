@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -216,9 +216,9 @@ VAStatus psb_buffer_reference(psb_driver_data_p driver_data,
 }
 
 VAStatus psb_kbuffer_reference(psb_driver_data_p driver_data,
-                              psb_buffer_p buf,
-                              int kbuf_handle
-                             )
+                               psb_buffer_p buf,
+                               int kbuf_handle
+                              )
 {
     int ret = 0;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -244,14 +244,14 @@ VAStatus psb_kbuffer_reference(psb_driver_data_p driver_data,
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
-    ret = wsbmBOSetReferenced(buf->drm_buf,kbuf_handle );
+    ret = wsbmBOSetReferenced(buf->drm_buf, kbuf_handle);
     UNLOCK_HARDWARE(driver_data);
     if (ret) {
         psb__error_message("failed to alloc wsbm buffers\n");
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
     buf->pl_flags = wsbmBOPlacementHint(buf->drm_buf);
-    
+
     return VA_STATUS_SUCCESS;
 }
 /*

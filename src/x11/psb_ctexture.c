@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
- * Copyright (c) Imagination Technologies Limited, UK 
+ * Copyright (c) Imagination Technologies Limited, UK
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -9,11 +9,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -73,8 +73,8 @@ static VAStatus psb_extend_dri_init(VADriverContextP ctx, unsigned int destx, un
     }
 
     if (texture_priv->extend_dri_drawable) {
-	free_drawable(ctx, texture_priv->extend_dri_drawable);
-	texture_priv->extend_dri_drawable = NULL;
+        free_drawable(ctx, texture_priv->extend_dri_drawable);
+        texture_priv->extend_dri_drawable = NULL;
     }
 
     texture_priv->extend_dri_drawable = dri_get_drawable(ctx, output->extend_drawable);
@@ -118,19 +118,19 @@ static void psb_dri_reset_mem(VADriverContextP ctx)
     struct dri_drawable *tmp_drawable;
     struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
 
-    tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;    
+    tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;
     size = tmp_drawable->width * tmp_drawable->height * 4;
 
     if (!tmp_drawable->is_window) {
-	memset(texture_priv->blt_meminfo_pixmap->pBase, 0x0, size);
-	return;
+        memset(texture_priv->blt_meminfo_pixmap->pBase, 0x0, size);
+        return;
     } else {
-	if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS)
-	    for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++)
-		memset(texture_priv->blt_meminfo[i]->pBase, 0x0, size);
-	if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN)
-	    for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++)
-		memset(texture_priv->blt_meminfo[i]->pBase, 0x0, size);
+        if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS)
+            for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++)
+                memset(texture_priv->blt_meminfo[i]->pBase, 0x0, size);
+        if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN)
+            for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++)
+                memset(texture_priv->blt_meminfo[i]->pBase, 0x0, size);
     }
 
     return;
@@ -147,8 +147,8 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
 
     /* free the previous drawable buffer */
     if (texture_priv->dri_drawable) {
-	free_drawable(ctx, texture_priv->dri_drawable);
-	texture_priv->dri_drawable = NULL;
+        free_drawable(ctx, texture_priv->dri_drawable);
+        texture_priv->dri_drawable = NULL;
     }
 
     texture_priv->dri_drawable = dri_get_drawable(ctx, draw);
@@ -156,7 +156,7 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
         psb__error_message("%s(): Failed to get dri_drawable\n", __func__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
-    tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;    
+    tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;
 
     dri_buffer = dri_get_rendering_buffer(ctx, texture_priv->dri_drawable);
     if (!dri_buffer) {
@@ -166,47 +166,47 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
 
     /* pixmap */
     if (!tmp_drawable->is_window) {
-	if (texture_priv->blt_meminfo_pixmap)
-	    PVR2DMemFree(driver_data->hPVR2DContext, texture_priv->blt_meminfo_pixmap);
+        if (texture_priv->blt_meminfo_pixmap)
+            PVR2DMemFree(driver_data->hPVR2DContext, texture_priv->blt_meminfo_pixmap);
 
         ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &texture_priv->blt_meminfo_pixmap);
         if (ret != PVR2D_OK) {
             psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
-    /* window */
+        /* window */
     } else {
-	ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &dri2_bb_export_meminfo);
-	if (ret != PVR2D_OK) {
+        ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &dri2_bb_export_meminfo);
+        if (ret != PVR2D_OK) {
             psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
-	}
+        }
 
-	memcpy(&texture_priv->dri2_bb_export, dri2_bb_export_meminfo->pBase, sizeof(PVRDRI2BackBuffersExport));
+        memcpy(&texture_priv->dri2_bb_export, dri2_bb_export_meminfo->pBase, sizeof(PVRDRI2BackBuffersExport));
 
-	if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS) {
+        if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS) {
             psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS\n");
 
-	    for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
-		ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->blt_meminfo[i]);
-		if (ret != PVR2D_OK) {
-		    psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
-		    return VA_STATUS_ERROR_UNKNOWN;
-		}
-	    }
-	} else if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN) {
+            for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
+                ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->blt_meminfo[i]);
+                if (ret != PVR2D_OK) {
+                    psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+                    return VA_STATUS_ERROR_UNKNOWN;
+                }
+            }
+        } else if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN) {
             psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN\n");
 
-	    for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++) {
-		ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->flip_meminfo[i]);
-		if (ret != PVR2D_OK) {
-		    psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
-		    return VA_STATUS_ERROR_UNKNOWN;
-		}
-	    }
-	}
+            for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++) {
+                ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->flip_meminfo[i]);
+                if (ret != PVR2D_OK) {
+                    psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+                    return VA_STATUS_ERROR_UNKNOWN;
+                }
+            }
+        }
 
-	PVR2DMemFree(driver_data->hPVR2DContext, dri2_bb_export_meminfo);
+        PVR2DMemFree(driver_data->hPVR2DContext, dri2_bb_export_meminfo);
     }
 
     texture_priv->dri_init_flag = 1;
@@ -459,7 +459,7 @@ VAStatus psb_putsurface_ctexture(
     }
 
     /* Main Video for pixmap*/
-    tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;    
+    tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;
     if (!tmp_drawable->is_window) {
         psb__information_message("psb_putsurface_ctexture: Main video Pixmap, coordinate: srcx= %d, srcy=%d, srcw=%d, srch=%d, destx=%d, desty=%d, destw=%d, desth=%d, cur_buffer=%d\n",
                                  srcx, srcy, srcw, srch, destx, desty, destw, desth, texture_priv->current_blt_buffer);

@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -186,7 +186,7 @@ int lnc_ospm_start(psb_driver_data_p driver_data, int encode)
         */
     } else if (IS_MFLD(driver_data)) {
         psb__information_message("OSPM:set PM_QoS parameters\n");
-	return 0;
+        return 0;
         /*
         if (encode)
             lnc_handle_pm_qos(driver_data);
@@ -229,7 +229,7 @@ int lnc_ospm_stop(psb_driver_data_p driver_data, int encode)
         if (encode)
             lnc_handle_pm_qos(driver_data);
         */
-	return 0;
+        return 0;
     }
 
     if (encode) {
