@@ -2093,6 +2093,8 @@ static void pnw__H264_writebits_AUD_header(
     return;
 }
 
+#define SEI_NOT_USE_TOKEN_ALIGN
+
 static void pnw__H264_writebits_SEI_buffering_period_header(
     MTX_HEADER_PARAMS *pMTX_Header,
     MTX_HEADER_ELEMENT **aui32ElementPointers,
@@ -2118,7 +2120,7 @@ static void pnw__H264_writebits_SEI_buffering_period_header(
 
     pnw__H264_writebits_startcode_prefix_element(pMTX_Header,
             aui32ElementPointers,
-            3); // 00 00 01 start code prefix
+            4); // 00 00 01 start code prefix
 
     pnw__write_upto8bits_elements(pMTX_Header,
                                   aui32ElementPointers,
@@ -2156,19 +2158,28 @@ static void pnw__H264_writebits_SEI_buffering_period_header(
             // For the 1st buffering period after HARDWARE REFERENCE DECODER initialisation.
             // pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_NAL_INIT_CPB_REMOVAL_DELAY); // Eventually use this if firmware value required
 
-            //pnw__write_upto32bits_elements(pMTX_Header, aui32ElementPointers, ui32nal_initial_cpb_removal_delay, ui8nal_initial_cpb_removal_delay_length);
+            pnw__write_upto32bits_elements(pMTX_Header, aui32ElementPointers,
+		    ui32nal_initial_cpb_removal_delay,
+		    ui8nal_initial_cpb_removal_delay_length);
+
+/*
             pnw__insert_element_token(pMTX_Header,
                                       aui32ElementPointers,
-                                      BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY);
+                                      BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY);*/
 
             // ui32nal_initial_cpb_removal_delay_offset = used for the SchedSelIdx-th CPB in combination with the cpb_removal_delay to
             // specify the initial delivery time of coded access units to the CODED PICTURE BUFFER initial_cpb_removal_delay_offset
             // Delay is based on the time taken for a 90 kHz clock.
             // NOT USED BY DECODERS and is needed only for the delivery scheduler (HSS) specified in Annex C
 
-            pnw__insert_element_token(pMTX_Header,
+            pnw__write_upto32bits_elements(pMTX_Header, aui32ElementPointers,
+		    ui32nal_initial_cpb_removal_delay_offset,
+		    ui8nal_initial_cpb_removal_delay_length);
+
+            /*pnw__insert_element_token(pMTX_Header,
                                       aui32ElementPointers,
-                                      BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_OFFSET);
+                                      BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_OFFSET);*/
+
         }
     }
     if (ui8VclHrdBpPresentFlag) {
@@ -2203,6 +2214,10 @@ static void pnw__H264_writebits_SEI_buffering_period_header(
                                       1 << (ui8Pad - 1),
                                       ui8Pad); // SEI payload type (buffering period)
 #else
+    pnw__write_upto8bits_elements(pMTX_Header,
+                                  aui32ElementPointers,
+                                  1, 1); // rbsp_trailing_bits
+
     pnw__insert_element_token(pMTX_Header,
                               aui32ElementPointers,
                               ELEMENT_INSERTBYTEALIGN_H264);
@@ -2258,7 +2273,7 @@ static void pnw__H264_writebits_SEI_picture_timing_header(
 
     pnw__H264_writebits_startcode_prefix_element(pMTX_Header,
             aui32ElementPointers,
-            3); // 00 00 01 start code prefix
+            4); // 00 00 01 start code prefix
 
     pnw__write_upto8bits_elements(pMTX_Header,
                                   aui32ElementPointers,

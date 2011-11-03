@@ -900,7 +900,7 @@ static void psb__MPEG2_write_VLC_tables(context_MPEG2_p ctx)
 
     /* Write the vec registers with the index data for each of the tables and then write    */
     /* the actual table data.                                                                */
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_VLC_TABLE_ADDR0),            ADDR0);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_VLC_TABLE_ADDR1),            ADDR1);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_VLC_TABLE_ADDR2),            ADDR2);
@@ -1060,7 +1060,7 @@ static void psb__MPEG2_set_picture_header(context_MPEG2_p ctx, VASliceParameterB
     uint32_t FE_slice;
     uint32_t BE_slice;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* VEC Control register: Front-End MPEG2 PPS0 */
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_MPEG2, CR_VEC_MPEG2_FE_PPS0) , ctx->FE_PPS0);
@@ -1227,7 +1227,7 @@ static void psb__MPEG2_set_ent_dec(context_MPEG2_p ctx)
 
     uint32_t cmd_data;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     cmd_data = 0;     /* Entdec Front-End controls    */
     REGIO_WRITE_FIELD_LITE(cmd_data, MSVDX_VEC,  CR_VEC_ENTDEC_FE_CONTROL,  ENTDEC_FE_PROFILE, 1); /* MPEG2 Main Profile */
@@ -1418,7 +1418,7 @@ static void psb__MEPG2_send_highlevel_cmd(context_MPEG2_p ctx)
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE), ctx->display_picture_size);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, CODED_PICTURE_SIZE), ctx->coded_picture_size);
 
@@ -1456,7 +1456,7 @@ static void psb__MEPG2_send_highlevel_cmd(context_MPEG2_p ctx)
     psb_cmdbuf_reg_end_block(cmdbuf);
 
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
     psb_cmdbuf_reg_set_RELOC(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS),
                              &target_surface->buf, target_surface->buf.buffer_ofs);
 
@@ -1472,7 +1472,7 @@ static void psb__MEPG2_send_blit_cmd(context_MPEG2_p ctx)
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
     cmd = 0;
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
     REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);

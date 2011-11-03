@@ -33,6 +33,7 @@
 #include "psb_surface.h"
 #include "pnw_cmdbuf.h"
 #include "pnw_hostjpeg.h"
+#include "pnw_hostheader.h"
 
 #define TOPAZ_PIC_PARAMS_VERBOSE 0
 
@@ -311,6 +312,11 @@ struct context_ENC_s {
     IMG_INT16 num_air_mbs;
     IMG_INT16 air_threshold;
 
+    uint32_t buffer_size;
+    uint32_t initial_buffer_fullness;
+
+    H264_VUI_PARAMS VUI_Params;
+
     /*H264 idr_pic_id field in slice header*/
     uint16_t idr_pic_id;
 };
@@ -353,6 +359,9 @@ typedef struct context_ENC_s *context_ENC_p;
 #define BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE 23
 #define PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE 23
 #define PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE 7
+
+#define FW_TOKEN_USED 0
+#define NOT_USED_BY_TOPAZ 0
 
 typedef struct {
     /* Transferred into the input params area of the macroblock parameter structure*/

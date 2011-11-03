@@ -51,43 +51,7 @@ using namespace android;
 #define LOG_TAG "pvr_drv_video"
 
 sp<ISurface> isurface;
-ISurface::BufferHeap mBufferHeap;
 unsigned int update_forced;
-
-unsigned char* psb_android_registerBuffers(void** android_isurface, int pid, int width, int height)
-{
-    sp<MemoryHeapBase> heap;
-    int framesize = width * height * 2;
-
-    heap = new MemoryHeapBase(framesize);
-    if (heap->heapID() < 0) {
-        printf("Error creating frame buffer heap");
-        return 0;
-    }
-
-    mBufferHeap = ISurface::BufferHeap(width, height, width, height, PIXEL_FORMAT_RGB_565, heap);
-
-    isurface = static_cast<ISurface*>(*android_isurface);
-
-    isurface->registerBuffers(mBufferHeap);
-
-    return static_cast<uint8_t*>(mBufferHeap.heap->base());
-}
-
-void psb_android_postBuffer(int offset)
-{
-    if (isurface.get())
-        isurface->postBuffer(offset);
-}
-
-//called in DestroySurfaces
-void psb_android_clearHeap()
-{
-    if (isurface.get()) {
-        isurface->unregisterBuffers();
-        mBufferHeap.heap.clear();
-    }
-}
 
 int psb_android_register_isurface(void** android_isurface, int bcd_id, int srcw, int srch)
 {
@@ -95,7 +59,8 @@ int psb_android_register_isurface(void** android_isurface, int bcd_id, int srcw,
         isurface = static_cast<ISurface*>(*android_isurface);
         if (isurface.get()) {
             isurface->createTextureStreamSource();
-            LOGD("In psb_android_register_isurface: buffer_device_id is %d, srcw is %d, srch is %d.\n", bcd_id, srcw, srch);
+            LOGD("BCD: register BCD buffers to isurface (BCD id:%d, %dx%d)\n",
+                 bcd_id, srcw, srch);
             isurface->setTextureStreamID(bcd_id);
             isurface->setTextureStreamDim(srcw, srch);
             isurface->resetTextureStreamParams();
@@ -126,7 +91,7 @@ void psb_android_texture_streaming_set_texture_dim(unsigned short srcw,
         else
             isurface->setTextureStreamDim(srcw, srch - 1);
 #else
-        LOGD("In psb_android_texture_streaming_set_texture_dim: srcw is %d, srch is %d.\n", srcw, srch);
+        LOGD("BCD: set texture dimension: %dx%d\n", srcw, srch);
         /*surface flinger will do the upper height correction*/
         isurface->setTextureStreamDim(srcw, srch);
 #endif

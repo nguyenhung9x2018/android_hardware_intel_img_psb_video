@@ -147,6 +147,8 @@ static VAStatus pnw_H264ES_CreateContext(
 
     ctx->Slices = 1;
     ctx->idr_pic_id = 1;
+    ctx->buffer_size = 0;
+    ctx->initial_buffer_fullness = 0;
 
     if (getenv("PSB_VIDEO_SIG_CORE") == NULL) {
         ctx->Slices = 2;
@@ -197,7 +199,7 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
 {
     VAEncSequenceParameterBufferH264 *pSequenceParams;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
-    H264_VUI_PARAMS VUI_Params;
+    H264_VUI_PARAMS *pVUI_Params = &(ctx->VUI_Params);
     H264_CROP_PARAMS sCrop;
     int i;
 
@@ -249,9 +251,27 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     else
         ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
 
-    ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond;
-    ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
-    ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
+    if (ctx->buffer_size != 0) {
+	/* It's calculated according the formula in ticket 16288. */
+	if (ctx->initial_buffer_fullness > ctx->sRCParams.BitsPerSecond) {
+	    psb__error_message("initial_buffer_fullnes(%d) shouldn't"
+		    " be larger than bitrate(%d)\n",
+		    ctx->initial_buffer_fullness,
+		    ctx->sRCParams.BitsPerSecond);
+	    free(pSequenceParams);
+	    return VA_STATUS_ERROR_INVALID_PARAMETER;
+	}
+	ctx->sRCParams.BufferSize = ctx->buffer_size;
+	ctx->sRCParams.InitialLevel = ctx->buffer_size - ctx->initial_buffer_fullness;
+	ctx->sRCParams.InitialDelay = ctx->initial_buffer_fullness;
+    }
+    else {
+	ctx->buffer_size = ctx->sRCParams.BitsPerSecond;
+	ctx->initial_buffer_fullness = ctx->sRCParams.BitsPerSecond;
+	ctx->sRCParams.BufferSize = ctx->buffer_size;
+	ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
+	ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
+   }
 
     if (ctx->obj_context->frame_count == 0) { /* Add Register IO behind begin Picture */
         pnw__UpdateRCBitsTransmitted(ctx);
@@ -263,14 +283,14 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
         //cmdbuf->cmd_idx++;
     }
 
-    VUI_Params.Time_Scale = ctx->sRCParams.FrameRate * 2;
-    VUI_Params.bit_rate_value_minus1 = ctx->sRCParams.BitsPerSecond / 64 - 1;
-    VUI_Params.cbp_size_value_minus1 = ctx->sRCParams.BitsPerSecond / 640 - 1;
-    VUI_Params.CBR = ((IMG_CODEC_H264_CBR == ctx->eCodec) ? 1 : 0);
-    VUI_Params.initial_cpb_removal_delay_length_minus1 = BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE - 1;
-    VUI_Params.cpb_removal_delay_length_minus1 = PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE - 1;
-    VUI_Params.dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
-    VUI_Params.time_offset_length = 24;
+    pVUI_Params->Time_Scale = ctx->sRCParams.FrameRate * 2;
+    pVUI_Params->bit_rate_value_minus1 = ctx->sRCParams.BitsPerSecond / 64 - 1;
+    pVUI_Params->cbp_size_value_minus1 = ctx->sRCParams.BufferSize / 64 - 1;
+    pVUI_Params->CBR = ((IMG_CODEC_H264_CBR == ctx->eCodec) ? 1 : 0);
+    pVUI_Params->initial_cpb_removal_delay_length_minus1 = BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE - 1;
+    pVUI_Params->cpb_removal_delay_length_minus1 = PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE - 1;
+    pVUI_Params->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
+    pVUI_Params->time_offset_length = 24;
 
     sCrop.bClip = IMG_FALSE;
     sCrop.LeftCropOffset = 0;
@@ -297,12 +317,26 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
            0,
            HEADER_SIZE);
 
+    /*
+    if (ctx->bInserHRDParams) {
+	memset(cmdbuf->header_mem_p + ctx->aud_header_ofs,
+		0,
+		HEADER_SIZE);
+
+	pnw__H264_prepare_AUD_header(cmdbuf->header_mem_p + ctx->aud_header_ofs);
+	pnw_cmdbuf_insert_command_package(ctx->obj_context,
+		ctx->ParallelCores - 1,
+		MTX_CMDID_DO_HEADER,
+		&cmdbuf->header_mem,
+		ctx->aud_header_ofs);
+    }
+*/
     if (ctx->eCodec == IMG_CODEC_H264_NO_RC)
         pnw__H264_prepare_sequence_header(cmdbuf->header_mem_p + ctx->seq_header_ofs,
                                           pSequenceParams->picture_width_in_mbs,
                                           pSequenceParams->picture_height_in_mbs,
                                           pSequenceParams->vui_flag,
-                                          pSequenceParams->vui_flag ? (&VUI_Params) : NULL,
+                                          pSequenceParams->vui_flag ? (pVUI_Params) : NULL,
                                           &sCrop,
                                           pSequenceParams->level_idc, ctx->profile_idc);
     else
@@ -310,7 +344,7 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
                                           pSequenceParams->picture_width_in_mbs,
                                           pSequenceParams->picture_height_in_mbs,
                                           pSequenceParams->vui_flag,
-                                          pSequenceParams->vui_flag ? (&VUI_Params) : NULL,
+                                          pSequenceParams->vui_flag ? (pVUI_Params) : NULL,
                                           &sCrop,
                                           pSequenceParams->level_idc, ctx->profile_idc);
 
@@ -420,6 +454,74 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
                                               &cmdbuf->header_mem,
                                               ctx->seq_header_ofs);
         }
+
+	if (ctx->bInserHRDParams) {
+	    unsigned int ui32nal_initial_cpb_removal_delay;
+	    unsigned int ui32nal_initial_cpb_removal_delay_offset;
+	    ui32nal_initial_cpb_removal_delay =
+		90000 * (1.0 * ctx->sRCParams.InitialDelay / ctx->sRCParams.BitsPerSecond);
+	    ui32nal_initial_cpb_removal_delay_offset =
+		90000 - ui32nal_initial_cpb_removal_delay;
+
+	    memset(cmdbuf->header_mem_p + ctx->sei_buf_prd_ofs,
+		    0,
+		    HEADER_SIZE);
+
+	    memset(cmdbuf->header_mem_p + ctx->sei_pic_tm_ofs,
+		    0,
+		    HEADER_SIZE);
+
+	    pnw__H264_prepare_SEI_buffering_period_header(
+		    (MTX_HEADER_PARAMS *)(cmdbuf->header_mem_p + ctx->sei_buf_prd_ofs),
+		    1, //ui8NalHrdBpPresentFlag,
+		    0, //ui8nal_cpb_cnt_minus1,
+		    1 + ctx->VUI_Params.initial_cpb_removal_delay_length_minus1, //ui8nal_initial_cpb_removal_delay_length,
+		    ui32nal_initial_cpb_removal_delay, //ui32nal_initial_cpb_removal_delay,
+		    ui32nal_initial_cpb_removal_delay_offset, //ui32nal_initial_cpb_removal_delay_offset,
+		    0, //ui8VclHrdBpPresentFlag,
+		    NOT_USED_BY_TOPAZ, //ui8vcl_cpb_cnt_minus1,
+		    0, //ui32vcl_initial_cpb_removal_delay,
+		    0 //ui32vcl_initial_cpb_removal_delay_offset
+		    );
+	    pnw_cmdbuf_insert_command_package(ctx->obj_context,
+		    ctx->ParallelCores - 1,
+		    MTX_CMDID_DO_HEADER,
+		    &cmdbuf->header_mem,
+		    ctx->sei_buf_prd_ofs);
+
+	    pnw__H264_prepare_SEI_picture_timing_header(
+		    (MTX_HEADER_PARAMS *)(cmdbuf->header_mem_p + ctx->sei_pic_tm_ofs),
+		    1,
+		    ctx->VUI_Params.cpb_removal_delay_length_minus1,
+		    ctx->VUI_Params.dpb_output_delay_length_minus1,
+		    0, //ui32cpb_removal_delay,
+		    2, //ui32dpb_output_delay,
+		    0, //ui8pic_struct_present_flag,
+		    0, //ui8pic_struct,
+		    0, //ui8NumClockTS,
+		    0, //*aui8clock_timestamp_flag,
+		    0, //ui8full_timestamp_flag,
+		    0, //ui8seconds_flag,
+		    0, //ui8minutes_flag,
+		    0, //ui8hours_flag,
+		    0, //ui8seconds_value,
+		    0, //ui8minutes_value,
+		    0, //ui8hours_value,
+		    0, //ui8ct_type,
+		    0, //ui8nuit_field_based_flag,
+		    0, //ui8counting_type,
+		    0, //ui8discontinuity_flag,
+		    0, //ui8cnt_dropped_flag,
+		    0, //ui8n_frames,
+		    0, //ui8time_offset_length,
+		    0 //i32time_offset)
+	    );
+	    pnw_cmdbuf_insert_command_package(ctx->obj_context,
+		    ctx->ParallelCores - 1,
+		    MTX_CMDID_DO_HEADER,
+		    &cmdbuf->header_mem,
+		    ctx->sei_pic_tm_ofs);
+	}
 
         pnw__H264_prepare_picture_header(cmdbuf->header_mem_p + ctx->pic_header_ofs, IMG_FALSE, ctx->sRCParams.QCPOffset);
 
@@ -650,8 +752,9 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     VAEncMiscParameterAIR *air_param;
     VAEncMiscParameterMaxSliceSize *max_slice_size_param;
     VAEncMiscParameterFrameRate *frame_rate_param;
-
+    VAEncMiscParameterHRD *hrd_param;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+
     if (ctx->eCodec != IMG_CODEC_H264_VCM) {
         psb__information_message("Only VCM mode allow rate control setting.Ignore.\n");
         return VA_STATUS_SUCCESS;
@@ -661,6 +764,14 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     /* Transfer ownership of VAEncMiscParameterBuffer data */
     pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
     obj_buffer->size = 0;
+
+    if (ctx->eCodec != IMG_CODEC_H264_VCM
+	    && pBuffer->type != VAEncMiscParameterTypeHRD) {
+        psb__information_message("Only VCM mode allow rate control setting.Ignore.\n");
+	free(obj_buffer->buffer_data);
+	obj_buffer->buffer_data = NULL;
+	return VA_STATUS_SUCCESS;
+    }
 
     switch (pBuffer->type) {
     case VAEncMiscParameterTypeFrameRate:
@@ -773,6 +884,37 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
         //ctx->autotune_air_flag = air_param->air_auto;
 
         break;
+
+    case VAEncMiscParameterTypeHRD:
+	hrd_param = (VAEncMiscParameterHRD *)pBuffer->data;
+	if (hrd_param->buffer_size == 0
+		|| ctx->initial_buffer_fullness == 0) {
+	    vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+	    break;
+	}
+
+	if (ctx->initial_buffer_fullness > ctx->buffer_size) {
+	    psb__error_message("initial_buffer_fullnessi(%d) shouldn't be"
+		   " larger that buffer_size(%d)!\n",
+		   hrd_param->initial_buffer_fullness,
+		   hrd_param->buffer_size);
+	    vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+	    break;
+	}
+
+	if (!ctx->sRCParams.RCEnable) {
+	    psb__error_message("Only when rate control is enabled,"
+		    " VAEncMiscParameterTypeHRD will take effect.\n");
+	    break;
+	}
+
+	ctx->buffer_size = hrd_param->buffer_size;
+	ctx->initial_buffer_fullness = hrd_param->initial_buffer_fullness;
+        psb__information_message("hrd param buffer_size set to %d "
+                                 "initial buffer fullness set to %d\n",
+                                 ctx->buffer_size, ctx->initial_buffer_fullness);
+
+	break;
 
     default:
         vaStatus = VA_STATUS_ERROR_UNKNOWN;

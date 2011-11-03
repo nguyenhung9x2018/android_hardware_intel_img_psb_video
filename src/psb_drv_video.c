@@ -589,14 +589,26 @@ VAStatus psb_CreateConfig(
     }
 
     if ((IS_MFLD(driver_data)) &&
-        (VAEntrypointEncPicture == entrypoint)) {
-        /*Only allow one encoding entrypoint at the sametime.*/
-        if (psb_get_active_entrypoint_number(ctx, VAEntrypointEncSlice) > 0 ||
-            psb_get_active_entrypoint_number(ctx, VAEntrypointEncPicture)) {
-            psb__error_message("There already is a active encoding entrypoint %d.\n",
-                               entrypoint);
-            return VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-        }
+        ((VAEntrypointEncPicture == entrypoint)
+	|| (VAEntrypointEncSlice == entrypoint))) {
+	int active_slc, active_pic;
+        /* Only allow one encoding entrypoint at the sametime.
+	 * But if video encoding request comes when process JPEG encoding,
+	 * it will wait until current JPEG picture encoding finish.
+	 * Further JPEG encoding should fall back to software path.*/
+	active_slc = psb_get_active_entrypoint_number(ctx, VAEntrypointEncSlice);
+	active_pic = psb_get_active_entrypoint_number(ctx, VAEntrypointEncPicture);
+
+	if (active_slc > 0) {
+	    psb__error_message("There already is a active video encoding entrypoint."
+		   "Entrypoint %d isn't available.\n", entrypoint);
+	    return VA_STATUS_ERROR_HW_BUSY;
+	}
+	else if (active_pic > 0 && VAEntrypointEncPicture == entrypoint) {
+	    psb__error_message("There already is a active picture encoding entrypoint."
+		   "Entrypoint %d isn't available.\n", entrypoint);
+	    return VA_STATUS_ERROR_HW_BUSY;
+	}
     }
 
     configID = object_heap_allocate(&driver_data->config_heap);
@@ -647,6 +659,13 @@ VAStatus psb_CreateConfig(
         && (profile == VAProfileH264ConstrainedBaseline)) {
         psb__information_message("profile is VAProfileH264ConstrainedBaseline, error concealment is enabled. \n");
         driver_data->ec_enabled = 1;
+#ifdef MFLD_ERROR_CONCEALMENT
+    } else if(IS_MFLD(driver_data) &&
+        (getenv("PSB_VIDEO_NOEC") == NULL)
+        && (profile == VAProfileH264ConstrainedBaseline)) {
+        psb__information_message("profile is VAProfileH264ConstrainedBaseline, error concealment is enabled. \n");
+        driver_data->ec_enabled = 1;
+#endif
     } else {
         driver_data->ec_enabled = 0;
     }
@@ -2356,7 +2375,11 @@ VAStatus psb_QuerySurfaceError(
         return vaStatus;
     }
 
+#ifdef MFLD_ERROR_CONCEALMENT
+    if (driver_data->ec_enabled == 0) {
+#else
     if (!IS_MRST(driver_data) || (driver_data->ec_enabled == 0)) {
+#endif
         psb__information_message("error concealment is not supported for this profile.\n");
         error_info = NULL;
         return VA_STATUS_ERROR_UNKNOWN;

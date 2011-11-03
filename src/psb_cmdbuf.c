@@ -1016,24 +1016,36 @@ int psb_context_submit_host_be_opp(object_context_p obj_context, psb_buffer_p ds
 {
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     uint32_t msg_size = FW_VA_HOST_BE_OPP_SIZE;
+    psb_driver_data_p driver_data = obj_context->driver_data;
+    uint32_t *msg;
 
     if ((NULL == cmdbuf) || (((0 == cmdbuf->cmd_count) && (0 == cmdbuf->host_be_opp_count) &&
                               (0 == cmdbuf->deblock_count)) || (0 == cmdbuf->frame_info_count))) {
         psb_context_get_next_cmdbuf(obj_context);
         cmdbuf = obj_context->cmdbuf;
     }
-    uint32_t *msg = (uint32_t *)(cmdbuf->MTX_msg + cmdbuf->cmd_count * FW_VA_RENDER_SIZE +
-                                 cmdbuf->oold_count * FW_VA_OOLD_SIZE + cmdbuf->frame_info_count * FW_VA_FRAME_INFO_SIZE);
+
+    if (!IS_MFLD(driver_data))
+        msg = cmdbuf->MTX_msg + cmdbuf->cmd_count * FW_VA_RENDER_SIZE +
+              cmdbuf->oold_count * FW_VA_OOLD_SIZE + cmdbuf->frame_info_count * FW_VA_FRAME_INFO_SIZE;
+    else
+        msg = cmdbuf->MTX_msg + cmdbuf->cmd_count * FW_DEVA_DECODE_SIZE +
+              cmdbuf->oold_count * FW_VA_OOLD_SIZE + cmdbuf->frame_info_count * FW_VA_FRAME_INFO_SIZE;
 
     /* psb__information_message("Send host be opp cmd\n"); */
 
     cmdbuf->host_be_opp_count++;
     memset(msg, 0, msg_size);
 
-    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE, 16); /* Deblock message size is 16 bytes */
+    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE, FW_VA_HOST_BE_OPP_SIZE);
     MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID, DAVA_MSGID_HOST_BE_OPP);
 
-    MEMIO_WRITE_FIELD(msg, FW_VA_HOST_BE_OPP_CONTEXT, ((obj_context->msvdx_context >> 8) | 0x1));
+    if (!IS_MFLD(driver_data)) {
+        MEMIO_WRITE_FIELD(msg, FW_VA_HOST_BE_OPP_CONTEXT, ((obj_context->msvdx_context >> 8) | 0x1));
+    } else {
+        /* context is 8 bits on MFLD DDK3.0 */
+        MEMIO_WRITE_FIELD(msg, FW_VA_HOST_BE_OPP_CONTEXT, (obj_context->msvdx_context));
+    }
     MEMIO_WRITE_FIELD(msg, FW_VA_HOST_BE_OPP_FLAGS, FW_VA_RENDER_HOST_INT | FW_ERROR_DETECTION_AND_RECOVERY);
 
     return 0;
@@ -1151,6 +1163,7 @@ int psb_context_submit_cmdbuf(object_context_p obj_context)
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_CONTEXT, (obj_context->msvdx_context)); /* context is 8 bits */
 
         /* Point to CMDBUFFER */
+#ifndef DE3_FIRMWARE
         uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf,
                                        &(cmdbuf->buf), (cmdbuf->cmd_start - cmdbuf->cmd_base) /* offset */,
                                        cmdbuffer_size,
@@ -1159,7 +1172,10 @@ int psb_context_submit_cmdbuf(object_context_p obj_context)
         /* This is the last relocation */
         RELOC_MSG(*(msg + (FW_DEVA_DECODE_LLDMA_ADDRESS_OFFSET / sizeof(uint32_t))),
                   lldma_record_offset, &(cmdbuf->buf));
-
+#else
+        RELOC_MSG(*(msg + (FW_DEVA_DECODE_LLDMA_ADDRESS_OFFSET / sizeof(uint32_t))),
+                  (cmdbuf->cmd_start - cmdbuf->cmd_base), &(cmdbuf->buf));
+#endif
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_BUFFER_SIZE,          cmdbuffer_size / 4); // In dwords
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE,       obj_context->operating_mode);
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_FLAGS,                obj_context->flags);
@@ -1244,7 +1260,11 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
             (bBatchEnd ? FW_VA_RENDER_HOST_INT : FW_VA_RENDER_NO_RESPONCE_MSG) |
             (obj_context->video_op == psb_video_vld    ? FW_VA_RENDER_IS_VLD_NOT_MC : 0);
 
+#ifdef MFLD_ERROR_CONCEALMENT
+        if (driver_data->ec_enabled)
+#else
         if (driver_data->ec_enabled && IS_MRST(driver_data))
+#endif
             flags |= FW_ERROR_DETECTION_AND_RECOVERY;
 
         if (IS_MFLD(driver_data)) {
@@ -1637,6 +1657,47 @@ void psb_cmdbuf_lldma_write_cmdbuf(psb_cmdbuf_p cmdbuf,
                                      dest_offset, cmd);
 }
 
+void *psb_cmdbuf_alloc_space(psb_cmdbuf_p cmdbuf, uint32_t byte_size)
+{
+    void *pos = (void *)cmdbuf->cmd_idx;
+    ASSERT(!(byte_size % 4));
+
+    cmdbuf->cmd_idx += (byte_size / 4);
+
+    return pos;
+}
+
+void psb_cmdbuf_dma_write_cmdbuf(psb_cmdbuf_p cmdbuf,
+                                   psb_buffer_p bitstream_buf,
+                                   uint32_t buffer_offset,
+                                   uint32_t size,
+                                   uint32_t dest_offset,
+                                   DMA_TYPE type)
+{
+    ASSERT(size < 0xFFFF);
+    ASSERT(buffer_offset < 0xFFFF);
+
+    DMA_CMD_WITH_OFFSET* dma_cmd;
+
+    if(dest_offset==0)
+    {
+            dma_cmd = (DMA_CMD_WITH_OFFSET*)psb_cmdbuf_alloc_space(cmdbuf, sizeof(DMA_CMD));
+            dma_cmd->ui32Cmd = 0;
+    }
+    else
+    {
+            dma_cmd = (DMA_CMD_WITH_OFFSET*)psb_cmdbuf_alloc_space(cmdbuf, sizeof(DMA_CMD_WITH_OFFSET));
+            dma_cmd->ui32Cmd = CMD_DMA_OFFSET_FLAG; // Set flag indicating that offset is deffined
+            dma_cmd->ui32ByteOffset = dest_offset;
+    }
+
+    dma_cmd->ui32Cmd |= CMD_DMA;
+    dma_cmd->ui32Cmd |= (IMG_UINT32)type;
+    dma_cmd->ui32Cmd |= size;
+    /* dma_cmd->ui32DevVirtAdd  = ui32DevVirtAddress; */
+    RELOC(dma_cmd->ui32DevVirtAdd, buffer_offset, bitstream_buf);
+}
+
 uint32_t psb_cmdbuf_lldma_create(psb_cmdbuf_p cmdbuf,
                                  psb_buffer_p bitstream_buf,
                                  uint32_t buffer_offset,
@@ -1692,6 +1753,43 @@ void psb_cmdbuf_lldma_write_bitstream(psb_cmdbuf_p cmdbuf,
 }
 
 /*
+ * Write a CMD_SR_SETUP referencing a bitstream buffer to the command buffer
+ */
+void psb_cmdbuf_dma_write_bitstream(psb_cmdbuf_p cmdbuf,
+                                      psb_buffer_p bitstream_buf,
+                                      uint32_t buffer_offset,
+                                      uint32_t size_in_bytes,
+                                      uint32_t offset_in_bits,
+                                      uint32_t flags)
+{
+    /*
+     * We use byte alignment instead of 32bit alignment.
+     * The third frame of sa10164.vc1 results in the following bitstream
+     * patttern:
+     * [0000] 00 00 03 01 76 dc 04 8d
+     * with offset_in_bits = 0x1e
+     * This causes an ENTDEC failure because 00 00 03 is a start code
+     * By byte aligning the datastream the start code will be eliminated.
+     */
+//don't need to change the offset_in_bits, size_in_bytes and buffer_offset
+#if 0
+#define ALIGNMENT        sizeof(uint8_t)
+    uint32_t bs_offset_in_dwords    = ((offset_in_bits / 8) / ALIGNMENT);
+    size_in_bytes                   -= bs_offset_in_dwords * ALIGNMENT;
+    offset_in_bits                  -= bs_offset_in_dwords * 8 * ALIGNMENT;
+    buffer_offset                   += bs_offset_in_dwords * ALIGNMENT;
+#endif
+
+    *cmdbuf->cmd_idx++ = CMD_SR_SETUP | flags;
+    *cmdbuf->cmd_idx++ = offset_in_bits;
+    cmdbuf->cmd_bitstream_size = cmdbuf->cmd_idx;
+    *cmdbuf->cmd_idx++ = size_in_bytes;
+    *cmdbuf->cmd_idx++ = (CMD_BITSTREAM_DMA | size_in_bytes);
+    RELOC(*cmdbuf->cmd_idx++, buffer_offset, bitstream_buf);
+}
+
+
+/*
  * Chain a LLDMA bitstream command to the previous one
  */
 void psb_cmdbuf_lldma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
@@ -1709,6 +1807,19 @@ void psb_cmdbuf_lldma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
 #ifdef DEBUG_TRACE
     //psb__debug_schedule_hexdump("Bitstream (chained)", bitstream_buf, 0, size_in_bytes);
 #endif
+
+    *(cmdbuf->cmd_bitstream_size) += size_in_bytes;
+}
+
+/*
+ * Chain a LLDMA bitstream command to the previous one
+ */
+void psb_cmdbuf_dma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
+        psb_buffer_p bitstream_buf,
+        uint32_t size_in_bytes)
+{
+    *cmdbuf->cmd_idx++ = (CMD_BITSTREAM_DMA | size_in_bytes);
+    RELOC(*cmdbuf->cmd_idx++, bitstream_buf->buffer_ofs, bitstream_buf);
 
     *(cmdbuf->cmd_bitstream_size) += size_in_bytes;
 }
@@ -1807,19 +1918,11 @@ static void psb_cmdbuf_lldma_create_internal(psb_cmdbuf_p cmdbuf,
     cmdbuf->lldma_idx    = (unsigned char *)pasDmaList;
 }
 
-
+#ifndef DE3_FIRMWARE
 /*
  * Create a command to set registers
  */
-void psb_cmdbuf_reg_start_block(psb_cmdbuf_p cmdbuf)
-{
-    ASSERT(NULL == cmdbuf->rendec_block_start); /* Can't have both */
-
-    cmdbuf->reg_start = cmdbuf->cmd_idx++;
-    *cmdbuf->reg_start = 0;
-}
-
-void psb_cmdbuf_reg_start_block_flag(psb_cmdbuf_p cmdbuf, uint32_t flags)
+void psb_cmdbuf_reg_start_block(psb_cmdbuf_p cmdbuf, uint32_t flags)
 {
     ASSERT(NULL == cmdbuf->rendec_block_start); /* Can't have both */
 
@@ -1846,6 +1949,59 @@ void psb_cmdbuf_reg_end_block(psb_cmdbuf_p cmdbuf)
     *cmdbuf->reg_start |= CMD_REGVALPAIR_WRITE | reg_count;
     cmdbuf->reg_start = NULL;
 }
+#else
+void psb_cmdbuf_reg_start_block(psb_cmdbuf_p cmdbuf, uint32_t flags)
+{
+    ASSERT(NULL == cmdbuf->reg_start); /* Can't have both */
+
+    cmdbuf->reg_wt_p = cmdbuf->cmd_idx;
+    cmdbuf->reg_next = 0;
+    cmdbuf->reg_flags = (flags << 4); /* flags are diff between DE2 & DE3 */
+    cmdbuf->reg_start = NULL;
+}
+
+void psb_cmdbuf_reg_set(psb_cmdbuf_p cmdbuf, uint32_t reg, uint32_t val)
+{
+    if(cmdbuf->reg_start && (reg == cmdbuf->reg_next))
+    {
+        /* Incrament header size */
+        *cmdbuf->reg_start += (0x1 << 16);
+    }
+    else
+    {
+        cmdbuf->reg_start = cmdbuf->reg_wt_p++;
+        *cmdbuf->reg_start = CMD_REGVALPAIR_WRITE | cmdbuf->reg_flags | 0x10000 | (reg & 0xfffff); /* We want host reg addr */
+    }
+    *cmdbuf->reg_wt_p++ = val;
+    cmdbuf->reg_next = reg + 4;
+}
+
+void psb_cmdbuf_reg_set_address(psb_cmdbuf_p cmdbuf,
+                                         uint32_t reg,
+                                         psb_buffer_p buffer,
+                                         uint32_t buffer_offset)
+{
+    if(cmdbuf->reg_start && (reg == cmdbuf->reg_next))
+    {
+        /* Incrament header size */
+        *cmdbuf->reg_start += (0x1 << 16);
+    }
+    else
+    {
+        cmdbuf->reg_start = cmdbuf->reg_wt_p++;
+        *cmdbuf->reg_start = CMD_REGVALPAIR_WRITE | cmdbuf->reg_flags | 0x10000 | (reg & 0xfffff); /* We want host reg addr */
+    }
+
+    RELOC(*cmdbuf->reg_wt_p++, buffer_offset, buffer);
+    cmdbuf->reg_next = reg + 4;
+}
+
+void psb_cmdbuf_reg_end_block(psb_cmdbuf_p cmdbuf)
+{
+    cmdbuf->cmd_idx = cmdbuf->reg_wt_p;
+    cmdbuf->reg_start = NULL;
+}
+#endif
 
 typedef enum {
     MTX_CTRL_HEADER = 0,

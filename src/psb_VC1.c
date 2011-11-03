@@ -1725,7 +1725,7 @@ static void psb__VC1_build_VLC_tables(context_VC1_p ctx)
     }
 
     /* Write the vec registers with the index data for each of the tables */
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     reg_value = 0;
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC, CR_VEC_VLC_TABLE_ADDR0, VLC_TABLE_ADDR0, ctx->sTableInfo[0].aui16RAMLocation);
@@ -2315,7 +2315,7 @@ static void psb__VC1_load_sequence_registers(context_VC1_p ctx)
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* FE_CONTROL */
     reg_value = 0;
@@ -2351,7 +2351,7 @@ static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterB
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
     int bEnableMVDLite = FALSE;
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* Enable MVD lite for Progressive or FLDI P */
     if (
@@ -2449,7 +2449,7 @@ static void psb__VC1_setup_bitplane(context_VC1_p ctx)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* Bitplanes Data Buffer Base Address */
     if (ctx->bitplane_present) {

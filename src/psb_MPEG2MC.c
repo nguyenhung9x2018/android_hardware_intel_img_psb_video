@@ -612,7 +612,7 @@ static void     psb__MPEG2MC_send_slice_parameters(
 
     ctx->lldma_idx = ctx->obj_context->cmdbuf->cmd_idx++; /* Insert the LLDMA record here later */
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* 3.3.19.  Slice Params*/
     /*
@@ -659,7 +659,7 @@ static void psb__MPEG2MC_send_slice_picture_endcommand(
                                     when slice processing is complete
       0    PICTURE_END(MC + VDEB)   If set, indicates both Picture and Slice end, otherwise Slice end
      */
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, END_SLICE_PICTURE), 0);
 
@@ -679,7 +679,7 @@ static void     psb__MPEG2MC_send_highlevel_commands(
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* 3.3.1.   Display Picture Size */
     psb_cmdbuf_reg_set(cmdbuf , REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE), ctx->display_picture_size);
@@ -763,7 +763,7 @@ static void     psb__MPEG2MC_interPB_mb(
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t cmd;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* 3.3.21.  Macroblock Number */
     psb__MPEG2MC_send_mb_number(ctx, cmdbuf, mb_param->macroblock_address, MBPARAM_MotionType(mb_param),
@@ -940,7 +940,7 @@ static void     psb__MPEG2MC_intra_mb(
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t cmd;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* 3.3.21.  Macroblock Number */
     psb__MPEG2MC_send_mb_number(ctx, cmdbuf, mb_param->macroblock_address, MBPARAM_MotionType(mb_param), MB_CODE_TYPE_I);

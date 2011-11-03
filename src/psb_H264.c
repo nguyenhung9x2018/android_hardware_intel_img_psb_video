@@ -1015,7 +1015,7 @@ static void psb__H264_build_register(context_H264_p ctx, VASliceParameterBufferH
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     reg_value = 0;
     REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC, CR_VEC_ENTDEC_FE_CONTROL, ENTDEC_FE_PROFILE, ctx->profile);
@@ -1025,7 +1025,7 @@ static void psb__H264_build_register(context_H264_p ctx, VASliceParameterBufferH
     /* write the FE registers */
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SPS0),    ctx->reg_SPS0);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_PPS0),    ctx->reg_PPS0);
-    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0),        ctx->reg_PIC0;);
+    psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_CUR_PIC0),        ctx->reg_PIC0);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE0),  ctx->slice0_params);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE1),  ctx->slice1_params);
 
@@ -1560,7 +1560,7 @@ static void psb__H264_write_VLC_tables(context_H264_p ctx)
                                   0, LLDMA_TYPE_VLC_TABLE);
 
     /* Writes the VLD offsets.  mtx need only do this on context switch*/
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     for (i = 0; i < (sizeof(ui32H264VLCTableRegValPair) / sizeof(ui32H264VLCTableRegValPair[0])) ; i += 2) {
         psb_cmdbuf_reg_set(cmdbuf, ui32H264VLCTableRegValPair[i] , ui32H264VLCTableRegValPair[i + 1]);
@@ -1582,7 +1582,7 @@ static void psb__set_macroblock_parameters(context_H264_p ctx, unsigned int valu
         return;
     }
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
     psb_cmdbuf_reg_set(cmdbuf, (REG_MSVDX_VEC_RAM_OFFSET + 0xcc0) , value);
     psb_cmdbuf_reg_end_block(cmdbuf);
 

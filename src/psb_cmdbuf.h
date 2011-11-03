@@ -44,6 +44,8 @@
 #define Bool int
 #endif
 
+/* #define DE3_FIRMWARE */
+
 typedef struct psb_cmdbuf_s *psb_cmdbuf_p;
 
 struct psb_cmdbuf_s {
@@ -85,6 +87,9 @@ struct psb_cmdbuf_s {
     int buffer_refs_allocated;
     /* Pointer for Register commands */
     uint32_t *reg_start;
+    uint32_t *reg_wt_p;
+    uint32_t reg_next;
+    uint32_t reg_flags;
     /* Pointer for Rendec Block commands */
     uint32_t *rendec_block_start;
     uint32_t *rendec_chunk_start;
@@ -222,6 +227,13 @@ void psb_cmdbuf_lldma_write_bitstream(psb_cmdbuf_p cmdbuf,
                                       uint32_t offset_in_bits,
                                       uint32_t flags);
 
+void psb_cmdbuf_dma_write_bitstream(psb_cmdbuf_p cmdbuf,
+                                      psb_buffer_p bitstream_buf,
+                                      uint32_t buffer_offset,
+                                      uint32_t size_in_bytes,
+                                      uint32_t offset_in_bits,
+                                      uint32_t flags);
+
 /* Chain a bitstream buffer to the last one */
 void psb_cmdbuf_lldma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
         psb_buffer_p bitstream_buf,
@@ -247,15 +259,14 @@ uint32_t psb_cmdbuf_lldma_create(psb_cmdbuf_p cmdbuf,
 /*
  * Create a command to set registers
  */
-void psb_cmdbuf_reg_start_block(psb_cmdbuf_p cmdbuf);
+void psb_cmdbuf_reg_start_block(psb_cmdbuf_p cmdbuf, uint32_t flags);
 
-/*
- * Create a command to set registers
- */
-void psb_cmdbuf_reg_start_block_flag(psb_cmdbuf_p cmdbuf, uint32_t flags);
-
+#ifndef DE3_FIRMWARE
 #define psb_cmdbuf_reg_set( cmdbuf, reg, val ) \
     do { *cmdbuf->cmd_idx++ = reg; *cmdbuf->cmd_idx++ = val; } while (0)
+#else
+void psb_cmdbuf_reg_set(psb_cmdbuf_p cmdbuf, uint32_t reg, uint32_t val);
+#endif
 
 #define psb_cmdbuf_reg_set_RELOC( cmdbuf, reg, buffer,buffer_offset)             \
     do { *cmdbuf->cmd_idx++ = reg; RELOC(*cmdbuf->cmd_idx++, buffer_offset, buffer); } while (0)

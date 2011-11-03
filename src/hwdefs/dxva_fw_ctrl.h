@@ -82,6 +82,19 @@
 #define CMD_PARSE_HEADER                                        (0xF0000000)
 #define CMD_PARSE_HEADER_NEWSLICE                       (0x00000001)
 
+/*****************************************************************/
+/* DMA */
+/*****************************************************************/
+#define CMD_DMA                                                                 (0xE0000000)
+#define CMD_DMA_DMA_TYPE_MASK                                   (0x0ff00000)
+#define CMD_DMA_DMA_TYPE_SHIFT                                  ( 20 )
+#define CMD_DMA_DMA_SIZE_MASK                                   (0x0000ffff)
+#define CMD_DMA_OFFSET_FLAG                                             (1<<19)
+
+#define CMD_DMA_TYPE_VLC_TABLE                                  ( 0 << CMD_DMA_DMA_TYPE_SHIFT )
+#define CMD_DMA_TYPE_RESIDUAL                                   ( 1 << CMD_DMA_DMA_TYPE_SHIFT )
+#define CMD_DMA_TYPE_IDCT_INSERTION                             ( 2 << CMD_DMA_DMA_TYPE_SHIFT )
+#define CMD_DMA_TYPE_PROBABILITY_DATA                   ( 3 << CMD_DMA_DMA_TYPE_SHIFT )
 
 typedef struct _RENDER_BUFFER_HEADER_VC1_TAG {
     IMG_UINT32 ui32Cmd;
@@ -126,13 +139,37 @@ typedef struct _PARSE_HEADER_CMD_TAG {
 /* Linked list DMA Command */
 #define CMD_LLDMA                                       (0xA0000000)
 #define CMD_SLLDMA                                      (0xC0000000)            /* Syncronose LLDMA */
+#define CMD_DMA                                         (0xE0000000)
 typedef struct {
     IMG_UINT32 ui32CmdAndDevLinAddr;
 } LLDMA_CMD;
 
+typedef struct
+{
+    IMG_UINT32 ui32Cmd;
+    IMG_UINT32 ui32DevVirtAdd;
+} DMA_CMD;
+
+typedef struct
+{
+    IMG_UINT32 ui32Cmd;
+    IMG_UINT32 ui32DevVirtAdd;
+    IMG_UINT32 ui32ByteOffset;
+} DMA_CMD_WITH_OFFSET;
+
+typedef enum DMA_TYPE
+{
+    DMA_TYPE_VLC_TABLE                      = CMD_DMA_TYPE_VLC_TABLE,
+    DMA_TYPE_RESIDUAL                       = CMD_DMA_TYPE_RESIDUAL,
+    DMA_TYPE_IDCT_INSERTION         = CMD_DMA_TYPE_IDCT_INSERTION,
+    DMA_TYPE_PROBABILITY_DATA       = CMD_DMA_TYPE_PROBABILITY_DATA,
+} DMA_TYPE;
+
 /* Shift Register Setup Command */
 #define CMD_SR_SETUP                            (0xB0000000)
 #define CMD_ENABLE_RBDU_EXTRACTION              (0x00000001)
+#define CMD_SR_VERIFY_STARTCODE                 (0x00000004)
+#define CMD_BITSTREAM_DMA                       (0xA0000000)
 typedef struct {
     IMG_UINT32 ui32Cmd;
     IMG_UINT32 ui32BitstreamOffsetBits;
@@ -141,5 +178,20 @@ typedef struct {
 
 /* Next Segment Command */
 #define CMD_NEXT_SEG                            (0xD0000000)    /* Also Syncronose */
+
+/*****************************************************************/
+/* Ctrl Alloc Header */
+/*****************************************************************/
+#define CMD_CTRL_ALLOC_HEADER                                   (0x90000000)
+typedef struct _CTRL_ALLOC_HEADER_TAG
+{
+        IMG_UINT32 ui32Cmd_AdditionalParams;
+        IMG_UINT32 ui32SliceParams;
+        IMG_UINT32 ui32ExternStateBuffAddr;
+        IMG_UINT32 ui32MacroblockParamAddr;
+        IMG_UINT32 uiSliceFirstMbYX_uiPicLastMbYX;
+        IMG_UINT32 ui32AltOutputAddr[2]; /* VC1 only : Store Range Map flags in bottom bits of [0] */
+        IMG_UINT32 ui32AltOutputFlags;
+} CTRL_ALLOC_HEADER;
 
 #endif

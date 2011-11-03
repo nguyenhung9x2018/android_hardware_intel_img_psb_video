@@ -169,13 +169,14 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
         if (connector->connector_type == DRM_MODE_CONNECTOR_DVID)
             psb_HDMIExt_info->hdmi_connector_id = connector->connector_id;
 
-        if ((connector->connector_type == /*DRM_MODE_CONNECTOR_MIPI*/15) &&
+        if ((connector->connector_type == DRM_MODE_CONNECTOR_MIPI) &&
             (!mipi_connector_id)) {
             mipi_connector_id = connector->connector_id;
             mipi_encoder_id = connector->encoder_id;
         }
 
         drmModeFreeConnector(connector);
+        connector = NULL;
     }
 
     if (!mipi_connector_id ||
@@ -213,9 +214,7 @@ exit:
     if (connector)
         drmModeFreeConnector(connector);
 
-    free(psb_HDMIExt_info);
-
-    return NULL;
+    return psb_HDMIExt_info;
 }
 
 VAStatus psb_HDMIExt_deinit(psb_android_output_p output)

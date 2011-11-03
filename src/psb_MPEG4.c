@@ -905,7 +905,7 @@ static void psb__MPEG4_write_VLC_tables(context_MPEG4_p ctx)
 
     /* Write the vec registers with the index data for each of the tables and then write    */
     /* the actual table data.                                                                */
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_VLC_TABLE_ADDR0),            ADDR0);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_VLC_TABLE_ADDR1),            ADDR1);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_VLC_TABLE_ADDR2),            ADDR2);
@@ -1197,7 +1197,7 @@ static void psb__MPEG4_set_frontend_registers(context_MPEG4_p ctx, VASliceParame
     uint32_t FE_slice0;
     unsigned short width_mb = PIXELS_TO_MB(ctx->pic_params->vop_width);
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* FE_SLICE0                                                                    */
     FE_slice0 = 0;

@@ -1270,8 +1270,10 @@ static void pnw__setup_busize(context_ENC_p ctx)
         }
 
         ctx->sRCParams.BUSize = BUSize;
+	/*
         ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
         ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
+	*/
     }
 
     if (ctx->sRCParams.BUSize != old_busize)

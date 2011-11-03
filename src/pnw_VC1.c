@@ -1772,18 +1772,25 @@ static void psb__VC1_build_VLC_tables(context_VC1_p ctx)
 
         /* VLC Table */
         /* Write a LLDMA Cmd to transfer VLD Table data */
-
+#ifndef DE3_FIRMWARE
         psb_cmdbuf_lldma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table,
                                       ctx->sTableInfo[i].aui16StartLocation * sizeof(IMG_UINT16), /* origin */
                                       ctx->sTableInfo[i].aui16VLCTableLength * sizeof(IMG_UINT16), /* size */
                                       RAM_location * sizeof(IMG_UINT32), /* destination */
                                       LLDMA_TYPE_VLC_TABLE);
+#else
+        psb_cmdbuf_dma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table,
+                                      ctx->sTableInfo[i].aui16StartLocation * sizeof(IMG_UINT16), /* origin */
+                                      ctx->sTableInfo[i].aui16VLCTableLength * sizeof(IMG_UINT16), /* size */
+                                      RAM_location * sizeof(IMG_UINT32), /* destination */
+                                      DMA_TYPE_VLC_TABLE);
+#endif
         psb__information_message("table[%02d] start_loc = %08x RAM_location = %08x | %08x\n", i, ctx->sTableInfo[i].aui16StartLocation * sizeof(IMG_UINT16), RAM_location, RAM_location * sizeof(IMG_UINT32));
         RAM_location += ctx->sTableInfo[i].aui16VLCTableLength;
     }
 
     /* Write the vec registers with the index data for each of the tables */
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     reg_value = 0;
     REGIO_WRITE_FIELD(reg_value, MSVDX_VEC, CR_VEC_VLC_TABLE_ADDR0, VLC_TABLE_ADDR0, ctx->sTableInfo[0].aui16RAMLocation);
@@ -2450,7 +2457,7 @@ static void psb__VC1_load_sequence_registers(context_VC1_p ctx)
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     /* FE_CONTROL */
     reg_value = 0;
@@ -2483,7 +2490,7 @@ static void psb__VC1_load_picture_registers(context_VC1_p ctx, VASliceParameterB
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    psb_cmdbuf_reg_start_block_flag(cmdbuf, (VC1_Header_Parser_HW) ? CMD_REGVALPAIR_FLAG_VC1PATCH : 0);
+    psb_cmdbuf_reg_start_block(cmdbuf, (VC1_Header_Parser_HW) ? CMD_REGVALPAIR_FLAG_VC1PATCH : 0);
 
     /* Enable MVD lite for Progressive or FLDI P */
     if (
@@ -2583,7 +2590,7 @@ static void psb__VC1_setup_bitplane(context_VC1_p ctx)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
-    psb_cmdbuf_reg_start_block(cmdbuf);
+    psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
     if (VC1_Header_Parser_HW) {
         psb_cmdbuf_reg_set_address(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR0),
@@ -2631,6 +2638,7 @@ static void psb__VC1_setup_bitplane(context_VC1_p ctx)
 
 //    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
 //}
+#ifndef DE3_FIRMWARE
 static void psb__VC1_FE_state(context_VC1_p ctx)
 {
     uint32_t lldma_record_offset;
@@ -2666,6 +2674,29 @@ static void psb__VC1_FE_state(context_VC1_p ctx)
     ctx->alt_output_flags = cmdbuf->cmd_idx++;
     *ctx->alt_output_flags = 0;
 }
+#else
+static void psb__VC1_FE_state(context_VC1_p ctx)
+{
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    CTRL_ALLOC_HEADER *cmd_header = (CTRL_ALLOC_HEADER *)psb_cmdbuf_alloc_space(cmdbuf, sizeof(CTRL_ALLOC_HEADER));
+
+    memset(cmd_header, 0, sizeof(CTRL_ALLOC_HEADER));
+    cmd_header->ui32Cmd_AdditionalParams = CMD_CTRL_ALLOC_HEADER;
+    RELOC(cmd_header->ui32ExternStateBuffAddr, 0, &ctx->preload_buffer);
+    cmd_header->ui32MacroblockParamAddr = 0; /* Only EC needs to set this */
+
+    ctx->p_slice_params = &cmd_header->ui32SliceParams;
+    cmd_header->ui32SliceParams = 0;
+
+    ctx->slice_first_pic_last = &cmd_header->uiSliceFirstMbYX_uiPicLastMbYX;
+
+    ctx->p_range_mapping_base = &cmd_header->ui32AltOutputAddr[0];
+    ctx->p_range_mapping_base1 = &cmd_header->ui32AltOutputAddr[1];
+
+    ctx->alt_output_flags = &cmd_header->ui32AltOutputFlags;
+    cmd_header->ui32AltOutputFlags = 0;
+}
+#endif
 
 static void psb__VC1_Send_Parse_Header_Cmd(context_VC1_p ctx, IMG_BOOL new_pic)
 {
@@ -2825,12 +2856,21 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
 //            psb__VC1_write_VLC_tables(ctx);
 //            psb__VC1_build_VLC_tables(ctx);
 
+#ifndef DE3_FIRMWARE
         psb_cmdbuf_lldma_write_bitstream(ctx->obj_context->cmdbuf,
                                          obj_buffer->psb_buffer,
                                          obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
                                          (slice_param->slice_data_size),
                                          slice_param->macroblock_offset,
                                          (ctx->profile == WMF_PROFILE_ADVANCED) ? CMD_ENABLE_RBDU_EXTRACTION : 0);
+#else
+        psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
+                                         obj_buffer->psb_buffer,
+                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
+                                         (slice_param->slice_data_size),
+                                         slice_param->macroblock_offset,
+                                         (ctx->profile == WMF_PROFILE_ADVANCED) ? (CMD_ENABLE_RBDU_EXTRACTION | CMD_SR_VERIFY_STARTCODE) : 0);
+#endif
 
         if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) {
             ctx->split_buffer_pending = TRUE;
@@ -2840,9 +2880,15 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
         ASSERT(0 == slice_param->slice_data_offset);
         /* Create LLDMA chain to continue buffer */
         if (slice_param->slice_data_size) {
+#ifndef DE3_FIRMWARE
             psb_cmdbuf_lldma_write_bitstream_chained(ctx->obj_context->cmdbuf,
                     obj_buffer->psb_buffer,
                     slice_param->slice_data_size);
+#else
+            psb_cmdbuf_dma_write_bitstream_chained(ctx->obj_context->cmdbuf,
+                    obj_buffer->psb_buffer,
+                    slice_param->slice_data_size);
+#endif
         }
     }
 
