@@ -48,8 +48,7 @@
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 
-#define SET_SURFACE_INFO_rotate(psb_surface, rotate) psb_surface->extra_info[5] = (uint32_t) rotate;
-#define GET_SURFACE_INFO_rotate(psb_surface) ((int) psb_surface->extra_info[5])
+
 #define CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need)  \
 do {                                                            \
     int old_rotate = GET_SURFACE_INFO_rotate(psb_surface);      \
@@ -276,6 +275,9 @@ VAStatus psb_CreateRotateSurface(
     }
 
     SET_SURFACE_INFO_rotate(psb_surface, msvdx_rotate);
+    /* derive the protected flag from the primay surface */
+    SET_SURFACE_INFO_protect(psb_surface,
+                             GET_SURFACE_INFO_protect(obj_surface->psb_surface));
     obj_surface->psb_surface_rotate = psb_surface;
 
     return vaStatus;

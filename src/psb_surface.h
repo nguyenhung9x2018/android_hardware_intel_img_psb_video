@@ -105,6 +105,10 @@ VAStatus psb_surface_create_from_kbuf(
     psb_surface_p psb_surface /* out */
 );
 
+#define SET_SURFACE_INFO_rotate(psb_surface, rotate) psb_surface->extra_info[5] = (uint32_t) rotate;
+#define GET_SURFACE_INFO_rotate(psb_surface) ((int) psb_surface->extra_info[5])
+#define GET_SURFACE_INFO_protect(psb_surface) ((int) psb_surface->extra_info[6])
+#define SET_SURFACE_INFO_protect(psb_surface, protect) (psb_surface->extra_info[6] = protect)
 
 VAStatus psb_surface_create_camera(psb_driver_data_p driver_data,
                                    int width, int height, int stride, int size,

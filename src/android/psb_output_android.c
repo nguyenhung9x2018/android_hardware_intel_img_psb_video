@@ -470,13 +470,17 @@ static int psb_check_outputmethod(
     delta_rotation = Rotation2Angle(driver_data->mipi0_rotation) - Rotation2Angle(rotation);
     if ((((abs(delta_rotation) == 90) || (abs(delta_rotation) == 270)) && output->new_destbox) ||
         (abs(delta_rotation) == 180)) {
-        psb__information_message("New rotation degree %d of MIPI0 WM, Recalc rotation\n", rotation);
+        psb__information_message("New rotation degree %d of MIPI0 WM, Need to recalc rotation\n", rotation);
         driver_data->mipi0_rotation = rotation;
         driver_data->hdmi_rotation = rotation;
-
-        psb_RecalcRotate(ctx);
+        driver_data->rotation_dirty |= PSB_NEW_WM_ROTATION;
     }
     output->new_destbox = 0;
+
+    if (driver_data->rotation_dirty != 0) {
+        psb_RecalcRotate(ctx);
+        driver_data->rotation_dirty = 0;
+    }
 
     obj_surface = SURFACE(surface);
     if (GET_SURFACE_INFO_protect(obj_surface->psb_surface)) {

@@ -2106,7 +2106,7 @@ VAStatus psb_SetDisplayAttributes(
             break;
         case VADisplayAttribRotation:
             driver_data->va_rotate = p->value;
-            psb_RecalcRotate(ctx);
+            driver_data->rotation_dirty |= PSB_NEW_VA_ROTATION;
             break;
 
         case VADisplayAttribCSCMatrix:

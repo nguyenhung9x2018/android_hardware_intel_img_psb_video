@@ -1260,9 +1260,13 @@ psbSetupImageVideoOverlay(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 
     /* use green as color key by default for android media player */
     pPriv->colorKey = driver_data->color_key/*0x0440*/;
-    pPriv->brightness.Value = -19; /* (255/219) * -16 */
-    pPriv->contrast.Value = 75;  /* 255/219 * 64 */
-    pPriv->saturation.Value = 146; /* 128/112 * 128 */
+
+    /*Bypass color correction. Because these color 
+    correction can be done in pipe color correction in future.*/
+    pPriv->brightness.Value = 0;   /*-19*/
+    pPriv->contrast.Value = 0x40;  /*75*/
+    pPriv->saturation.Value = 0x80;  /*146*/
+
     pPriv->gamma5 = 0xc0c0c0;
     pPriv->gamma4 = 0x808080;
     pPriv->gamma3 = 0x404040;

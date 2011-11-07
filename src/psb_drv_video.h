@@ -88,6 +88,9 @@
 #define PSB_NEW_ROTATION        1
 #define PSB_NEW_EXTVIDEO        2
 
+#define PSB_NEW_VA_ROTATION     1 << 0
+#define PSB_NEW_WM_ROTATION     1 << 1
+
 #define MAX_SLICES_PER_PICTURE 72
 #define MAX_MB_ERRORS 72
 
@@ -241,6 +244,7 @@ struct psb_driver_data_s {
     int hdmi_rotation; /* window manager rotation */
     int local_rotation; /* final device rotate: VA rotate+wm rotate */
     int extend_rotation; /* final device rotate: VA rotate+wm rotate */
+    int rotation_dirty;  /*flag for recaculate final rotation*/
 
     unsigned int outputmethod_checkinterval;
 

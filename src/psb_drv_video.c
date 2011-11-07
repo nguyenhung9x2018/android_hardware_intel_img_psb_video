@@ -109,9 +109,6 @@
 #define IMAGE_ID_OFFSET         0x05000000
 #define SUBPIC_ID_OFFSET        0x06000000
 
-#define SET_SURFACE_INFO_rotate(psb_surface, rotate) psb_surface->extra_info[5] = (uint32_t) rotate;
-#define GET_SURFACE_INFO_rotate(psb_surface) ((int) psb_surface->extra_info[5])
-
 static int psb_get_device_info(VADriverContextP ctx);
 
 
@@ -880,9 +877,7 @@ VAStatus psb_CreateSurfaces(
         }
         buffer_stride = psb_surface->stride;
         /* by default, surface fourcc is NV12 */
-        memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
         psb_surface->extra_info[4] = fourcc;
-
         obj_surface->psb_surface = psb_surface;
     }
 
