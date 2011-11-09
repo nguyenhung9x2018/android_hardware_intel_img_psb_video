@@ -286,7 +286,8 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     pVUI_Params->Time_Scale = ctx->sRCParams.FrameRate * 2;
     pVUI_Params->bit_rate_value_minus1 = ctx->sRCParams.BitsPerSecond / 64 - 1;
     pVUI_Params->cbp_size_value_minus1 = ctx->sRCParams.BufferSize / 64 - 1;
-    pVUI_Params->CBR = ((IMG_CODEC_H264_CBR == ctx->eCodec) ? 1 : 0);
+    pVUI_Params->CBR = ((IMG_CODEC_H264_CBR == ctx->eCodec ||
+		IMG_CODEC_H264_VCM == ctx->eCodec) ? 1 : 0);
     pVUI_Params->initial_cpb_removal_delay_length_minus1 = BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE - 1;
     pVUI_Params->cpb_removal_delay_length_minus1 = PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE - 1;
     pVUI_Params->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
@@ -755,10 +756,6 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     VAEncMiscParameterHRD *hrd_param;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (ctx->eCodec != IMG_CODEC_H264_VCM) {
-        psb__information_message("Only VCM mode allow rate control setting.Ignore.\n");
-        return VA_STATUS_SUCCESS;
-    }
     ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
 
     /* Transfer ownership of VAEncMiscParameterBuffer data */
@@ -766,8 +763,10 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     obj_buffer->size = 0;
 
     if (ctx->eCodec != IMG_CODEC_H264_VCM
-	    && pBuffer->type != VAEncMiscParameterTypeHRD) {
-        psb__information_message("Only VCM mode allow rate control setting.Ignore.\n");
+	    && (pBuffer->type != VAEncMiscParameterTypeHRD
+		&& pBuffer->type != VAEncMiscParameterTypeRateControl)) {
+        psb__information_message("Buffer type %d isn't supported in none VCM mode.\n",
+		pBuffer->type);
 	free(obj_buffer->buffer_data);
 	obj_buffer->buffer_data = NULL;
 	return VA_STATUS_SUCCESS;
@@ -794,6 +793,19 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
 
     case VAEncMiscParameterTypeRateControl:
         rate_control_param = (VAEncMiscParameterRateControl *)pBuffer->data;
+
+	/* Currently, none VCM mode only supports frame skip and bit stuffing
+	 * disable flag and doesn't accept other parameters in
+	 * buffer of VAEncMiscParameterTypeRateControl type */
+	if (rate_control_param->rc_flags.value != 0) {
+	    if (rate_control_param->rc_flags.bits.disable_frame_skip)
+		ctx->sRCParams.bDisableFrameSkipping = IMG_TRUE;
+	    if (rate_control_param->rc_flags.bits.disable_bit_stuffing)
+		ctx->sRCParams.bDisableBitStuffing = IMG_TRUE;
+	}
+
+	if (ctx->eCodec != IMG_CODEC_H264_VCM)
+	    break;
 
         if (rate_control_param->initial_qp > 51 ||
             rate_control_param->min_qp > 51) {

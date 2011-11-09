@@ -293,6 +293,45 @@ void pnw__H263_prepare_GOBslice_header(
     IMG_UINT8 GOBNumber,
     IMG_UINT8 GOBFrameId);
 
+void pnw__H264_prepare_SEI_buffering_period_header(
+    MTX_HEADER_PARAMS * pMTX_Header,
+    IMG_UINT8 ui8NalHrdBpPresentFlag,
+    IMG_UINT8 ui8nal_cpb_cnt_minus1,
+    IMG_UINT8 ui8nal_initial_cpb_removal_delay_length,
+    IMG_UINT32 ui32nal_initial_cpb_removal_delay,
+    IMG_UINT32 ui32nal_initial_cpb_removal_delay_offset,
+    IMG_UINT8 ui8VclHrdBpPresentFlag,
+    IMG_UINT8 ui8vcl_cpb_cnt_minus1,
+    IMG_UINT32 ui32vcl_initial_cpb_removal_delay,
+    IMG_UINT32 ui32vcl_initial_cpb_removal_delay_offset);
+
+void pnw__H264_prepare_SEI_picture_timing_header(
+    MTX_HEADER_PARAMS * pMTX_Header,
+    IMG_UINT8 ui8CpbDpbDelaysPresentFlag,
+    IMG_UINT32 ui32cpb_removal_delay_length_minus1,
+    IMG_UINT32 ui32dpb_output_delay_length_minus1,
+    IMG_UINT32 ui32cpb_removal_delay,
+    IMG_UINT32 ui32dpb_output_delay,
+    IMG_UINT8 ui8pic_struct_present_flag,
+    IMG_UINT8 ui8pic_struct,
+    IMG_UINT8 ui8NumClockTS,
+    IMG_UINT8 *aui8clock_timestamp_flag,
+    IMG_UINT8 ui8full_timestamp_flag,
+    IMG_UINT8 ui8seconds_flag,
+    IMG_UINT8 ui8minutes_flag,
+    IMG_UINT8 ui8hours_flag,
+    IMG_UINT8 ui8seconds_value,
+    IMG_UINT8 ui8minutes_value,
+    IMG_UINT8 ui8hours_value,
+    IMG_UINT8 ui8ct_type,
+    IMG_UINT8 ui8nuit_field_based_flag,
+    IMG_UINT8 ui8counting_type,
+    IMG_UINT8 ui8discontinuity_flag,
+    IMG_UINT8 ui8cnt_dropped_flag,
+    IMG_UINT8 ui8n_frames,
+    IMG_UINT8 ui8time_offset_length,
+    IMG_INT32 i32time_offset);
+
 
 #endif /* _PNW_HOSTHEADER_H_ */
 

@@ -895,10 +895,12 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
 
     if (ctx->sRCParams.bDisableFrameSkipping) {
         psPicParams->Flags |= DISABLE_FRAME_SKIPPING;
+	psb__information_message("Frame skip is disabled.\n");
     }
 
     if (ctx->sRCParams.bDisableBitStuffing) {
         psPicParams->Flags |= DISABLE_BIT_STUFFING;
+	psb__information_message("Bit stuffing is disabled.\n");
     }
 
     if (ctx->sRCParams.RCEnable) {
@@ -1606,11 +1608,13 @@ void pnw__setup_rcdata(
         psRCParams->InitialQp = ui8InitialSeInitQP;
     }
 
-    if (psContext->bInserHRDParams && (psRCParams->BitsPerSecond != 0)) {
-        /*HRD parameters are meaningless without a bitrate */
-        psPicParams->InsertHRDparams = IMG_FALSE;
-    } else if (psContext->eCodec != IMG_CODEC_H264_VCM) {
-        psPicParams->InsertHRDparams = IMG_TRUE;
+    psPicParams->InsertHRDparams = psContext->bInserHRDParams;
+    /* HRD parameters are meaningless without a bitrate
+     * HRD parameters are not supported in VCM mode */
+    if (psRCParams->BitsPerSecond == 0 || psContext->eCodec == IMG_CODEC_H264_VCM)
+         psPicParams->InsertHRDparams = IMG_FALSE;
+
+    if (psPicParams->InsertHRDparams) {
         psPicParams->ClockDivBitrate = (90000 * 0x100000000LL);
         psPicParams->ClockDivBitrate /= psRCParams->BitsPerSecond;
         psPicParams->MaxBufferMultClockDivBitrate = (IMG_UINT32)
