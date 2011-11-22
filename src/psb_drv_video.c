@@ -3301,6 +3301,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     ctx->vtable->vaQuerySurfaceStatus = psb_QuerySurfaceStatus;
     ctx->vtable->vaQuerySurfaceError = psb_QuerySurfaceError;
     ctx->vtable->vaPutSurface = psb_PutSurface;
+    ctx->vtable->vaGetBufferID = psb_GetBufferID;
     ctx->vtable->vaQueryImageFormats = psb_QueryImageFormats;
     ctx->vtable->vaCreateImage = psb_CreateImage;
     ctx->vtable->vaDeriveImage = psb_DeriveImage;

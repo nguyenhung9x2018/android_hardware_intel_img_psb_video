@@ -520,6 +520,40 @@ static int psb_check_outputmethod(
     return 0;
 }
 
+VAStatus psb_GetBufferID(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    uint32_t* devid,
+    uint32_t* bufid)
+{
+    INIT_DRIVER_DATA;
+    INIT_OUTPUT_PRIV;
+
+    object_surface_p obj_surface;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    int buffer_index;
+
+    obj_surface = SURFACE(surface);
+    if (NULL == obj_surface) {
+        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    buffer_index = psb_get_video_bcd(ctx, surface);
+    if (buffer_index == -1) {
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        psb__error_message("psb get video buffer index failure\n");
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    *devid = driver_data->bcd_id;
+    *bufid = buffer_index;
+
+    return VA_STATUS_SUCCESS;
+}
+
 VAStatus psb_PutSurface(
     VADriverContextP ctx,
     VASurfaceID surface,
