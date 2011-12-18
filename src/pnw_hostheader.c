@@ -2233,6 +2233,7 @@ static void pnw__H264_writebits_SEI_buffering_period_header(
     return;
 }
 
+#define SEI_HOSTCALC_CPB_DPB
 
 static void pnw__H264_writebits_SEI_picture_timing_header(
     MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_ELEMENT **aui32ElementPointers,

@@ -77,49 +77,52 @@ VAStatus psb_HDMIExt_update(VADriverContextP ctx, psb_HDMIExt_info_p psb_HDMIExt
                         &arg, sizeof(arg));
 
     psb__information_message("%s : hdmi_state = %d\n", __FUNCTION__, hdmi_state);
-    if (hdmi_state == HDMI_MODE_EXT_VIDEO) {
-        psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = EXTENDED_VIDEO;
-        psb_HDMIExt_info->hdmi_mode = EXTENDED_VIDEO;
+    if (psb_HDMIExt_info->hdmi_state != hdmi_state) {
+        psb_HDMIExt_info->hdmi_state = hdmi_state;
+        switch (hdmi_state) {
+            case HDMI_MODE_EXT_VIDEO:
+                psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = EXTENDED_VIDEO;
+                psb_HDMIExt_info->hdmi_mode = EXTENDED_VIDEO;
 
-        if ((psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_XRes == 0 ||
-             psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_YRes == 0)) {
-            psb_extvideo_prop_p hdmi_extvideo_prop = psb_HDMIExt_info->hdmi_extvideo_prop;
+                psb_extvideo_prop_p hdmi_extvideo_prop = psb_HDMIExt_info->hdmi_extvideo_prop;
 
-            hdmi_connector = drmModeGetConnector(driver_data->drm_fd, psb_HDMIExt_info->hdmi_connector_id);
-            if (!hdmi_connector) {
-                psb__error_message("%s : Failed to get hdmi connector\n", __FUNCTION__);
-                return VA_STATUS_ERROR_UNKNOWN;
-            }
+                hdmi_connector = drmModeGetConnector(driver_data->drm_fd, psb_HDMIExt_info->hdmi_connector_id);
+                if (!hdmi_connector) {
+                    psb__error_message("%s : Failed to get hdmi connector\n", __FUNCTION__);
+                    return VA_STATUS_ERROR_UNKNOWN;
+                }
 
-            hdmi_encoder = drmModeGetEncoder(driver_data->drm_fd, hdmi_connector->encoder_id);
-            if (!hdmi_encoder) {
-                psb__error_message("%s : Failed to get hdmi encoder\n", __FUNCTION__);
-                return VA_STATUS_ERROR_UNKNOWN;
-            }
+                hdmi_encoder = drmModeGetEncoder(driver_data->drm_fd, hdmi_connector->encoder_id);
+                if (!hdmi_encoder) {
+                    psb__error_message("%s : Failed to get hdmi encoder\n", __FUNCTION__);
+                    return VA_STATUS_ERROR_UNKNOWN;
+                }
 
-            hdmi_crtc = drmModeGetCrtc(driver_data->drm_fd, hdmi_encoder->crtc_id);
-            if (!hdmi_crtc) {
-                /* No CRTC attached to HDMI. */
-                psb__error_message("%s : Failed to get hdmi crtc\n", __FUNCTION__);
-                return VA_STATUS_ERROR_UNKNOWN;
-            }
+                hdmi_crtc = drmModeGetCrtc(driver_data->drm_fd, hdmi_encoder->crtc_id);
+                if (!hdmi_crtc) {
+                    /* No CRTC attached to HDMI. */
+                    psb__error_message("%s : Failed to get hdmi crtc\n", __FUNCTION__);
+                    return VA_STATUS_ERROR_UNKNOWN;
+                }
 
-            strHeight = strstr(hdmi_crtc->mode.name, "x");
-            hdmi_extvideo_prop->ExtVideoMode_XRes = (unsigned short)atoi(hdmi_crtc->mode.name);
-            hdmi_extvideo_prop->ExtVideoMode_YRes = (unsigned short)atoi(strHeight + 1);
-            psb__information_message("%s : size = %d x %d\n", __FUNCTION__,
-                                     hdmi_extvideo_prop->ExtVideoMode_XRes, hdmi_extvideo_prop->ExtVideoMode_YRes);
-            drmModeFreeCrtc(hdmi_crtc);
-            drmModeFreeEncoder(hdmi_encoder);
-            drmModeFreeConnector(hdmi_connector);
+                strHeight = strstr(hdmi_crtc->mode.name, "x");
+                hdmi_extvideo_prop->ExtVideoMode_XRes = (unsigned short)atoi(hdmi_crtc->mode.name);
+                hdmi_extvideo_prop->ExtVideoMode_YRes = (unsigned short)atoi(strHeight + 1);
+                psb__information_message("%s : size = %d x %d\n", __FUNCTION__,
+                        hdmi_extvideo_prop->ExtVideoMode_XRes, hdmi_extvideo_prop->ExtVideoMode_YRes);
+                drmModeFreeCrtc(hdmi_crtc);
+                drmModeFreeEncoder(hdmi_encoder);
+                drmModeFreeConnector(hdmi_connector);
+                break;
+            case HDMI_MODE_OFF:
+                psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = OFF;
+                psb_HDMIExt_info->hdmi_mode = OFF;
+                hdmi_connected_frame = 0;
+                break;
+            default:
+                psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = UNDEFINED;
+                psb_HDMIExt_info->hdmi_mode = UNDEFINED;
         }
-    } else if (hdmi_state == HDMI_MODE_OFF) {
-        psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = OFF;
-        psb_HDMIExt_info->hdmi_mode = OFF;
-        hdmi_connected_frame = 0;
-    } else {
-        psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode = UNDEFINED;
-        psb_HDMIExt_info->hdmi_mode = UNDEFINED;
     }
 
     return VA_STATUS_SUCCESS;

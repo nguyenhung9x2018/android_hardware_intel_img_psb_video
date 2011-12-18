@@ -54,6 +54,7 @@ LOCAL_SRC_FILES :=		\
     android/psb_output_android.c            \
     android/psb_HDMIExtMode.c               \
     android/psb_android_glue.cpp            \
+    android/psb_gralloc.cpp            \
     psb_surface.c           \
     psb_overlay.c		\
     psb_ws_driver.c         \
@@ -96,7 +97,7 @@ LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := pvr_drv_video
 
 LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libpvr2d libcutils \
-                libui libutils libbinder libsurfaceflinger_client
+                libui libutils libbinder libsurfaceflinger_client libhardware
 
 ifeq ($(strip $(PSBVIDEO_LOG_ENABLE)),true)
 LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE

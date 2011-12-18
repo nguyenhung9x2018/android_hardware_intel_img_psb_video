@@ -50,6 +50,9 @@
 #define PNW_CMDBUF_START_PIC_IDX (0)
 #define PNW_CMDBUF_SEQ_HEADER_IDX (1)
 #define PNW_CMDBUF_PIC_HEADER_IDX (2)
+#define PNW_CMDBUF_SEI_BUF_PERIOD_IDX (3)
+#define PNW_CMDBUF_SEI_PIC_TIMING_IDX (4)
+#define PNW_CMDBUF_SAVING_MAX (5)
 
 struct pnw_cmdbuf_s {
     struct psb_buffer_s buf;
@@ -64,7 +67,7 @@ struct pnw_cmdbuf_s {
     unsigned char *cmd_base;
     unsigned char *cmd_start;
     uint32_t *cmd_idx;
-    uint32_t *cmd_idx_saved[3]; /* idx saved for dual-core adjustion */
+    uint32_t *cmd_idx_saved[PNW_CMDBUF_SAVING_MAX]; /* idx saved for dual-core adjustion */
 
     /* all frames share one topaz param buffer which contains InParamBase
      * AboveParam/BellowParam, and the buffer allocated when the context is created

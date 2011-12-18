@@ -68,6 +68,9 @@
 #include <linux/videodev2.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <system/graphics.h>
+#include <gralloc.h>
+#include "android/psb_gralloc.h"
 
 #include "psb_def.h"
 #include "psb_ws_driver.h"
@@ -117,6 +120,7 @@ void psb_free_surface_pvr2dbuf(psb_driver_data_p driver_data);
 
 static FILE *psb_video_debug_fp = NULL;
 static int  debug_fp_count = 0;
+static FILE *psb_video_debug_nv_buffer_fp=NULL;
 
 /*
  * read a config "env" for libva.conf or from environment setting
@@ -221,6 +225,15 @@ static void psb__open_log(void)
 {
     char log_fn[1024];
     unsigned int suffix;
+#ifdef ANDROID
+	LOGD("psb__open_log.\n");
+#endif
+	if(psb_parse_config("PSB_VIDEO_DEBUG_NV_BUFFER", &log_fn[0]) == 0) {
+		unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
+		 if(strcmp(log_fn, "/dev/stdout") != 0)
+				 sprintf(log_fn + strlen(log_fn), ".%d", suffix);
+		 psb_video_debug_nv_buffer_fp = fopen(log_fn, "ab");
+	}
 
     if ((psb_video_debug_fp != NULL) && (psb_video_debug_fp != stderr)) {
         debug_fp_count++;
@@ -253,10 +266,55 @@ static void psb__close_log(void)
             fclose(psb_video_debug_fp);
     }
 
-    return;
+    if(psb_video_debug_nv_buffer_fp !=NULL)
+        fclose(psb_video_debug_nv_buffer_fp);
 
+    return;
 }
 
+void psb__dump_NV_buffers(
+    object_surface_p obj_surface,
+    short srcx,
+    short srcy,
+    unsigned short srcw,
+    unsigned short srch)
+{
+    void *mapped_buffer;
+    void *mapped_buffer1, *mapped_buffer2;
+    if (psb_video_debug_nv_buffer_fp) {
+        psb_buffer_map(&obj_surface->psb_surface->buf, &mapped_buffer);
+
+        int j,k;
+        mapped_buffer1 = mapped_buffer +obj_surface->psb_surface->stride * srcy;
+        mapped_buffer2= mapped_buffer + obj_surface->psb_surface->stride * (obj_surface->height + srcy / 2);
+        mapped_buffer=mapped_buffer2;
+        for(j = 0; j < srch; ++j)
+        {
+            fwrite(mapped_buffer1,  srcw, 1, psb_video_debug_nv_buffer_fp);
+            mapped_buffer1 += obj_surface->psb_surface->stride;
+        }
+        for(j = 0 ; j < srch /2; ++j)
+        {
+            for(k = 0; k < srcw; ++k)
+            {
+                if((k%2) == 0)fwrite(mapped_buffer2,1,1,psb_video_debug_nv_buffer_fp);
+                mapped_buffer2++;
+            }
+            mapped_buffer2 += obj_surface->psb_surface->stride-srcw;
+        }
+        mapped_buffer2=mapped_buffer;
+        for(j = 0 ; j < srch /2; ++j)
+        {
+            for(k = 0; k < srcw; ++k)
+            {
+                if((k%2) == 1)fwrite(mapped_buffer2,1,1,psb_video_debug_nv_buffer_fp);
+                mapped_buffer2++;
+            }
+            mapped_buffer2 += obj_surface->psb_surface->stride-srcw;
+        }
+        psb_buffer_unmap(&obj_surface->psb_surface->buf);
+    }
+}
 
 #ifdef DEBUG_TRACE
 void psb__trace_message(const char *msg, ...)
@@ -763,7 +821,7 @@ VAStatus psb__checkSurfaceDimensions(psb_driver_data_p driver_data, int width, i
     if (driver_data->video_sd_disabled) {
         return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
     }
-    if ((width <= 0) || (width > 5120) || (height <= 0) || (height > 5120)) {
+    if ((width <= 0) || (width * height > 5120 * 5120) || (height <= 0)) {
         return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
     }
     if (driver_data->video_hd_disabled) {
@@ -782,14 +840,19 @@ VAStatus psb_CreateSurfaces(
     int height,
     int format,
     int num_surfaces,
-    VASurfaceID *surface_list        /* out */
+    VASurfaceID *surface_list,        /* out */
+    VASurfaceAttrib *attrib_list,
+    int num_attribs
 )
 {
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    int i, height_origin, buffer_stride = 0;
+    int i, height_origin, usage, buffer_stride = 0;
     int protected = (VA_RT_FORMAT_PROTECTED & format);
     unsigned long fourcc;
+    VAExternalMemoryBuffers *external_buffers = NULL;
+    buffer_handle_t handle;
+    void *vaddr;
 
     format = format & (~VA_RT_FORMAT_PROTECTED);
     if (num_surfaces <= 0) {
@@ -803,9 +866,38 @@ VAStatus psb_CreateSurfaces(
         return vaStatus;
     }
 
+    if ((attrib_list != NULL) && (num_attribs > 0)) {
+        for (i = 0; i < num_attribs; i++, attrib_list++) {
+            if (!attrib_list)
+                return VA_STATUS_ERROR_INVALID_PARAMETER;
+            switch (attrib_list->type) {
+            case VASurfaceAttribNativeHandle:
+                if (external_buffers != NULL) {
+                    //only support one VASurfaceAttribNativeHandle attribute
+                    continue;
+                } else if (attrib_list->value.type == VAGenericValueTypePointer) {
+                    external_buffers = (VAExternalMemoryBuffers *)attrib_list->value.value.p_val;
+                } else {
+                    return VA_STATUS_ERROR_INVALID_PARAMETER;
+                }
+                break;
+            default:
+                psb__error_message("Unsupported attribute.\n");
+                return VA_STATUS_ERROR_INVALID_PARAMETER;
+            }
+        }
+    }
+
     /* We only support one format */
     if ((VA_RT_FORMAT_YUV420 != format)
         && (VA_RT_FORMAT_YUV422 != format)) {
+        vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    /* the pixel_format also can only be NV12 */
+    if (external_buffers && (HAL_PIXEL_FORMAT_NV12_VED != external_buffers->pixel_format)) {
         vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
         DEBUG_FAILURE;
         return vaStatus;
@@ -864,9 +956,28 @@ VAStatus psb_CreateSurfaces(
             fourcc = VA_FOURCC_NV12;
             break;
         }
-
-        vaStatus = psb_surface_create(driver_data, width, height, fourcc,
-                                      protected, psb_surface);
+        if (external_buffers != NULL) {
+            switch (external_buffers->type) {
+            case VAExternalMemoryAndroidGrallocBuffer:
+                /*hard code the gralloc buffer usage*/
+                usage = GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
+                handle = (buffer_handle_t)external_buffers->buffers[i];
+                if (gralloc_lock(handle, usage, 0, 0, width, height, &vaddr)) {
+                    vaStatus = VA_STATUS_ERROR_UNKNOWN;
+                } else {
+                    vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
+                        external_buffers, psb_surface, vaddr);
+                    psb_surface->buf.handle = handle;
+                    gralloc_unlock(handle);
+                }
+                break;
+            default:
+                psb__error_message("Unsupported external buffer.\n");
+            }
+        } else {
+            vaStatus = psb_surface_create(driver_data, width, height, fourcc,
+            protected, psb_surface);
+        }
         if (VA_STATUS_SUCCESS != vaStatus) {
             free(psb_surface);
             object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
@@ -3140,6 +3251,10 @@ VAStatus psb_Terminate(VADriverContextP ctx)
 
     psb__information_message("vaTerminate: begin to tear down\n");
 
+#ifdef ANDROID
+    gralloc_deinit();
+#endif
+
     if (driver_data->bcd_registered != 0)
         if (VA_STATUS_SUCCESS != psb_release_video_bcd(ctx))
             return VA_STATUS_ERROR_UNKNOWN;
@@ -3301,7 +3416,6 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     ctx->vtable->vaQuerySurfaceStatus = psb_QuerySurfaceStatus;
     ctx->vtable->vaQuerySurfaceError = psb_QuerySurfaceError;
     ctx->vtable->vaPutSurface = psb_PutSurface;
-    ctx->vtable->vaGetBufferID = psb_GetBufferID;
     ctx->vtable->vaQueryImageFormats = psb_QueryImageFormats;
     ctx->vtable->vaCreateImage = psb_CreateImage;
     ctx->vtable->vaDeriveImage = psb_DeriveImage;
@@ -3507,6 +3621,9 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
 
     psb__information_message("vaInitilize: succeeded!\n\n");
 
+#ifdef ANDROID
+    gralloc_init();
+#endif
     return VA_STATUS_SUCCESS;
 }
 

@@ -539,12 +539,13 @@ static void pnw_H264_DestroyContext(
 
 static VAStatus psb__H264_allocate_colocated_buffer(context_H264_p ctx, object_surface_p obj_surface, uint32_t size)
 {
+    psb_buffer_p buf;
+    VAStatus vaStatus;
     psb_surface_p surface = obj_surface->psb_surface;
+    int index = GET_SURFACE_INFO_colocated_index(surface);
 
-    if (!GET_SURFACE_INFO_colocated_index(surface)) {
-        VAStatus vaStatus;
-        psb_buffer_p buf;
-        int index = ctx->colocated_buffers_idx;
+    if (!index) {
+        index = ctx->colocated_buffers_idx;
         if (index >= ctx->colocated_buffers_size) {
             return VA_STATUS_ERROR_UNKNOWN;
         }
@@ -558,7 +559,17 @@ static VAStatus psb__H264_allocate_colocated_buffer(context_H264_p ctx, object_s
         }
         ctx->colocated_buffers_idx++;
         SET_SURFACE_INFO_colocated_index(surface, index + 1); /* 0 means unset, index is offset by 1 */
-    }
+    } else {
+        buf = &(ctx->colocated_buffers[index - 1]);
+        if (buf->size < size) {
+            psb_buffer_destroy(buf);
+            vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, buf);
+            if (VA_STATUS_SUCCESS != vaStatus) {
+                return vaStatus;
+            }
+            SET_SURFACE_INFO_colocated_index(surface, index); /* replace the original buffer */
+        }
+	}
     return VA_STATUS_SUCCESS;
 }
 

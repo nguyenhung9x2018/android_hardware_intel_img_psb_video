@@ -591,6 +591,7 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
 
     /* clear frameskip flag to 0 */
     CLEAR_SURFACE_INFO_skipped_flag(ctx->src_surface->psb_surface);
+    ctx->none_vcl_nal = 0;
 
     /*if (ctx->sRCParams.RCEnable == IMG_TRUE)
      {
@@ -610,6 +611,7 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
         return vaStatus;
     }
     cmdbuf = ctx->obj_context->pnw_cmdbuf;
+    memset(cmdbuf->cmd_idx_saved, 0, sizeof(cmdbuf->cmd_idx_saved));
 
     /*    pnw__UpdateRCBitsTransmitted(ctx); shouln't be here*/
 
@@ -1038,41 +1040,6 @@ static VAStatus pnw_SetupRCParam(context_ENC_p ctx)
     return VA_STATUS_SUCCESS;
 }
 
-#if 0
-static VAStatus pnw_DetectFrameSkip(context_ENC_p ctx)
-{
-    int frame_skip = 0;
-    unsigned char *pBuffer;
-    IMG_UINT32 *CodedData;
-    VAStatus vaStatus;
-    psb_surface_p surface;
-
-    if (NULL == ctx->pprevious_coded_buf)
-        return 0;
-
-    /* it will ensure previous previous encode finished */
-    vaStatus = psb_buffer_map(ctx->previous_coded_buf->psb_buffer, &pBuffer);
-
-    if (vaStatus)
-        return vaStatus;
-
-    CodedData = (IMG_UINT32 *) pBuffer;
-
-    frame_skip = *(CodedData + 1);
-
-    surface = ctx->src_surface->psb_surface;
-
-    if (frame_skip) {
-        SET_SURFACE_INFO_skipped_flag(surface, frame_skip);
-        psb__information_message("Detected a skipped frame for encode\n");
-    }
-
-    psb_buffer_unmap(ctx->previous_coded_buf->psb_buffer);
-
-    return VA_STATUS_SUCCESS;
-}
-#endif
-
 VAStatus pnw_EndPicture(context_ENC_p ctx)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -1130,13 +1097,10 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     ctx->previous_src_surface = ctx->src_surface;
     ctx->previous_ref_surface = ctx->ref_surface;
     ctx->previous_dest_surface = ctx->dest_surface; /* reconstructed surface */
-
-    /*Frame Skip flag in Coded Buffer of frame N determines if frame N+2
-     * should be skipped, which means sending encoding commands of frame N+1 doesn't
-     * have to wait until frame N is completed encoded. It reduces the precision of
-     * rate control but improves HD encoding performance a lot.*/
-    ctx->pprevious_coded_buf = ctx->previous_coded_buf;
-    ctx->previous_coded_buf = ctx->coded_buf;
+    SET_CODEDBUF_INFO(SLICE_NUM, ctx->coded_buf->codedbuf_aux_info,
+        ctx->obj_context->slice_count);
+    SET_CODEDBUF_INFO(NONE_VCL_NUM, ctx->coded_buf->codedbuf_aux_info,
+        ctx->none_vcl_nal);
 
     for (i = (ctx->ParallelCores - 1); i >= 0; i--) {
         pnw_cmdbuf_insert_command_package(ctx->obj_context,
@@ -1174,6 +1138,7 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
     }
 
+    ctx->raw_frame_count++;
     return vaStatus;
 }
 

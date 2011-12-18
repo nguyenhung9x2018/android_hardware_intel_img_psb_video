@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <math.h>
 #include <va/va_backend.h>
 #include <wsbm/wsbm_manager.h>
@@ -1036,10 +1037,9 @@ static int I830PutImage(
                                   &src_w, &src_h, &width, &height,
                                   &psb_surface, pipeId);
 
-    if ((pipeId == PIPEB) && (driver_data->extend_rotation != VA_ROTATION_NONE) &&
-        (NULL == psb_surface)) {
-        /*BZ:9432. rotate surface may not be ready, so we have to discard this frame.*/
-        psb__information_message("Android HDMI video mode: discard this frame if rotate surface hasn't be ready.\n");
+    if (NULL == psb_surface) {
+        /*Rotate surface may not be ready, so we have to discard this frame.*/
+        psb__information_message("Discard this frame if rotate surface hasn't be ready.\n");
 
         return 1;
     }
@@ -1261,7 +1261,7 @@ psbSetupImageVideoOverlay(VADriverContextP ctx, PsbPortPrivPtr pPriv)
     /* use green as color key by default for android media player */
     pPriv->colorKey = driver_data->color_key/*0x0440*/;
 
-    /*Bypass color correction. Because these color 
+    /*Bypass color correction. Because these color
     correction can be done in pipe color correction in future.*/
     pPriv->brightness.Value = 0;   /*-19*/
     pPriv->contrast.Value = 0x40;  /*75*/

@@ -103,6 +103,8 @@ static void psb_cmdbuf_lldma_create_internal(psb_cmdbuf_p cmdbuf,
         uint32_t dest_offset,
         LLDMA_TYPE cmd);
 
+static int psb_cmdbuf_dump(unsigned int *buffer, int byte_size);
+
 /*
  * Create command buffer
  */
@@ -1115,6 +1117,7 @@ int psb_context_submit_cmdbuf(object_context_p obj_context)
 #define DUMP_CMDBUF 0
 
 #if DUMP_CMDBUF
+/*
     static int c = 0;
     static char pFileName[30];
 
@@ -1124,6 +1127,11 @@ int psb_context_submit_cmdbuf(object_context_p obj_context)
 
     fwrite(cmdbuf->cmd_start, 1, cmdbuffer_size, pF);
     fclose(pF);
+*/
+    int ret;
+    ret = psb_cmdbuf_dump((unsigned int *)cmdbuf->cmd_start, cmdbuffer_size);
+    if(ret)
+        psb__information_message("psb_cmdbuf: dump cmdbuf fail\n");
 #endif
 
     cmdbuf->cmd_count++;
@@ -2180,3 +2188,282 @@ void psb_cmdbuf_skip_end_block(psb_cmdbuf_p cmdbuf)
     *cmdbuf->skip_block_start = CMD_CONDITIONAL_SKIP | (cmdbuf->skip_condition << 20) | block_size;
     cmdbuf->skip_block_start = NULL;
 }
+
+#if DUMP_CMDBUF
+#ifndef DE3_FIRMWARE
+static int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
+{
+    static int c=0;
+    static char pFileName[50];
+
+
+    sprintf( pFileName , "/data/ctrlAlloc%i.txt", c++);
+    FILE* pF = fopen(pFileName,"w");
+    if(pF == NULL) {
+        return 1;
+    }
+
+    int idx=0;
+    int x;
+    while( idx <  byte_size / 4 )
+    {
+        unsigned int cmd = buffer[idx++];
+        fprintf( pF , "Command Word: %08X\n" , cmd  );
+        switch( cmd&0xf0000000  )
+        {
+            case 0x70000000:
+            {
+                fprintf( pF , "%04X 2NDPASSDEBLOCK\n" , (idx-1)*4  );
+                for(  x=0;x< 5 ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X\n",
+                        buffer[idx]        );
+                    idx++;
+
+                }
+
+                break;
+            }
+            case 0x90000000:
+            {
+                fprintf( pF , "%04X HEADER\n" , (idx-1)*4  );
+                for(  x=0;x< 7 ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X\n",
+                        buffer[idx]        );
+                    idx++;
+
+                }
+
+                break;
+            }
+
+            case 0x10000000:
+            {
+                fprintf( pF , "%04X CMD_REGVALPAIR_WRITE\n", (idx-1)*4);
+                unsigned int count = cmd&0xffff;
+                for(  x=0;x< count ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X %08X\n",
+                        buffer[idx] ,
+                        buffer[idx+1]    );
+                    idx+=2;
+
+                }
+                break;
+            }
+
+            case 0x50000000:
+            {
+                fprintf( pF , "%04X CMD_RENDEC_BLOCK\n", (idx-1)*4);
+                unsigned int  count    = (cmd>>16)&0x00ff;
+                unsigned int  uiAddr = ((cmd>>4) &0x0fff ) << 2;            /* to do,  limit this */
+
+                for(  x=0;x< count ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X %08X\n",
+                        uiAddr ,
+                        buffer[idx++]    );
+                    uiAddr+= 4;
+
+                }
+                break;
+            }
+            case 0xd0000000:
+            {
+                fprintf( pF , "%04X CMD_NEXT_SEG\n", (idx-1)*4 );
+                fprintf( pF , "should not see it here\n" );
+
+
+                break;
+            }
+            case 0xa0000000:
+            {
+            fprintf( pF , "%04X LLDMA \n", (idx-1)*4 );
+
+                unsigned int lldmaAddr = cmd<<4;
+                //unsigned int lldmaOffset = lldmaAddr - mpDevMemAlloc->GetDeviceVirtAddress();
+                //unsigned int *plldma = &buffer[ lldmaOffset/4 ];
+
+                //unsigned int Size = plldma[ 1 ]&0xffff ;
+
+                //fprintf( pF , "size 0x%04x\n",Size);
+                break;
+            }
+
+            case 0xb0000000:
+            {
+                fprintf( pF , "%04X SR SETUP %08x\n" , (idx-1)*4  , cmd );
+                for(  x=0;x< 2 ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X\n",
+                        buffer[idx]        );
+                    idx++;
+
+                }
+                break;
+            }
+
+            case 0xf0000000:
+            {
+                fprintf( pF , "%04X CMD_PARSE_HEADER %08x\n" , (idx-1)*4  , cmd );
+                for(  x=0;x< 8 ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X\n",
+                        buffer[idx]        );
+                    idx++;
+
+                }
+                break;
+            }
+
+        case 0x60000000:
+            goto done;
+
+            default:
+                fprintf( pF , "unknow cmd! %04X %08x\n" ,(idx-1)*4 , cmd);
+
+
+            }
+
+
+
+        }
+done:
+        fclose( pF );
+	return 0;
+}
+#else
+static int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
+{
+    static int c=0;
+    static char pFileName[50];
+
+
+    sprintf( pFileName , "/data/ctrlAlloc%i.txt", c++);
+    FILE* pF = fopen(pFileName,"w");
+    if(pF == NULL) {
+        return 1;
+    }
+
+    int idx=0;
+    int x;
+    while( idx <  byte_size / 4 )
+    {
+        unsigned int cmd = buffer[idx++];
+        fprintf( pF , "Command Word: %08X\n" , cmd  );
+        switch( cmd&0xf0000000  )
+        {
+            case 0x70000000:
+            {
+                fprintf( pF , "%04X 2NDPASSDEBLOCK\n" , (idx-1)*4  );
+                for( x=0;x< 5 ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X\n",
+                        buffer[idx]        );
+                    idx++;
+
+                }
+
+                break;
+            }
+            case 0x90000000:
+            {
+                fprintf( pF , "%04X HEADER\n" , (idx-1)*4  );
+                for( x=0;x< 7 ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X\n",
+                        buffer[idx]        );
+                    idx++;
+
+                }
+
+                break;
+            }
+
+            case 0x10000000:
+            {
+                fprintf( pF , "%04X CMD_REGVALPAIR_WRITE ( %08X )\n", (idx-1)*4 , cmd);
+                unsigned int addr = cmd&0xffff;
+                unsigned int count = (cmd>>16)&0xff;
+                for( x=0;x< count ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X %08X\n",
+                        addr ,
+                        buffer[idx]    );
+                    idx+=1;
+                    addr+=4;
+
+                }
+                break;
+            }
+
+            case 0x50000000:
+            {
+                fprintf( pF , "%04X CMD_RENDEC_BLOCK( %08X )\n", (idx-1)*4 , cmd);
+                unsigned int  count    = (cmd>>16)&0x00ff;
+                unsigned int  uiAddr = ((cmd>>4) &0x0fff ) << 2;            /* to do,  limit this */
+
+                for( x=0;x< count ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X %08X\n",
+                        uiAddr ,
+                        buffer[idx++]    );
+                    uiAddr+= 4;
+
+                }
+                break;
+            }
+            case 0xd0000000:
+            {
+                fprintf( pF , "%04X CMD_NEXT_SEG\n", (idx-1)*4 );
+                fprintf( pF , "wrong\n");
+                goto done;
+
+                break;
+            }
+            case 0xb0000000:
+            {
+                fprintf( pF , "%04X SR SETUP %08x\n" , (idx-1)*4  , cmd );
+                for( x=0;x< 2 ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X\n",
+                        buffer[idx]        );
+                    idx++;
+
+                }
+                break;
+            }
+
+            case 0xf0000000:
+            {
+                fprintf( pF , "%04X CMD_PARSE_HEADER %08x\n" , (idx-1)*4  , cmd );
+                for( x=0;x< 8 ;x++)
+                {
+                    fprintf( pF ,"\t\t%08X\n",
+                        buffer[idx]        );
+                    idx++;
+
+                }
+                break;
+            }
+
+        case 0x60000000:
+            goto done;
+
+            default:
+                fprintf( pF , "%04X %08x\n" ,(idx-1)*4 , cmd);
+
+
+        }
+
+
+    }
+done:
+    fclose( pF );
+    return 0;
+
+}
+#endif
+
+#endif

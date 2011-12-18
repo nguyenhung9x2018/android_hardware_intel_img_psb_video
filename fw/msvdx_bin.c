@@ -48,6 +48,7 @@ int main()
     unsigned long i = 0;
     unsigned long lseek;
     FILE *ptr = NULL;
+    FILE *fp_ll_dma = NULL;
 
     /* Create msvdx firmware for mrst */
 
@@ -179,6 +180,47 @@ int main()
     for (i = 0; i < fw.text_size; i++) {
         fwrite(&fw_DE2.pui8Text[i*4], 4, 1, ptr);
     }
+    for (i = 0; i < fw.data_size; i++) {
+        fwrite(&fw_DE2.pui8Data[i*4], 4, 1, ptr);
+    }
+    fclose(ptr);
+
+    /* Create stitch image of msvdx fw */
+    ptr = fopen("unsigned_msvdx_fw.bin", "w");
+    if (ptr == NULL) {
+        fprintf(stderr, "Create unsigned_msvdx_fw failed\n");
+        exit(-1);
+    }
+    fp_ll_dma = fopen("linked_list_struct", "r");
+    if (fp_ll_dma == NULL) {
+        fprintf(stderr, "Cannot open linked_list_sturct failed\n");
+        exit(-1);
+    }
+
+
+#define MTX_SIZE (40*1024)
+#define STACKGUARDWORD          ( 0x10101010 )
+#define UNINITILISE_MEM         ( 0xcd )
+#define LINKED_LIST_SIZE	( 32*5 )
+
+    unsigned int buf[(MTX_SIZE + sizeof(fw))/4];
+    fread(buf, 1, LINKED_LIST_SIZE, fp_ll_dma);
+    fwrite(buf, 1, LINKED_LIST_SIZE, ptr);
+
+    memset(buf, UNINITILISE_MEM, MTX_SIZE + sizeof(fw));
+    buf[((MTX_SIZE + sizeof(fw))/4) - 1] = STACKGUARDWORD;
+
+    fwrite(buf, 1, MTX_SIZE + sizeof(fw), ptr);
+
+    fseek(ptr, LINKED_LIST_SIZE, SEEK_SET);
+    fwrite(&fw, sizeof(fw), 1, ptr);
+
+    for (i = 0; i < fw.text_size; i++) {
+        fwrite(&fw_DE2.pui8Text[i*4], 4, 1, ptr);
+    }
+
+    fseek(ptr, LINKED_LIST_SIZE + fw_DE2.DataOffset + sizeof(fw), SEEK_SET);
+
     for (i = 0; i < fw.data_size; i++) {
         fwrite(&fw_DE2.pui8Data[i*4], 4, 1, ptr);
     }

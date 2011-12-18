@@ -66,6 +66,7 @@ struct psb_surface_s {
     int extra_info[8];
     int size;
     unsigned int bc_buffer;
+    buffer_handle_t handle;
 };
 
 /*
@@ -74,6 +75,15 @@ struct psb_surface_s {
 VAStatus psb_surface_create(psb_driver_data_p driver_data,
                             int width, int height, int fourcc, int protected,
                             psb_surface_p psb_surface /* out */
+                           );
+
+/*
+ * Create surface from virtual address
+ */
+VAStatus psb_surface_create_from_ub(psb_driver_data_p driver_data,
+                            int width, int height, int fourcc, VAExternalMemoryBuffers *graphic_buffers,
+                            psb_surface_p psb_surface, /* out */
+                            void *vaddr
                            );
 
 VAStatus psb_surface_create_for_userptr(

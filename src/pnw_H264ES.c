@@ -251,16 +251,8 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     else
         ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
 
-    if (ctx->buffer_size != 0) {
-	/* It's calculated according the formula in ticket 16288. */
-	if (ctx->initial_buffer_fullness > ctx->sRCParams.BitsPerSecond) {
-	    psb__error_message("initial_buffer_fullnes(%d) shouldn't"
-		    " be larger than bitrate(%d)\n",
-		    ctx->initial_buffer_fullness,
-		    ctx->sRCParams.BitsPerSecond);
-	    free(pSequenceParams);
-	    return VA_STATUS_ERROR_INVALID_PARAMETER;
-	}
+    if (ctx->bInserHRDParams &&
+	    ctx->buffer_size != 0 && ctx->initial_buffer_fullness != 0) {
 	ctx->sRCParams.BufferSize = ctx->buffer_size;
 	ctx->sRCParams.InitialLevel = ctx->buffer_size - ctx->initial_buffer_fullness;
 	ctx->sRCParams.InitialDelay = ctx->initial_buffer_fullness;
@@ -292,6 +284,7 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     pVUI_Params->cpb_removal_delay_length_minus1 = PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE - 1;
     pVUI_Params->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
     pVUI_Params->time_offset_length = 24;
+    ctx->bInsertVUI = pSequenceParams->vui_flag ? IMG_TRUE: IMG_FALSE;
 
     sCrop.bClip = IMG_FALSE;
     sCrop.LeftCropOffset = 0;
@@ -309,11 +302,6 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     }
     /* sequence header is always inserted */
 
-    /* Not know why set VUI_Params.CBR = 0; */
-    /*
-    if (ctx->eCodec== IMG_CODEC_H264_NO_RC)
-        VUI_Params.CBR = 0;
-    */
     memset(cmdbuf->header_mem_p + ctx->seq_header_ofs,
            0,
            HEADER_SIZE);
@@ -363,7 +351,7 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
                    HEADER_SIZE);
         }
     }
-
+    ctx->none_vcl_nal++;
     cmdbuf->cmd_idx_saved[PNW_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
     /* Send to the last core as this will complete first */
     pnw_cmdbuf_insert_command_package(ctx->obj_context,
@@ -375,6 +363,115 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
 
     return VA_STATUS_SUCCESS;
 }
+
+
+static VAStatus pnw__H264ES_insert_SEI_buffer_period(context_ENC_p ctx)
+{
+    unsigned int ui32nal_initial_cpb_removal_delay;
+    unsigned int ui32nal_initial_cpb_removal_delay_offset;
+    pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
+
+    ui32nal_initial_cpb_removal_delay =
+	90000 * (1.0 * ctx->sRCParams.InitialDelay / ctx->sRCParams.BitsPerSecond);
+    ui32nal_initial_cpb_removal_delay_offset =
+	90000 * (1.0 * ctx->buffer_size / ctx->sRCParams.BitsPerSecond)
+	- ui32nal_initial_cpb_removal_delay;
+
+    psb__information_message("Insert SEI buffer period message with "
+	    "ui32nal_initial_cpb_removal_delay(%d) and "
+	    "ui32nal_initial_cpb_removal_delay_offset(%d)\n",
+	    ui32nal_initial_cpb_removal_delay,
+	    ui32nal_initial_cpb_removal_delay_offset);
+
+    memset(cmdbuf->header_mem_p + ctx->sei_buf_prd_ofs,
+	    0,
+	    HEADER_SIZE);
+
+    pnw__H264_prepare_SEI_buffering_period_header(
+	    (MTX_HEADER_PARAMS *)(cmdbuf->header_mem_p + ctx->sei_buf_prd_ofs),
+	    1, //ui8NalHrdBpPresentFlag,
+	    0, //ui8nal_cpb_cnt_minus1,
+	    1 + ctx->VUI_Params.initial_cpb_removal_delay_length_minus1, //ui8nal_initial_cpb_removal_delay_length,
+	    ui32nal_initial_cpb_removal_delay, //ui32nal_initial_cpb_removal_delay,
+	    ui32nal_initial_cpb_removal_delay_offset, //ui32nal_initial_cpb_removal_delay_offset,
+	    0, //ui8VclHrdBpPresentFlag,
+	    NOT_USED_BY_TOPAZ, //ui8vcl_cpb_cnt_minus1,
+	    0, //ui32vcl_initial_cpb_removal_delay,
+	    0 //ui32vcl_initial_cpb_removal_delay_offset
+	    );
+    cmdbuf->cmd_idx_saved[PNW_CMDBUF_SEI_BUF_PERIOD_IDX] = cmdbuf->cmd_idx;
+    pnw_cmdbuf_insert_command_package(ctx->obj_context,
+	    ctx->ParallelCores - 1,
+	    MTX_CMDID_DO_HEADER,
+	    &cmdbuf->header_mem,
+	    ctx->sei_buf_prd_ofs);
+
+    ctx->none_vcl_nal++;
+    return VA_STATUS_SUCCESS;
+}
+
+
+static VAStatus pnw__H264ES_insert_SEI_pic_timing(context_ENC_p ctx)
+{
+    pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
+    uint32_t ui32cpb_removal_delay;
+
+    psb__information_message("Insert SEI picture timing message. \n");
+
+    memset(cmdbuf->header_mem_p + ctx->sei_pic_tm_ofs,
+	    0,
+	    HEADER_SIZE);
+
+    /* ui32cpb_removal_delay is zero for 1st frame and will be reset
+     * after a IDR frame */
+    if (ctx->obj_context->frame_count == 0) {
+	if (ctx->raw_frame_count == 0)
+	    ui32cpb_removal_delay = 0;
+        else
+	    ui32cpb_removal_delay =
+		ctx->sRCParams.IDRFreq * ctx->sRCParams.IntraFreq * 2;
+    } else
+	ui32cpb_removal_delay = 2 * ctx->obj_context->frame_count;
+
+    pnw__H264_prepare_SEI_picture_timing_header(
+	    (MTX_HEADER_PARAMS *)(cmdbuf->header_mem_p + ctx->sei_pic_tm_ofs),
+	    1,
+	    ctx->VUI_Params.cpb_removal_delay_length_minus1,
+	    ctx->VUI_Params.dpb_output_delay_length_minus1,
+	    ui32cpb_removal_delay, //ui32cpb_removal_delay,
+	    2, //ui32dpb_output_delay,
+	    0, //ui8pic_struct_present_flag,
+	    0, //ui8pic_struct,
+	    0, //ui8NumClockTS,
+	    0, //*aui8clock_timestamp_flag,
+	    0, //ui8full_timestamp_flag,
+	    0, //ui8seconds_flag,
+	    0, //ui8minutes_flag,
+	    0, //ui8hours_flag,
+	    0, //ui8seconds_value,
+	    0, //ui8minutes_value,
+	    0, //ui8hours_value,
+	    0, //ui8ct_type,
+	    0, //ui8nuit_field_based_flag,
+	    0, //ui8counting_type,
+	    0, //ui8discontinuity_flag,
+	    0, //ui8cnt_dropped_flag,
+	    0, //ui8n_frames,
+	    0, //ui8time_offset_length,
+	    0 //i32time_offset)
+		);
+
+    cmdbuf->cmd_idx_saved[PNW_CMDBUF_SEI_PIC_TIMING_IDX] = cmdbuf->cmd_idx;
+    pnw_cmdbuf_insert_command_package(ctx->obj_context,
+	    ctx->ParallelCores - 1,
+	    MTX_CMDID_DO_HEADER,
+	    &cmdbuf->header_mem,
+	    ctx->sei_pic_tm_ofs);
+
+    ctx->none_vcl_nal++;
+    return VA_STATUS_SUCCESS;
+}
+
 
 static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
@@ -435,6 +532,11 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
             ctx->obj_context->frame_count = 0;
         }
     }
+
+    /* If VUI header isn't enabled, we'll igore the request for HRD header insertion */
+    if (ctx->bInserHRDParams)
+	ctx->bInserHRDParams = ctx->bInsertVUI;
+
     /* For H264, PicHeader only needed in the first picture*/
     if (!(ctx->obj_context->frame_count)) {
         cmdbuf = ctx->obj_context->pnw_cmdbuf;
@@ -454,74 +556,12 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
                                               MTX_CMDID_DO_HEADER,
                                               &cmdbuf->header_mem,
                                               ctx->seq_header_ofs);
+	    ctx->none_vcl_nal++;
         }
 
 	if (ctx->bInserHRDParams) {
-	    unsigned int ui32nal_initial_cpb_removal_delay;
-	    unsigned int ui32nal_initial_cpb_removal_delay_offset;
-	    ui32nal_initial_cpb_removal_delay =
-		90000 * (1.0 * ctx->sRCParams.InitialDelay / ctx->sRCParams.BitsPerSecond);
-	    ui32nal_initial_cpb_removal_delay_offset =
-		90000 - ui32nal_initial_cpb_removal_delay;
-
-	    memset(cmdbuf->header_mem_p + ctx->sei_buf_prd_ofs,
-		    0,
-		    HEADER_SIZE);
-
-	    memset(cmdbuf->header_mem_p + ctx->sei_pic_tm_ofs,
-		    0,
-		    HEADER_SIZE);
-
-	    pnw__H264_prepare_SEI_buffering_period_header(
-		    (MTX_HEADER_PARAMS *)(cmdbuf->header_mem_p + ctx->sei_buf_prd_ofs),
-		    1, //ui8NalHrdBpPresentFlag,
-		    0, //ui8nal_cpb_cnt_minus1,
-		    1 + ctx->VUI_Params.initial_cpb_removal_delay_length_minus1, //ui8nal_initial_cpb_removal_delay_length,
-		    ui32nal_initial_cpb_removal_delay, //ui32nal_initial_cpb_removal_delay,
-		    ui32nal_initial_cpb_removal_delay_offset, //ui32nal_initial_cpb_removal_delay_offset,
-		    0, //ui8VclHrdBpPresentFlag,
-		    NOT_USED_BY_TOPAZ, //ui8vcl_cpb_cnt_minus1,
-		    0, //ui32vcl_initial_cpb_removal_delay,
-		    0 //ui32vcl_initial_cpb_removal_delay_offset
-		    );
-	    pnw_cmdbuf_insert_command_package(ctx->obj_context,
-		    ctx->ParallelCores - 1,
-		    MTX_CMDID_DO_HEADER,
-		    &cmdbuf->header_mem,
-		    ctx->sei_buf_prd_ofs);
-
-	    pnw__H264_prepare_SEI_picture_timing_header(
-		    (MTX_HEADER_PARAMS *)(cmdbuf->header_mem_p + ctx->sei_pic_tm_ofs),
-		    1,
-		    ctx->VUI_Params.cpb_removal_delay_length_minus1,
-		    ctx->VUI_Params.dpb_output_delay_length_minus1,
-		    0, //ui32cpb_removal_delay,
-		    2, //ui32dpb_output_delay,
-		    0, //ui8pic_struct_present_flag,
-		    0, //ui8pic_struct,
-		    0, //ui8NumClockTS,
-		    0, //*aui8clock_timestamp_flag,
-		    0, //ui8full_timestamp_flag,
-		    0, //ui8seconds_flag,
-		    0, //ui8minutes_flag,
-		    0, //ui8hours_flag,
-		    0, //ui8seconds_value,
-		    0, //ui8minutes_value,
-		    0, //ui8hours_value,
-		    0, //ui8ct_type,
-		    0, //ui8nuit_field_based_flag,
-		    0, //ui8counting_type,
-		    0, //ui8discontinuity_flag,
-		    0, //ui8cnt_dropped_flag,
-		    0, //ui8n_frames,
-		    0, //ui8time_offset_length,
-		    0 //i32time_offset)
-	    );
-	    pnw_cmdbuf_insert_command_package(ctx->obj_context,
-		    ctx->ParallelCores - 1,
-		    MTX_CMDID_DO_HEADER,
-		    &cmdbuf->header_mem,
-		    ctx->sei_pic_tm_ofs);
+	    pnw__H264ES_insert_SEI_buffer_period(ctx);
+	    pnw__H264ES_insert_SEI_pic_timing(ctx);
 	}
 
         pnw__H264_prepare_picture_header(cmdbuf->header_mem_p + ctx->pic_header_ofs, IMG_FALSE, ctx->sRCParams.QCPOffset);
@@ -532,8 +572,10 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
                                           MTX_CMDID_DO_HEADER,
                                           &cmdbuf->header_mem,
                                           ctx->pic_header_ofs);
-
+	ctx->none_vcl_nal++;
     }
+    else if (ctx->bInserHRDParams)
+	pnw__H264ES_insert_SEI_pic_timing(ctx);
 
     if (ctx->ParallelCores == 1) {
         ctx->coded_buf_per_slice = 0;
@@ -705,10 +747,14 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
             psb__information_message(" Remove unneccesary %d MTX_CMDID_STARTPIC commands from cmdbuf\n",
                                      ctx->ParallelCores - obj_buffer->num_elements);
             ctx->ParallelCores = obj_buffer->num_elements;
-            *(cmdbuf->cmd_idx_saved[PNW_CMDBUF_SEQ_HEADER_IDX]) &=
-                ~(MTX_CMDWORD_CORE_MASK << MTX_CMDWORD_CORE_SHIFT);
-            *(cmdbuf->cmd_idx_saved[PNW_CMDBUF_PIC_HEADER_IDX]) &=
-                ~(MTX_CMDWORD_CORE_MASK << MTX_CMDWORD_CORE_SHIFT);
+
+	    /* All header generation commands should be send to core 0*/
+	    for (i = PNW_CMDBUF_SEQ_HEADER_IDX; i < PNW_CMDBUF_SAVING_MAX; i++) {
+		if (cmdbuf->cmd_idx_saved[i] != 0)
+		    *(cmdbuf->cmd_idx_saved[i]) &=
+			~(MTX_CMDWORD_CORE_MASK << MTX_CMDWORD_CORE_SHIFT);
+	    }
+
             ctx->SliceToCore = ctx->ParallelCores - 1;
         }
     }
@@ -899,11 +945,12 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
 
     case VAEncMiscParameterTypeHRD:
 	hrd_param = (VAEncMiscParameterHRD *)pBuffer->data;
+
 	if (hrd_param->buffer_size == 0
-		|| ctx->initial_buffer_fullness == 0) {
-	    vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-	    break;
-	}
+		|| hrd_param->initial_buffer_fullness == 0)
+	    psb__information_message("Find zero value for buffer_size "
+		    "and initial_buffer_fullness.\n"
+		    "Will assign default value to them later \n");
 
 	if (ctx->initial_buffer_fullness > ctx->buffer_size) {
 	    psb__error_message("initial_buffer_fullnessi(%d) shouldn't be"
@@ -922,6 +969,7 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
 
 	ctx->buffer_size = hrd_param->buffer_size;
 	ctx->initial_buffer_fullness = hrd_param->initial_buffer_fullness;
+	ctx->bInserHRDParams = IMG_TRUE;
         psb__information_message("hrd param buffer_size set to %d "
                                  "initial buffer fullness set to %d\n",
                                  ctx->buffer_size, ctx->initial_buffer_fullness);

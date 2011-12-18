@@ -235,8 +235,6 @@ struct context_ENC_s {
     object_surface_p    previous_src_surface;
     object_surface_p    previous_ref_surface;
     object_surface_p    previous_dest_surface; /* reconstructed surface */
-    object_buffer_p     previous_coded_buf;
-    object_buffer_p     pprevious_coded_buf;
 
     /* point to the place in cmdbuf following START_PIC, the initial_qp will fill into it later */
     uint32_t *initial_qp_in_cmdbuf;
@@ -316,9 +314,14 @@ struct context_ENC_s {
     uint32_t initial_buffer_fullness;
 
     H264_VUI_PARAMS VUI_Params;
+    IMG_BOOL bInsertVUI;
 
     /*H264 idr_pic_id field in slice header*/
     uint16_t idr_pic_id;
+    unsigned char none_vcl_nal;
+
+    /*Keep growing and won't be reset on IDR frame*/
+    uint32_t raw_frame_count;
 };
 
 typedef struct context_ENC_s *context_ENC_p;

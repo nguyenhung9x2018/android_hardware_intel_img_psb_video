@@ -77,6 +77,7 @@ typedef struct _psb_HDMIExt_info_s {
     uint32_t hdmi_crtc_id;
 
     psb_hdmi_mode hdmi_mode;
+    int hdmi_state;
     psb_extvideo_prop_p hdmi_extvideo_prop;
 } psb_HDMIExt_info_s, *psb_HDMIExt_info_p;
 

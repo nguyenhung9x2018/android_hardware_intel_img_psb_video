@@ -72,6 +72,8 @@ struct psb_buffer_s {
     struct psb_buffer_s *next;
     unsigned char *user_ptr; /* user pointer for user buffers */
     psb_driver_data_p driver_data; /* for RAR buffer release */
+    uint32_t size;
+    buffer_handle_t handle;
 };
 
 /*
@@ -81,6 +83,16 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
                            unsigned int size,
                            psb_buffer_type_t type,
                            psb_buffer_p buf
+                          );
+
+/*
+ * Create buffer from user ptr
+ */
+VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
+                           unsigned int size,
+                           psb_buffer_type_t type,
+                           psb_buffer_p buf,
+                           void * vaddr
                           );
 
 /*

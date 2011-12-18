@@ -209,13 +209,6 @@ VAStatus psb_PutSurface(
     unsigned int flags /* de-interlacing flags */
 );
 
-VAStatus psb_GetBufferID(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    uint32_t *devid,
-    uint32_t *bufid
-);
-
 VAStatus psb_QueryImageFormats(
     VADriverContextP ctx,
     VAImageFormat *format_list,        /* out */

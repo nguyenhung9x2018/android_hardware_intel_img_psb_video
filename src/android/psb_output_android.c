@@ -395,9 +395,10 @@ static int psb_check_outputmethod(
         /* need to handle VA rotation, and set WM rotate to 0
          * for Android, MIPI0/HDMI has the same WM rotation always
          */
-        if (driver_data->mipi0_rotation != 0) {
+        if (driver_data->mipi0_rotation != 0 || driver_data->rotation_dirty != 0) {
             driver_data->mipi0_rotation = 0;
             driver_data->hdmi_rotation = 0;
+            driver_data->rotation_dirty = 0;
             output->new_destbox = 1;
             psb_RecalcRotate(ctx);
         }
@@ -433,6 +434,8 @@ static int psb_check_outputmethod(
         return 0;
     }
 
+    /* HDMI is not enabled */
+    psb_android_surfaceflinger_status(android_isurface, &output->sf_composition, &rotation, &widi);
     /*Update output destbox using layerbuffer's visible region*/
     psb_update_destbox(ctx);
 
@@ -446,23 +449,6 @@ static int psb_check_outputmethod(
         psb__information_message("No proper destbox, use texstreaming (%dx%d+%d+%d)\n",
                                  output->destw, output->desth, output->destx, output->desty);
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
-        return 0;
-    }
-
-    /* HDMI is not enabled */
-    psb_android_surfaceflinger_status(android_isurface, &output->sf_composition, &rotation, &widi);
-    if (widi == eWidiClone) {
-        psb__information_message("WIDI in clone mode, use texstreaming\n");
-        driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
-        driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
-
-        return 0;
-    }
-    if (widi == eWidiExtendedVideo) {
-        psb__information_message("WIDI in extend video mode, disable local displaying\n");
-        driver_data->output_method = PSB_PUTSURFACE_NONE;
-        driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
-
         return 0;
     }
 
@@ -486,6 +472,21 @@ static int psb_check_outputmethod(
     if (GET_SURFACE_INFO_protect(obj_surface->psb_surface)) {
         psb__information_message("Protected surface, use overlay\n");
         driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
+
+        return 0;
+    }
+
+    if (widi == eWidiClone) {
+        psb__information_message("WIDI in clone mode, use texstreaming\n");
+        driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
+        driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
+
+        return 0;
+    }
+    if (widi == eWidiExtendedVideo) {
+        psb__information_message("WIDI in extend video mode, disable local displaying\n");
+        driver_data->output_method = PSB_PUTSURFACE_NONE;
+        driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
 
         return 0;
     }
@@ -520,40 +521,6 @@ static int psb_check_outputmethod(
     return 0;
 }
 
-VAStatus psb_GetBufferID(
-    VADriverContextP ctx,
-    VASurfaceID surface,
-    uint32_t* devid,
-    uint32_t* bufid)
-{
-    INIT_DRIVER_DATA;
-    INIT_OUTPUT_PRIV;
-
-    object_surface_p obj_surface;
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    int buffer_index;
-
-    obj_surface = SURFACE(surface);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    buffer_index = psb_get_video_bcd(ctx, surface);
-    if (buffer_index == -1) {
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        psb__error_message("psb get video buffer index failure\n");
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    *devid = driver_data->bcd_id;
-    *bufid = buffer_index;
-
-    return VA_STATUS_SUCCESS;
-}
-
 VAStatus psb_PutSurface(
     VADriverContextP ctx,
     VASurfaceID surface,
@@ -586,6 +553,8 @@ VAStatus psb_PutSurface(
         DEBUG_FAILURE;
         return vaStatus;
     }
+
+	//psb__dump_NV_buffers(obj_surface,0,0,srcw,srch);
 
     if ((NULL == cliprects) && (0 != number_cliprects)) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -658,8 +627,17 @@ VAStatus psb_PutSurface(
 
     /* time for MFLD platform */
     psb_check_outputmethod(ctx, surface, srcw, srch, android_isurface, &hdmi_mode);
-    if (driver_data->output_method == PSB_PUTSURFACE_NONE)
+    if (driver_data->output_method == PSB_PUTSURFACE_NONE) {
+        /*if overlay still enabled, stop it.*/
+        psb_coverlay_stop(ctx);
+        /*check if we need to clear fb.*/
+        if (driver_data->overlay_idle_frame != 0) {
+            psb_android_texture_streaming_set_background_color(driver_data->color_key | 0xff000000);
+            psb_android_texture_streaming_display(buffer_index);
+            driver_data->overlay_idle_frame = 0;
+        }
         return VA_STATUS_SUCCESS;
+    }
 
     if (hdmi_mode == UNDEFINED) {
         psb__information_message("HDMI: Undefined mode, drop the frame.\n");

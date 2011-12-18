@@ -50,6 +50,7 @@
 #define XID unsigned int
 #define INT16 unsigned int
 #include <cutils/log.h>
+#include <system/window.h>
 #undef  LOG_TAG
 #define LOG_TAG "pvr_drv_video"
 #endif
@@ -369,13 +370,36 @@ struct object_surface_s {
     unsigned long display_timestamp; /* record the time point of put surface*/
 };
 
+#define PSB_CODEDBUF_SLICE_NUM_MASK (0xff)
+#define PSB_CODEDBUF_SLICE_NUM_SHIFT (0)
+
+#define PSB_CODEDBUF_NONE_VCL_NUM_MASK (0xff)
+#define PSB_CODEDBUF_NONE_VCL_NUM_SHIFT (8)
+
+#define SET_CODEDBUF_INFO(flag, aux_info, slice_num) \
+    do {\
+	(aux_info) &= ~(PSB_CODEDBUF_##flag##_MASK<<PSB_CODEDBUF_##flag##_SHIFT);\
+	(aux_info) |= ((slice_num) & PSB_CODEDBUF_##flag##_MASK)\
+	<<PSB_CODEDBUF_##flag##_SHIFT;\
+    } while (0)
+
+#define CLEAR_CODEDBUF_INFO(flag, aux_info) \
+    do {\
+	(aux_info) &= ~(PSB_CODEDBUF_##flag##_MASK<<PSB_CODEDBUF_##flag##_SHIFT);\
+    } while (0)
+
+#define GET_CODEDBUF_INFO(flag, aux_info) \
+	(((aux_info)>>PSB_CODEDBUF_##flag##_SHIFT) & PSB_CODEDBUF_##flag##_MASK)
+
+
+#define PSB_CODEDBUF_SEGMENT_MAX  (8)
+
 struct object_buffer_s {
     struct object_base_s base;
     object_buffer_p ptr_next; /* Generic ptr for linked list */
     object_buffer_p *pptr_prev_next; /* Generic ptr for linked list */
     struct psb_buffer_s *psb_buffer;
     unsigned char *buffer_data;
-    VACodedBufferSegment codedbuf_mapinfo[8]; /* for VAEncCodedBufferType */
     unsigned int size;
     unsigned int alloc_size;
     unsigned int max_num_elements;
@@ -383,6 +407,10 @@ struct object_buffer_s {
     object_context_p context;
     VABufferType type;
     uint32_t last_used;
+
+    /* for VAEncCodedBufferType */
+    VACodedBufferSegment codedbuf_mapinfo[PSB_CODEDBUF_SEGMENT_MAX];
+    uint32_t codedbuf_aux_info;
 };
 
 struct object_image_s {
@@ -448,6 +476,17 @@ struct format_vtable_s {
     );
 };
 
+typedef struct IMG_native_handle
+{
+    native_handle_t base;
+    int fd;
+    unsigned long long ui64Stamp;
+    int usage;
+    int width;
+    int height;
+    unsigned int bpp;
+    int format;
+}IMG_native_handle_t;
 
 #define psb__bounds_check(x, max)                                       \
     do { ASSERT(x < max); if (x >= max) x = max - 1; } while(0);
@@ -493,6 +532,12 @@ inline static char * buffer_type_to_string(int type)
         return "VAEncPictureParameterBufferType";
     case VAEncSliceParameterBufferType:
         return "VAEncSliceParameterBufferType";
+    case VAEncH264VUIBufferType:
+        return "VAEncH264VUIBufferType";
+    case VAEncH264SEIBufferType:
+        return "VAEncH264SEIBufferType";
+    case VAEncMiscParameterBufferType:
+        return "VAEncMiscParameterBufferType";
     default:
         return "UnknowBuffer";
     }

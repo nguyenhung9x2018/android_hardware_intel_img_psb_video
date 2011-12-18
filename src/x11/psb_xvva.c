@@ -254,11 +254,12 @@ static void psb_surface_init(
         srf->pl_flags = wsbmBOPlacementHint(bo);
     }
 
+/*
     if (srf->pl_flags & DRM_PSB_FLAG_MEM_CI)
         srf->reserved_phyaddr = driver_data->camera_phyaddr;
     if (srf->pl_flags & DRM_PSB_FLAG_MEM_RAR)
         srf->reserved_phyaddr = driver_data->rar_phyaddr;
-
+*/
     srf->bytes_pp = bpp;
 
     srf->width = w;
@@ -403,7 +404,7 @@ static int psb__CheckPutSurfaceXvPort(
         return 0;
     }
 
-    if (((buf_pl & (WSBM_PL_FLAG_TT | DRM_PSB_FLAG_MEM_RAR | DRM_PSB_FLAG_MEM_CI)) == 0) /* buf not in TT/RAR or CI */
+    if (((buf_pl & (WSBM_PL_FLAG_TT)) == 0) /* buf not in TT/RAR or CI */
         || (obj_surface->width > 1920)  /* overlay have isue to support >1920xXXX resolution */
         || (obj_surface->subpic_count > 0)  /* overlay can't support subpicture */
         /*    || (flags & (VA_TOP_FIELD|VA_BOTTOM_FIELD))*/
@@ -433,9 +434,6 @@ static int psb__CheckPutSurfaceXvPort(
      */
     if (driver_data->drawable_info
         & (XVDRAWABLE_ROTATE_180 | XVDRAWABLE_ROTATE_90 | XVDRAWABLE_ROTATE_270)) {
-        if (buf_pl & DRM_PSB_FLAG_MEM_RAR)
-            driver_data->output_method = PSB_PUTSURFACE_OVERLAY;
-        else
             driver_data->output_method = PSB_PUTSURFACE_TEXTURE;
     }
 
@@ -767,7 +765,7 @@ VAStatus psb_putsurface_xvideo(
             rotate_width = obj_surface->width;
             rotate_height = obj_surface->height;
         }
-        unsigned int protected = vaPtr->src_srf.pl_flags & DRM_PSB_FLAG_MEM_RAR;
+        unsigned int protected = vaPtr->src_srf.pl_flags & 0;
 
         vaStatus = psb_check_rotatesurface(ctx, rotate_width, rotate_height, protected, fourcc);
         if (VA_STATUS_SUCCESS != vaStatus)
