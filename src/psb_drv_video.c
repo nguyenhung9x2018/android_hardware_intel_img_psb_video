@@ -71,7 +71,7 @@
 #include <system/graphics.h>
 #include <gralloc.h>
 #include "android/psb_gralloc.h"
-
+#include "android/psb_android_glue.h"
 #include "psb_def.h"
 #include "psb_ws_driver.h"
 #include "ci_va.h"
@@ -852,7 +852,7 @@ VAStatus psb_CreateSurfaces(
     unsigned long fourcc;
     VAExternalMemoryBuffers *external_buffers = NULL;
     buffer_handle_t handle;
-    void *vaddr;
+    void *vaddr[2];
 
     format = format & (~VA_RT_FORMAT_PROTECTED);
     if (num_surfaces <= 0) {
@@ -902,6 +902,8 @@ VAStatus psb_CreateSurfaces(
         DEBUG_FAILURE;
         return vaStatus;
     }
+    if (external_buffers)
+        driver_data->native_window = external_buffers->native_window;
 
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
     if (VA_STATUS_SUCCESS != vaStatus) {
@@ -962,12 +964,15 @@ VAStatus psb_CreateSurfaces(
                 /*hard code the gralloc buffer usage*/
                 usage = GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
                 handle = (buffer_handle_t)external_buffers->buffers[i];
-                if (gralloc_lock(handle, usage, 0, 0, width, height, &vaddr)) {
+                if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr)) {
                     vaStatus = VA_STATUS_ERROR_UNKNOWN;
                 } else {
                     vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
-                        external_buffers, psb_surface, vaddr);
+                        external_buffers, psb_surface, vaddr[0]);
                     psb_surface->buf.handle = handle;
+                    obj_surface->share_info = (psb_surface_share_info_t *)vaddr[1];
+                    psb__information_message("%s : Create graphic buffer success"
+                         "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n", __FUNCTION__, surfaceID, vaddr[0], vaddr[1]);
                     gralloc_unlock(handle);
                 }
                 break;
@@ -1007,7 +1012,6 @@ VAStatus psb_CreateSurfaces(
     if (fourcc == VA_FOURCC_NV12)
         psb_add_video_bcd(ctx, width, height, buffer_stride,
                           num_surfaces, surface_list);
-
     return vaStatus;
 }
 
@@ -1180,7 +1184,7 @@ VAStatus psb_DestroySurfaces(
             /* Surface is being displaying. Need to stop overlay here */
             psb_coverlay_stop(ctx);
         }
-
+        psb__information_message("%s : obj_surface->surface_id = 0x%x\n",__FUNCTION__, obj_surface->surface_id);
         psb__destroy_surface(driver_data, obj_surface);
         surface_list[i] = VA_INVALID_SURFACE;
     }
@@ -2123,6 +2127,19 @@ VAStatus psb_BeginPicture(
     /* want msvdx to do rotate
      * but check per-context stream type: interlace or not
      */
+    if (driver_data->native_window) {
+        int display_rotate = 0;
+        psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
+        psb__information_message("NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
+
+        if (driver_data->mipi0_rotation != display_rotate) {
+            driver_data->mipi0_rotation = display_rotate;
+            psb_RecalcRotate(ctx);
+            psb__information_message("obj_surface->surface_id(0x%x): New rotate degree(%d) from surface flinger.\n", 
+                obj_surface->surface_id, driver_data->msvdx_rotate_want);
+        }
+    }
+
     if (obj_context->interlaced_stream || driver_data->disable_msvdx_rotate)
         obj_context->msvdx_rotate = 0;
     else
@@ -2135,6 +2152,24 @@ VAStatus psb_BeginPicture(
     SET_SURFACE_INFO_rotate(obj_surface->psb_surface, obj_context->msvdx_rotate);
     if (IS_MFLD(driver_data) && CONTEXT_ROTATE(obj_context))
         psb_CreateRotateSurface(ctx, obj_surface, obj_context->msvdx_rotate);
+
+    if (obj_surface->share_info) {
+        psb_surface_share_info_p share_info = obj_surface->share_info;
+
+        switch (obj_context->msvdx_rotate) {
+        case VA_ROTATION_90:
+            share_info->surface_rotate = HAL_TRANSFORM_ROT_90;
+            break;
+        case VA_ROTATION_180:
+            share_info->surface_rotate = HAL_TRANSFORM_ROT_180;
+            break;
+        case VA_ROTATION_270:
+            share_info->surface_rotate = HAL_TRANSFORM_ROT_270;
+            break;
+        default:
+            share_info->surface_rotate = 0;
+        }
+    }
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {
         psb_surface_p psb_surface = obj_surface->psb_surface;

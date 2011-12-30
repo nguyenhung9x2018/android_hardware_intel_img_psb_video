@@ -41,6 +41,8 @@
 #include "psb_texstreaming.h"
 #include <cutils/log.h>
 #include <ui/Rect.h>
+#include <system/window.h>
+#include <system/graphics.h>
 
 using namespace android;
 
@@ -110,4 +112,30 @@ void psb_android_get_destbox(short* destx, short* desty, unsigned short* destw, 
 {
 }
 
+int psb_android_surfaceflinger_rotate(void* native_window, int *rotation)
+{
+    sp<ANativeWindow> mNativeWindow = static_cast<ANativeWindow*>(native_window);
+    int err, transform_hint;
 
+    if (mNativeWindow.get()) {
+        err = mNativeWindow->query(mNativeWindow.get(), NATIVE_WINDOW_TRANSFORM_HINT, &transform_hint);
+        if (err != 0) {
+            LOGE("%s : NATIVE_WINDOW_TRANSFORM_HINT query failed.\n", __FUNCTION__);
+            return -1;
+        }
+        switch (transform_hint) {
+        case HAL_TRANSFORM_ROT_90:
+            *rotation = 1;
+            break;
+        case HAL_TRANSFORM_ROT_180:
+            *rotation = 2;
+            break;
+        case HAL_TRANSFORM_ROT_270:
+            *rotation = 3;
+            break;
+        default:
+            *rotation = 0; 
+        }
+    }
+    return 0;
+}

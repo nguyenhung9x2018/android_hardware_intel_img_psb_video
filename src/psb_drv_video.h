@@ -104,6 +104,7 @@ typedef struct object_subpic_s *object_subpic_p;
 typedef struct format_vtable_s *format_vtable_p;
 typedef struct psb_driver_data_s *psb_driver_data_p;
 
+typedef struct psb_surface_share_info_s psb_surface_share_info_t, *psb_surface_share_info_p;
 /* post-processing data structure */
 enum psb_output_method_t {
     PSB_PUTSURFACE_NONE = 0,
@@ -275,7 +276,7 @@ struct psb_driver_data_s {
     VAGenericID wrapped_subpic_id[VIDEO_BUFFER_NUM];
     PVR2DMEMINFO *videoBuf[VIDEO_BUFFER_NUM];
     PVR2DMEMINFO *subpicBuf[VIDEO_BUFFER_NUM];
-
+    void *native_window;
     int is_android;
 };
 
@@ -353,6 +354,20 @@ struct object_context_s {
 #define ROTATE_VA2MSVDX(va_rotate)  (va_rotate)
 #define CONTEXT_ROTATE(obj_context) (obj_context->msvdx_rotate != ROTATE_VA2MSVDX(VA_ROTATION_NONE))
 
+struct psb_surface_share_info_s {
+    //int rotation_sf;                    /*rotaion degree from surface flinger.*/
+    int surface_rotate;                 /*rotation degree of current rotation surface*/
+    int width_r;
+    int height_r;
+    int surface_protected;              /*whether this surface need be protected*/
+    /*Force render path.
+    0 : no fore.
+    1 : force gpu render;
+    2 : force overlay render.*/
+    int force_output_method;
+    unsigned int rotate_khandle;
+};
+
 struct object_surface_s {
     struct object_base_s base;
     VASurfaceID surface_id;
@@ -368,6 +383,8 @@ struct object_surface_s {
     unsigned int subpic_count; /* to ensure output have enough space for PDS & RAST */
     unsigned int derived_imgcnt; /* is the surface derived by a VAImage? */
     unsigned long display_timestamp; /* record the time point of put surface*/
+    void *rotate_vaddr;
+    struct psb_surface_share_info_s *share_info;
 };
 
 #define PSB_CODEDBUF_SLICE_NUM_MASK (0xff)

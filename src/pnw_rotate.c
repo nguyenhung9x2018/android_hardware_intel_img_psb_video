@@ -45,6 +45,7 @@
 #include <wsbm/wsbm_manager.h>
 #include <wsbm/wsbm_util.h>
 #include <wsbm/wsbm_fencemgr.h>
+#include <system/graphics.h>
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 
@@ -230,7 +231,7 @@ VAStatus psb_CreateRotateSurface(
     psb_surface_p psb_surface;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int need_realloc = 0, protected = 0;
-
+    psb_surface_share_info_p share_info = obj_surface->share_info;
     INIT_DRIVER_DATA;
 
     psb_surface = obj_surface->psb_surface_rotate;
@@ -238,6 +239,7 @@ VAStatus psb_CreateRotateSurface(
         CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need_realloc);
         if (need_realloc == 0) {
             SET_SURFACE_INFO_rotate(psb_surface, msvdx_rotate);
+
             return VA_STATUS_SUCCESS;
         } else { /* free the old rotate surface */
             /*FIX ME: No sync mechanism to hold surface buffer b/w msvdx and display(overlay).
@@ -279,6 +281,13 @@ VAStatus psb_CreateRotateSurface(
     SET_SURFACE_INFO_protect(psb_surface,
                              GET_SURFACE_INFO_protect(obj_surface->psb_surface));
     obj_surface->psb_surface_rotate = psb_surface;
+
+    if (share_info != NULL) {
+        share_info->width_r = psb_surface->stride;
+        share_info->height_r = obj_surface->height_r;
+        share_info->rotate_khandle =
+            (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+    }
 
     return vaStatus;
 }

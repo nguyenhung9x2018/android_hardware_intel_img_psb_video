@@ -68,7 +68,7 @@ extern "C"
     int psb_android_dynamic_source_init(void** android_isurface, int bcd_id, uint32_t srcw, uint32_t srch, uint32_t stride);
     void psb_android_dynamic_source_display(int buffer_index, int hdmi_mode);
     void psb_android_dynamic_source_destroy();
-
+    int psb_android_surfaceflinger_rotate(void* native_window, int *rotation);
 #ifdef __cplusplus
 }
 #endif

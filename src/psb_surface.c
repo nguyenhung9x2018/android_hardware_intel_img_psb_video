@@ -108,7 +108,8 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
  * Create surface
  */
 VAStatus psb_surface_create_from_ub(psb_driver_data_p driver_data,
-                            int width, int height, int fourcc, VAExternalMemoryBuffers *graphic_buffers,
+                            int width, int height, int fourcc,
+                            VAExternalMemoryBuffers *graphic_buffers,
                             psb_surface_p psb_surface, /* out */
                             void *vaddr
                            )
@@ -152,7 +153,6 @@ VAStatus psb_surface_create_from_ub(psb_driver_data_p driver_data,
     } else {
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
-
     ret = psb_buffer_create_from_ub(driver_data, psb_surface->size, psb_bt_surface, &psb_surface->buf, vaddr);
 
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
