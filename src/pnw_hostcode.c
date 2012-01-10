@@ -1271,6 +1271,7 @@ static void pnw__update_rcdata(
     psPicParams->sInParams.BitsPerGOP = (psRCParams->BitsPerSecond / psRCParams->FrameRate) * psRCParams->IntraFreq;
     psPicParams->sInParams.BitsPerBU    = psPicParams->sInParams.BitsPerFrm / (4 * psPicParams->sInParams.BUPerFrm);
     psPicParams->sInParams.BitsPerMB    = psPicParams->sInParams.BitsPerBU / psRCParams->BUSize;
+    psPicParams->sInParams.TransferRate = psRCParams->BitsPerSecond / psRCParams->FrameRate;
 
     i32BufferSizeInFrames = psRCParams->BufferSize / psPicParams->sInParams.BitsPerFrm;
 

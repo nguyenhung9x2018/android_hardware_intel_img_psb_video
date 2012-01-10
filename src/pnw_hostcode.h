@@ -181,6 +181,9 @@ typedef struct {
     /* A constant used in rate control =
      * (GopSize/(BufferSize-InitialLevel))*256 */
     IMG_UINT32  RCScaleFactor;
+
+    /* Only used in peak constrained VBR */
+    IMG_INT32 TransferRate;
 } IN_RC_PARAMS;
 
 typedef enum _TH_SKIP_SCALE_ {
