@@ -164,6 +164,8 @@ int main()
     fw_DE2 = sFirmware1311_SS;
     fw_DE2 = sFirmware1313_SS;
     fw_DE2 = sFirmware1341_FS; /* VXD3xx_DEVA_DDK_3_00_30_0020 */
+    fw_DE2 = sFirmware1366_FS; /* VXD3xx_DEVA_DDK_3_0_5 */
+    fw_DE2 = sFirmware1366_SS; /* VXD3xx_DEVA_DDK_3_0_5 */
 
     fw.ver = 0x0496;
     fw.text_size = fw_DE2.uiTextSize / 4;

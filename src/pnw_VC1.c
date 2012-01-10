@@ -509,6 +509,14 @@ static VAStatus pnw_VC1_CreateContext(
     }
 
     if (vaStatus == VA_STATUS_SUCCESS) {
+        vaStatus = psb_buffer_create(obj_context->driver_data,
+                                     512*1024,
+                                     psb_bt_vpu_only,
+                                     &ctx->aux_line_buffer);
+        DEBUG_FAILURE;
+    }
+
+    if (vaStatus == VA_STATUS_SUCCESS) {
         if (VC1_Header_Parser_HW) {
             vaStatus = psb_buffer_create(obj_context->driver_data,
                                          0xa000 * 3,  //0x8800
@@ -559,6 +567,7 @@ static void pnw_VC1_DestroyContext(
 
     psb_buffer_destroy(&ctx->vlc_packed_table);
     psb_buffer_destroy(&ctx->aux_msb_buffer);
+    psb_buffer_destroy(&ctx->aux_line_buffer);
     psb_buffer_destroy(&ctx->preload_buffer);
     psb_buffer_destroy(&ctx->bitplane_hw_buffer);
 

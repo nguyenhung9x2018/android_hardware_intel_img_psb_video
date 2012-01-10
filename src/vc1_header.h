@@ -297,6 +297,7 @@ struct context_VC1_s {
 
     /* Aux MSB buffer */
     struct psb_buffer_s aux_msb_buffer;
+    struct psb_buffer_s aux_line_buffer;
     psb_buffer_p bitplane_buffer;
     struct psb_buffer_s bitplane_hw_buffer; /* For hw parase */
 

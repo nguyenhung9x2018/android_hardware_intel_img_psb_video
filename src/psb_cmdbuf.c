@@ -2056,8 +2056,11 @@ void psb_cmdbuf_rendec_start(psb_cmdbuf_p cmdbuf, uint32_t dest_address)
 {
     ASSERT(((dest_address >> 2)& ~0xfff) == 0);
     cmdbuf->rendec_chunk_start = cmdbuf->cmd_idx++;
-
+#ifndef DE3_FIRMWARE
     *cmdbuf->rendec_chunk_start = CMD_RENDEC_BLOCK | ((dest_address >> 2) << 4);
+#else
+    *cmdbuf->rendec_chunk_start = CMD_RENDEC_BLOCK | dest_address;
+#endif
 }
 
 void psb_cmdbuf_rendec_write_block(psb_cmdbuf_p cmdbuf,
@@ -2402,7 +2405,7 @@ static int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
             {
                 fprintf( pF , "%04X CMD_RENDEC_BLOCK( %08X )\n", (idx-1)*4 , cmd);
                 unsigned int  count    = (cmd>>16)&0x00ff;
-                unsigned int  uiAddr = ((cmd>>4) &0x0fff ) << 2;            /* to do,  limit this */
+                unsigned int  uiAddr = (cmd &0xffff );            /* to do,  limit this */
 
                 for( x=0;x< count ;x++)
                 {
