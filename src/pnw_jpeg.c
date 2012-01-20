@@ -536,6 +536,9 @@ VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, unsigned char *raw
             psb__information_message("Append 2 bytes Reset Interval %d "
                                      "to Coded Buffer Part %d\n", ui16BCnt - 1, ui16BCnt);
 
+             while(*(pSegStart +sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed - 1) == 0xff)
+                 pBufHeader->ui32BytesUsed--;
+
             pnw_OutputResetIntervalToCB(
                 (IMG_UINT8 *)(pSegStart +
                               sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed),

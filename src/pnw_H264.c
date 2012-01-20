@@ -1829,6 +1829,7 @@ static VAStatus pnw_H264_RenderPicture(
 
     for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
+        psb__dump_buffers(obj_buffer);
 
         switch (obj_buffer->type) {
         case VAPictureParameterBufferType:

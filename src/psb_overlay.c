@@ -449,13 +449,22 @@ i830_display_video(
         drw_h = drw_h / 4;
     }
 #endif
+
+#if USE_DCLRK
     overlay->DCLRKM &= ~CONST_ALPHA_ENABLE;
     if (pPriv->subpicture_enabled)
         overlay->DCLRKM &= ~DEST_KEY_ENABLE;
     else
         overlay->DCLRKM |= DEST_KEY_ENABLE;
-
     overlay->DCLRKV = pPriv->colorKey;
+    overlay->DCLRKM |= 0xffffff;
+#else
+    /* disable overlay destination color key didn't work,
+    * it seems z-order of overlay has been bellow display pipe.
+    */
+    overlay->DCLRKM &= ~DEST_KEY_ENABLE;
+#endif
+
 #if USE_ROTATION_FUNC
     if (((pipeId == PIPEA) && (driver_data->mipi0_rotation != VA_ROTATION_NONE)) ||
         ((pipeId == PIPEB) && (driver_data->hdmi_rotation != VA_ROTATION_NONE))) {

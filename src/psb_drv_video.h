@@ -230,7 +230,6 @@ struct psb_driver_data_s {
     int dummy_putsurface;
     int fixed_fps;
     unsigned int frame_count;
-    unsigned int overlay_idle_frame;
 
     uint32_t blend_mode;
     uint32_t blend_color;

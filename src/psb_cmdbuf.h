@@ -44,7 +44,6 @@
 #define Bool int
 #endif
 
-/* #define DE3_FIRMWARE */
 #define DE3_FIRMWARE
 
 typedef struct psb_cmdbuf_s *psb_cmdbuf_p;

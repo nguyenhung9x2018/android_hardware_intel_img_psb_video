@@ -568,7 +568,7 @@ void pnw__UpdateRCBitsTransmitted(context_ENC_p ctx)
     BitsPerFrame = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
 
     if (!ctx->Transmitting) {
-        if (BitsPerFrame *(ctx->obj_context->frame_count + 1) >= ctx->sRCParams.InitialLevel)
+        if (BitsPerFrame *(ctx->raw_frame_count + 1) >= ctx->sRCParams.InitialLevel)
             ctx->Transmitting = IMG_TRUE;
         ctx->sRCParams.BitsTransmitted = 0;
         if ((ctx->sRCParams.BitsPerSecond == 0) || (ctx->sRCParams.FrameRate == 0))
@@ -685,7 +685,7 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
 
     ctx->obj_context->slice_count = 0;
     /*Need to wait until sRCParams initialised in pnw__XXXES_process_sequence_param*/
-    if (ctx->obj_context->frame_count != 0)
+    if (ctx->raw_frame_count != 0)
         pnw__UpdateRCBitsTransmitted(ctx);
     return 0;
 }
@@ -907,7 +907,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
 
     if (ctx->sRCParams.RCEnable) {
         /* for the first frame, will setup RC params in EndPicture */
-        if (ctx->obj_context->frame_count > 0) { /* reuse in_params parameter */
+        if (ctx->raw_frame_count > 0) { /* reuse in_params parameter */
             psPicParams->Flags &= ~FIRST_FRAME;
             /* reload IN_RC_PARAMS from cache */
             memcpy(&psPicParams->sInParams, &ctx->in_params_cache, sizeof(IN_RC_PARAMS));
@@ -1050,7 +1050,7 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     ctx->AccessUnitNum++;
 
     if (ctx->sRCParams.RCEnable == IMG_TRUE) {
-        if (ctx->obj_context->frame_count == 0)
+        if (ctx->raw_frame_count == 0)
             pnw_SetupRCParam(ctx);
         else  if (ctx->sRCParams.bBitrateChanged) {
             psb__information_message("Bitrate is changed to %d, "

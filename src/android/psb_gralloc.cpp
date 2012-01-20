@@ -45,37 +45,6 @@ using namespace android;
 
 static hw_module_t const *module;
 static gralloc_module_t *mAllocMod; /* get by force hw_module_t */
-static alloc_device_t  *mAllocDev; /* get by gralloc_open */
-
-int gralloc_alloc(uint32_t w, uint32_t h, int format,
-          int usage, buffer_handle_t* handle, int32_t* stride)
-{
-    int err;
-
-    err = mAllocDev->alloc(mAllocDev, w, h, format, usage, handle, stride);
-    if (err) {
-        LOGE("alloc(%u, %u, %d, %08x, ...) failed %d (%s)\n",
-               w, h, format, usage, err, strerror(-err));
-        exit(-1);
-    } else
-        LOGV("alloc returned\n");
-
-    return err;
-}
-
-int gralloc_free(buffer_handle_t handle)
-{
-    int err;
-
-    err = mAllocDev->free(mAllocDev, handle);
-    if (err) {
-        LOGE("free(...) failed %d (%s)\n", err, strerror(-err));
-        exit(-1);
-    } else
-        LOGV("free returned\n");
-
-    return err;
-}
 
 int gralloc_lock(buffer_handle_t handle,
                 int usage, int left, int top, int width, int height,
@@ -90,9 +59,10 @@ int gralloc_lock(buffer_handle_t handle,
 
     if (err){
         LOGE("lock(...) failed %d (%s).\n", err, strerror(-err));
-        exit(-1);
-    } else
+        return -1;
+    } else {
         LOGV("lock returned with address %p\n", *vaddr);
+    }
 
     return err;
 }
@@ -104,9 +74,10 @@ int gralloc_unlock(buffer_handle_t handle)
     err = mAllocMod->unlock(mAllocMod, handle);
     if (err) {
         LOGE("unlock(...) failed %d (%s)", err, strerror(-err));
-        exit(-1);
-    } else
+        return -1;
+    } else {
         LOGV("unlock returned\n");
+    }
 
     return err;
 }
@@ -121,18 +92,6 @@ int gralloc_init(void)
         LOGD("hw_get_module returned\n");
     mAllocMod = (gralloc_module_t *)module;
 
-    err = gralloc_open(module, &mAllocDev);
-    if (err) {
-        LOGE("FATAL: gralloc open failed\n");
-        return -1;
-    } else
-        LOGV("gralloc_open returned\n");
     return 0;
-}
-
-void gralloc_deinit(void)
-{
-    gralloc_close(mAllocDev);
-    LOGV("gralloc_close returned\n");
 }
 

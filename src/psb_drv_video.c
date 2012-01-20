@@ -119,6 +119,7 @@ void psb_init_surface_pvr2dbuf(psb_driver_data_p driver_data);
 void psb_free_surface_pvr2dbuf(psb_driver_data_p driver_data);
 
 static FILE *psb_video_debug_fp = NULL;
+static FILE *psb_video_debug_dump_buffer_fp = NULL;
 static int  debug_fp_count = 0;
 static FILE *psb_video_debug_nv_buffer_fp=NULL;
 
@@ -198,6 +199,369 @@ void psb__error_message(const char *msg, ...)
     fsync(fileno(fp));
 }
 
+void psb__dump_buffers_allkinds(object_buffer_p obj_buffer )
+{
+    int i, j,k;
+    void *mapped_buffer;
+    int print_num;
+
+    if(psb_video_debug_dump_buffer_fp) {
+        fprintf(psb_video_debug_dump_buffer_fp, "%s", buffer_type_to_string(obj_buffer->type));
+        print_num = fprintf(psb_video_debug_dump_buffer_fp, "BUFF SIZE :%d	NUMELEMENTS:%d BUFF INFO:\n", obj_buffer->size, obj_buffer->num_elements);
+
+        switch(obj_buffer->type) {
+            case VAPictureParameterBufferType:
+            case VAIQMatrixBufferType:
+            case VASliceParameterBufferType:
+                j=0;
+                for(k=0;k < obj_buffer->size;++k)
+                    print_num = fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ,",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_video_debug_dump_buffer_fp,"\n ");
+                break;
+
+            case VASliceGroupMapBufferType:
+            case VABitPlaneBufferType:
+//            case VASliceDataBufferType:
+//            case VAProtectedSliceDataBufferType:
+                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                for(j=0; j<obj_buffer->size;++j) {
+                    if(j%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    for(k=0;k < obj_buffer->num_elements;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
+                }
+
+                psb_buffer_unmap(obj_buffer->psb_buffer);
+                break;
+
+            case  VASliceDataBufferType:
+                fprintf(psb_video_debug_dump_buffer_fp,"first 256 bytes:\n");
+                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                for(j=0; j<256;++j) {
+                    if(j%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    for(k=0;k < obj_buffer->num_elements;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
+                }
+                psb_buffer_unmap(obj_buffer->psb_buffer);
+                break;
+
+            default:
+                break;
+
+        }
+        fprintf(psb_video_debug_dump_buffer_fp, "\n");
+        fflush(psb_video_debug_dump_buffer_fp);
+        fsync(fileno(psb_video_debug_dump_buffer_fp));
+    }
+
+}
+
+void psb__dump_buffers(object_buffer_p obj_buffer )
+{
+    int i, j,k;
+    void *mapped_buffer;
+    if(psb_video_debug_dump_buffer_fp) {
+        fprintf(psb_video_debug_dump_buffer_fp, "%s", buffer_type_to_string(obj_buffer->type));
+        fprintf(psb_video_debug_dump_buffer_fp, "BUFF SIZE :%d	NUMELEMENTS:%d BUFF INFO:\n", obj_buffer->size, obj_buffer->num_elements);
+        switch(obj_buffer->type) {
+            case VAPictureParameterBufferType:
+                for(j=0; j < 340; j = j+20) {
+                    if(j==0) fprintf(psb_video_debug_dump_buffer_fp,"\nCurrPic:\n");
+                    else fprintf(psb_video_debug_dump_buffer_fp,"\nReferenceFrames%d\n", j / 20);
+                    fprintf(psb_video_debug_dump_buffer_fp,"picture_id:");
+                    for(k=0;k < 4;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"    frame_idx:");
+                    for(k=4;k < 8;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"    flags:");
+                    for(k=8;k < 12;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"    TopFieldOrderCnt:");
+                    for(k=12;k < 16;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"    BottomFieldOrderCnt:");
+                    for(k=16;k < 20;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                }
+                j=340;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\npicture_width_in_mbs_minus1:");
+                for(k=0;k < 2;++k)
+                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=342;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp, "\npicture_height_in_mbs_minus1:");
+                for(k=0;k < 2;++k)
+                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=344;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,  "\nbit_depth_luma_minus8:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=345;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp, "\nbit_depth_chroma_minus8:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=346;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp, "\nnum_ref_frames:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=348;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nseq_fields_value:");
+                for(k=0;k < 4;++k)
+                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=352;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nnum_slice_groups_minus1:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=353;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_group_map_type:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=354;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp, "\nslice_group_change_rate_minus1:");
+                for(k=0;k < 2;++k)
+                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=356;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\npic_init_qp_minus26:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=357;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\npic_init_qs_minus26:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=358;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_qp_index_offset:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=359;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp, "\nsecond_chroma_qp_index_offset:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=360;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\npic_fields_value:");
+                for(k=0;k < 4;++k)
+                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=364;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nframe_num:");
+                for(k=0;k < 2;++k)
+                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                break;
+
+            case VAIQMatrixBufferType:
+                for(j=0;j<96;j=j+16) {
+                    fprintf(psb_video_debug_dump_buffer_fp,"\nScalingList4x4_%d:", j/16);
+                    for(k=0; k<16;++k) {
+                        if(k%4 == 0) fprintf(psb_video_debug_dump_buffer_fp, "\n");
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    }
+                }
+                for(j=96;j<224;j=j+64) {
+                    fprintf(psb_video_debug_dump_buffer_fp,"\nScalingList4x4_%d:",( j-96)/64);
+                    for(k=0; k<64;++k) {
+                        if(k%8 == 0) fprintf(psb_video_debug_dump_buffer_fp, "\n");
+                        printf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    }
+                }
+                break;
+
+            case VASliceParameterBufferType:
+                j=0;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_data_size:");
+                for(k=0;k < 4;++k)
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=4;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_data_offset:");
+                for(k=0;k < 4;++k)
+                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=8;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_data_flag:");
+                for(k=0;k < 4;++k)
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=12;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_data_bit_offset:");
+                for(k=0;k < 2;++k)
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=14;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nfirst_mb_in_slice:");
+                for(k=0;k < 2;++k)
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=16;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_type:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=17;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\ndirect_spatial_mv_pred_flag:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=18;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,  "\nnum_ref_idx_l0_active_minus1:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=19;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp, "\nnum_ref_idx_l1_active_minus1:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=20;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\ncabac_init_idc:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=21;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_qp_delta:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=22;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp, "\ndisable_deblocking_filter_idc:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=23;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_alpha_c0_offset_div2:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=24;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_beta_offset_div2:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                for(j=28; j < 668; j = j+20) {
+                    fprintf(psb_video_debug_dump_buffer_fp,"\nRefPicList0 ListIndex=%d\n", (j -28)/ 20);
+                    fprintf(psb_video_debug_dump_buffer_fp,"picture_id:");
+                    for(k=0;k < 4;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"   frame_idx:");
+                    for(k=4;k < 8;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"   flags:");
+                    for(k=8;k < 12;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"   TopFieldOrderCnt:");
+                    for(k=12;k < 16;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"   BottomFieldOrderCnt:");
+                    for(k=16;k < 20;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    }
+                for(j=668; j < 1308; j = j+20) {
+                    fprintf(psb_video_debug_dump_buffer_fp,"\nRefPicList1 ListIndex=%d\n", (j -668)/ 20);
+                    fprintf(psb_video_debug_dump_buffer_fp,"picture_id:");
+                    for(k=0;k < 4;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"   frame_idx:");
+                    for(k=4;k < 8;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"   flags:");
+                    for(k=8;k < 12;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"   TopFieldOrderCnt:");
+                    for(k=12;k < 16;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp,"   BottomFieldOrderCnt:");
+                    for(k=16;k < 20;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    }
+                j=1308;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_log2_weight_denom:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+j=1309;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_log2_weight_denom:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=1310;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_weight_l0_flag:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=1312;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_weight_l0:");
+                for(j=1312;j<1376;j=j+2) {
+                    if((j-1312)%16 == 0)fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    fprintf(psb_video_debug_dump_buffer_fp,"     :");
+                    for(k=0;k < 2;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                }
+                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_offset_l0:");
+                for(j=1376;j<1440;j=j+2) {
+                    if((j-1376)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
+                    for(k=0;k < 2;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                }
+                j=1440;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_weight_l0_flag:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                j=1442;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_weight_l0:");
+                for(j=1442;j<1570;j=j+4) {
+                    if((j-1442)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
+                    for(k=0;k < 2;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp," , ");
+                    for(k=2;k < 4;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+
+                }
+
+                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_offset_l0:");
+                for(j=1570;j<1698;j=j+4) {
+                    if((j-1570)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
+                    for(k=0;k < 2;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp," , ");
+                    for(k=2;k < 4;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                }
+                j=1698;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_weight_l1_flag:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_weight_l1:");
+                for(j=1700;j<1764;j=j+2) {
+                    if((j-1700)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
+                    for(k=0;k < 2;++k)
+                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                }
+                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_offset_l1:");
+                for(j=1764;j<1828;j=j+2) {
+                    if((j-1764)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
+                    for(k=0;k < 2;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                }
+                j=1828;k=0;
+                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_weight_l1_flag:");
+                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_weight_l1:");
+                for(j=1830;j<1958;j=j+4) {
+                    if((j-1830)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
+                    for(k=0;k < 2;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp," , ");
+                    for(k=2;k < 4;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                }
+                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_offset_l1:");
+                for(j=1958;j<2086;j=j+4) {
+                    if((j-1958)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
+                    for(k=0;k < 2;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_video_debug_dump_buffer_fp," , ");
+                    for(k=2;k < 4;++k)
+                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                }
+                break;
+
+            case VASliceGroupMapBufferType:
+	///	    case VASliceDataBufferType:
+	///	    case VAProtectedSliceDataBufferType:
+                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                for(j=0; j<obj_buffer->size;++j) {
+                    if(j%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    for(k=0;k < obj_buffer->num_elements;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
+                }
+                psb_buffer_unmap(obj_buffer->psb_buffer);
+                break;
+
+            case  VASliceDataBufferType:
+                fprintf(psb_video_debug_dump_buffer_fp,"first 256 bytes:\n");
+                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                for(j=0; j<256;++j) {
+                    if(j%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
+                    for(k=0;k < obj_buffer->num_elements;++k)
+                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
+                }
+                psb_buffer_unmap(obj_buffer->psb_buffer);
+                break;
+            default:
+                break;
+
+            }
+        fprintf(psb_video_debug_dump_buffer_fp, "\n");
+        fflush(psb_video_debug_dump_buffer_fp);
+        fsync(fileno(psb_video_debug_dump_buffer_fp));
+    }
+
+}
+
 void psb__information_message(const char *msg, ...)
 {
     if (psb_video_debug_fp) {
@@ -228,12 +592,20 @@ static void psb__open_log(void)
 #ifdef ANDROID
 	LOGD("psb__open_log.\n");
 #endif
-	if(psb_parse_config("PSB_VIDEO_DEBUG_NV_BUFFER", &log_fn[0]) == 0) {
-		unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
-		 if(strcmp(log_fn, "/dev/stdout") != 0)
-				 sprintf(log_fn + strlen(log_fn), ".%d", suffix);
-		 psb_video_debug_nv_buffer_fp = fopen(log_fn, "ab");
-	}
+    if(psb_parse_config("PSB_VIDEO_DEBUG_DUMP_BUFFER", &log_fn[0]) == 0) {
+
+        unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
+        if(strcmp(log_fn, "/dev/stdout") != 0)
+        sprintf(log_fn + strlen(log_fn), ".%d", suffix);
+        psb_video_debug_dump_buffer_fp = fopen(log_fn, "w");
+    }
+
+    if(psb_parse_config("PSB_VIDEO_DEBUG_NV_BUFFER", &log_fn[0]) == 0) {
+        unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
+        if(strcmp(log_fn, "/dev/stdout") != 0)
+        sprintf(log_fn + strlen(log_fn), ".%d", suffix);
+        psb_video_debug_nv_buffer_fp = fopen(log_fn, "ab");
+    }
 
     if ((psb_video_debug_fp != NULL) && (psb_video_debug_fp != stderr)) {
         debug_fp_count++;
@@ -804,6 +1176,7 @@ static void psb__destroy_surface(psb_driver_data_p driver_data, object_surface_p
         /* delete subpicture association */
         psb_SurfaceDeassociateSubpict(driver_data, obj_surface);
 
+	psb_surface_sync(obj_surface->psb_surface);
         psb_surface_destroy(obj_surface->psb_surface);
 
         if (obj_surface->psb_surface_rotate) {
@@ -2428,6 +2801,7 @@ VAStatus psb_SyncSurface(
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         }
     }
+    psb__dump_NV_buffers(obj_surface, 0, 0, obj_surface->width, obj_surface->height);
     DEBUG_FAILURE;
     return vaStatus;
 }
@@ -3286,10 +3660,6 @@ VAStatus psb_Terminate(VADriverContextP ctx)
 
     psb__information_message("vaTerminate: begin to tear down\n");
 
-#ifdef ANDROID
-    gralloc_deinit();
-#endif
-
     if (driver_data->bcd_registered != 0)
         if (VA_STATUS_SUCCESS != psb_release_video_bcd(ctx))
             return VA_STATUS_ERROR_UNKNOWN;
@@ -3349,7 +3719,6 @@ VAStatus psb_Terminate(VADriverContextP ctx)
         obj_config = (object_config_p) object_heap_next(&driver_data->config_heap, &iter);
     }
     object_heap_destroy(&driver_data->config_heap);
-
 
     if (driver_data->camera_bo) {
         psb__information_message("vaTerminate: clearup camera global BO\n");

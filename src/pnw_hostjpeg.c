@@ -1008,7 +1008,7 @@ IMG_UINT32 Legacy_EncodeFrameHeader(LEGACY_JPEGENC_ITTIAM_PARAMS *ps_jpeg_params
     }
 
     //Use if you want start of scan (image data) to align to 32
-    fPutBitsToBuffer(&ps_streamW, 1, 0xFF);
+    //fPutBitsToBuffer(&ps_streamW, 1, 0xFF);
 
     return ps_streamW.Offset;
 }

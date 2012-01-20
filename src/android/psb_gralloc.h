@@ -35,10 +35,6 @@
 extern "C"
 {
 #endif
-int gralloc_alloc(uint32_t w, uint32_t h, int format,
-        int usage, buffer_handle_t* handle, int32_t* stride);
-
-int gralloc_free(buffer_handle_t handle);
 
 int gralloc_lock(buffer_handle_t handle, int usage,
         int left, int top, int width, int height, void** vaddr);
@@ -46,8 +42,6 @@ int gralloc_lock(buffer_handle_t handle, int usage,
 int gralloc_unlock(buffer_handle_t handle);
 
 int gralloc_init(void);
-
-void gralloc_deinit(void);
 
 #ifdef __cplusplus
 }
