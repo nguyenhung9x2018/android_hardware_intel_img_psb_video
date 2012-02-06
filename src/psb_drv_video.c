@@ -2500,7 +2500,9 @@ VAStatus psb_BeginPicture(
     /* want msvdx to do rotate
      * but check per-context stream type: interlace or not
      */
-    if (driver_data->native_window) {
+    if ((obj_config->entrypoint != VAEntrypointEncSlice) &&
+        (obj_config->entrypoint != VAEntrypointEncPicture) &&
+        driver_data->native_window) {
         int display_rotate = 0;
         psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
         psb__information_message("NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
