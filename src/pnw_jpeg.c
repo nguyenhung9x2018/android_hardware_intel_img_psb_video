@@ -539,6 +539,9 @@ VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, unsigned char *raw
              while(*(pSegStart +sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed - 1) == 0xff)
                  pBufHeader->ui32BytesUsed--;
 
+            while(*(pSegStart +sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed - 1) == 0xff)
+                pBufHeader->ui32BytesUsed--;
+
             pnw_OutputResetIntervalToCB(
                 (IMG_UINT8 *)(pSegStart +
                               sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed),

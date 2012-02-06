@@ -1103,7 +1103,7 @@ IMG_UINT32 EncodeFrameHeader(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
 
 
     //Use if you want start of scan (image data) to align to 32
-    fPutBitsToBuffer(&ps_streamW, 1, 0xFF);
+    //fPutBitsToBuffer(&ps_streamW, 1, 0xFF);
 
     return ps_streamW.Offset;
 }
