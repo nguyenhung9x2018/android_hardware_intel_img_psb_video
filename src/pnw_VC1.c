@@ -427,8 +427,10 @@ static VAStatus pnw_VC1_CreateContext(
     /* Validate picture dimensions */
     vaStatus = psb__VC1_check_legal_picture(obj_context, obj_config);
     if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
+        psb__error_message("Warning: got invalid picture, but still let go\n");
+        /* DEBUG_FAILURE;
+        return vaStatus; */
+        vaStatus = VA_STATUS_SUCCESS;
     }
 
     ctx = (context_VC1_p) malloc(sizeof(struct context_VC1_s));
