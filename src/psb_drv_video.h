@@ -280,7 +280,7 @@ struct psb_driver_data_s {
 };
 
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)
-#define IS_MFLD(driver_data) (((driver_data->dev_id & 0xFFFC) == 0x0130) || ((driver_data->dev_id & 0xFFFC) == 0x08C0))
+#define IS_MFLD(driver_data) (((driver_data->dev_id & 0xFFFC) == 0x0130) || ((driver_data->dev_id & 0xFFFF) == 0x08C0) || ((driver_data->dev_id & 0xFFFF) == 0x08C7))
 
 struct object_config_s {
     struct object_base_s base;
