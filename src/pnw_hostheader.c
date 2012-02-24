@@ -47,7 +47,7 @@
 #define HEADER_SIZE (128*2)
 
 /* SOME USEFUL TEST FUNCTIONS */
-#ifndef TOPAZ_MTX_HW
+#if 0
 
 static void Show_Bits(
     IMG_UINT8 *ucBitStream,
@@ -78,7 +78,7 @@ static void Show_Bits(
 }
 #endif
 
-#ifndef TOPAZ_MTX_HW
+#if 0
 
 static void Show_Elements(
     MTX_HEADER_PARAMS *mtx_hdr,
@@ -330,6 +330,10 @@ static void pnw__insert_element_token(
     IMG_UINT8 Offset;
     IMG_UINT8 *P;
 
+    if (mtx_hdr->Elements != ELEMENTS_EMPTY &&
+	    mtx_hdr->Elements > (MAXNUMBERELEMENTS - 1))
+	return;
+
     if (mtx_hdr->Elements != ELEMENTS_EMPTY) {
         if (elt_p[mtx_hdr->Elements]->Element_Type == ELEMENT_STARTCODE_RAWDATA
             || elt_p[mtx_hdr->Elements]->Element_Type == ELEMENT_RAWDATA) {
@@ -347,6 +351,9 @@ static void pnw__insert_element_token(
         }
 
         mtx_hdr->Elements++;
+
+	if (mtx_hdr->Elements > (MAXNUMBERELEMENTS - 1))
+	    return;
         P = (IMG_UINT8 *) elt_p[mtx_hdr->Elements-1];
         P += Offset;
         elt_p[mtx_hdr->Elements] = (MTX_HEADER_ELEMENT *) P;
@@ -2943,9 +2950,6 @@ void pnw__H263_prepare_GOBslice_header(
 
     mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
 
-    /* silent the warning message */
-    (void)Show_Bits;
-    (void)Show_Elements;
     /*
     (void)pnw__H264_writebits_SEI_rbspheader;
     (void)pnw__H264_getelements_skip_B_slice;

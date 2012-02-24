@@ -2038,6 +2038,7 @@ VAStatus psb_SetDisplayAttributes(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
     PsbPortPrivPtr overlay_priv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
+    int j, k;
 
     if (NULL == attr_list) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -2047,6 +2048,7 @@ VAStatus psb_SetDisplayAttributes(
 
     VADisplayAttribute *p = attr_list;
     int i, update_coeffs = 0;
+    unsigned int *p_tmp;
 
     if (num_attributes <= 0) {
         return VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -2111,7 +2113,13 @@ VAStatus psb_SetDisplayAttributes(
 
         case VADisplayAttribCSCMatrix:
             driver_data->load_csc_matrix = 1;
-            memcpy(&(driver_data->csc_matrix[0][0]), (unsigned char *)p->value, sizeof(signed int) * 9);
+            p_tmp = (unsigned int *)p->value;
+            for (j = 0; j < CSC_MATRIX_Y; j++)
+                for (k = 0; k < CSC_MATRIX_X; k++) {
+                    if (p_tmp)
+                        driver_data->csc_matrix[j][k] = *p_tmp;
+                   p_tmp++; 
+                }
             break;
 
         case VADisplayAttribBlendColor:

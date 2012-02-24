@@ -127,6 +127,9 @@ typedef struct psb_decode_info {
 } psb_decode_info_t;
 typedef struct msvdx_decode_info *psb_decode_info_p;
 
+#define CSC_MATRIX_X  (3)
+#define CSC_MATRIX_Y  (3)
+
 struct psb_driver_data_s {
     struct object_heap_s        config_heap;
     struct object_heap_s        context_heap;
@@ -215,7 +218,7 @@ struct psb_driver_data_s {
     int  is_oold;
 
     unsigned int load_csc_matrix;
-    signed int   csc_matrix[3][3];
+    signed int   csc_matrix[CSC_MATRIX_X][CSC_MATRIX_Y];
 
     /* subpic number current buffers support */
     unsigned int max_subpic;
@@ -365,6 +368,10 @@ struct psb_surface_share_info_s {
     2 : force overlay render.*/
     int force_output_method;
     unsigned int rotate_khandle;
+    unsigned int nativebuf_count;     /* the number of native buffer */
+    unsigned int nativebuf_idx;    
+    unsigned int nativebuf_handle[0];   /* save the handle of all native buffer*/
+
 };
 
 struct object_surface_s {

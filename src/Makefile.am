@@ -48,7 +48,7 @@ pvr_drv_video_la_SOURCES = psb_drv_video.c object_heap.c psb_buffer.c psb_buffer
 #		vc1_shiftreg.c vc1_spmp.c vc1_utils.c
 
 
-CFLAGS = -O1 -Wall -ffloat-store -fvisibility=hidden
+CFLAGS = -O1 -Wall -ffloat-store -fvisibility=hidden -DPSBVIDEO_MRST -DPSBVIDEO_MFLD
 
 symbol_info:	pvr_drv_video.la
 	objdump -T .libs/pvr_drv_video.so | grep UND | sort -k 5 > Linker_dependencies.txt

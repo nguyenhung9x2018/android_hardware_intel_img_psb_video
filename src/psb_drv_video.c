@@ -38,21 +38,26 @@
 #include "lnc_cmdbuf.h"
 #include "pnw_cmdbuf.h"
 #include "psb_surface.h"
+
+#ifdef PSBVIDEO_MRST
 #include "psb_MPEG2.h"
 #include "psb_MPEG4.h"
 #include "psb_H264.h"
 #include "psb_VC1.h"
+#include "lnc_MPEG4ES.h"
+#include "lnc_H264ES.h"
+#include "lnc_H263ES.h"
+#endif
+#ifdef PSBVIDEO_MFLD
 #include "pnw_MPEG2.h"
 #include "pnw_MPEG4.h"
 #include "pnw_H264.h"
 #include "pnw_VC1.h"
-#include "lnc_MPEG4ES.h"
-#include "lnc_H264ES.h"
-#include "lnc_H263ES.h"
 #include "pnw_MPEG4ES.h"
 #include "pnw_H264ES.h"
 #include "pnw_H263ES.h"
 #include "pnw_jpeg.h"
+#endif
 #include "psb_output.h"
 #include "lnc_ospm.h"
 #include "psb_texstreaming.h"
@@ -782,29 +787,24 @@ VAStatus psb_QueryConfigEntrypoints(
 {
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    format_vtable_p * format_vtable = ((profile < PSB_MAX_PROFILES)) ? driver_data->profile2Format[profile] : NULL;
     int entrypoints = 0;
+    int i;
 
     if (NULL == entrypoint_list) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
         DEBUG_FAILURE;
         return vaStatus;
     }
-    if (NULL == num_entrypoints) {
+    if (NULL == num_entrypoints || profile >= PSB_MAX_PROFILES) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
         DEBUG_FAILURE;
         return vaStatus;
     }
-    if (format_vtable)
 
-    {
-        int i;
-
-        for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
-            if (format_vtable[i]) {
-                entrypoints++;
-                *entrypoint_list++ = i;
-            }
+    for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
+        if (driver_data->profile2Format[profile][i]) {
+            entrypoints++;
+            *entrypoint_list++ = i;
         }
     }
 
@@ -825,14 +825,12 @@ VAStatus psb_QueryConfigEntrypoints(
  */
 static VAStatus psb__error_unsupported_profile_entrypoint(psb_driver_data_p driver_data, VAProfile profile, VAEntrypoint entrypoint)
 {
-    format_vtable_p * format_vtable = ((profile < PSB_MAX_PROFILES)) ? driver_data->profile2Format[profile] : NULL;
-
     /* Does the driver support _any_ entrypoint for this profile? */
-    if (format_vtable) {
+    if (profile < PSB_MAX_PROFILES) {
         int i;
 
         for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
-            if (format_vtable[i]) {
+            if (driver_data->profile2Format[profile][i]) {
                 /* There is an entrypoint, so the profile is supported */
                 return VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
             }
@@ -1226,6 +1224,7 @@ VAStatus psb_CreateSurfaces(
     VAExternalMemoryBuffers *external_buffers = NULL;
     buffer_handle_t handle;
     void *vaddr[2];
+    unsigned int *tmp_nativebuf_handle = NULL;
 
     format = format & (~VA_RT_FORMAT_PROTECTED);
     if (num_surfaces <= 0) {
@@ -1288,6 +1287,18 @@ VAStatus psb_CreateSurfaces(
     height_origin = height;
     height = (height + 0x1f) & ~0x1f;
 
+    if(external_buffers != NULL) {
+        int size = num_surfaces * sizeof(unsigned int);
+        
+        tmp_nativebuf_handle = calloc(1, size);
+        if (tmp_nativebuf_handle == NULL) {
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            DEBUG_FAILURE;
+            return vaStatus;
+        }
+        memcpy(tmp_nativebuf_handle, external_buffers->buffers, size);
+    }
+    
     for (i = 0; i < num_surfaces; i++) {
         int surfaceID;
         object_surface_p obj_surface;
@@ -1344,6 +1355,11 @@ VAStatus psb_CreateSurfaces(
                         external_buffers, psb_surface, vaddr[0]);
                     psb_surface->buf.handle = handle;
                     obj_surface->share_info = (psb_surface_share_info_t *)vaddr[1];
+                    obj_surface->share_info->nativebuf_count = num_surfaces;
+                    obj_surface->share_info->nativebuf_idx = i;
+                    memcpy(obj_surface->share_info->nativebuf_handle,
+                           tmp_nativebuf_handle,
+                           sizeof(unsigned int) * num_surfaces);
                     psb__information_message("%s : Create graphic buffer success"
                          "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n", __FUNCTION__, surfaceID, vaddr[0], vaddr[1]);
                     gralloc_unlock(handle);
@@ -1369,6 +1385,9 @@ VAStatus psb_CreateSurfaces(
         psb_surface->extra_info[4] = fourcc;
         obj_surface->psb_surface = psb_surface;
     }
+
+    if (tmp_nativebuf_handle != NULL)
+        free(tmp_nativebuf_handle);
 
     /* Error recovery */
     if (VA_STATUS_SUCCESS != vaStatus) {
@@ -1694,8 +1713,11 @@ VAStatus psb_CreateContext(
     if (obj_config->entrypoint == VAEntrypointEncSlice
         || obj_config->entrypoint == VAEntrypointEncPicture) {
         encode = 1;
+    }
+
+    if (encode)
         cmdbuf_num = LNC_MAX_CMDBUFS_ENCODE;
-    } else
+    else
         cmdbuf_num = PSB_MAX_CMDBUFS;
 
     for (i = 0; i < num_render_targets; i++) {
@@ -1791,6 +1813,12 @@ VAStatus psb_CreateContext(
             break;
         }
         if (encode) {
+            if (i >= LNC_MAX_CMDBUFS_ENCODE) {
+                free(cmdbuf);
+                DEBUG_FAILURE;
+                break;
+            }
+
             if (IS_MFLD(obj_context->driver_data))
                 obj_context->pnw_cmdbuf_list[i] = (pnw_cmdbuf_p)cmdbuf;
             else
@@ -1806,6 +1834,10 @@ VAStatus psb_CreateContext(
     obj_context->slice_count = 0;
     obj_context->msvdx_context = ((driver_data->msvdx_context_base & 0xff0000) >> 16) |
                                  ((contextID & 0xff000000) >> 16);
+    if(IS_MFLD(driver_data)) {
+        obj_context->msvdx_context = ((driver_data->msvdx_context_base & 0xff0000) >> 12) |
+                                     (obj_config->profile);
+    }
     obj_context->profile = obj_config->profile;
     obj_context->entry_point = obj_config->entrypoint;
 
@@ -3936,25 +3968,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     }
 
     driver_data->msvdx_context_base = (((unsigned int) getpid()) & 0xffff) << 16;
-
-    //    driver_data->profile2Format[VAProfileMPEG2Simple] = &psb_MPEG2_vtable;
-    driver_data->profile2Format[VAProfileMPEG2Main][VAEntrypointVLD] = &psb_MPEG2_vtable;
-    driver_data->profile2Format[VAProfileMPEG2Main][VAEntrypointMoComp] = &psb_MPEG2MC_vtable;
-
-    driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointVLD] = &psb_MPEG4_vtable;
-    driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointVLD] = &psb_MPEG4_vtable;
-    //    driver_data->profile2Format[VAProfileMPEG4Main][VAEntrypointVLD] = &psb_MPEG4_vtable;
-
-    driver_data->profile2Format[VAProfileH264Baseline][VAEntrypointVLD] = &psb_H264_vtable;
-    driver_data->profile2Format[VAProfileH264Main][VAEntrypointVLD] = &psb_H264_vtable;
-    driver_data->profile2Format[VAProfileH264High][VAEntrypointVLD] = &psb_H264_vtable;
-    driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &psb_H264_vtable;
-
-    driver_data->profile2Format[VAProfileVC1Simple][VAEntrypointVLD] = &psb_VC1_vtable;
-    driver_data->profile2Format[VAProfileVC1Main][VAEntrypointVLD] = &psb_VC1_vtable;
-    driver_data->profile2Format[VAProfileVC1Advanced][VAEntrypointVLD] = &psb_VC1_vtable;
-    driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &psb_H264_vtable;
-
+#ifdef PSBVIDEO_MFLD
     if (IS_MFLD(driver_data)) {
         driver_data->profile2Format[VAProfileH263Baseline][VAEntrypointEncSlice] = &pnw_H263ES_vtable;
         driver_data->profile2Format[VAProfileH264Baseline][VAEntrypointEncSlice] = &pnw_H264ES_vtable;
@@ -3976,14 +3990,36 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->profile2Format[VAProfileVC1Main][VAEntrypointVLD] = &pnw_VC1_vtable;
         driver_data->profile2Format[VAProfileVC1Advanced][VAEntrypointVLD] = &pnw_VC1_vtable;
         driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &pnw_H264_vtable;
-    } else if (IS_MRST(driver_data) && driver_data->encode_supported) {
+    }
+#endif
+#ifdef PSBVIDEO_MRST
+    if (IS_MRST(driver_data)) {
+    driver_data->profile2Format[VAProfileMPEG2Main][VAEntrypointVLD] = &psb_MPEG2_vtable;
+    driver_data->profile2Format[VAProfileMPEG2Main][VAEntrypointMoComp] = &psb_MPEG2MC_vtable;
+
+    driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointVLD] = &psb_MPEG4_vtable;
+    driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointVLD] = &psb_MPEG4_vtable;
+
+    driver_data->profile2Format[VAProfileH264Baseline][VAEntrypointVLD] = &psb_H264_vtable;
+    driver_data->profile2Format[VAProfileH264Main][VAEntrypointVLD] = &psb_H264_vtable;
+    driver_data->profile2Format[VAProfileH264High][VAEntrypointVLD] = &psb_H264_vtable;
+    driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &psb_H264_vtable;
+
+    driver_data->profile2Format[VAProfileVC1Simple][VAEntrypointVLD] = &psb_VC1_vtable;
+    driver_data->profile2Format[VAProfileVC1Main][VAEntrypointVLD] = &psb_VC1_vtable;
+    driver_data->profile2Format[VAProfileVC1Advanced][VAEntrypointVLD] = &psb_VC1_vtable;
+    driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &psb_H264_vtable;
+
+    if(driver_data->encode_supported) {
+
         driver_data->profile2Format[VAProfileH263Baseline][VAEntrypointEncSlice] = &lnc_H263ES_vtable;
         driver_data->profile2Format[VAProfileH264Baseline][VAEntrypointEncSlice] = &lnc_H264ES_vtable;
         driver_data->profile2Format[VAProfileH264Main][VAEntrypointEncSlice] = &lnc_H264ES_vtable;
         driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointEncSlice] = &lnc_MPEG4ES_vtable;
         driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointEncSlice] = &lnc_MPEG4ES_vtable;
     }
-
+}
+#endif
     result = object_heap_init(&driver_data->config_heap, sizeof(struct object_config_s), CONFIG_ID_OFFSET);
     ASSERT(result == 0);
 

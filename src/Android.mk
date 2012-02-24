@@ -30,19 +30,9 @@ include $(CLEAR_VARS)
 PSBVIDEO_LOG_ENABLE := true
 
 LOCAL_SRC_FILES :=		\
-    lnc_H263ES.c            \
-    lnc_H264ES.c            \
-    lnc_MPEG4ES.c           \
     lnc_cmdbuf.c            \
-    lnc_hostcode.c          \
-    lnc_hostheader.c        \
     lnc_ospm.c		\
     object_heap.c           \
-    psb_H264.c          	\
-    psb_MPEG2.c         	\
-    psb_MPEG2MC.c           \
-    psb_MPEG4.c         	\
-    psb_VC1.c           	\
     psb_buffer.c            \
     psb_buffer_dm.c         \
     psb_cmdbuf.c            \
@@ -104,6 +94,7 @@ LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE
 LOCAL_SHARED_LIBRARIES += liblog
 endif
 
+LOCAL_CFLAGS += -DPSBVIDEO_MFLD
 include $(BUILD_SHARED_LIBRARY)
 endif
 

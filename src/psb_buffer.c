@@ -444,6 +444,7 @@ int psb_codedbuf_map_mangle(
     memset(obj_buffer->codedbuf_mapinfo, 0, sizeof(obj_buffer->codedbuf_mapinfo));
 
     *pbuf = p = &obj_buffer->codedbuf_mapinfo[0];
+#ifdef PSBVIDEO_MRST
     if (IS_MRST(driver_data)) {
         /* one segment */
         p->size = *((unsigned long *) raw_codedbuf); /* 1st DW is the size */
@@ -455,7 +456,10 @@ int psb_codedbuf_map_mangle(
                                  obj_buffer,
                                  (unsigned char *)p->buf,
                                  &(p->size));
-    } else { /* MFLD */
+    }
+#endif
+#ifdef PSBVIDEO_MFLD
+    if (IS_MFLD(driver_data)){ /* MFLD */
         object_config_p obj_config = CONFIG(obj_context->config_id);
 
         if (NULL == obj_config) {
@@ -558,6 +562,7 @@ int psb_codedbuf_map_mangle(
             break;
         }
     }
+#endif
 
     return 0;
 }
