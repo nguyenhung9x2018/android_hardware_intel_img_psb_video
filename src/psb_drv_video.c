@@ -1834,10 +1834,12 @@ VAStatus psb_CreateContext(
     obj_context->slice_count = 0;
     obj_context->msvdx_context = ((driver_data->msvdx_context_base & 0xff0000) >> 16) |
                                  ((contextID & 0xff000000) >> 16);
+#ifdef ANDROID
     if(IS_MFLD(driver_data)) {
-        obj_context->msvdx_context = ((driver_data->msvdx_context_base & 0xff0000) >> 12) |
-                                     (obj_config->profile);
+        obj_context->msvdx_context = ((driver_data->drm_fd & 0xf) << 4) |
+                                     ((unsigned int)gettid() & 0xf);
     }
+#endif
     obj_context->profile = obj_config->profile;
     obj_context->entry_point = obj_config->entrypoint;
 

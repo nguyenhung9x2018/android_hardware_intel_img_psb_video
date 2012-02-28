@@ -78,7 +78,12 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
         allignment = 0;
         /* Xvideo will share surface buffer, set SHARED flag
          */
-        if (getenv("PSB_VIDEO_SURFACE_MMU")) {
+        int is_thumbnail = 0;
+        char *str;
+        if((str = getenv("PSB_VIDEO_THUMBNAIL")))
+            is_thumbnail = (gettid() == atoi(str));
+
+        if (getenv("PSB_VIDEO_SURFACE_MMU") || is_thumbnail) {
             psb__information_message("Allocate surface from MMU heap\n");
             placement = DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_SHARED;
         } else {

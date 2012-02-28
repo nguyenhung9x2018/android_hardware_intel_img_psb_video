@@ -278,8 +278,7 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     pVUI_Params->Time_Scale = ctx->sRCParams.FrameRate * 2;
     pVUI_Params->bit_rate_value_minus1 = ctx->sRCParams.BitsPerSecond / 64 - 1;
     pVUI_Params->cbp_size_value_minus1 = ctx->sRCParams.BufferSize / 64 - 1;
-    pVUI_Params->CBR = ((IMG_CODEC_H264_CBR == ctx->eCodec ||
-		IMG_CODEC_H264_VCM == ctx->eCodec) ? 1 : 0);
+    pVUI_Params->CBR = ((IMG_CODEC_H264_CBR == ctx->eCodec) ? 1 : 0);
     pVUI_Params->initial_cpb_removal_delay_length_minus1 = BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE - 1;
     pVUI_Params->cpb_removal_delay_length_minus1 = PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE - 1;
     pVUI_Params->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
