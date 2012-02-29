@@ -368,8 +368,9 @@ struct psb_surface_share_info_s {
     2 : force overlay render.*/
     int force_output_method;
     unsigned int rotate_khandle;
+    unsigned int renderStatus;
     unsigned int nativebuf_count;     /* the number of native buffer */
-    unsigned int nativebuf_idx;    
+    unsigned int nativebuf_idx;
     unsigned int nativebuf_handle[0];   /* save the handle of all native buffer*/
 
 };

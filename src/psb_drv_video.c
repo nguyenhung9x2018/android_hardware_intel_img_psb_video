@@ -1357,6 +1357,7 @@ VAStatus psb_CreateSurfaces(
                     obj_surface->share_info = (psb_surface_share_info_t *)vaddr[1];
                     obj_surface->share_info->nativebuf_count = num_surfaces;
                     obj_surface->share_info->nativebuf_idx = i;
+                    obj_surface->share_info->renderStatus = 0;
                     memcpy(obj_surface->share_info->nativebuf_handle,
                            tmp_nativebuf_handle,
                            sizeof(unsigned int) * num_surfaces);
@@ -2900,6 +2901,13 @@ VAStatus psb_QuerySurfaceStatus(
 
         if (frame_skip == 1)
             surface_status = surface_status | VASurfaceSkipped;
+    } else if (decode) {
+
+        if(obj_surface->share_info->renderStatus == 1) {
+            surface_status = VASurfaceDisplaying;
+        }else if (obj_surface->share_info->renderStatus == 0) {
+            surface_status = VASurfaceReady;
+        }
     }
 
     *status = surface_status;
