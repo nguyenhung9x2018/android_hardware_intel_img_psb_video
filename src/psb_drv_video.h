@@ -373,7 +373,7 @@ struct psb_surface_share_info_s {
     unsigned int nativebuf_count;     /* the number of native buffer */
     unsigned int nativebuf_idx;
     unsigned int nativebuf_handle[0];   /* save the handle of all native buffer*/
-
+    int bob_deinterlace;
 };
 
 struct object_surface_s {
