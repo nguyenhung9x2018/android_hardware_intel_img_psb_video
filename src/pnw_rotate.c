@@ -48,7 +48,7 @@
 #include <system/graphics.h>
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
-
+#define SURFACE(id)    ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 
 #define CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need)  \
 do {                                                            \
@@ -69,6 +69,21 @@ do {                                                            \
         break;                                                  \
     }                                                           \
 } while (0)
+
+//#define OVERLAY_ENABLE_MIRROR
+
+static uint32_t VAROTATION2HAL(int va_rotate) {
+        switch (va_rotate) {
+        case VA_ROTATION_90:
+            return HAL_TRANSFORM_ROT_90;
+        case VA_ROTATION_180:
+            return HAL_TRANSFORM_ROT_180;
+        case VA_ROTATION_270:
+            return HAL_TRANSFORM_ROT_270;
+        default:
+            return 0;
+        }
+}
 
 void psb_InitRotate(VADriverContextP ctx)
 {
@@ -96,11 +111,26 @@ void psb_InitRotate(VADriverContextP ctx)
     }
 }
 
-void psb_RecalcRotate(VADriverContextP ctx)
+void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
 {
     INIT_DRIVER_DATA;
-    int angle, new_rotate;
+    int angle, new_rotate, i;
     int old_rotate = driver_data->msvdx_rotate_want;
+
+    if (psb_android_is_extvideo_mode()) {
+        if (driver_data->mipi0_rotation != 0) {
+            driver_data->mipi0_rotation = 0;
+            driver_data->hdmi_rotation = 0;
+        }
+    } else {
+        int display_rotate = 0;
+        psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
+        psb__information_message("NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
+
+        if (driver_data->mipi0_rotation != display_rotate) {
+            driver_data->mipi0_rotation = display_rotate;
+        }
+    }
 
     /* calc VA rotation and WM rotation, and assign to the final rotation degree */
     angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->mipi0_rotation);
@@ -129,6 +159,15 @@ void psb_RecalcRotate(VADriverContextP ctx)
     }
 
     if (old_rotate != new_rotate) {
+        for (i = 0; i < obj_context->num_render_targets; i++) {
+            object_surface_p obj_surface = SURFACE(obj_context->render_targets[i]);
+            /*we invalidate all surfaces's rotate buffer share info here.*/
+            if (obj_surface->share_info) {
+                obj_surface->share_info->surface_rotate = 0;
+                obj_surface->share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
+            }
+        }
+
         psb__information_message("MSVDX: new rotation %d desired\n", new_rotate);
         driver_data->msvdx_rotate_want = new_rotate;
     }
@@ -190,7 +229,6 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_p
     }
 }
 
-
 /*
  * Detach a surface from obj_surface
  */
@@ -234,19 +272,29 @@ VAStatus psb_CreateRotateSurface(
     psb_surface_share_info_p share_info = obj_surface->share_info;
     INIT_DRIVER_DATA;
 
+    if (msvdx_rotate == 0
+#ifdef OVERLAY_ENABLE_MIRROR
+        /*Bypass 180 degree rotate when overlay enabling mirror*/
+        || msvdx_rotate == VA_ROTATION_180
+#endif
+        )
+        return vaStatus;
+
     psb_surface = obj_surface->psb_surface_rotate;
     if (psb_surface) {
         CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need_realloc);
         if (need_realloc == 0) {
-            SET_SURFACE_INFO_rotate(psb_surface, msvdx_rotate);
-
-            return VA_STATUS_SUCCESS;
+            goto exit;
         } else { /* free the old rotate surface */
-            /*FIX ME: No sync mechanism to hold surface buffer b/w msvdx and display(overlay).
-            So Disable dynamic surface destroy/create for avoiding buffer corruption.
-            psb_surface_destroy(obj_surface->psb_surface_rotate);
-            memset(psb_surface, 0, sizeof(*psb_surface));*/
-            return VA_STATUS_SUCCESS;
+            /*FIX ME: it is not safe to do that because surfaces may be in use for rendering.*/
+            if (psb_android_is_extvideo_mode()) {
+                psb_surface_destroy(obj_surface->psb_surface_rotate);
+                memset(psb_surface, 0, sizeof(*psb_surface));
+            } else {
+                /*FIX ME: No sync mechanism to hold surface buffer b/w msvdx and display(overlay).
+                So Disable dynamic surface destroy/create for avoiding buffer corruption.*/
+                return VA_STATUS_SUCCESS;
+            }
         }
     } else
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
@@ -276,17 +324,23 @@ VAStatus psb_CreateRotateSurface(
         return vaStatus;
     }
 
+    obj_surface->psb_surface_rotate = psb_surface;
+exit:
     SET_SURFACE_INFO_rotate(psb_surface, msvdx_rotate);
     /* derive the protected flag from the primay surface */
     SET_SURFACE_INFO_protect(psb_surface,
                              GET_SURFACE_INFO_protect(obj_surface->psb_surface));
-    obj_surface->psb_surface_rotate = psb_surface;
 
+    /*notify hwc that rotated buffer is ready to use.
+    * TODO: Do these in psb_SyncSurface()
+    */
     if (share_info != NULL) {
         share_info->width_r = psb_surface->stride;
         share_info->height_r = obj_surface->height_r;
         share_info->rotate_khandle =
             (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+        share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
+        share_info->surface_rotate = VAROTATION2HAL(msvdx_rotate);
     }
 
     return vaStatus;

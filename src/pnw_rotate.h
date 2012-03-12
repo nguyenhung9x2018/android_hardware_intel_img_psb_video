@@ -28,7 +28,7 @@
  */
 
 void psb_InitRotate(VADriverContextP ctx);
-void psb_RecalcRotate(VADriverContextP ctx);
+void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context);
 void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_param_tmp);
 VAStatus psb_DestroyRotateSurface(
     VADriverContextP ctx,

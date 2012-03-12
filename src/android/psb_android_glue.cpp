@@ -43,6 +43,7 @@
 #include <ui/Rect.h>
 #include <system/window.h>
 #include <system/graphics.h>
+#include "display/MultiDisplayClient.h"
 
 using namespace android;
 
@@ -53,6 +54,19 @@ using namespace android;
 #define LOG_TAG "pvr_drv_video"
 
 sp<ISurface> isurface;
+MultiDisplayClient* mMDClient;
+
+void initMDC() {
+    if(mMDClient == NULL) {
+        mMDClient = new MultiDisplayClient();
+    }
+}
+
+void deinitMDC() {
+    delete mMDClient;
+    mMDClient = NULL;
+}
+
 unsigned int update_forced;
 
 int psb_android_register_isurface(void** android_isurface, int bcd_id, int srcw, int srch)
@@ -136,6 +150,14 @@ int psb_android_surfaceflinger_rotate(void* native_window, int *rotation)
         default:
             *rotation = 0; 
         }
+    }
+    return 0;
+}
+
+int psb_android_is_extvideo_mode() {
+    if (mMDClient != NULL) {
+        if (mMDClient->getMode() == 2)
+            return 1;
     }
     return 0;
 }
