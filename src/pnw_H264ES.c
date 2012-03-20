@@ -284,20 +284,34 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     pVUI_Params->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
     pVUI_Params->time_offset_length = 24;
     ctx->bInsertVUI = pSequenceParams->vui_flag ? IMG_TRUE: IMG_FALSE;
+    if (ctx->bInsertVUI && pSequenceParams->aspect_ratio_info_present_flag &&
+            (pSequenceParams->aspect_ratio_idc == 0xff /* Extended_SAR */)) {
+        pVUI_Params->aspect_ratio_info_present_flag = IMG_TRUE;
+        pVUI_Params->aspect_ratio_idc = 0xff;
+        pVUI_Params->sar_width = pSequenceParams->sar_width;
+        pVUI_Params->sar_height = pSequenceParams->sar_height;
+    }
 
-    sCrop.bClip = IMG_FALSE;
+    sCrop.bClip = pSequenceParams->frame_cropping_flag;
     sCrop.LeftCropOffset = 0;
     sCrop.RightCropOffset = 0;
     sCrop.TopCropOffset = 0;
     sCrop.BottomCropOffset = 0;
 
-    if (ctx->RawHeight & 0xf) {
-        sCrop.bClip = IMG_TRUE;
-        sCrop.BottomCropOffset = (((ctx->RawHeight + 0xf) & (~0xf)) - ctx->RawHeight) / 2;
-    }
-    if (ctx->RawWidth & 0xf) {
-        sCrop.bClip = IMG_TRUE;
-        sCrop.RightCropOffset = (((ctx->RawWidth + 0xf) & (~0xf)) - ctx->RawWidth) / 2;
+    if (!sCrop.bClip) {
+        if (ctx->RawHeight & 0xf) {
+            sCrop.bClip = IMG_TRUE;
+            sCrop.BottomCropOffset = (((ctx->RawHeight + 0xf) & (~0xf)) - ctx->RawHeight) / 2;
+        }
+        if (ctx->RawWidth & 0xf) {
+            sCrop.bClip = IMG_TRUE;
+            sCrop.RightCropOffset = (((ctx->RawWidth + 0xf) & (~0xf)) - ctx->RawWidth) / 2;
+        }
+    } else {
+        sCrop.LeftCropOffset = pSequenceParams->frame_crop_left_offset;
+        sCrop.RightCropOffset = pSequenceParams->frame_crop_right_offset;
+        sCrop.TopCropOffset = pSequenceParams->frame_crop_top_offset;
+        sCrop.BottomCropOffset = pSequenceParams->frame_crop_bottom_offset;
     }
     /* sequence header is always inserted */
 

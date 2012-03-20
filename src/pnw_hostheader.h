@@ -130,6 +130,10 @@ typedef enum _SLHP_SLICEFRAME_TYPE_ {
  * may want to prune them down a bit later.
  */
 typedef struct _H264_VUI_PARAMS_STRUC {
+    IMG_BOOL aspect_ratio_info_present_flag;
+    IMG_UINT8 aspect_ratio_idc;
+    IMG_UINT16 sar_width;
+    IMG_UINT16 sar_height;
     IMG_UINT32 Time_Scale;
     IMG_UINT32 bit_rate_value_minus1; /* bitrate/64)-1 */
     IMG_UINT32 cbp_size_value_minus1; /* (bitrate*1.5)/16 */

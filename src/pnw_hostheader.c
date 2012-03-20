@@ -397,14 +397,25 @@ static void pnw__H264_writebits_VUI_params(
     H264_VUI_PARAMS *VUIParams)
 {
     /* Builds VUI Params for the Sequence Header (only present in the 1st sequence of stream) */
-    pnw__write_upto8bits_elements(
-        mtx_hdr, elt_p,
-        (0 << 4) | /* aspect_ratio_info_present_flag = 0 in Topaz */
-        (0 << 3) | /* overscan_info_present_flag (1 bit) = 0 in Topaz */
-        (0 << 2) | /* video_signal_type_present_flag (1 bit) = 0 in Topaz */
-        (0 << 1) | /* chroma_loc_info_present_flag (1 bit) = 0 in Topaz */
-        (1),/* timing_info_present_flag (1 bit) = 1 in Topaz */
-        5);
+    if (VUIParams->aspect_ratio_info_present_flag && (VUIParams->aspect_ratio_idc == 0xff)) {
+        /* aspect_ratio_info_present_flag u(1) */
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+        /* aspect_ratio_idc u(8) Extended_SAR */
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0xff, 8);
+        /* sar_width u(16) */
+        pnw__write_upto32bits_elements(mtx_hdr, elt_p, VUIParams->sar_width, 16);
+        /* sar_height u(16) */
+        pnw__write_upto32bits_elements(mtx_hdr, elt_p, VUIParams->sar_height, 16);
+    } else {
+        pnw__write_upto8bits_elements(
+                mtx_hdr, elt_p,
+                (0 << 4) | /* aspect_ratio_info_present_flag = 0 in Topaz */
+                (0 << 3) | /* overscan_info_present_flag (1 bit) = 0 in Topaz */
+                (0 << 2) | /* video_signal_type_present_flag (1 bit) = 0 in Topaz */
+                (0 << 1) | /* chroma_loc_info_present_flag (1 bit) = 0 in Topaz */
+                (1),/* timing_info_present_flag (1 bit) = 1 in Topaz */
+                5);
+    }
 
     /* num_units_in_tick (32 bits) = 1 in Topaz */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
