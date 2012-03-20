@@ -2538,7 +2538,16 @@ VAStatus psb_BeginPicture(
     if ((obj_config->entrypoint != VAEntrypointEncSlice) &&
         (obj_config->entrypoint != VAEntrypointEncPicture) &&
         driver_data->native_window) {
-        psb_RecalcRotate(ctx, obj_context);
+        int display_rotate = 0;
+        psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
+        psb__information_message("NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
+
+        if (driver_data->mipi0_rotation != display_rotate) {
+            driver_data->mipi0_rotation = display_rotate;
+            psb_RecalcRotate(ctx);
+            psb__information_message("obj_surface->surface_id(0x%x): New rotate degree(%d) from surface flinger.\n", 
+                obj_surface->surface_id, driver_data->msvdx_rotate_want);
+        }
     }
 
     if (obj_context->interlaced_stream || driver_data->disable_msvdx_rotate)
@@ -2551,8 +2560,25 @@ VAStatus psb_BeginPicture(
      * thus the rotation info in obj_surface->psb_surface_rotate may not be updated
      */
     SET_SURFACE_INFO_rotate(obj_surface->psb_surface, obj_context->msvdx_rotate);
-    if (IS_MFLD(driver_data) && CONTEXT_ROTATE(obj_context)) {
+    if (IS_MFLD(driver_data) && CONTEXT_ROTATE(obj_context))
         psb_CreateRotateSurface(ctx, obj_surface, obj_context->msvdx_rotate);
+
+    if (obj_surface->share_info) {
+        psb_surface_share_info_p share_info = obj_surface->share_info;
+
+        switch (obj_context->msvdx_rotate) {
+        case VA_ROTATION_90:
+            share_info->surface_rotate = HAL_TRANSFORM_ROT_90;
+            break;
+        case VA_ROTATION_180:
+            share_info->surface_rotate = HAL_TRANSFORM_ROT_180;
+            break;
+        case VA_ROTATION_270:
+            share_info->surface_rotate = HAL_TRANSFORM_ROT_270;
+            break;
+        default:
+            share_info->surface_rotate = 0;
+        }
     }
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {

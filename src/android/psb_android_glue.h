@@ -69,9 +69,6 @@ extern "C"
     void psb_android_dynamic_source_display(int buffer_index, int hdmi_mode);
     void psb_android_dynamic_source_destroy();
     int psb_android_surfaceflinger_rotate(void* native_window, int *rotation);
-    void initMDC();
-    void deinitMDC();
-    int psb_android_is_extvideo_mode();
 #ifdef __cplusplus
 }
 #endif

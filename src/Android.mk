@@ -70,7 +70,6 @@ LOCAL_C_INCLUDES :=			\
     $(TOPDIR)hardware/libhardware/include/hardware         \
     $(TOPDIR)hardware/intel/include         \
     $(TOPDIR)hardware/intel/include/eurasia/pvr2d              \
-    $(TOPDIR)framework/base/include                          \
     $(TARGET_OUT_HEADERS)/libva	\
     $(TOPDIR)hardware/intel/linux-2.6/include/drm     \
     $(TARGET_OUT_HEADERS)/libttm	\
@@ -88,7 +87,7 @@ LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := pvr_drv_video
 
 LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libpvr2d libcutils \
-                libui libutils libbinder libsurfaceflinger_client libhardware libmultidisplay
+                libui libutils libbinder libsurfaceflinger_client libhardware
 
 ifeq ($(strip $(PSBVIDEO_LOG_ENABLE)),true)
 LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE

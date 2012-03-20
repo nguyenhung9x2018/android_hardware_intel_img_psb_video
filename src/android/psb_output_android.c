@@ -129,7 +129,6 @@ unsigned char *psb_android_output_init(VADriverContextP ctx)
     }
 
     if (IS_MFLD(driver_data)) {
-        initMDC();
         driver_data->coverlay = 1;
     }
 
@@ -141,8 +140,6 @@ VAStatus psb_android_output_deinit(VADriverContextP ctx)
     INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
     //psb_android_output_p output = GET_OUTPUT_DATA(ctx);
-    if (IS_MFLD(driver_data))
-        deinitMDC();
 
     return VA_STATUS_SUCCESS;
 }
@@ -322,7 +319,7 @@ static int psb_check_outputmethod(
             driver_data->hdmi_rotation = 0;
             driver_data->rotation_dirty = 0;
             output->new_destbox = 1;
-            psb_RecalcRotate(ctx, CONTEXT(obj_surface->context_id));
+            psb_RecalcRotate(ctx);
         }
 
         psb_HDMIExt_get_prop(output, &crtc_width, &crtc_height);
@@ -386,7 +383,7 @@ static int psb_check_outputmethod(
     output->new_destbox = 0;
 
     if (driver_data->rotation_dirty != 0) {
-        psb_RecalcRotate(ctx, CONTEXT(obj_surface->context_id));
+        psb_RecalcRotate(ctx);
         driver_data->rotation_dirty = 0;
     }
 

@@ -359,7 +359,6 @@ struct object_context_s {
 struct psb_surface_share_info_s {
     //int rotation_sf;                    /*rotaion degree from surface flinger.*/
     int surface_rotate;                 /*rotation degree of current rotation surface*/
-    int metadata_rotate;                /*rotation degree of meta data*/
     int width_r;
     int height_r;
     int surface_protected;              /*whether this surface need be protected*/
