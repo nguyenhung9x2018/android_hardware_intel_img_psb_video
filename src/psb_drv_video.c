@@ -1224,7 +1224,7 @@ VAStatus psb_CreateSurfaces(
     VAExternalMemoryBuffers *external_buffers = NULL;
     buffer_handle_t handle;
     void *vaddr[2];
-    unsigned int *tmp_nativebuf_handle = NULL;
+    unsigned int *tmp_khandles = NULL;
 
     format = format & (~VA_RT_FORMAT_PROTECTED);
     if (num_surfaces <= 0) {
@@ -1290,13 +1290,12 @@ VAStatus psb_CreateSurfaces(
     if(external_buffers != NULL) {
         int size = num_surfaces * sizeof(unsigned int);
         
-        tmp_nativebuf_handle = calloc(1, size);
-        if (tmp_nativebuf_handle == NULL) {
+        tmp_khandles = calloc(1, size);
+        if (tmp_khandles == NULL) {
             vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
             DEBUG_FAILURE;
             return vaStatus;
         }
-        memcpy(tmp_nativebuf_handle, external_buffers->buffers, size);
     }
     
     for (i = 0; i < num_surfaces; i++) {
@@ -1355,12 +1354,21 @@ VAStatus psb_CreateSurfaces(
                         external_buffers, psb_surface, vaddr[0]);
                     psb_surface->buf.handle = handle;
                     obj_surface->share_info = (psb_surface_share_info_t *)vaddr[1];
-                    obj_surface->share_info->nativebuf_count = num_surfaces;
-                    obj_surface->share_info->nativebuf_idx = i;
+
+                    obj_surface->share_info->width = obj_surface->width;
+                    obj_surface->share_info->height = obj_surface->height;
+
+                    obj_surface->share_info->luma_stride = psb_surface->stride;
+                    obj_surface->share_info->chroma_u_stride = psb_surface->stride;
+                    obj_surface->share_info->chroma_v_stride = psb_surface->stride;
+                    obj_surface->share_info->format = VA_FOURCC_NV12;
+
+                    obj_surface->share_info->khandle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+                    obj_surface->share_info->khandles_count = num_surfaces;
+                    tmp_khandles[i] = obj_surface->share_info->khandle;
+
                     obj_surface->share_info->renderStatus = 0;
-                    memcpy(obj_surface->share_info->nativebuf_handle,
-                           tmp_nativebuf_handle,
-                           sizeof(unsigned int) * num_surfaces);
+
                     psb__information_message("%s : Create graphic buffer success"
                          "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n", __FUNCTION__, surfaceID, vaddr[0], vaddr[1]);
                     gralloc_unlock(handle);
@@ -1387,9 +1395,6 @@ VAStatus psb_CreateSurfaces(
         obj_surface->psb_surface = psb_surface;
     }
 
-    if (tmp_nativebuf_handle != NULL)
-        free(tmp_nativebuf_handle);
-
     /* Error recovery */
     if (VA_STATUS_SUCCESS != vaStatus) {
         /* surface_list[i-1] was the last successful allocation */
@@ -1401,6 +1406,21 @@ VAStatus psb_CreateSurfaces(
         psb__error_message("CreateSurfaces failed\n");
         return vaStatus;
     }
+
+    if (VA_STATUS_SUCCESS == vaStatus && external_buffers != NULL) {
+        int max_num_to_copy = num_surfaces;
+        if(max_num_to_copy >  MAX_SHARE_INFO_KHANDLES) {
+            max_num_to_copy = MAX_SHARE_INFO_KHANDLES;
+        }
+        for (i = 0; i < num_surfaces; i++) {
+            object_surface_p obj_surface = SURFACE(surface_list[i]);
+            memcpy(obj_surface->share_info->khandles, tmp_khandles,
+                   sizeof(unsigned int) * max_num_to_copy);
+        }
+    }
+
+    if (tmp_khandles != NULL)
+        free(tmp_khandles);
 
     if (fourcc == VA_FOURCC_NV12)
         psb_add_video_bcd(ctx, width, height, buffer_stride,

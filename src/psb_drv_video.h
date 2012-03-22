@@ -356,6 +356,7 @@ struct object_context_s {
 #define ROTATE_VA2MSVDX(va_rotate)  (va_rotate)
 #define CONTEXT_ROTATE(obj_context) (obj_context->msvdx_rotate != ROTATE_VA2MSVDX(VA_ROTATION_NONE))
 
+#define MAX_SHARE_INFO_KHANDLES 32
 struct psb_surface_share_info_s {
     //int rotation_sf;                    /*rotaion degree from surface flinger.*/
     int surface_rotate;                 /*rotation degree of current rotation surface*/
@@ -370,10 +371,16 @@ struct psb_surface_share_info_s {
     int force_output_method;
     unsigned int rotate_khandle;
     unsigned int renderStatus;
-    unsigned int nativebuf_count;     /* the number of native buffer */
-    unsigned int nativebuf_idx;
-    unsigned int nativebuf_handle[0];   /* save the handle of all native buffer*/
     int bob_deinterlace;
+    unsigned int width;
+    unsigned int height;
+    unsigned int luma_stride;
+    unsigned int chroma_u_stride;
+    unsigned int chroma_v_stride;
+    unsigned int format;
+    unsigned int khandle;
+    unsigned int khandles_count;   /* the number of khandle */
+    unsigned int khandles[MAX_SHARE_INFO_KHANDLES];      /* save all khandles */
 };
 
 struct object_surface_s {
