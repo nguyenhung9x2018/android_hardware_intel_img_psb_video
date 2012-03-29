@@ -127,6 +127,7 @@ static FILE *psb_video_debug_fp = NULL;
 static FILE *psb_video_debug_dump_buffer_fp = NULL;
 static int  debug_fp_count = 0;
 static FILE *psb_video_debug_nv_buffer_fp=NULL;
+int force_texure_1080p_60fps = 0;
 
 /*
  * read a config "env" for libva.conf or from environment setting
@@ -610,6 +611,13 @@ static void psb__open_log(void)
         if(strcmp(log_fn, "/dev/stdout") != 0)
         sprintf(log_fn + strlen(log_fn), ".%d", suffix);
         psb_video_debug_nv_buffer_fp = fopen(log_fn, "ab");
+    }
+
+    if(psb_parse_config("PSB_VIDEO_1080P_60FPS", &log_fn[0]) == 0) {
+        if(strstr(log_fn, "texture") != NULL)
+            force_texure_1080p_60fps = 1;
+        else
+            force_texure_1080p_60fps = 0;
     }
 
     if ((psb_video_debug_fp != NULL) && (psb_video_debug_fp != stderr)) {
@@ -2577,7 +2585,8 @@ VAStatus psb_BeginPicture(
         psb_RecalcRotate(ctx, obj_context);
     }
 
-    if (obj_context->interlaced_stream || driver_data->disable_msvdx_rotate) {
+    if (obj_context->interlaced_stream || driver_data->disable_msvdx_rotate ||
+        (driver_data->render_mode == VA_RENDER_MODE_EXTERNAL_GPU && force_texure_1080p_60fps)) {
         obj_context->msvdx_rotate = 0;
         for (i = 0; i < obj_context->num_render_targets; i++) {
             object_surface_p obj_surface = SURFACE(obj_context->render_targets[i]);
@@ -2597,6 +2606,10 @@ VAStatus psb_BeginPicture(
     SET_SURFACE_INFO_rotate(obj_surface->psb_surface, obj_context->msvdx_rotate);
     if (IS_MFLD(driver_data) && CONTEXT_ROTATE(obj_context)) {
         psb_CreateRotateSurface(ctx, obj_surface, obj_context->msvdx_rotate);
+        /* for 1080p 60fps clip, need force to use surface texture to display video */
+        if (force_texure_1080p_60fps && driver_data->render_mode == VA_RENDER_MODE_EXTERNAL_GPU &&
+            obj_surface->share_info)
+            obj_surface->share_info->force_output_method = 1;
     }
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {
@@ -2920,11 +2933,12 @@ VAStatus psb_QuerySurfaceStatus(
         if (frame_skip == 1)
             surface_status = surface_status | VASurfaceSkipped;
     } else if (decode) {
-
-        if(obj_surface->share_info->renderStatus == 1) {
-            surface_status = VASurfaceDisplaying;
-        }else if (obj_surface->share_info->renderStatus == 0) {
-            surface_status = VASurfaceReady;
+        if (obj_surface->share_info) {
+            if (obj_surface->share_info->renderStatus == 1) {
+                surface_status = VASurfaceDisplaying;
+            } else if (obj_surface->share_info->renderStatus == 0) {
+                surface_status = VASurfaceReady;
+            }
         }
     }
 

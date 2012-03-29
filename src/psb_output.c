@@ -2135,6 +2135,7 @@ VAStatus psb_SetDisplayAttributes(
         case VADisplayAttribRenderDevice:
             driver_data->render_device = p->value & VA_RENDER_DEVICE_MASK;
         case VADisplayAttribRenderMode:
+#ifndef ANDROID
             if (p->value & VA_RENDER_MODE_EXTERNAL_GPU) {
                 psb__error_message("%s:Invalid parameter.VARenderModeExternalGPU is not supported.\n", __FUNCTION__);
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -2144,6 +2145,7 @@ VAStatus psb_SetDisplayAttributes(
                 psb__error_message("%s:Invalid parameter. Conflict setting for VADisplayAttribRenderMode.\n", __FUNCTION__);
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
             }
+#endif
             driver_data->render_mode = p->value & VA_RENDER_MODE_MASK;
             break;
         case VADisplayAttribRenderRect:
