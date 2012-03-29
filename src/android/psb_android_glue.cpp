@@ -39,11 +39,13 @@
 #include <binder/MemoryHeapBase.h>
 #include "psb_android_glue.h"
 #include "psb_texstreaming.h"
+#include "psb_output_android.h"
 #include <cutils/log.h>
 #include <ui/Rect.h>
 #include <system/window.h>
 #include <system/graphics.h>
 #include "display/MultiDisplayClient.h"
+#include "display/MultiDisplayType.h"
 
 using namespace android;
 
@@ -54,17 +56,24 @@ using namespace android;
 #define LOG_TAG "pvr_drv_video"
 
 sp<ISurface> isurface;
-MultiDisplayClient* mMDClient;
 
-void initMDC() {
-    if(mMDClient == NULL) {
-        mMDClient = new MultiDisplayClient();
+void initMDC(void* output) {
+    psb_android_output_p android_output = (psb_android_output_p)output;
+
+    if(android_output->mMDClient == NULL) {
+        LOGV("%s: new MultiDisplayClient", __func__);
+        android_output->mMDClient = new MultiDisplayClient();
     }
 }
 
-void deinitMDC() {
-    delete mMDClient;
-    mMDClient = NULL;
+void deinitMDC(void* output) {
+    psb_android_output_p android_output = (psb_android_output_p)output;
+
+    if (android_output->mMDClient) {
+        LOGV("%s: delete MultiDisplayClient", __func__);
+        delete (MultiDisplayClient *)(android_output->mMDClient);
+        android_output->mMDClient = NULL;
+    }
 }
 
 unsigned int update_forced;
@@ -134,7 +143,7 @@ int psb_android_surfaceflinger_rotate(void* native_window, int *rotation)
     if (mNativeWindow.get()) {
         err = mNativeWindow->query(mNativeWindow.get(), NATIVE_WINDOW_TRANSFORM_HINT, &transform_hint);
         if (err != 0) {
-            LOGE("%s : NATIVE_WINDOW_TRANSFORM_HINT query failed.\n", __FUNCTION__);
+            LOGE("%s: NATIVE_WINDOW_TRANSFORM_HINT query failed", __func__);
             return -1;
         }
         switch (transform_hint) {
@@ -154,10 +163,14 @@ int psb_android_surfaceflinger_rotate(void* native_window, int *rotation)
     return 0;
 }
 
-int psb_android_is_extvideo_mode() {
+int psb_android_is_extvideo_mode(void* output) {
+    psb_android_output_p android_output = (psb_android_output_p)output;
+    MultiDisplayClient* mMDClient = (MultiDisplayClient *)android_output->mMDClient;
+
     if (mMDClient != NULL) {
-        if (mMDClient->getMode() == 2)
+        if (mMDClient->getMode() == MDS_HDMI_EXT) {
             return 1;
+        }
     }
     return 0;
 }

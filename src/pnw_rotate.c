@@ -32,9 +32,9 @@
 #include <va/va_backend_tpi.h>
 #include <va/va_backend_egl.h>
 #include <va/va_dricommon.h>
-
 #include "psb_drv_video.h"
 #include "psb_output.h"
+#include "android/psb_android_glue.h"
 #include "vc1_defs.h"
 #include <stdio.h>
 #include <string.h>
@@ -48,6 +48,7 @@
 #include <system/graphics.h>
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
+#define INIT_OUTPUT_PRIV    unsigned char* output = ((psb_driver_data_p)ctx->pDriverData)->ws_priv
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 
 #define CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need)  \
@@ -114,11 +115,13 @@ void psb_InitRotate(VADriverContextP ctx)
 void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
 {
     INIT_DRIVER_DATA;
+    INIT_OUTPUT_PRIV;
     int angle, new_rotate, i;
     int old_rotate = driver_data->msvdx_rotate_want;
 
-    if (psb_android_is_extvideo_mode() || (driver_data->va_rotate != 0)) {
+    if (psb_android_is_extvideo_mode((void*)output) || (driver_data->va_rotate != 0)) {
         if (driver_data->mipi0_rotation != 0) {
+            psb__information_message("Clear display rotate for extended video mode or meta data rotate");
             driver_data->mipi0_rotation = 0;
             driver_data->hdmi_rotation = 0;
         }

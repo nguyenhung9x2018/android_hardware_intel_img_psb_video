@@ -129,7 +129,7 @@ unsigned char *psb_android_output_init(VADriverContextP ctx)
     }
 
     if (IS_MFLD(driver_data)) {
-        initMDC();
+        initMDC(output);
         driver_data->coverlay = 1;
     }
 
@@ -142,7 +142,7 @@ VAStatus psb_android_output_deinit(VADriverContextP ctx)
     INIT_OUTPUT_PRIV;
     //psb_android_output_p output = GET_OUTPUT_DATA(ctx);
     if (IS_MFLD(driver_data))
-        deinitMDC();
+        deinitMDC(output);
 
     return VA_STATUS_SUCCESS;
 }

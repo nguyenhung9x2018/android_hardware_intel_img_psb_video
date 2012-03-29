@@ -45,6 +45,7 @@ typedef struct _psb_android_output_s {
     unsigned short destw;
     unsigned short desth;
     int new_destbox;
+    void* mMDClient;
 } psb_android_output_s, *psb_android_output_p;
 
 #endif /*_PSB_OUTPUT_ANDROID_H_*/
