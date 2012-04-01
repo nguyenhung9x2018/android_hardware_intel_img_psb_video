@@ -1354,7 +1354,8 @@ VAStatus psb_CreateSurfaces(
                         external_buffers, psb_surface, vaddr[0]);
                     psb_surface->buf.handle = handle;
                     obj_surface->share_info = (psb_surface_share_info_t *)vaddr[1];
-
+                    memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
+                    obj_surface->share_info->force_output_method = protected ? OUTPUT_FORCE_OVERLAY : 0;
                     obj_surface->share_info->width = obj_surface->width;
                     obj_surface->share_info->height = obj_surface->height;
 

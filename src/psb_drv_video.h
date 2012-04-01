@@ -356,6 +356,12 @@ struct object_context_s {
 #define ROTATE_VA2MSVDX(va_rotate)  (va_rotate)
 #define CONTEXT_ROTATE(obj_context) (obj_context->msvdx_rotate != ROTATE_VA2MSVDX(VA_ROTATION_NONE))
 
+enum force_output_method_t {
+    OUTPUT_FORCE_NULL = 0,
+    OUTPUT_FORCE_GPU,
+    OUTPUT_FORCE_OVERLAY,
+};
+
 #define MAX_SHARE_INFO_KHANDLES 32
 struct psb_surface_share_info_s {
     //int rotation_sf;                    /*rotaion degree from surface flinger.*/
