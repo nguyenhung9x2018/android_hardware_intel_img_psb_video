@@ -167,6 +167,11 @@ int psb_android_is_extvideo_mode(void* output) {
     psb_android_output_p android_output = (psb_android_output_p)output;
     MultiDisplayClient* mMDClient = (MultiDisplayClient *)android_output->mMDClient;
 
+    if (!android_output->mInitialized_mdclient) {
+        initMDC(output);
+        android_output->mInitialized_mdclient = 1;
+    }
+
     if (mMDClient != NULL) {
         if (mMDClient->getMode() == MDS_HDMI_EXT) {
             return 1;
