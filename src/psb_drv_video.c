@@ -1320,6 +1320,7 @@ VAStatus psb_CreateSurfaces(
         obj_surface->width_r = width;
         obj_surface->height_r = height;
         obj_surface->height_origin = height_origin;
+        obj_surface->share_info = NULL;
 
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
         if (NULL == psb_surface) {
@@ -1601,6 +1602,18 @@ VAStatus psb_DestroySurfaces(
         psb__information_message("%s : obj_surface->surface_id = 0x%x\n",__FUNCTION__, obj_surface->surface_id);
         psb__destroy_surface(driver_data, obj_surface);
         surface_list[i] = VA_INVALID_SURFACE;
+        if (obj_surface->share_info) {
+            void *vaddr[2];
+            int usage = GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
+            buffer_handle_t handle = obj_surface->psb_surface->buf.handle;
+            if (!gralloc_lock(handle, usage, 0, 0,
+                        obj_surface->width, obj_surface->height, (void **)&vaddr)){
+                if (vaddr[1] == obj_surface->share_info) {
+                    memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
+                }
+                gralloc_unlock(handle);
+            }
+        }
     }
 
     return VA_STATUS_SUCCESS;
