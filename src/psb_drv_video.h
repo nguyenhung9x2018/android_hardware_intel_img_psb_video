@@ -377,6 +377,7 @@ struct psb_surface_share_info_s {
     int force_output_method;
     unsigned int rotate_khandle;
     unsigned int renderStatus;
+    unsigned int used_by_widi;
     int bob_deinterlace;
     unsigned int width;
     unsigned int height;

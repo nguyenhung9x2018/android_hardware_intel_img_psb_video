@@ -1370,6 +1370,7 @@ VAStatus psb_CreateSurfaces(
                     tmp_khandles[i] = obj_surface->share_info->khandle;
 
                     obj_surface->share_info->renderStatus = 0;
+                    obj_surface->share_info->used_by_widi = 0;
 
                     psb__information_message("%s : Create graphic buffer success"
                          "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n", __FUNCTION__, surfaceID, vaddr[0], vaddr[1]);
