@@ -110,6 +110,7 @@ void psb_InitRotate(VADriverContextP ctx)
         psb__information_message("MSVDX: disable MSVDX rotation\n");
         driver_data->disable_msvdx_rotate = 1;
     }
+    driver_data->disable_msvdx_rotate_backup = driver_data->disable_msvdx_rotate;
 }
 
 void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
@@ -118,13 +119,17 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
     INIT_OUTPUT_PRIV;
     int angle, new_rotate, i;
     int old_rotate = driver_data->msvdx_rotate_want;
-
-    if (psb_android_is_extvideo_mode((void*)output) || (driver_data->va_rotate != 0)) {
+    int mode = psb_android_is_extvideo_mode((void*)output);
+    if (mode || (driver_data->va_rotate != 0)) {
         if (driver_data->mipi0_rotation != 0) {
             psb__information_message("Clear display rotate for extended video mode or meta data rotate");
             driver_data->mipi0_rotation = 0;
             driver_data->hdmi_rotation = 0;
         }
+        if (mode == 2)
+            driver_data->disable_msvdx_rotate = 1;
+        else
+            driver_data->disable_msvdx_rotate = driver_data->disable_msvdx_rotate_backup;
     } else {
         int display_rotate = 0;
         psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);

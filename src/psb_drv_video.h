@@ -241,6 +241,7 @@ struct psb_driver_data_s {
 
     /*output rotation info*/
     int disable_msvdx_rotate;
+    int disable_msvdx_rotate_backup;
     int msvdx_rotate_want; /* msvdx rotate info programed to msvdx */
     int va_rotate; /* VA rotate passed from APP */
     int mipi0_rotation; /* window manager rotation */

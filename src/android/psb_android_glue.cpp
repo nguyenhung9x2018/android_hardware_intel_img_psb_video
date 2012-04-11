@@ -28,7 +28,6 @@
  *
  */
 
-
 #include <binder/IPCThreadState.h>
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
@@ -173,9 +172,11 @@ int psb_android_is_extvideo_mode(void* output) {
     }
 
     if (mMDClient != NULL) {
-        if (mMDClient->getMode() == MDS_HDMI_EXT) {
+        int mode = mMDClient->getMode();
+        if (mode & MDS_HDMI_VIDEO_EXT)
             return 1;
-        }
+        else if (mode & MDS_WIDI_ON)
+            return 2;
     }
     return 0;
 }
