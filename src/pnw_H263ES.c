@@ -203,7 +203,8 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     } else
         ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
 
-    ctx->sRCParams.FrameRate = pSequenceParams->frame_rate;
+    ctx->sRCParams.FrameRate = (pSequenceParams->frame_rate < 1) ? 1 :
+        ((65535 < pSequenceParams->frame_rate) ? 65535 : pSequenceParams->frame_rate);
     ctx->sRCParams.InitialQp = pSequenceParams->initial_qp;
     ctx->sRCParams.MinQP = pSequenceParams->min_qp;
     ctx->sRCParams.BUSize = 0; /* default 0, and will be set in pnw__setup_busize */

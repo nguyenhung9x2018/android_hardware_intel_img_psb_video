@@ -236,7 +236,8 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     } else
         ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
 
-    ctx->sRCParams.FrameRate = pSequenceParams->frame_rate;
+    ctx->sRCParams.FrameRate = (pSequenceParams->frame_rate < 1) ? 1 :
+        ((65535 < pSequenceParams->frame_rate) ? 65535 : pSequenceParams->frame_rate);
     ctx->sRCParams.InitialQp = pSequenceParams->initial_qp;
     ctx->sRCParams.MinQP = pSequenceParams->min_qp;
     ctx->sRCParams.BUSize = pSequenceParams->basic_unit_size;

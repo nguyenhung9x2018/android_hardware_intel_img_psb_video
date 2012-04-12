@@ -188,7 +188,7 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     VAEncSequenceParameterBufferMPEG4 *seq_params;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     MPEG4_PROFILE_TYPE profile;
-    int i;
+    int i, vop_time_increment_resolution;
 
     ASSERT(obj_buffer->type == VAEncSequenceParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
@@ -212,7 +212,8 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     } else
         ctx->sRCParams.BitsPerSecond = seq_params->bits_per_second;
 
-    ctx->sRCParams.FrameRate = seq_params->frame_rate;
+    ctx->sRCParams.FrameRate = (seq_params->frame_rate < 1) ?
+        1 : ((65535 < seq_params->frame_rate) ? 65535 : seq_params->frame_rate);
     ctx->sRCParams.InitialQp = seq_params->initial_qp;
     ctx->sRCParams.MinQP = seq_params->min_qp;
     ctx->sRCParams.BUSize = 0;  /* default 0, and will be set in pnw__setup_busize */
@@ -258,6 +259,8 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
            0,
            HEADER_SIZE);
 
+    vop_time_increment_resolution = (seq_params->vop_time_increment_resolution < 1) ? 1 :
+        ((65535 < seq_params->vop_time_increment_resolution) ? 65535 : seq_params->vop_time_increment_resolution);
     pnw__MPEG4_prepare_sequence_header(
         cmdbuf->header_mem_p + ctx->seq_header_ofs,
         0, /* BFrame? */
@@ -267,9 +270,9 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
         seq_params->video_object_layer_width,/* Picture_Width_Pixels */
         seq_params->video_object_layer_height, /* Picture_Height_Pixels */
         NULL,
-        seq_params->vop_time_increment_resolution); /* VopTimeResolution */
+        vop_time_increment_resolution); /* VopTimeResolution */
 
-    ctx->MPEG4_vop_time_increment_resolution = seq_params->vop_time_increment_resolution;
+    ctx->MPEG4_vop_time_increment_resolution = vop_time_increment_resolution;
 
     pnw_cmdbuf_insert_command_package(ctx->obj_context,
                                       ctx->ParallelCores - 1, /* Send to the last core as this will complete first */
