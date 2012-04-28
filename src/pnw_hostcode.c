@@ -828,22 +828,16 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
      */
     psPicParams->DstYStride = rec_surface->psb_surface->stride;
     psPicParams->DstUVStride = rec_surface->psb_surface->stride;
-    psPicParams->DstYRowStride = rec_surface->psb_surface->stride * 16;
-    psPicParams->DstUVRowStride = rec_surface->psb_surface->stride * 8;
 #else
     psPicParams->DstYStride = rec_surface->psb_surface->stride;
     psPicParams->DstUVStride = rec_surface->psb_surface->stride;
-    psPicParams->DstYRowStride = psPicParams->DstYStride * 16;
-    psPicParams->DstUVRowStride = psPicParams->DstUVStride * 8;
 #endif
-
-    psPicParams->InParamsRowStride = (ctx->obj_context->picture_width / 16) * 256;
-    psPicParams->BelowParamRowStride = (ctx->obj_context->picture_width / 16) * 32;
 
     psPicParams->Width  = ctx->Width;
     psPicParams->Height = ctx->Height;
     psPicParams->NumSlices = ctx->sRCParams.Slices;
 
+    psPicParams->IsPerSliceOutput = IMG_FALSE;
     psPicParams->SearchHeight = min(MVEA_LRB_SEARCH_HEIGHT, psPicParams->Height);
     psPicParams->SearchWidth = min(MVEA_LRB_SEARCH_WIDTH, psPicParams->Width);
 
@@ -913,7 +907,6 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
             memcpy(&psPicParams->sInParams, &ctx->in_params_cache, sizeof(IN_RC_PARAMS));
 
             /* These two fileds are modified by pnw_SetupRCParams, need to patch them here */
-            psPicParams->THSkip = ctx->THSkip;
             psPicParams->Flags |= (ctx->pic_params_flags & ISRC_I16BIAS);
             psPicParams->sInParams.BitsPerFrm = ctx->sRCParams.BitsConsumed;
 
@@ -1027,14 +1020,11 @@ static VAStatus pnw_SetupRCParam(context_ENC_p ctx)
         memcpy((unsigned char *)&psPicParamsTmp->sInParams,
                (unsigned char *)&psPicParams->sInParams,
                sizeof(IN_RC_PARAMS));
-
-        psPicParamsTmp->THSkip = psPicParams->THSkip;
         psPicParamsTmp->Flags |= psPicParams->Flags;
     }
 
     /* save IN_RC_PARAMS into the cache */
     memcpy(&ctx->in_params_cache, (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
-    ctx->THSkip = psPicParams->THSkip;
     ctx->pic_params_flags = psPicParams->Flags & ISRC_I16BIAS;
 
     return VA_STATUS_SUCCESS;
@@ -1046,6 +1036,7 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     int i;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)cmdbuf->pic_params_p;
+    unsigned long t1, t2, t3;
 
     ctx->AccessUnitNum++;
 
@@ -1053,10 +1044,10 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
         if (ctx->raw_frame_count == 0)
             pnw_SetupRCParam(ctx);
         else  if (ctx->sRCParams.bBitrateChanged) {
-            psb__information_message("Bitrate is changed to %d, "
-                                     "update the RC data accordingly\n", ctx->sRCParams.BitsPerSecond);
-            pnw__update_rcdata(ctx, psPicParams, &ctx->sRCParams);
-            memcpy(&ctx->in_params_cache, (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
+            psb__information_message("bitrate is changed to %d, "
+                                     "update the rc data accordingly\n", ctx->sRCParams.BitsPerSecond);
+	    pnw__update_rcdata(ctx, psPicParams, &ctx->sRCParams);
+	    memcpy(&ctx->in_params_cache, (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
         }
     }
 
@@ -1064,7 +1055,6 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     psb__information_message("sizeof PIC_PARAMS %d\n", sizeof(PIC_PARAMS));
     psb__information_message("sizeof in_params %d\n", sizeof(psPicParams->sInParams));
     psb__information_message("End Picture for frame %d\n", ctx->obj_context->frame_count);
-    psb__information_message("psPicParams->bInsertHRDparams %d\n", psPicParams->InsertHRDparams);
     psb__information_message("psPicParams->ClockDivBitrate %lld\n", psPicParams->ClockDivBitrate);
     psb__information_message("psPicParams->MaxBufferMultClockDivBitrate %d\n",
                              psPicParams->MaxBufferMultClockDivBitrate);
@@ -1137,7 +1127,6 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     if (pnw_context_flush_cmdbuf(ctx->obj_context)) {
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
     }
-
     ctx->raw_frame_count++;
     return vaStatus;
 }
@@ -1285,23 +1274,13 @@ static void pnw__update_rcdata(
         L3 = 0.2;
         psPicParams->sInParams.MaxQPVal = 51;
 
-        /* Set THSkip Values */
-        if (flBpp <= 0.07)
-            psPicParams->THSkip = TH_SKIP_24;
-        else if (flBpp <= 0.14)
-            psPicParams->THSkip = TH_SKIP_12;
-        else
-            psPicParams->THSkip = TH_SKIP_0;
-
         /* Setup MAX and MIN Quant Values */
         if (flBpp <= 0.3)
             psPicParams->Flags |= ISRC_I16BIAS;
         if (flBpp >= 0.50)
             i16TempQP = 4;
-        else if (flBpp > 0.133)
-            i16TempQP = (unsigned int)(24 - (40 * flBpp));
         else
-            i16TempQP = (unsigned int)(32 - (100 * flBpp));
+            i16TempQP = (unsigned int)(24 - (40 * flBpp));
 
         psPicParams->sInParams.MinQPVal = (max(min(psPicParams->sInParams.MaxQPVal, i16TempQP), 0));
 
@@ -1574,13 +1553,12 @@ void pnw__setup_rcdata(
         psRCParams->InitialQp = ui8InitialSeInitQP;
     }
 
-    psPicParams->InsertHRDparams = psContext->bInserHRDParams;
     /* HRD parameters are meaningless without a bitrate
      * HRD parameters are not supported in VCM mode */
     if (psRCParams->BitsPerSecond == 0 || psContext->eCodec == IMG_CODEC_H264_VCM)
-         psPicParams->InsertHRDparams = IMG_FALSE;
+         psContext->bInserHRDParams = IMG_FALSE;
 
-    if (psPicParams->InsertHRDparams) {
+    if (psContext->bInserHRDParams) {
         psPicParams->ClockDivBitrate = (90000 * 0x100000000LL);
         psPicParams->ClockDivBitrate /= psRCParams->BitsPerSecond;
         psPicParams->MaxBufferMultClockDivBitrate = (IMG_UINT32)
@@ -1942,9 +1920,10 @@ IMG_UINT32 pnw__send_encode_slice_params(
         psSliceParams->Flags |= ISMPEG4_FLAGS;
         break;
     case IMG_CODEC_H264_NO_RC:
-    case IMG_CODEC_H264_VBR:
     case IMG_CODEC_H264_CBR:
     case IMG_CODEC_H264_VCM:
+        psSliceParams->eIntraMBMode = INTRA_MB_SCANNING;
+    case IMG_CODEC_H264_VBR:
         psSliceParams->Flags |= ISH264_FLAGS;
         break;
     default:

@@ -254,8 +254,6 @@ static VAStatus pnw_jpeg_BeginPicture(
 
     pnw_jpeg_set_default_qmatix(ctx->jpeg_ctx->pMemInfoTableBlock);
 
-    InitializeJpegEncode(ctx->jpeg_ctx, ctx->src_surface);
-
     return vaStatus;
 }
 

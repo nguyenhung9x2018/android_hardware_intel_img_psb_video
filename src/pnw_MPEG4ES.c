@@ -369,13 +369,6 @@ static VAStatus pnw__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
 
     pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
 
-    if (0 == pBuffer->start_row_number) {
-        if (pBuffer->slice_flags.bits.is_intra)
-            RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_I);
-        else
-            RELOC_PIC_PARAMS_PNW(&psPicParams->InParamsBase, ctx->in_params_ofs, cmdbuf->topaz_in_params_P);
-    }
-
     /*In case the slice number changes*/
     if ((ctx->slice_param_cache != NULL) && (obj_buffer->num_elements != ctx->slice_param_num)) {
         psb__information_message("Slice number changes. Previous value is %d. Now it's %d\n",

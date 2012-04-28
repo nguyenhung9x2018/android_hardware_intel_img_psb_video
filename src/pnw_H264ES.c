@@ -47,8 +47,6 @@
 #define INIT_CONTEXT_H264ES     context_ENC_p ctx = (context_ENC_p) obj_context->format_data
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
-
-
 static void pnw_H264ES_QueryConfigAttributes(
     VAProfile profile,
     VAEntrypoint entrypoint,
@@ -240,10 +238,15 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
         ((65535 < pSequenceParams->frame_rate) ? 65535 : pSequenceParams->frame_rate);
     ctx->sRCParams.InitialQp = pSequenceParams->initial_qp;
     ctx->sRCParams.MinQP = pSequenceParams->min_qp;
-    ctx->sRCParams.BUSize = pSequenceParams->basic_unit_size;
+    if (pSequenceParams->basic_unit_size != 0 || 
+	    ctx->raw_frame_count == 0)
+	ctx->sRCParams.BUSize = pSequenceParams->basic_unit_size;
 
     ctx->sRCParams.Slices = ctx->Slices;
     ctx->sRCParams.QCPOffset = 0;/* FIXME */
+    if (ctx->sRCParams.IntraFreq != pSequenceParams->intra_period
+	    && ctx->raw_frame_count != 0)
+	ctx->sRCParams.bBitrateChanged = IMG_TRUE;
     ctx->sRCParams.IntraFreq = pSequenceParams->intra_period;
 
     ctx->sRCParams.IDRFreq = pSequenceParams->intra_idr_period;

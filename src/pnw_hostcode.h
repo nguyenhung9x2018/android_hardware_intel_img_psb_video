@@ -434,40 +434,36 @@ typedef struct _PIC_PARAMS_ {
 
     IMG_UINT16          DstYStride;
     IMG_UINT16          DstUVStride;
-    IMG_UINT16          DstYRowStride;
-    IMG_UINT16          DstUVRowStride;
 
-    IMG_UINT32          InParamsBase;
-    IMG_UINT32          InParamsRowStride;
-
-    IMG_UINT32          OutParamsBase;
     IMG_UINT32          CodedBase;
 
     IMG_UINT32          BelowParamsInBase;
     IMG_UINT32          BelowParamsOutBase;
-    IMG_UINT32          BelowParamRowStride;
 
     IMG_UINT32          AboveParamsBase;
-    IMG_UINT32          AboveParamRowStride;
+
     IMG_UINT16          Width;
     IMG_UINT16          Height;
     IMG_UINT16          Flags;
 
     IN_RC_PARAMS        sInParams;
-    TH_SKIP_SCALE       THSkip;
+
     IMG_UINT16          SearchWidth;
     IMG_UINT16          SearchHeight;
 
     IMG_UINT16          NumSlices;                      //!< Number of slices in the picture
 
+    IMG_BOOL 		IsPerSliceOutput;
     // SEI_INSERTION
-    IMG_UINT32          InitialCPBremovaldelayoffset;
     IMG_UINT64          ClockDivBitrate;
     IMG_UINT32          MaxBufferMultClockDivBitrate;
-    IMG_BOOL            InsertHRDparams;
-
 } PIC_PARAMS;
 
+typedef enum {
+    INTRA_MB_OFF = 0,
+    INTRA_MB_AIR = 1,
+    INTRA_MB_SCANNING = 2
+} INTRA_MB_OPERATION_MODE;
 
 /* This holds the data that is needed at the start of a slice
  */
@@ -496,7 +492,7 @@ typedef struct _SLICE_PARAMS_ {
 
     /*Theshold value used in Adaptive intra refresh calculation.*/
     IMG_INT16   AirThreshold;
-    IMG_UINT32  ui32Reserved;
+    INTRA_MB_OPERATION_MODE eIntraMBMode;
 } SLICE_PARAMS;
 
 enum {
@@ -510,7 +506,6 @@ enum {
     EH264 = 2,
     EHJpeg = 3
 } eEncodingFormat;
-
 #define VAEncSliceParameter_Equal(src, dst)                             \
     (((src)->start_row_number == (dst)->start_row_number)               \
      && ((src)->slice_height == (dst)->slice_height)                    \
