@@ -407,15 +407,17 @@ static void pnw__H264_writebits_VUI_params(
         /* sar_height u(16) */
         pnw__write_upto32bits_elements(mtx_hdr, elt_p, VUIParams->sar_height, 16);
     } else {
-        pnw__write_upto8bits_elements(
+        /* aspect_ratio_info_present_flag u(1) */
+        pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    }
+
+    pnw__write_upto8bits_elements(
                 mtx_hdr, elt_p,
-                (0 << 4) | /* aspect_ratio_info_present_flag = 0 in Topaz */
                 (0 << 3) | /* overscan_info_present_flag (1 bit) = 0 in Topaz */
                 (0 << 2) | /* video_signal_type_present_flag (1 bit) = 0 in Topaz */
                 (0 << 1) | /* chroma_loc_info_present_flag (1 bit) = 0 in Topaz */
                 (1),/* timing_info_present_flag (1 bit) = 1 in Topaz */
-                5);
-    }
+                4);
 
     /* num_units_in_tick (32 bits) = 1 in Topaz */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
