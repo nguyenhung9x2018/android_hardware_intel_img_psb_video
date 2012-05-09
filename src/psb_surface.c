@@ -342,13 +342,13 @@ VAStatus psb_surface_query_status(psb_surface_p psb_surface, VASurfaceStatus *st
     uint32_t synccpu_flag = WSBM_SYNCCPU_READ | WSBM_SYNCCPU_WRITE | WSBM_SYNCCPU_DONT_BLOCK;
 
     ret = wsbmBOSyncForCpu(psb_surface->buf.drm_buf, synccpu_flag);
-    (void) wsbmBOReleaseFromCpu(psb_surface->buf.drm_buf, synccpu_flag);
 
-    if (ret == 0)
+    if (ret == 0) {
+        (void) wsbmBOReleaseFromCpu(psb_surface->buf.drm_buf, synccpu_flag);
         *status = VASurfaceReady;
-    else
+    } else {
         *status = VASurfaceRendering;
-
+    }
     return VA_STATUS_SUCCESS;
 }
 

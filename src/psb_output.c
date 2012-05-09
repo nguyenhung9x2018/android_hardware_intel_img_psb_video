@@ -419,6 +419,32 @@ VAStatus psb_CreateImage(
     return vaStatus;
 }
 
+static int psb_CheckIEDStatus(VADriverContextP ctx)
+{
+    INIT_DRIVER_DATA;
+    struct drm_lnc_video_getparam_arg arg;
+    unsigned long temp;
+    int ret = 0;
+    int ied_status = 0;
+
+    /* not settled, we get it from current HW FRAMESKIP flag */
+    arg.key = IMG_VIDEO_IED_STATE;
+    arg.value = (uint64_t)((unsigned long) & temp);
+    ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
+                              &arg, sizeof(arg));
+    if (ret == 0) {
+        if (temp == 1) {
+            psb__error_message("IED is enabled, image is encrypted.\n");
+            return 1;
+        } else {
+            return 0;
+        }
+    } else {
+        psb__error_message("Failed to call IMG_VIDEO_IED_STATE.\n");
+        return -1;
+    }
+}
+
 VAStatus psb_DeriveImage(
     VADriverContextP ctx,
     VASurfaceID surface,
@@ -434,6 +460,7 @@ VAStatus psb_DeriveImage(
     object_surface_p obj_surface = SURFACE(surface);
     unsigned int fourcc, fourcc_index = ~0, i;
     uint32_t srf_buf_ofs = 0;
+    uint32_t ied_state;
 
     if (NULL == obj_surface) {
         vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
@@ -443,6 +470,11 @@ VAStatus psb_DeriveImage(
 
     if (NULL == image) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        return vaStatus;
+    }
+
+    if (IS_MFLD(driver_data) && (psb_CheckIEDStatus(ctx) == 1)) {
+        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
         return vaStatus;
     }
 
@@ -703,6 +735,11 @@ VAStatus psb_GetImage(
 
         vaStatus = VA_STATUS_ERROR_INVALID_IMAGE;
         DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    if (IS_MFLD(driver_data) && (psb_CheckIEDStatus(ctx) == 1)) {
+        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
         return vaStatus;
     }
 
