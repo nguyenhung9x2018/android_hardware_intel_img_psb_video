@@ -53,13 +53,13 @@
 #include <sys/time.h>
 
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 #include "psb_ws_driver.h"
 
 #include <wsbm/wsbm_pool.h>
 #include <wsbm/wsbm_manager.h>
 #include <wsbm/wsbm_util.h>
 #include <wsbm/wsbm_fencemgr.h>
-
 
 /*
  * Buffer layout:
@@ -88,13 +88,6 @@
 #define CMD_MARGIN            (0x0400)
 #define LLDMA_MARGIN          (0x0400)
 
-
-#define MAX_CMD_COUNT         12
-
-#define MTX_SEG_SIZE          (0x0800)
-
-#define PSB_TIMEOUT_USEC 990000
-
 static void psb_cmdbuf_lldma_create_internal(psb_cmdbuf_p cmdbuf,
         LLDMA_CMD *pLLDMACmd,
         psb_buffer_p bitstream_buf,
@@ -102,8 +95,6 @@ static void psb_cmdbuf_lldma_create_internal(psb_cmdbuf_p cmdbuf,
         uint32_t size,
         uint32_t dest_offset,
         LLDMA_TYPE cmd);
-
-static int psb_cmdbuf_dump(unsigned int *buffer, int byte_size);
 
 /*
  * Create command buffer
@@ -301,7 +292,7 @@ int psb_cmdbuf_buffer_ref(psb_cmdbuf_p cmdbuf, psb_buffer_p buf)
     if ((cmdbuf->buffer_refs[item_loc] != buf)
         && (buf->rar_handle != 0)) {
         psb_buffer_p tmp = cmdbuf->buffer_refs[item_loc];
-        psb__information_message("RAR: found same drm buffer with different psb buffer, link them\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "RAR: found same drm buffer with different psb buffer, link them\n",
                                  tmp, buf);
         while ((tmp->next != NULL)) {
             tmp = tmp->next;
@@ -314,7 +305,7 @@ int psb_cmdbuf_buffer_ref(psb_cmdbuf_p cmdbuf, psb_buffer_p buf)
             buf->status = psb_bs_queued;
             buf->next = NULL;
         } else {
-            psb__information_message("RAR: buffer aleady in the list, skip\n",
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "RAR: buffer aleady in the list, skip\n",
                                      tmp, buf);
         }
     }
@@ -358,9 +349,8 @@ void psb_cmdbuf_add_relocation(psb_cmdbuf_p cmdbuf,
 
     reloc->reloc_op = PSB_RELOC_OP_OFFSET;
 
-#ifdef DEBUG_TRACE
-    //psb__trace_message("[RE] Reloc at offset %08x (%08x), offset = %08x background = %08x buffer = %d (%08x)\n", reloc->where, reloc->where << 2, buf_offset, background, reloc->buffer, presumed_offset);
-#endif
+    psb__trace_message("[RE] Reloc at offset %08x (%08x), offset = %08x background = %08x buffer = %d (%08x)\n",
+        reloc->where, reloc->where << 2, buf_offset, background, reloc->buffer, presumed_offset);
 
     if (presumed_offset) {
         uint32_t new_val =  presumed_offset + buf_offset;
@@ -451,7 +441,7 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 
     arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg) * buffer_count);
     if (arg_list == NULL) {
-        psb__error_message("Malloc failed \n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Malloc failed \n");
         return -ENOMEM;
     }
 
@@ -493,16 +483,16 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     ca.engine = engine;
 
 #if 0
-    psb__information_message("PSB submit: buffer_list   = %08x\n", ca.buffer_list);
-    psb__information_message("PSB submit: clip_rects    = %08x\n", ca.clip_rects);
-    psb__information_message("PSB submit: cmdbuf_handle = %08x\n", ca.cmdbuf_handle);
-    psb__information_message("PSB submit: cmdbuf_offset = %08x\n", ca.cmdbuf_offset);
-    psb__information_message("PSB submit: cmdbuf_size   = %08x\n", ca.cmdbuf_size);
-    psb__information_message("PSB submit: reloc_handle  = %08x\n", ca.reloc_handle);
-    psb__information_message("PSB submit: reloc_offset  = %08x\n", ca.reloc_offset);
-    psb__information_message("PSB submit: num_relocs    = %08x\n", ca.num_relocs);
-    psb__information_message("PSB submit: engine        = %08x\n", ca.engine);
-    psb__information_message("PSB submit: fence_flags   = %08x\n", ca.fence_flags);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: buffer_list   = %08x\n", ca.buffer_list);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: clip_rects    = %08x\n", ca.clip_rects);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: cmdbuf_handle = %08x\n", ca.cmdbuf_handle);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: cmdbuf_offset = %08x\n", ca.cmdbuf_offset);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: cmdbuf_size   = %08x\n", ca.cmdbuf_size);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: reloc_handle  = %08x\n", ca.reloc_handle);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: reloc_offset  = %08x\n", ca.reloc_offset);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: num_relocs    = %08x\n", ca.num_relocs);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: engine        = %08x\n", ca.engine);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB submit: fence_flags   = %08x\n", ca.fence_flags);
 #endif
 
     /*
@@ -514,14 +504,14 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
         if (ret == EAGAIN) {
             if (!have_then) {
                 if (gettimeofday(&then, NULL)) {
-                    psb__error_message("Gettimeofday error.\n");
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "Gettimeofday error.\n");
                     break;
                 }
 
                 have_then = TRUE;
             }
             if (gettimeofday(&now, NULL)) {
-                psb__error_message("Gettimeofday error.\n");
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "Gettimeofday error.\n");
                 break;
             }
 
@@ -529,7 +519,7 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     } while ((ret == EAGAIN) && (psbTimeDiff(&now, &then) < PSB_TIMEOUT_USEC));
 
     if (ret) {
-        psb__information_message("command write return is %d\n", ret);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "command write return is %d\n", ret);
         goto out;
     }
 
@@ -589,159 +579,6 @@ out:
     return ret;
 }
 
-#ifdef DEBUG_TRACE
-
-#define DBH(fmt, arg...)        psb__trace_message(fmt, ##arg)
-#define DB(fmt, arg1, arg...)        psb__trace_message("[%08x] %08x = " fmt, ((unsigned char *) arg1) - cmd_start, *arg1, ##arg)
-
-/* See also MsvdxGpuSim() in msvdxgpu.c */
-static void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
-{
-    uint32_t cmd_size = cmd_size_in_bytes / sizeof(uint32_t);
-    uint32_t *cmd_end = cmd_idx + cmd_size;
-    unsigned char *cmd_start = cmd_idx;
-    struct {
-        unsigned int start;
-        unsigned int end;
-        char *name;
-    } msvdx_regs[10] = {{0x04800000, 0x048003FF, "MTX_MTX"},
-        {0x04800400, 0x0480047F, "VDMC_MTX"},
-        {0x04800480, 0x048004FF, "VDEB_MTX"},
-        {0x04800500, 0x048005FF, "DMAC_MTX"},
-        {0x04800600, 0x048006FF, "SYS_MTX"},
-        {0x04800700, 0x048007FF, "VEC_IQRAM_MTX"},
-        {0x04800800, 0x04800FFF, "VEC_MTX"},
-        {0x04801000, 0x04801FFF, "CMD_MTX"},
-        {0x04802000, 0x04802FFF, "VEC_RAM_MTX"},
-        {0x04803000, 0x04804FFF, "VEC_VLC_M"}
-    };
-
-    DBH("CMD BUFFER [%08x] - [%08x], %08x bytes, %08x dwords\n", (uint32_t) cmd_idx, cmd_end, cmd_size_in_bytes, cmd_size);
-    while (cmd_idx < cmd_end) {
-        uint32_t cmd = *cmd_idx;
-        /* What about CMD_MAGIC_BEGIN ?*/
-        switch (cmd & CMD_MASK) {
-        case CMD_NOP: {
-            DB("CMD_NOPE\n", cmd_idx);
-            cmd_idx++;
-            break;
-        }
-
-        case CMD_HEADER: {
-            uint32_t context = cmd & CMD_HEADER_CONTEXT_MASK;
-            DB("CMD_HEADER context = %08x\n", cmd_idx, context);
-            cmd_idx++;
-            DB("StatusBufferAddress\n", cmd_idx);
-            cmd_idx++;
-            DB("PreloadSave\n", cmd_idx);
-            cmd_idx++;
-            DB("PreloadRestore\n", cmd_idx);
-            cmd_idx++;
-            break;
-        }
-        case CMD_REGVALPAIR_WRITE: {
-            uint32_t count = (cmd & CMD_REGVALPAIR_COUNT_MASK) >> CMD_REGVALPAIR_COUNT_SHIFT;
-            DB("CMD_REGVALPAIR_WRITE count = %08x\n", cmd_idx, count);
-            cmd_idx++;
-
-            while (count--) {
-                int i;
-                for (i = 0; i < 10; i++) {
-                    if ((*cmd_idx >= msvdx_regs[i].start) &&
-                        (*cmd_idx <= msvdx_regs[i].end))
-                        break;
-                }
-                DB("%s_%04x\n", cmd_idx, msvdx_regs[i].name, *cmd_idx & 0xffff);
-                cmd_idx++;
-                DB("value\n", cmd_idx);
-                cmd_idx++;
-            }
-            break;
-        }
-        case CMD_RENDEC_WRITE: {
-            uint32_t encoding;
-            uint32_t count = (cmd & CMD_RENDEC_COUNT_MASK) >> CMD_RENDEC_COUNT_SHIFT;
-            DB("CMD_RENDEC_WRITE count = %08x\n", cmd_idx, count);
-            cmd_idx++;
-
-            DB("RENDEC_SL_HDR\n", cmd_idx);
-            cmd_idx++;
-
-            DB("RENDEC_SL_NULL\n", cmd_idx);
-            cmd_idx++;
-
-            do {
-                uint32_t chk_hdr = *cmd_idx;
-                count = 1 + ((chk_hdr & 0x07FF0000) >> 16);
-                uint32_t start_address = (chk_hdr & 0x0000FFF0) >> 4;
-                encoding = (chk_hdr & 0x07);
-                if ((count == 1) && (encoding == 7)) {
-                    count = 0;
-                    DB("SLICE_SEPARATOR\n", cmd_idx);
-                } else {
-                    DB("RENDEC_CK_HDR #symbols = %d address = %08x encoding = %01x\n", cmd_idx, count, start_address, encoding);
-                }
-                cmd_idx++;
-
-                while (count && (count < 0x1000)) {
-                    DB("value\n", cmd_idx);
-                    cmd_idx++;
-
-                    count -= 2;
-                }
-            } while (encoding != 0x07);
-
-            break;
-        }
-        case CMD_COMPLETION: {
-            if (*cmd_idx == PSB_RELOC_MAGIC) {
-                DB("CMD_(S)LLDMA (assumed)\n", cmd_idx);
-                cmd_idx++;
-
-            } else {
-                DB("CMD_COMPLETION\n", cmd_idx);
-                cmd_idx++;
-
-//              DB("interrupt\n", cmd_idx);
-//              cmd_idx++;
-            }
-            break;
-        }
-        case CMD_LLDMA: {
-            DB("CMD_LLDMA\n", cmd_idx);
-            cmd_idx++;
-            break;
-        }
-        case CMD_SLLDMA: {
-            DB("CMD_SLLDMA\n", cmd_idx);
-            cmd_idx++;
-            break;
-        }
-        case CMD_SR_SETUP: {
-            DB("CMD_SR_SETUP\n", cmd_idx);
-            cmd_idx++;
-            DB("offset in bits\n", cmd_idx);
-            cmd_idx++;
-            DB("size in bytes\n", cmd_idx);
-            cmd_idx++;
-            break;
-        }
-        default:
-            if (*cmd_idx == PSB_RELOC_MAGIC) {
-                DB("CMD_(S)LLDMA (assumed)\n", cmd_idx);
-                cmd_idx++;
-
-            } else {
-                DB("*** Unknown command ***\n", cmd_idx);
-                cmd_idx++;
-            }
-            break;
-        } /* switch */
-    } /* while */
-}
-#endif
-
-
 int psb_fence_destroy(struct _WsbmFenceObject *pFence)
 {
     wsbmFenceUnreference(&pFence);
@@ -759,7 +596,7 @@ psb_fence_wait(psb_driver_data_p driver_data,
 
     /* copy fence information */
     if (fence_rep->error != 0) {
-        psb__error_message("drm failed to create a fence"
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "drm failed to create a fence"
                            " and has idled the HW\n");
         DEBUG_FAILURE_RET;
         return NULL;
@@ -774,91 +611,6 @@ psb_fence_wait(psb_driver_data_p driver_data,
 
     return fence;
 }
-
-
-#ifdef DEBUG_TRACE
-uint32_t debug_cmd_start[MAX_CMD_COUNT];
-uint32_t debug_cmd_size[MAX_CMD_COUNT];
-uint32_t debug_cmd_count;
-uint32_t debug_lldma_count;
-uint32_t debug_lldma_start;
-
-#define MAX_DUMP_COUNT  20
-const char * debug_dump_name[MAX_DUMP_COUNT];
-psb_buffer_p debug_dump_buf[MAX_DUMP_COUNT];
-uint32_t     debug_dump_offset[MAX_DUMP_COUNT];
-uint32_t     debug_dump_size[MAX_DUMP_COUNT];
-uint32_t     debug_dump_count = 0;
-#endif
-
-#ifdef DEBUG_TRACE
-#define DW(wd, sym, to, from) psb__debug_w(((uint32_t *)pasDmaList)[wd], "LLDMA: " #sym " = %d\n", to, from);
-#define DWH(wd, sym, to, from) psb__debug_w(((uint32_t *)pasDmaList)[wd], "LLDMA: " #sym " = %08x\n", to, from);
-static void psb__debug_w(uint32_t val, char *fmt, uint32_t bit_to, uint32_t bit_from)
-{
-    if (bit_to < 31) {
-        val &= ~(0xffffffff << (bit_to + 1));
-    }
-    val = val >> bit_from;
-    psb__trace_message(fmt, val);
-}
-
-static uint32_t g_hexdump_offset = 0;
-
-static void psb__hexdump2(unsigned char *p, int offset, int size)
-{
-    if (offset + size > 8)
-        size = 8 - offset;
-    psb__trace_message("[%04x]", g_hexdump_offset);
-    g_hexdump_offset += offset;
-    g_hexdump_offset += size;
-    while (offset-- > 0) {
-        psb__trace_message(" --");
-    }
-    while (size-- > 0) {
-        psb__trace_message(" %02x", *p++);
-    }
-    psb__trace_message("\n");
-}
-
-static void psb__hexdump(unsigned char *addr, int size)
-{
-    unsigned char *p = (unsigned char *) addr;
-
-    int offset = g_hexdump_offset % 8;
-    g_hexdump_offset -= offset;
-    if (offset) {
-        psb__hexdump2(p, offset, size);
-        size -= 8 - offset;
-        p += 8 - offset;
-    }
-
-    while (1) {
-        if (size < 8) {
-            if (size > 0) {
-                psb__hexdump2(p, 0, size);
-            }
-            return;
-        }
-        psb__trace_message("[%04x] %02x %02x %02x %02x %02x %02x %02x %02x\n", g_hexdump_offset, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
-        p += 8;
-        size -= 8;
-        g_hexdump_offset += 8;
-    }
-}
-
-void psb__debug_schedule_hexdump(const char *name, psb_buffer_p buf, uint32_t offset, uint32_t size)
-{
-    ASSERT(debug_dump_count < MAX_DUMP_COUNT);
-    debug_dump_name[debug_dump_count] = name;
-    debug_dump_buf[debug_dump_count] = buf;
-    debug_dump_offset[debug_dump_count] = offset;
-    debug_dump_size[debug_dump_count] = size;
-    debug_dump_count++;
-}
-
-#endif
-
 
 /*
  * Closes the last segment
@@ -884,9 +636,9 @@ int psb_context_submit_deblock(object_context_p obj_context)
     uint32_t *msg = (uint32_t *)cmdbuf->MTX_msg;
     DEBLOCKPARAMS* pdbParams;
 
-    psb__information_message("Send two pass deblock cmd\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Send two pass deblock cmd\n");
     if (cmdbuf->cmd_count) {
-        psb__information_message("two pass deblock cmdbuf has render msg!\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "two pass deblock cmdbuf has render msg!\n");
         return 1;
     }
 
@@ -980,12 +732,12 @@ int psb_context_submit_oold(object_context_p obj_context,
     FW_VA_OOLD_MSG *oold_msg;
 
     if (NULL == src_buf || NULL == dst_buf || NULL == colocate_buffer) {
-        psb__error_message("%s L%d Invalide src_buf, dst_buf or colocate_buffer\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalide src_buf, dst_buf or colocate_buffer\n",
                            __FUNCTION__, __LINE__);
         return VA_STATUS_ERROR_INVALID_BUFFER;
     }
 
-    psb__information_message("Send out of loop deblock cmd\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Send out of loop deblock cmd\n");
 
     cmdbuf->oold_count++;
     memset(msg, 0, msg_size);
@@ -1034,7 +786,7 @@ int psb_context_submit_host_be_opp(object_context_p obj_context, psb_buffer_p ds
         msg = cmdbuf->MTX_msg + cmdbuf->cmd_count * FW_DEVA_DECODE_SIZE +
               cmdbuf->oold_count * FW_VA_OOLD_SIZE + cmdbuf->frame_info_count * FW_VA_FRAME_INFO_SIZE;
 
-    /* psb__information_message("Send host be opp cmd\n"); */
+    /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "Send host be opp cmd\n"); */
 
     cmdbuf->host_be_opp_count++;
     memset(msg, 0, msg_size);
@@ -1064,7 +816,7 @@ int psb_context_submit_frame_info(object_context_p obj_context, psb_buffer_p dst
 
     uint32_t *msg = (uint32_t *)cmdbuf->MTX_msg;
 
-    /* psb__information_message("Send frame info cmd\n"); */
+    /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "Send frame info cmd\n"); */
 
     cmdbuf->frame_info_count++;
     memset(msg, 0, msg_size);
@@ -1092,6 +844,7 @@ int psb_context_submit_cmdbuf(object_context_p obj_context)
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     psb_driver_data_p driver_data = obj_context->driver_data;
     unsigned int item_size; /* Size of a render/deocde msg */
+    int ret;
 
     if (IS_MFLD(driver_data))
         item_size = FW_DEVA_DECODE_SIZE;
@@ -1108,15 +861,12 @@ int psb_context_submit_cmdbuf(object_context_p obj_context)
     uint32_t msg_size = item_size;
     uint32_t *msg = (uint32_t *)(cmdbuf->MTX_msg + cmdbuf->cmd_count * msg_size + cmdbuf->frame_info_count * FW_VA_FRAME_INFO_SIZE);
 
-#ifdef DEBUG_TRACE
-    debug_cmd_start[cmdbuf->cmd_count] = cmdbuf->cmd_start - cmdbuf->cmd_base;
-    debug_cmd_size[cmdbuf->cmd_count] = (unsigned char *) cmdbuf->cmd_idx - cmdbuf->cmd_start;
-    debug_cmd_count = cmdbuf->cmd_count + 1;
-#endif
+    if (psb_video_trace_fp && (psb_video_trace_level & CMDMSG_TRACE)) {
+        debug_cmd_start[cmdbuf->cmd_count] = cmdbuf->cmd_start - cmdbuf->cmd_base;
+        debug_cmd_size[cmdbuf->cmd_count] = (unsigned char *) cmdbuf->cmd_idx - cmdbuf->cmd_start;
+        debug_cmd_count = cmdbuf->cmd_count + 1;
+    }
 
-#define DUMP_CMDBUF 0
-
-#if DUMP_CMDBUF
 /*
     static int c = 0;
     static char pFileName[30];
@@ -1128,11 +878,9 @@ int psb_context_submit_cmdbuf(object_context_p obj_context)
     fwrite(cmdbuf->cmd_start, 1, cmdbuffer_size, pF);
     fclose(pF);
 */
-    int ret;
     ret = psb_cmdbuf_dump((unsigned int *)cmdbuf->cmd_start, cmdbuffer_size);
     if(ret)
-        psb__information_message("psb_cmdbuf: dump cmdbuf fail\n");
-#endif
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_cmdbuf: dump cmdbuf fail\n");
 
     cmdbuf->cmd_count++;
     memset(msg, 0, msg_size);
@@ -1188,26 +936,27 @@ int psb_context_submit_cmdbuf(object_context_p obj_context)
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE,       obj_context->operating_mode);
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_FLAGS,                obj_context->flags);
     }
-#ifdef DEBUG_TRACE
-    debug_lldma_count = (cmdbuf->lldma_idx - cmdbuf->lldma_base) / sizeof(DMA_sLinkedList);
-    debug_lldma_start = cmdbuf->lldma_base - cmdbuf->cmd_base;
-    /* Indicate last LLDMA record (for debugging) */
-    ((uint32_t *)cmdbuf->lldma_idx)[1] = 0;
-#endif
+
+    if (psb_video_trace_fp && (psb_video_trace_level & LLDMA_TRACE)) {
+        debug_lldma_count = (cmdbuf->lldma_idx - cmdbuf->lldma_base) / sizeof(DMA_sLinkedList);
+        debug_lldma_start = cmdbuf->lldma_base - cmdbuf->cmd_base;
+        /* Indicate last LLDMA record (for debugging) */
+        ((uint32_t *)cmdbuf->lldma_idx)[1] = 0;
+    }
 
     cmdbuf->cmd_start = (unsigned char *)cmdbuf->cmd_idx;
 
-#ifdef DEBUG_TRACE
-    return psb_context_flush_cmdbuf(obj_context);
-#else
-    if ((cmdbuf->cmd_count >= MAX_CMD_COUNT) ||
-        (MTXMSG_END(cmdbuf) - (unsigned char *) msg < MTXMSG_MARGIN) ||
-        (CMD_END(cmdbuf) - (unsigned char *) cmdbuf->cmd_idx < CMD_MARGIN) ||
-        (LLDMA_END(cmdbuf) - cmdbuf->lldma_idx < LLDMA_MARGIN) ||
-        (RELOC_END(cmdbuf) - (unsigned char *) cmdbuf->reloc_idx < RELOC_MARGIN)) {
+    if (psb_video_trace_fp) {
         return psb_context_flush_cmdbuf(obj_context);
+    } else {
+        if ((cmdbuf->cmd_count >= MAX_CMD_COUNT) ||
+            (MTXMSG_END(cmdbuf) - (unsigned char *) msg < MTXMSG_MARGIN) ||
+            (CMD_END(cmdbuf) - (unsigned char *) cmdbuf->cmd_idx < CMD_MARGIN) ||
+            (LLDMA_END(cmdbuf) - cmdbuf->lldma_idx < LLDMA_MARGIN) ||
+            (RELOC_END(cmdbuf) - (unsigned char *) cmdbuf->reloc_idx < RELOC_MARGIN)) {
+            return psb_context_flush_cmdbuf(obj_context);
+        }
     }
-#endif
     return 0;
 }
 
@@ -1282,7 +1031,6 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
             MEMIO_WRITE_FIELD(msg, FW_VA_RENDER_FLAGS, flags);
         }
 
-#ifdef DEBUG_TRACE
         if (!IS_MFLD(driver_data)) {
             psb__trace_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_BUFFER_SIZE));
             psb__trace_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_OPERATING_MODE));
@@ -1290,21 +1038,20 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
             psb__trace_message("MSG FIRST_MB_IN_SLICE = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_FIRST_MB_IN_SLICE));
             psb__trace_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_FLAGS));
 
-            psb__information_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_BUFFER_SIZE));
-            psb__information_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_OPERATING_MODE));
-            psb__information_message("MSG LAST_MB_IN_FRAME  = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_LAST_MB_IN_FRAME));
-            psb__information_message("MSG FIRST_MB_IN_SLICE = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_FIRST_MB_IN_SLICE));
-            psb__information_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_FLAGS));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_BUFFER_SIZE));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_OPERATING_MODE));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSG LAST_MB_IN_FRAME  = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_LAST_MB_IN_FRAME));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSG FIRST_MB_IN_SLICE = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_FIRST_MB_IN_SLICE));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_VA_RENDER_FLAGS));
         } else {
             psb__trace_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_BUFFER_SIZE));
             psb__trace_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE));
             psb__trace_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_FLAGS));
 
-            psb__information_message("MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_BUFFER_SIZE));
-            psb__information_message("MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE));
-            psb__information_message("MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_FLAGS));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSG BUFFER_SIZE       = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_BUFFER_SIZE));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSG OPERATING_MODE    = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_OPERATING_MODE));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSG FLAGS             = %08x\n", MEMIO_READ_FIELD(msg, FW_DEVA_DECODE_FLAGS));
         }
-#endif
 
 #if 0  /* todo */
         /* Update SAREA */
@@ -1334,31 +1081,25 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
     reloc_offset = cmdbuf->reloc_base - cmdbuf->MTX_msg;
     num_relocs = (((unsigned char *) cmdbuf->reloc_idx) - cmdbuf->reloc_base) / sizeof(struct drm_psb_reloc);
 
-#ifdef DEBUG_TRACE
-    psb__information_message("Cmdbuf MTXMSG size = %08x [%08x]\n", msg_size, MTXMSG_SIZE);
-    psb__information_message("Cmdbuf CMD size = %08x - %d[%08x]\n", (unsigned char *) cmdbuf->cmd_idx - cmdbuf->cmd_base, cmdbuf->cmd_count, CMD_SIZE);
-    psb__information_message("Cmdbuf LLDMA size = %08x [%08x]\n", cmdbuf->lldma_idx - cmdbuf->lldma_base, LLDMA_SIZE);
-    psb__information_message("Cmdbuf RELOC size = %08x [%08x]\n", num_relocs * sizeof(struct drm_psb_reloc), RELOC_SIZE);
-#endif
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Cmdbuf MTXMSG size = %08x [%08x]\n", msg_size, MTXMSG_SIZE);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Cmdbuf CMD size = %08x - %d[%08x]\n", (unsigned char *) cmdbuf->cmd_idx - cmdbuf->cmd_base, cmdbuf->cmd_count, CMD_SIZE);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Cmdbuf LLDMA size = %08x [%08x]\n", cmdbuf->lldma_idx - cmdbuf->lldma_base, LLDMA_SIZE);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Cmdbuf RELOC size = %08x [%08x]\n", num_relocs * sizeof(struct drm_psb_reloc), RELOC_SIZE);
 
     psb_cmdbuf_unmap(cmdbuf);
 
-#ifdef DEBUG_TRACE
     psb__trace_message(NULL); /* Flush trace */
-#endif
 
     ASSERT(NULL == cmdbuf->MTX_msg);
     ASSERT(NULL == cmdbuf->reloc_base);
 
-#ifdef DEBUG_TRACE
-    fence_flags = 0;
-#else
-    fence_flags = DRM_PSB_FENCE_NO_USER;
-#endif
+    if (psb_video_trace_fp)
+        fence_flags = 0;
+    else
+        fence_flags = DRM_PSB_FENCE_NO_USER;
 
     /* cmdbuf will be validated as part of the buffer list */
     /* Submit */
-#if 1
     wsbmWriteLockKernelBO();
     ret = psbDRMCmdBuf(driver_data->drm_fd, driver_data->execIoctlOffset, cmdbuf->buffer_refs,
                        cmdbuf->buffer_refs_count,
@@ -1369,9 +1110,7 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
                        0 /* clipRects */, 0, PSB_ENGINE_VIDEO, fence_flags, &fence_rep);
     wsbmWriteUnlockKernelBO();
     UNLOCK_HARDWARE(driver_data);
-#else
-    ret = 1;
-#endif
+
     if (ret) {
         obj_context->cmdbuf = NULL;
         obj_context->slice_count++;
@@ -1380,121 +1119,124 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
         return ret;
     }
 
-
-#ifdef DEBUG_TRACE
-    static int error_count = 0;
-    int status = 0;
-    struct _WsbmFenceObject *fence = NULL;
+    if (psb_video_trace_fp) {
 #if 0
-    fence = psb_fence_wait(driver_data, &fence_rep, &status);
-    psb__information_message("psb_fence_wait returns: %d (fence=0x%08x)\n", status, fence);
+        static int error_count = 0;
+        int status = 0;
+        struct _WsbmFenceObject *fence = NULL;
+        fence = psb_fence_wait(driver_data, &fence_rep, &status);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_fence_wait returns: %d (fence=0x%08x)\n", status, fence);
 #endif
 
-    psb_buffer_map(&cmdbuf->buf, &cmdbuf->cmd_base);
-    psb_buffer_map(&cmdbuf->reloc_buf, &cmdbuf->MTX_msg);
+        psb_buffer_map(&cmdbuf->buf, &cmdbuf->cmd_base);
+        psb_buffer_map(&cmdbuf->reloc_buf, &cmdbuf->MTX_msg);
 
-    if (getenv("PSB_VIDEO_TRACE_LLDMA")) {
-        psb__trace_message("lldma_count = %d, vitual=0x%08x\n",
-                           debug_lldma_count,  wsbmBOOffsetHint(cmdbuf->buf.drm_buf) + CMD_SIZE);
-        for (i = 0; i < debug_lldma_count; i++) {
-            DMA_sLinkedList* pasDmaList = (DMA_sLinkedList*)(cmdbuf->cmd_base + debug_lldma_start);
-            pasDmaList += i;
+        if (psb_video_trace_level & LLDMA_TRACE) {
+            psb__trace_message("lldma_count = %d, vitual=0x%08x\n",
+                               debug_lldma_count,  wsbmBOOffsetHint(cmdbuf->buf.drm_buf) + CMD_SIZE);
+            for (i = 0; i < debug_lldma_count; i++) {
+                DMA_sLinkedList* pasDmaList = (DMA_sLinkedList*)(cmdbuf->cmd_base + debug_lldma_start);
+                pasDmaList += i;
 
-            psb__trace_message("\nLLDMA record at offset %08x\n", ((void*)pasDmaList) - cmdbuf->cmd_base);
-            DW(0, BSWAP,    31, 31)
-            DW(0, DIR,    30, 30)
-            DW(0, PW,    29, 28)
-            DW(1, List_FIN, 31, 31)
-            DW(1, List_INT, 30, 30)
-            DW(1, PI,    18, 17)
-            DW(1, INCR,    16, 16)
-            DW(1, LEN,    15, 0)
-            DWH(2, ADDR,    22, 0)
-            DW(3, ACC_DEL,    31, 29)
-            DW(3, BURST,    28, 26)
-            DWH(3, EXT_SA,    3, 0)
-            DW(4, 2D_MODE,    16, 16)
-            DW(4, REP_COUNT, 10, 0)
-            DWH(5, LINE_ADD_OFF, 25, 16)
-            DW(5, ROW_LENGTH, 9, 0)
-            DWH(6, SA, 31, 0)
-            DWH(7, LISTPTR, 27, 0)
-        }
-    }
-
-
-
-    psb__trace_message("debug_dump_count = %d\n", debug_dump_count);
-    for (i = 0; i < debug_dump_count; i++) {
-        unsigned char *buf_addr;
-        psb__trace_message("Buffer %d = '%s' offset = %08x size = %08x\n", i, debug_dump_name[i], debug_dump_offset[i], debug_dump_size[i]);
-        if (debug_dump_buf[i]->rar_handle
-            || (psb_buffer_map(debug_dump_buf[i], &buf_addr) != 0)) {
-            psb__trace_message("Unmappable buffer,e.g. RAR buffer\n");
-            continue;
-        }
-
-        g_hexdump_offset = 0;
-        psb__hexdump(buf_addr + debug_dump_offset[i], debug_dump_size[i]);
-        psb_buffer_unmap(debug_dump_buf[i]);
-    }
-    debug_dump_count = 0;
-
-    psb__trace_message("cmd_count = %d, virtual=0x%08x\n",
-                       debug_cmd_count, wsbmBOOffsetHint(cmdbuf->buf.drm_buf));
-    for (i = 0; i < debug_cmd_count; i++) {
-        uint32_t *msg = cmdbuf->MTX_msg + i * item_size;
-        int j;
-        psb__information_message("start = %08x size = %08x\n", debug_cmd_start[i], debug_cmd_size[i]);
-        debug_dump_cmdbuf((uint32_t *)(cmdbuf->cmd_base + debug_cmd_start[i]), debug_cmd_size[i]);
-
-        for (j = 0; j < item_size / 4; j++) {
-            psb__trace_message("MTX msg[%d] = 0x%08x", j, *(msg + j));
-            switch (j) {
-            case 0:
-                psb__trace_message("[BufferSize|ID|MSG_SIZE]\n");
-                break;
-            case 1:
-                psb__trace_message("[MMUPTD]\n");
-                break;
-            case 2:
-                psb__trace_message("[LLDMA_address]\n");
-                break;
-            case 3:
-                psb__trace_message("[Context]\n");
-                break;
-            case 4:
-                psb__trace_message("[Fence_Value]\n");
-                break;
-            case 5:
-                psb__trace_message("[Operating_Mode]\n");
-                break;
-            case 6:
-                psb__trace_message("[LastMB|FirstMB]\n");
-                break;
-            case 7:
-                psb__trace_message("[Flags]\n");
-                break;
-            default:
-                psb__trace_message("[overflow]\n");
-                break;
+                psb__trace_message("\nLLDMA record at offset %08x\n", ((unsigned char*)pasDmaList) - cmdbuf->cmd_base);
+                DW(0, BSWAP,    31, 31)
+                DW(0, DIR,    30, 30)
+                DW(0, PW,    29, 28)
+                DW(1, List_FIN, 31, 31)
+                DW(1, List_INT, 30, 30)
+                DW(1, PI,    18, 17)
+                DW(1, INCR,    16, 16)
+                DW(1, LEN,    15, 0)
+                DWH(2, ADDR,    22, 0)
+                DW(3, ACC_DEL,    31, 29)
+                DW(3, BURST,    28, 26)
+                DWH(3, EXT_SA,    3, 0)
+                DW(4, 2D_MODE,    16, 16)
+                DW(4, REP_COUNT, 10, 0)
+                DWH(5, LINE_ADD_OFF, 25, 16)
+                DW(5, ROW_LENGTH, 9, 0)
+                DWH(6, SA, 31, 0)
+                DWH(7, LISTPTR, 27, 0)
             }
         }
-    }
-    psb_buffer_unmap(&cmdbuf->buf);
-    psb_buffer_unmap(&cmdbuf->reloc_buf);
 
-    cmdbuf->cmd_base = NULL;
+        if (psb_video_trace_level & AUXBUF_TRACE) {
+            psb__trace_message("debug_dump_count = %d\n", debug_dump_count);
+            for (i = 0; i < debug_dump_count; i++) {
+                unsigned char *buf_addr;
+                psb__trace_message("Buffer %d = '%s' offset = %08x size = %08x\n", i, debug_dump_name[i], debug_dump_offset[i], debug_dump_size[i]);
+                if (debug_dump_buf[i]->rar_handle
+                    || (psb_buffer_map(debug_dump_buf[i], &buf_addr) != 0)) {
+                    psb__trace_message("Unmappable buffer,e.g. RAR buffer\n");
+                    continue;
+                }
 
-    if (status) {
-        psb__error_message("RENDERING ERROR FRAME=%03d SLICE=%02d status=%d\n", obj_context->frame_count, obj_context->slice_count, status);
-        error_count++;
-        ASSERT(status != 2);
-        ASSERT(error_count < 40); /* Exit on 40 errors */
-    }
-    if (fence)
-        psb_fence_destroy(fence);
+                g_hexdump_offset = 0;
+                psb__hexdump(buf_addr + debug_dump_offset[i], debug_dump_size[i]);
+                psb_buffer_unmap(debug_dump_buf[i]);
+            }
+            debug_dump_count = 0;
+        }
+
+        if (psb_video_trace_level & CMDMSG_TRACE) {
+            psb__trace_message("cmd_count = %d, virtual=0x%08x\n",
+                               debug_cmd_count, wsbmBOOffsetHint(cmdbuf->buf.drm_buf));
+            for (i = 0; i < debug_cmd_count; i++) {
+                uint32_t *msg = cmdbuf->MTX_msg + i * item_size;
+                int j;
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "start = %08x size = %08x\n", debug_cmd_start[i], debug_cmd_size[i]);
+                debug_dump_cmdbuf((uint32_t *)(cmdbuf->cmd_base + debug_cmd_start[i]), debug_cmd_size[i]);
+
+                for (j = 0; j < item_size / 4; j++) {
+                    psb__trace_message("MTX msg[%d] = 0x%08x", j, *(msg + j));
+                    switch (j) {
+                    case 0:
+                        psb__trace_message("[BufferSize|ID|MSG_SIZE]\n");
+                        break;
+                    case 1:
+                        psb__trace_message("[MMUPTD]\n");
+                        break;
+                    case 2:
+                        psb__trace_message("[LLDMA_address]\n");
+                        break;
+                    case 3:
+                        psb__trace_message("[Context]\n");
+                        break;
+                    case 4:
+                        psb__trace_message("[Fence_Value]\n");
+                        break;
+                    case 5:
+                        psb__trace_message("[Operating_Mode]\n");
+                        break;
+                    case 6:
+                        psb__trace_message("[LastMB|FirstMB]\n");
+                        break;
+                    case 7:
+                        psb__trace_message("[Flags]\n");
+                        break;
+                    default:
+                        psb__trace_message("[overflow]\n");
+                        break;
+                    }
+                }
+            }
+            debug_cmd_count = 0;
+        }
+        psb_buffer_unmap(&cmdbuf->buf);
+        psb_buffer_unmap(&cmdbuf->reloc_buf);
+
+        cmdbuf->cmd_base = NULL;
+#if 0
+        if (status) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "RENDERING ERROR FRAME=%03d SLICE=%02d status=%d\n", obj_context->frame_count, obj_context->slice_count, status);
+            error_count++;
+            ASSERT(status != 2);
+            ASSERT(error_count < 40); /* Exit on 40 errors */
+        }
+        if (fence)
+            psb_fence_destroy(fence);
 #endif
+    }
 
     obj_context->cmdbuf = NULL;
     obj_context->slice_count++;
@@ -1755,9 +1497,8 @@ void psb_cmdbuf_lldma_write_bitstream(psb_cmdbuf_p cmdbuf,
     psb_cmdbuf_lldma_write_cmdbuf(cmdbuf, bitstream_buf, buffer_offset,
                                   size_in_bytes, 0, LLDMA_TYPE_BITSTREAM);
 
-#ifdef DEBUG_TRACE
-    //psb__debug_schedule_hexdump("Bitstream", bitstream_buf, buffer_offset, size_in_bytes);
-#endif
+    //if (psb_video_trace_fp && (psb_video_trace_level & AUXBUF_TRACE))
+        //psb__debug_schedule_hexdump("Bitstream", bitstream_buf, buffer_offset, size_in_bytes);
 }
 
 /*
@@ -1812,9 +1553,8 @@ void psb_cmdbuf_lldma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
     /* This touches WD1 */
     MEMIO_WRITE_FIELD(pasDmaList, DMAC_LL_LIST_FIN, 0);
 
-#ifdef DEBUG_TRACE
-    //psb__debug_schedule_hexdump("Bitstream (chained)", bitstream_buf, 0, size_in_bytes);
-#endif
+    //if (psb_video_trace_fp && (psb_video_trace_level & AUXBUF_TRACE)) {
+        //psb__debug_schedule_hexdump("Bitstream (chained)", bitstream_buf, 0, size_in_bytes);
 
     *(cmdbuf->cmd_bitstream_size) += size_in_bytes;
 }
@@ -2191,282 +1931,3 @@ void psb_cmdbuf_skip_end_block(psb_cmdbuf_p cmdbuf)
     *cmdbuf->skip_block_start = CMD_CONDITIONAL_SKIP | (cmdbuf->skip_condition << 20) | block_size;
     cmdbuf->skip_block_start = NULL;
 }
-
-#if DUMP_CMDBUF
-#ifndef DE3_FIRMWARE
-static int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
-{
-    static int c=0;
-    static char pFileName[50];
-
-
-    sprintf( pFileName , "/data/ctrlAlloc%i.txt", c++);
-    FILE* pF = fopen(pFileName,"w");
-    if(pF == NULL) {
-        return 1;
-    }
-
-    int idx=0;
-    int x;
-    while( idx <  byte_size / 4 )
-    {
-        unsigned int cmd = buffer[idx++];
-        fprintf( pF , "Command Word: %08X\n" , cmd  );
-        switch( cmd&0xf0000000  )
-        {
-            case 0x70000000:
-            {
-                fprintf( pF , "%04X 2NDPASSDEBLOCK\n" , (idx-1)*4  );
-                for(  x=0;x< 5 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-
-                break;
-            }
-            case 0x90000000:
-            {
-                fprintf( pF , "%04X HEADER\n" , (idx-1)*4  );
-                for(  x=0;x< 7 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-
-                break;
-            }
-
-            case 0x10000000:
-            {
-                fprintf( pF , "%04X CMD_REGVALPAIR_WRITE\n", (idx-1)*4);
-                unsigned int count = cmd&0xffff;
-                for(  x=0;x< count ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X %08X\n",
-                        buffer[idx] ,
-                        buffer[idx+1]    );
-                    idx+=2;
-
-                }
-                break;
-            }
-
-            case 0x50000000:
-            {
-                fprintf( pF , "%04X CMD_RENDEC_BLOCK\n", (idx-1)*4);
-                unsigned int  count    = (cmd>>16)&0x00ff;
-                unsigned int  uiAddr = ((cmd>>4) &0x0fff ) << 2;            /* to do,  limit this */
-
-                for(  x=0;x< count ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X %08X\n",
-                        uiAddr ,
-                        buffer[idx++]    );
-                    uiAddr+= 4;
-
-                }
-                break;
-            }
-            case 0xd0000000:
-            {
-                fprintf( pF , "%04X CMD_NEXT_SEG\n", (idx-1)*4 );
-                fprintf( pF , "should not see it here\n" );
-
-
-                break;
-            }
-            case 0xa0000000:
-            {
-            fprintf( pF , "%04X LLDMA \n", (idx-1)*4 );
-
-                unsigned int lldmaAddr = cmd<<4;
-                //unsigned int lldmaOffset = lldmaAddr - mpDevMemAlloc->GetDeviceVirtAddress();
-                //unsigned int *plldma = &buffer[ lldmaOffset/4 ];
-
-                //unsigned int Size = plldma[ 1 ]&0xffff ;
-
-                //fprintf( pF , "size 0x%04x\n",Size);
-                break;
-            }
-
-            case 0xb0000000:
-            {
-                fprintf( pF , "%04X SR SETUP %08x\n" , (idx-1)*4  , cmd );
-                for(  x=0;x< 2 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-                break;
-            }
-
-            case 0xf0000000:
-            {
-                fprintf( pF , "%04X CMD_PARSE_HEADER %08x\n" , (idx-1)*4  , cmd );
-                for(  x=0;x< 8 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-                break;
-            }
-
-        case 0x60000000:
-            goto done;
-
-            default:
-                fprintf( pF , "unknow cmd! %04X %08x\n" ,(idx-1)*4 , cmd);
-
-
-            }
-
-
-
-        }
-done:
-        fclose( pF );
-	return 0;
-}
-#else
-static int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
-{
-    static int c=0;
-    static char pFileName[50];
-
-
-    sprintf( pFileName , "/data/ctrlAlloc%i.txt", c++);
-    FILE* pF = fopen(pFileName,"w");
-    if(pF == NULL) {
-        return 1;
-    }
-
-    int idx=0;
-    int x;
-    while( idx <  byte_size / 4 )
-    {
-        unsigned int cmd = buffer[idx++];
-        fprintf( pF , "Command Word: %08X\n" , cmd  );
-        switch( cmd&0xf0000000  )
-        {
-            case 0x70000000:
-            {
-                fprintf( pF , "%04X 2NDPASSDEBLOCK\n" , (idx-1)*4  );
-                for( x=0;x< 5 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-
-                break;
-            }
-            case 0x90000000:
-            {
-                fprintf( pF , "%04X HEADER\n" , (idx-1)*4  );
-                for( x=0;x< 7 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-
-                break;
-            }
-
-            case 0x10000000:
-            {
-                fprintf( pF , "%04X CMD_REGVALPAIR_WRITE ( %08X )\n", (idx-1)*4 , cmd);
-                unsigned int addr = cmd&0xffff;
-                unsigned int count = (cmd>>16)&0xff;
-                for( x=0;x< count ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X %08X\n",
-                        addr ,
-                        buffer[idx]    );
-                    idx+=1;
-                    addr+=4;
-
-                }
-                break;
-            }
-
-            case 0x50000000:
-            {
-                fprintf( pF , "%04X CMD_RENDEC_BLOCK( %08X )\n", (idx-1)*4 , cmd);
-                unsigned int  count    = (cmd>>16)&0x00ff;
-                unsigned int  uiAddr = (cmd &0xffff );            /* to do,  limit this */
-
-                for( x=0;x< count ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X %08X\n",
-                        uiAddr ,
-                        buffer[idx++]    );
-                    uiAddr+= 4;
-
-                }
-                break;
-            }
-            case 0xd0000000:
-            {
-                fprintf( pF , "%04X CMD_NEXT_SEG\n", (idx-1)*4 );
-                fprintf( pF , "wrong\n");
-                goto done;
-
-                break;
-            }
-            case 0xb0000000:
-            {
-                fprintf( pF , "%04X SR SETUP %08x\n" , (idx-1)*4  , cmd );
-                for( x=0;x< 2 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-                break;
-            }
-
-            case 0xf0000000:
-            {
-                fprintf( pF , "%04X CMD_PARSE_HEADER %08x\n" , (idx-1)*4  , cmd );
-                for( x=0;x< 8 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-                break;
-            }
-
-        case 0x60000000:
-            goto done;
-
-            default:
-                fprintf( pF , "%04X %08x\n" ,(idx-1)*4 , cmd);
-
-
-        }
-
-
-    }
-done:
-    fclose( pF );
-    return 0;
-
-}
-#endif
-
-#endif

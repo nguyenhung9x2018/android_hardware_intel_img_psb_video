@@ -52,6 +52,7 @@
 #include <string.h>
 
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 
 #define H264_MACROBLOCK_DATA_SIZE       0x80
 
@@ -597,7 +598,7 @@ int psb_cmdbuf_second_pass(object_context_p obj_context,
 
     *cmd_size = (cmdbuf->regio_idx - (uint32_t *)cmdbuf->regio_base - 1);
 
-    psb__information_message("DEBLOCK: REGIO size is %d\n", (uint32_t)(cmdbuf->regio_idx - (uint32_t *)cmdbuf->regio_base) - 1);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "DEBLOCK: REGIO size is %d\n", (uint32_t)(cmdbuf->regio_idx - (uint32_t *)cmdbuf->regio_base) - 1);
     //printf("DEBLOCK: REGIO size is %d\n", (uint32_t)(cmdbuf->regio_idx - (uint32_t *)cmdbuf->regio_base) - 1);
     psb_buffer_unmap(&cmdbuf->regio_buf);
     return bRetVal;

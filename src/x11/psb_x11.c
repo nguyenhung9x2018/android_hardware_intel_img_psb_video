@@ -154,16 +154,16 @@ static VAStatus psb_putsurface_x11(
 
     psb_surface_p psb_surface = obj_surface->psb_surface;
 
-    psb__information_message("PutSurface: src	  w x h = %d x %d\n", srcw, srch);
-    psb__information_message("PutSurface: dest 	  w x h = %d x %d\n", destw, desth);
-    psb__information_message("PutSurface: clipped w x h = %d x %d\n", width, height);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PutSurface: src	  w x h = %d x %d\n", srcw, srch);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PutSurface: dest 	  w x h = %d x %d\n", destw, desth);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PutSurface: clipped w x h = %d x %d\n", width, height);
 
     visual = DefaultVisual((Display *)ctx->native_dpy, ctx->x11_screen);
     gc = XCreateGC((Display *)ctx->native_dpy, draw, 0, NULL);
     depth = DefaultDepth((Display *)ctx->native_dpy, ctx->x11_screen);
 
     if (TrueColor != visual->class) {
-        psb__error_message("PutSurface: Default visual of X display must be TrueColor.\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "PutSurface: Default visual of X display must be TrueColor.\n");
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         goto out;
     }
@@ -182,18 +182,18 @@ static VAStatus psb_putsurface_x11(
     gshift = mask2shift(gmask);
     bshift = mask2shift(bmask);
 
-    psb__information_message("PutSurface: Pixel masks: R = %08x G = %08x B = %08x\n", rmask, gmask, bmask);
-    psb__information_message("PutSurface: Pixel shifts: R = %d G = %d B = %d\n", rshift, gshift, bshift);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PutSurface: Pixel masks: R = %08x G = %08x B = %08x\n", rmask, gmask, bmask);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PutSurface: Pixel shifts: R = %d G = %d B = %d\n", rshift, gshift, bshift);
 
     ximg = XCreateImage((Display *)ctx->native_dpy, visual, depth, ZPixmap, 0, NULL, width, height, 32, 0);
 
     if (ximg->byte_order == MSBFirst)
-        psb__information_message("PutSurface: XImage pixels has MSBFirst, %d bits / pixel\n", ximg->bits_per_pixel);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "PutSurface: XImage pixels has MSBFirst, %d bits / pixel\n", ximg->bits_per_pixel);
     else
-        psb__information_message("PutSurface: XImage pixels has LSBFirst, %d bits / pixel\n", ximg->bits_per_pixel);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "PutSurface: XImage pixels has LSBFirst, %d bits / pixel\n", ximg->bits_per_pixel);
 
     if (ximg->bits_per_pixel != 32) {
-        psb__error_message("PutSurface: Display uses %d bits/pixel which is not supported\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "PutSurface: Display uses %d bits/pixel which is not supported\n");
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         goto out;
     }
@@ -268,7 +268,7 @@ void *psb_x11_output_init(VADriverContextP ctx)
     psb_x11_output_p output = calloc(1, sizeof(psb_x11_output_s));
 
     if (output == NULL) {
-        psb__error_message("Can't malloc memory\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't malloc memory\n");
         return NULL;
     }
 
@@ -276,7 +276,7 @@ void *psb_x11_output_init(VADriverContextP ctx)
         driver_data->extend_fullscreen = 1;
 
     if (getenv("PSB_VIDEO_PUTSURFACE_X11")) {
-        psb__information_message("Putsurface force to SW rendering\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Putsurface force to SW rendering\n");
         driver_data->output_method = PSB_PUTSURFACE_X11;
 
         return output;
@@ -305,37 +305,37 @@ void *psb_x11_output_init(VADriverContextP ctx)
 
     driver_data->xrandr_thread_id = 0;
     if (getenv("PSB_VIDEO_NOTRD") || IS_MRST(driver_data)) {
-        psb__information_message("Force not to start psb xrandr thread.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Force not to start psb xrandr thread.\n");
         driver_data->use_xrandr_thread = 0;
     } else {
-        psb__information_message("By default, use psb xrandr thread.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "By default, use psb xrandr thread.\n");
         driver_data->use_xrandr_thread = 1;
     }
 
     if (IS_MFLD(driver_data) && /* force MFLD to use COVERLAY */
         (driver_data->output_method == PSB_PUTSURFACE_OVERLAY)) {
-        psb__information_message("Use client overlay mode for post-processing\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Use client overlay mode for post-processing\n");
 
         driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
     }
 
     if (getenv("PSB_VIDEO_TEXTURE") && output->textured_portID) {
-        psb__information_message("Putsurface force to use Textured Xvideo\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Putsurface force to use Textured Xvideo\n");
         driver_data->output_method = PSB_PUTSURFACE_FORCE_TEXTURE;
     }
 
     if (getenv("PSB_VIDEO_OVERLAY") && output->overlay_portID) {
-        psb__information_message("Putsurface force to use Overlay Xvideo\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Putsurface force to use Overlay Xvideo\n");
         driver_data->output_method = PSB_PUTSURFACE_FORCE_OVERLAY;
     }
 
     if (getenv("PSB_VIDEO_CTEXTURE")) {
-        psb__information_message("Putsurface force to use Client Texture\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Putsurface force to use Client Texture\n");
         driver_data->output_method = PSB_PUTSURFACE_FORCE_CTEXTURE;
     }
 
     if (getenv("PSB_VIDEO_COVERLAY")) {
-        psb__information_message("Putsurface force to use Client Overlay\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Putsurface force to use Client Overlay\n");
 
         driver_data->coverlay = 1;
         driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
@@ -405,7 +405,7 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
         driver_data->output_method == PSB_PUTSURFACE_FORCE_OVERLAY ||
         driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE ||
         driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY) {
-        psb__information_message("Force to use %08x for PutSurface\n", driver_data->output_method);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Force to use %08x for PutSurface\n", driver_data->output_method);
         return 0;
     }
 
@@ -434,7 +434,7 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
         || (width >= 2048)
         || (height >= 2048)
        ) {
-        psb__information_message("Putsurface fall back to use Client Texture\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Putsurface fall back to use Client Texture\n");
 
         driver_data->output_method = PSB_PUTSURFACE_CTEXTURE;
     }
@@ -478,7 +478,7 @@ VAStatus psb_PutSurface(
     }
 
     if (driver_data->dummy_putsurface) {
-        psb__information_message("vaPutSurface: dummy mode, return directly\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "vaPutSurface: dummy mode, return directly\n");
         return VA_STATUS_SUCCESS;
     }
 
@@ -501,14 +501,14 @@ VAStatus psb_PutSurface(
 
     if ((driver_data->output_method == PSB_PUTSURFACE_CTEXTURE) ||
         (driver_data->output_method == PSB_PUTSURFACE_FORCE_CTEXTURE)) {
-        psb__information_message("Using client Texture for PutSurface\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Using client Texture for PutSurface\n");
         psb_putsurface_ctexture(ctx, surface, draw,
                                 srcx, srcy, srcw, srch,
                                 destx, desty, destw, desth,
                                 flags);
     } else if ((driver_data->output_method == PSB_PUTSURFACE_COVERLAY) ||
                (driver_data->output_method == PSB_PUTSURFACE_FORCE_COVERLAY)) {
-        psb__information_message("Using client Overlay for PutSurface\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Using client Overlay for PutSurface\n");
 
         srcw = srcw <= 1920 ? srcw : 1920;
         /* init overlay*/

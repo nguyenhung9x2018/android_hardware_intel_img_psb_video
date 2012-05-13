@@ -47,7 +47,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <wsbm/wsbm_manager.h>
-
+#include "psb_drv_debug.h"
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -100,7 +100,7 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     pthread_mutex_init(&driver_data->output_mutex, NULL);
 
     if (psb_parse_config("PSB_VIDEO_PUTSURFACE_DUMMY", &env_value[0]) == 0) {
-        psb__information_message("vaPutSurface: dummy mode, return directly\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "vaPutSurface: dummy mode, return directly\n");
         driver_data->dummy_putsurface = 0;
 
         return VA_STATUS_SUCCESS;
@@ -108,14 +108,14 @@ VAStatus psb_initOutput(VADriverContextP ctx)
 
     if (psb_parse_config("PSB_VIDEO_FPS", &env_value[0]) == 0) {
         driver_data->fixed_fps = atoi(env_value);
-        psb__information_message("Throttling at FPS=%d\n", driver_data->fixed_fps);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Throttling at FPS=%d\n", driver_data->fixed_fps);
     } else
         driver_data->fixed_fps = 0;
 
     driver_data->outputmethod_checkinterval = 1;
     if (psb_parse_config("PSB_VIDEO_INTERVAL", &env_value[0]) == 0) {
         driver_data->outputmethod_checkinterval = atoi(env_value);
-        psb__information_message("Check output method at %d frames interval\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Check output method at %d frames interval\n",
                                  driver_data->outputmethod_checkinterval);
     }
 
@@ -207,7 +207,7 @@ static VAImageFormat *psb__VAImageCheckFourCC(
             return &dst_format[i];
     }
 
-    psb__error_message("Unsupport fourcc 0x%x\n", src_format->fourcc);
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "Unsupport fourcc 0x%x\n", src_format->fourcc);
     return NULL;
 }
 
@@ -434,13 +434,13 @@ static int psb_CheckIEDStatus(VADriverContextP ctx)
                               &arg, sizeof(arg));
     if (ret == 0) {
         if (temp == 1) {
-            psb__error_message("IED is enabled, image is encrypted.\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "IED is enabled, image is encrypted.\n");
             return 1;
         } else {
             return 0;
         }
     } else {
-        psb__error_message("Failed to call IMG_VIDEO_IED_STATE.\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to call IMG_VIDEO_IED_STATE.\n");
         return -1;
     }
 }
@@ -486,7 +486,7 @@ VAStatus psb_DeriveImage(
         }
     }
     if (i == PSB_MAX_IMAGE_FORMATS) {
-        psb__error_message("Can't support the Fourcc\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't support the Fourcc\n");
         vaStatus = VA_STATUS_ERROR_OPERATION_FAILED;
         return vaStatus;
     }
@@ -651,7 +651,7 @@ VAStatus psb_SetImagePalette(
     }
 
     if (obj_image->image.num_palette_entries > 16) {
-        psb__error_message("image.num_palette_entries(%d) is too big\n", obj_image->image.num_palette_entries);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "image.num_palette_entries(%d) is too big\n", obj_image->image.num_palette_entries);
         memcpy(obj_image->palette, palette, 16);
     } else
         memcpy(obj_image->palette, palette, obj_image->image.num_palette_entries * sizeof(unsigned int));
@@ -670,7 +670,7 @@ static VAStatus lnc_unpack_topaz_rec(int src_width, int src_height,
 
     int n, i, index;
 
-    psb__information_message("Unpack reconstructed frame to image\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Unpack reconstructed frame to image\n");
 
     /* do this one column at a time. */
     tmp_dstY = (unsigned char *)calloc(1, 16 * src_height);
@@ -731,7 +731,7 @@ VAStatus psb_GetImage(
 
     object_image_p obj_image = IMAGE(image_id);
     if (NULL == obj_image) {
-        psb__error_message("Invalidate Image\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalidate Image\n");
 
         vaStatus = VA_STATUS_ERROR_INVALID_IMAGE;
         DEBUG_FAILURE;
@@ -744,7 +744,7 @@ VAStatus psb_GetImage(
     }
 
     if (obj_image->image.format.fourcc != VA_FOURCC_NV12) {
-        psb__error_message("target VAImage fourcc should be NV12 or IYUV\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "target VAImage fourcc should be NV12 or IYUV\n");
         vaStatus = VA_STATUS_ERROR_OPERATION_FAILED;
         return vaStatus;
     }
@@ -776,7 +776,7 @@ VAStatus psb_GetImage(
     unsigned char *image_data;
     ret = psb_buffer_map(obj_buffer->psb_buffer, &image_data);
     if (ret) {
-        psb__error_message("Map buffer failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Map buffer failed\n");
 
         psb_buffer_unmap(&psb_surface->buf);
         return VA_STATUS_ERROR_UNKNOWN;
@@ -874,7 +874,7 @@ static VAStatus psb_PutImage2(
     }
 
     if (obj_image->image.format.fourcc != VA_FOURCC_NV12) {
-        psb__error_message("target VAImage fourcc should be NV12 or IYUV\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "target VAImage fourcc should be NV12 or IYUV\n");
         vaStatus = VA_STATUS_ERROR_OPERATION_FAILED;
         return vaStatus;
     }
@@ -1179,7 +1179,7 @@ static VAStatus psb__LinkSubpictIntoSurface(
 
     if (found == 0) { /* new node */
         if (obj_surface->subpic_count >= PSB_SUBPIC_MAX_NUM) {
-            psb__error_message("can't support so many sub-pictures for the surface\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "can't support so many sub-pictures for the surface\n");
             return VA_STATUS_ERROR_UNKNOWN;
         }
 
@@ -1548,12 +1548,12 @@ VAStatus psb_SetSubpictureChromakey(
     (void)driver_data;
     /* TODO */
     if ((chromakey_mask < chromakey_min) || (chromakey_mask > chromakey_max)) {
-        psb__error_message("Invalid chromakey value %d, chromakey value should between min and max\n", chromakey_mask);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid chromakey value %d, chromakey value should between min and max\n", chromakey_mask);
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
     object_subpic_p obj_subpic = SUBPIC(subpicture);
     if (NULL == obj_subpic) {
-        psb__error_message("Invalid subpicture value %d\n", subpicture);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid subpicture value %d\n", subpicture);
         return VA_STATUS_ERROR_INVALID_SUBPICTURE;
     }
 
@@ -1569,13 +1569,13 @@ VAStatus psb_SetSubpictureGlobalAlpha(
     INIT_DRIVER_DATA;
 
     if (global_alpha < 0 || global_alpha > 1) {
-        psb__error_message("Invalid global alpha value %07f, global alpha value should between 0 and 1\n", global_alpha);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid global alpha value %07f, global alpha value should between 0 and 1\n", global_alpha);
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
     object_subpic_p obj_subpic = SUBPIC(subpicture);
     if (NULL == obj_subpic) {
-        psb__error_message("Invalid subpicture value %d\n", subpicture);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid subpicture value %d\n", subpicture);
         return VA_STATUS_ERROR_INVALID_SUBPICTURE;
     }
 
@@ -1671,7 +1671,7 @@ VAStatus psb__AssociateSubpicture(
             }
         } else {
             /* Should never get here */
-            psb__error_message("Invalid surfaces,SurfaceID=0x%x\n", *surfaces);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid surfaces,SurfaceID=0x%x\n", *surfaces);
         }
 
         surfaces++;
@@ -1750,7 +1750,7 @@ VAStatus psb_DeassociateSubpicture(
             psb__DelinkSubpictFromSurface(obj_surface, subpicture);
             psb__DelinkSurfaceFromSubpict(obj_subpic, obj_surface->surface_id);
         } else {
-            psb__error_message("vaDeassociateSubpicture: Invalid surface, VASurfaceID=0x%08x\n", *surfaces);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "vaDeassociateSubpicture: Invalid surface, VASurfaceID=0x%08x\n", *surfaces);
         }
 
         surfaces++;
@@ -2174,12 +2174,12 @@ VAStatus psb_SetDisplayAttributes(
         case VADisplayAttribRenderMode:
 #ifndef ANDROID
             if (p->value & VA_RENDER_MODE_EXTERNAL_GPU) {
-                psb__error_message("%s:Invalid parameter.VARenderModeExternalGPU is not supported.\n", __FUNCTION__);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s:Invalid parameter.VARenderModeExternalGPU is not supported.\n", __FUNCTION__);
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
             }
             if (((p->value & VA_RENDER_MODE_LOCAL_OVERLAY) && (p->value & VA_RENDER_MODE_LOCAL_GPU)) ||
                 ((p->value & VA_RENDER_MODE_EXTERNAL_OVERLAY) && (p->value & VA_RENDER_MODE_EXTERNAL_GPU))) {
-                psb__error_message("%s:Invalid parameter. Conflict setting for VADisplayAttribRenderMode.\n", __FUNCTION__);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s:Invalid parameter. Conflict setting for VADisplayAttribRenderMode.\n", __FUNCTION__);
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
             }
 #endif

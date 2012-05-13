@@ -29,6 +29,7 @@
 #include "psb_output_android.h"
 #include "pvr2d.h"
 #include "psb_drv_video.h"
+#include "psb_drv_debug.h"
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 
@@ -39,7 +40,7 @@ VAStatus psb_HDMIExt_get_prop(psb_android_output_p output,
 
     if (!psb_HDMIExt_info || !psb_HDMIExt_info->hdmi_extvideo_prop ||
         (psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode == OFF)) {
-        psb__error_message("%s : Failed to get HDMI prop\n", __FUNCTION__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to get HDMI prop\n", __FUNCTION__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
     *xres = psb_HDMIExt_info->hdmi_extvideo_prop->ExtVideoMode_XRes;
@@ -53,7 +54,7 @@ psb_hdmi_mode psb_HDMIExt_get_mode(psb_android_output_p output)
     psb_HDMIExt_info_p psb_HDMIExt_info = (psb_HDMIExt_info_p)output->psb_HDMIExt_info;
 
     if (!psb_HDMIExt_info) {
-        psb__error_message("%s : Failed to get HDMI mode\n", __FUNCTION__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to get HDMI mode\n", __FUNCTION__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
     return psb_HDMIExt_info->hdmi_mode;
@@ -76,7 +77,7 @@ VAStatus psb_HDMIExt_update(VADriverContextP ctx, psb_HDMIExt_info_p psb_HDMIExt
     drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                         &arg, sizeof(arg));
 
-    psb__information_message("%s : hdmi_state = %d\n", __FUNCTION__, hdmi_state);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : hdmi_state = %d\n", __FUNCTION__, hdmi_state);
     if (psb_HDMIExt_info->hdmi_state != hdmi_state) {
         psb_HDMIExt_info->hdmi_state = hdmi_state;
         switch (hdmi_state) {
@@ -88,27 +89,27 @@ VAStatus psb_HDMIExt_update(VADriverContextP ctx, psb_HDMIExt_info_p psb_HDMIExt
 
                 hdmi_connector = drmModeGetConnector(driver_data->drm_fd, psb_HDMIExt_info->hdmi_connector_id);
                 if (!hdmi_connector) {
-                    psb__error_message("%s : Failed to get hdmi connector\n", __FUNCTION__);
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to get hdmi connector\n", __FUNCTION__);
                     return VA_STATUS_ERROR_UNKNOWN;
                 }
 
                 hdmi_encoder = drmModeGetEncoder(driver_data->drm_fd, hdmi_connector->encoder_id);
                 if (!hdmi_encoder) {
-                    psb__error_message("%s : Failed to get hdmi encoder\n", __FUNCTION__);
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to get hdmi encoder\n", __FUNCTION__);
                     return VA_STATUS_ERROR_UNKNOWN;
                 }
 
                 hdmi_crtc = drmModeGetCrtc(driver_data->drm_fd, hdmi_encoder->crtc_id);
                 if (!hdmi_crtc) {
                     /* No CRTC attached to HDMI. */
-                    psb__error_message("%s : Failed to get hdmi crtc\n", __FUNCTION__);
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to get hdmi crtc\n", __FUNCTION__);
                     return VA_STATUS_ERROR_UNKNOWN;
                 }
 
                 strHeight = strstr(hdmi_crtc->mode.name, "x");
                 hdmi_extvideo_prop->ExtVideoMode_XRes = (unsigned short)atoi(hdmi_crtc->mode.name);
                 hdmi_extvideo_prop->ExtVideoMode_YRes = (unsigned short)atoi(strHeight + 1);
-                psb__information_message("%s : size = %d x %d\n", __FUNCTION__,
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : size = %d x %d\n", __FUNCTION__,
                         hdmi_extvideo_prop->ExtVideoMode_XRes, hdmi_extvideo_prop->ExtVideoMode_YRes);
                 drmModeFreeCrtc(hdmi_crtc);
                 drmModeFreeEncoder(hdmi_encoder);
@@ -140,14 +141,14 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
 
     psb_HDMIExt_info = (psb_HDMIExt_info_p)calloc(1, sizeof(psb_HDMIExt_info_s));
     if (!psb_HDMIExt_info) {
-        psb__error_message("%s : Failed to create psb_HDMIExt_info.\n", __FUNCTION__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to create psb_HDMIExt_info.\n", __FUNCTION__);
         return NULL;
     }
     memset(psb_HDMIExt_info, 0, sizeof(psb_HDMIExt_info_s));
 
     psb_HDMIExt_info->hdmi_extvideo_prop = (psb_extvideo_prop_p)calloc(1, sizeof(psb_extvideo_prop_s));
     if (!psb_HDMIExt_info->hdmi_extvideo_prop) {
-        psb__error_message("%s : Failed to create hdmi_extvideo_prop.\n", __FUNCTION__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to create hdmi_extvideo_prop.\n", __FUNCTION__);
         return NULL;
     }
     memset(psb_HDMIExt_info->hdmi_extvideo_prop, 0, sizeof(psb_extvideo_prop_s));
@@ -155,7 +156,7 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
     /*Get Resources.*/
     resources = drmModeGetResources(driver_data->drm_fd);
     if (!resources) {
-        psb__error_message("%s : drmModeGetResources failed.\n", __FUNCTION__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : drmModeGetResources failed.\n", __FUNCTION__);
         goto exit;
     }
 
@@ -164,7 +165,7 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
         connector = drmModeGetConnector(driver_data->drm_fd, resources->connectors[i]);
 
         if (!connector) {
-            psb__error_message("%s : Failed to get connector %i\n", __FUNCTION__,
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to get connector %i\n", __FUNCTION__,
                                resources->connectors[i]);
             continue;
         }
@@ -185,19 +186,19 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
     if (!mipi_connector_id ||
         !psb_HDMIExt_info->hdmi_connector_id ||
         !mipi_encoder_id) {
-        psb__error_message("%s : Failed to get connector id or mipi encoder id. mipi_connector_id=%d, hdmi_connector_id=%d, mipi_encoder_id=%d\n", __FUNCTION__,
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to get connector id or mipi encoder id. mipi_connector_id=%d, hdmi_connector_id=%d, mipi_encoder_id=%d\n", __FUNCTION__,
                            mipi_connector_id, psb_HDMIExt_info->hdmi_connector_id, mipi_encoder_id);
         goto exit;
     }
 
     mipi_encoder = drmModeGetEncoder(driver_data->drm_fd, mipi_encoder_id);
     if (!mipi_encoder) {
-        psb__error_message("%s : Failed to get mipi encoder %i\n", __FUNCTION__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to get mipi encoder %i\n", __FUNCTION__);
         goto exit;
     }
 
     psb_HDMIExt_info->mipi_crtc_id = mipi_encoder->crtc_id;
-    psb__information_message("%s : mipi_crtc_id = %d\n", __FUNCTION__,
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : mipi_crtc_id = %d\n", __FUNCTION__,
                              mipi_crtc_id);
 
     drmModeFreeEncoder(mipi_encoder);

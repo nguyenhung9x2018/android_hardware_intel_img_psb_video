@@ -192,7 +192,7 @@ VAStatus lnc_BeginPicture(context_ENC_p ctx)
     /* Initialise the command buffer */
     ret = lnc_context_get_next_cmdbuf(ctx->obj_context);
     if (ret) {
-        psb__information_message("get next cmdbuf fail\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "get next cmdbuf fail\n");
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         return vaStatus;
     }
@@ -415,7 +415,7 @@ VAStatus lnc_RenderPictureParameter(context_ENC_p ctx)
     /* some relocations have to been done here */
     srf_buf_offset = src_surface->psb_surface->buf.buffer_ofs;
     if (src_surface->psb_surface->buf.type == psb_bt_camera)
-        psb__information_message("src surface GPU offset 0x%08x, luma offset 0x%08x\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "src surface GPU offset 0x%08x, luma offset 0x%08x\n",
                                  wsbmBOOffsetHint(src_surface->psb_surface->buf.drm_buf), srf_buf_offset);
 
     RELOC_PIC_PARAMS(&psPicParams->SrcYBase, srf_buf_offset, &src_surface->psb_surface->buf);
@@ -473,7 +473,7 @@ static VAStatus lnc__PatchBitsConsumedInRCParam(context_ENC_p ctx)
     /* it will wait until last encode session is done */
     /* now it just wait the last session is done and the frame skip
      * is  */
-    psb__information_message("will patch bits consumed for rc\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "will patch bits consumed for rc\n");
     if (ctx->pprevious_coded_buf) {
         vaStatus = psb_buffer_sync(ctx->pprevious_coded_buf->psb_buffer);
         if (vaStatus)
@@ -551,7 +551,7 @@ static VAStatus lnc_RedoRenderPictureSkippedFrame(context_ENC_p ctx)
         vaStatus = lnc_RenderPictureParameter(ctx);
         break;
     default:
-        psb__error_message("Non-RC mode should be here for FrameSkip handling\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Non-RC mode should be here for FrameSkip handling\n");
         ASSERT(0);
     }
 
@@ -568,7 +568,7 @@ static VAStatus lnc_SetupRCParam(context_ENC_p ctx)
 
     origin_qp = ctx->sRCParams.InitialQp;
 
-    psb__information_message("will setup rc data\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "will setup rc data\n");
 
     psPicParams->Flags |= ISRC_FLAGS;
     lnc__setup_rcdata(ctx, psPicParams, &ctx->sRCParams);
@@ -590,7 +590,7 @@ static VAStatus lnc_UpdateRCParam(context_ENC_p ctx)
 
     origin_qp = ctx->sRCParams.InitialQp;
 
-    psb__information_message("will update rc data\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "will update rc data\n");
     lnc__update_rcdata(ctx, psPicParams, &ctx->sRCParams);
 
     /* set minQP if hosts set minQP */
@@ -614,7 +614,7 @@ static VAStatus lnc_PatchRCMode(context_ENC_p ctx)
 {
     int frame_skip = 0;
 
-    psb__information_message("will patch rc data\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "will patch rc data\n");
     /* it will ensure previous encode finished */
     lnc__PatchBitsConsumedInRCParam(ctx);
 
@@ -705,29 +705,29 @@ static void lnc__setup_busize(context_ENC_p ctx)
 
         /* they have given us a basic unit so validate it */
         if (ctx->sRCParams.BUSize < 6) {
-            psb__error_message("ERROR: Basic unit size too small, must be greater than 6\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too small, must be greater than 6\n");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
         if (ctx->sRCParams.BUSize > MBsperSlice) {
-            psb__error_message("ERROR: Basic unit size too large, must be less than the number of macroblocks in a slice\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too large, must be less than the number of macroblocks in a slice\n");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
         if (ctx->sRCParams.BUSize > MBsLastSlice) {
-            psb__error_message("ERROR: Basic unit size too large, must be less than number of macroblocks in the last slice\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too large, must be less than number of macroblocks in the last slice\n");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
         BUs = MBsperSlice / ctx->sRCParams.BUSize;
         if ((BUs * ctx->sRCParams.BUSize) != MBsperSlice)   {
-            psb__error_message("ERROR: Basic unit size not an integer divisor of MB's in a slice");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size not an integer divisor of MB's in a slice");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
         if (BUs > 200) {
-            psb__error_message("ERROR: Basic unit size too small. There must be less than 200 basic units per slice");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too small. There must be less than 200 basic units per slice");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
         BUs = MBsLastSlice / ctx->sRCParams.BUSize;
         if (BUs > 200) {
-            psb__error_message("ERROR: Basic unit size too small. There must be less than 200 basic units per slice");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too small. There must be less than 200 basic units per slice");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
     }
@@ -777,7 +777,7 @@ static void lnc__setup_busize(context_ENC_p ctx)
         }
 
         if (ctx->sRCParams.BUSize != old_busize)
-            psb__information_message("Patched Basic unit to %d (original=%d)\n", ctx->sRCParams.BUSize, old_busize);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Patched Basic unit to %d (original=%d)\n", ctx->sRCParams.BUSize, old_busize);
     }
 }
 
@@ -1157,7 +1157,7 @@ static void lnc__setup_slice_row_params(
     if (IsIntra && cmdbuf->topaz_in_params_I_p == NULL) {
         VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_in_params_I, &cmdbuf->topaz_in_params_I_p);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("map topaz MTX_CURRENT_IN_PARAMS failed\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "map topaz MTX_CURRENT_IN_PARAMS failed\n");
             return;
         }
     }
@@ -1165,7 +1165,7 @@ static void lnc__setup_slice_row_params(
     if ((!IsIntra) && cmdbuf->topaz_in_params_P_p == NULL) {
         VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_in_params_P, &cmdbuf->topaz_in_params_P_p);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("map topaz MTX_CURRENT_IN_PARAMS failed\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "map topaz MTX_CURRENT_IN_PARAMS failed\n");
             return;
         }
     }
@@ -1428,7 +1428,7 @@ IMG_UINT32 lnc__send_encode_slice_params(
         break;
     default:
         psSliceParams->Flags |= ISH264_FLAGS;
-        psb__error_message("No format specified defaulting to h.264\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "No format specified defaulting to h.264\n");
         break;
     }
     /* we should also setup the interleaving requirements based on the source format */
@@ -1468,7 +1468,7 @@ void lnc_reset_encoder_params(context_ENC_p ctx)
     if (cmdbuf->topaz_above_bellow_params_p == NULL) {
         VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_above_bellow_params, &cmdbuf->topaz_above_bellow_params_p);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("map topaz MTX_CURRENT_IN_PARAMS failed\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "map topaz MTX_CURRENT_IN_PARAMS failed\n");
             return;
         }
     }

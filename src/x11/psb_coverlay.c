@@ -62,7 +62,7 @@ psb_x11_getWindowCoordinate(Display * display,
     if ((status = XGetWindowAttributes(display,
                                        x11_window_id,
                                        &sXWinAttrib)) == 0) {
-        psb__error_message("%s: Failed to get X11 window coordinates - error %lu\n", __func__, (unsigned long)status);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to get X11 window coordinates - error %lu\n", __func__, (unsigned long)status);
         return -1;
     }
 
@@ -83,7 +83,7 @@ psb_x11_getWindowCoordinate(Display * display,
                               &psX11Window->i32Left,
                               &psX11Window->i32Top,
                               &DummyWindow) == 0) {
-        psb__error_message("%s: Failed to tranlate X coordinates - error %lu\n", __func__, (unsigned long)status);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to tranlate X coordinates - error %lu\n", __func__, (unsigned long)status);
         return -1;
     }
 
@@ -404,7 +404,7 @@ static VAStatus psb_DisplayRGBASubpicture(
     int depth, i;
 
     if (subpicture->fourcc != VA_FOURCC_RGBA) {
-        psb__error_message("%s: Invalid image format, ONLY support RGBA subpicture now.\n", __func__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Invalid image format, ONLY support RGBA subpicture now.\n", __func__);
         return VA_STATUS_ERROR_INVALID_IMAGE_FORMAT;
     }
 
@@ -471,13 +471,13 @@ static VAStatus psb_DisplayRGBASubpicture(
         ximg = XCreateImage(ctx->native_dpy, visual, depth, ZPixmap, 0, NULL, image_width, image_height, 32, 0);
 
         if (NULL == ximg) {
-            psb__error_message("%s: XCreateImage failed! at L%d\n", __func__, __LINE__);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: XCreateImage failed! at L%d\n", __func__, __LINE__);
             return VA_STATUS_ERROR_UNKNOWN;
         }
 
         ximg->data = wsbmBOMap(bo, WSBM_ACCESS_READ);
         if (NULL == ximg->data) {
-            psb__error_message("%s: Failed to map to ximg->data.\n", __func__);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to map to ximg->data.\n", __func__);
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
         }
 
@@ -538,13 +538,13 @@ static VAStatus psb_repaint_colorkey(
     PsbPortPrivRec *pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
 
     if (output->frame_count % 500 == 0 || driver_data->xrandr_update) {
-        psb__information_message("Repaint color key.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Repaint color key.\n");
         if (output->pClipBoxList)
             psb_x11_freeWindowClipBoxList(output->pClipBoxList);
         /* get window clipbox */
         ret = psb_x11_createWindowClipBoxList(ctx->native_dpy, draw, &output->pClipBoxList, &output->ui32NumClipBoxList);
         if (ret != 0) {
-            psb__error_message("%s: get window clip boxes error # %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: get window clip boxes error # %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
         if (output->frame_count == 500)
@@ -562,7 +562,7 @@ static VAStatus psb_repaint_colorkey(
     memset(pVaWindowClipRects, 0, sizeof(VARectangle)*output->ui32NumClipBoxList);
     pClipNext = output->pClipBoxList;
 #ifdef CLIP_DEBUG
-    psb__error_message("%s: Total %d clip boxes\n", __func__, output->ui32NumClipBoxList);
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Total %d clip boxes\n", __func__, output->ui32NumClipBoxList);
 #endif
     for (i = 0; i < output->ui32NumClipBoxList; i++) {
         pVaWindowClipRects[i].x      = pClipNext->rect.i32Left;
@@ -570,7 +570,7 @@ static VAStatus psb_repaint_colorkey(
         pVaWindowClipRects[i].width  = pClipNext->rect.i32Right - pClipNext->rect.i32Left;
         pVaWindowClipRects[i].height = pClipNext->rect.i32Bottom - pClipNext->rect.i32Top;
 #ifdef CLIP_DEBUG
-        psb__error_message("%s: clip boxes Left Top (%d, %d) Right Bottom (%d, %d) width %d height %d\n", __func__,
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: clip boxes Left Top (%d, %d) Right Bottom (%d, %d) width %d height %d\n", __func__,
                            pClipNext->rect.i32Left, pClipNext->rect.i32Top,
                            pClipNext->rect.i32Right, pClipNext->rect.i32Bottom,
                            pVaWindowClipRects[i].width, pVaWindowClipRects[i].height);
@@ -851,7 +851,7 @@ static void psb_clear_subpictures(
     int i;
 
     if (subpicture == NULL) {
-        psb__information_message("Surface has no subpicture to render.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Surface has no subpicture to render.\n");
         return;
     }
 
@@ -908,7 +908,7 @@ VAStatus psb_putsurface_coverlay(
     psb_extvideo_subtitle subtitle;
 
     if (flags & VA_CLEAR_DRAWABLE) {
-        psb__information_message("Clean draw with color 0x%08x\n", driver_data->clear_color);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Clean draw with color 0x%08x\n", driver_data->clear_color);
         psb_cleardrawable_stopoverlay(ctx, draw, destx, desty, destw, desth);
 
         return VA_STATUS_SUCCESS;
@@ -918,7 +918,7 @@ VAStatus psb_putsurface_coverlay(
         /* get window screen coordination */
         ret = psb_x11_getWindowCoordinate(ctx->native_dpy, draw, &output->winRect, &output->bIsVisible);
         if (ret != 0) {
-            psb__error_message("%s: Failed to get X11 window coordinates error # %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to get X11 window coordinates error # %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
     }
@@ -928,7 +928,7 @@ VAStatus psb_putsurface_coverlay(
     }
 
     if (NULL == obj_surface) {
-        psb__error_message("%s: Invalid surface id 0x%08x.\n", __func__, surface);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Invalid surface id 0x%08x.\n", __func__, surface);
         return VA_STATUS_ERROR_INVALID_SURFACE;
     }
 
@@ -949,14 +949,14 @@ VAStatus psb_putsurface_coverlay(
     if (driver_data->use_xrandr_thread && !driver_data->xrandr_thread_id) {
         ret = psb_xrandr_thread_create(ctx);
         if (ret != 0) {
-            psb__error_message("%s: Failed to create psb xrandr thread error # %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to create psb xrandr thread error # %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
     }
 
     ret = psb_xrandr_local_crtc_coordinate(&local_device, &primary_crtc_x, &primary_crtc_y, &pPriv->display_width, &pPriv->display_height, &rotation);
     if (ret != VA_STATUS_SUCCESS) {
-        psb__error_message("%s: Failed to get primary crtc coordinates error # %d\n", __func__, ret);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to get primary crtc coordinates error # %d\n", __func__, ret);
         return VA_STATUS_ERROR_UNKNOWN;
     }
     switch (local_device) {
@@ -978,7 +978,7 @@ VAStatus psb_putsurface_coverlay(
         ret = psb_xrandr_extend_crtc_coordinate(&extend_device, &extend_crtc_x, &extend_crtc_y,
                                                 &pPriv->extend_display_width, &pPriv->extend_display_height, &extend_location, &rotation);
         if (ret != VA_STATUS_SUCCESS) {
-            psb__error_message("%s: Failed to get extend crtc coordinates error # %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to get extend crtc coordinates error # %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
 
@@ -990,7 +990,7 @@ VAStatus psb_putsurface_coverlay(
             extend_pipe = PIPEC;
             break;
         default:
-            psb__error_message("%s: Failed to get extend pipe\n", __func__);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to get extend pipe\n", __func__);
             break;
         }
     }
@@ -1057,7 +1057,7 @@ VAStatus psb_putsurface_coverlay(
         if (!driver_data->overlay_auto_paint_color_key) {
             ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
             if (ret != 0) {
-                psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to repaint color key error # %d\n", __func__, ret);
                 return VA_STATUS_ERROR_UNKNOWN;
             }
         }
@@ -1124,7 +1124,7 @@ VAStatus psb_putsurface_coverlay(
         }
         ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
         if (ret != 0) {
-            psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to repaint color key error # %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
         psb_putsurface_overlay(
@@ -1181,7 +1181,7 @@ VAStatus psb_putsurface_coverlay(
 
             ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
             if (ret != 0) {
-                psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to repaint color key error # %d\n", __func__, ret);
                 return VA_STATUS_ERROR_UNKNOWN;
             }
 
@@ -1262,7 +1262,7 @@ VAStatus psb_putsurface_coverlay(
 
         ret = psb_repaint_colorkey(ctx, draw, surface, x11_window_width, x11_window_height);
         if (ret != 0) {
-            psb__error_message("%s: Failed to repaint color key error # %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to repaint color key error # %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
 

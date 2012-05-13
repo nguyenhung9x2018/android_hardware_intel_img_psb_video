@@ -35,6 +35,7 @@
 #include "psb_drv_video.h"
 #include "psb_output.h"
 #include "android/psb_android_glue.h"
+#include "psb_drv_debug.h"
 #include "vc1_defs.h"
 #include <stdio.h>
 #include <string.h>
@@ -107,7 +108,7 @@ void psb_InitRotate(VADriverContextP ctx)
     driver_data->msvdx_rotate_want = ROTATE_VA2MSVDX(VA_ROTATION_NONE);
 
     if (psb_parse_config("PSB_VIDEO_NOROTATE", &env_value[0]) == 0) {
-        psb__information_message("MSVDX: disable MSVDX rotation\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSVDX: disable MSVDX rotation\n");
         driver_data->disable_msvdx_rotate = 1;
     }
     driver_data->disable_msvdx_rotate_backup = driver_data->disable_msvdx_rotate;
@@ -122,7 +123,7 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
     int mode = psb_android_is_extvideo_mode((void*)output);
     if (mode || (driver_data->va_rotate != 0)) {
         if (driver_data->mipi0_rotation != 0) {
-            psb__information_message("Clear display rotate for extended video mode or meta data rotate");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Clear display rotate for extended video mode or meta data rotate");
             driver_data->mipi0_rotation = 0;
             driver_data->hdmi_rotation = 0;
         }
@@ -133,7 +134,7 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
     } else {
         int display_rotate = 0;
         psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
-        psb__information_message("NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
 
         if (driver_data->mipi0_rotation != display_rotate) {
             driver_data->mipi0_rotation = display_rotate;
@@ -175,7 +176,7 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
                 obj_surface->share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
             }
         }
-        psb__information_message("MSVDX: new rotation %d desired\n", new_rotate);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSVDX: new rotation %d desired\n", new_rotate);
         driver_data->msvdx_rotate_want = new_rotate;
     }
 
@@ -231,7 +232,7 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_p
     if (obj_surface->share_info) {
         psb_surface_share_info_p share_info = obj_surface->share_info;
         if (obj_context->interlaced_stream) {
-            psb__information_message("Intelaced stream, no MSVDX rotate\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Intelaced stream, no MSVDX rotate\n");
             SET_SURFACE_INFO_rotate(obj_surface->psb_surface, 0);
             obj_context->msvdx_rotate = 0;
             share_info->bob_deinterlace = 1;
@@ -256,7 +257,7 @@ VAStatus psb_DestroyRotateSurface(
 
     /* Allocate alternative output surface */
     if (psb_surface) {
-        psb__information_message("Try to allocate surface for alternative rotate output\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Try to allocate surface for alternative rotate output\n");
         psb_surface_destroy(obj_surface->psb_surface_rotate);
         free(psb_surface);
 
@@ -305,7 +306,7 @@ VAStatus psb_CreateRotateSurface(
     } else
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
 
-    psb__information_message("Try to allocate surface for alternative rotate output\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Try to allocate surface for alternative rotate output\n");
 
     width = obj_surface->width;
     height = obj_surface->height;

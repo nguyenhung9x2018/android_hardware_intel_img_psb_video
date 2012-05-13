@@ -30,6 +30,7 @@
 
 #include "pnw_MPEG2.h"
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
 
@@ -936,12 +937,12 @@ static void psb__MPEG2_setup_alternative_frame(context_MPEG2_p ctx, IMG_BOOL wri
     object_context_p obj_context = ctx->obj_context;
 
     if (rotate_surface == NULL) {
-        psb__information_message("rotate surface is NULL, abort msvdx rotation\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "rotate surface is NULL, abort msvdx rotation\n");
         return;
     }
 
     if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)
-        psb__error_message("Display rotate mode does not match surface rotate mode!\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Display rotate mode does not match surface rotate mode!\n");
 
 
     /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
@@ -1009,7 +1010,7 @@ static void psb__MPEG2_set_reference_pictures(context_MPEG2_p ctx)
 
     switch (ctx->pic_params->picture_coding_type) {
     case PICTURE_CODING_I:
-        psb__information_message("    I-Frame\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "    I-Frame\n");
         /* No reference pictures */
         psb_cmdbuf_rendec_write(cmdbuf, 0);
         psb_cmdbuf_rendec_write(cmdbuf, 0);
@@ -1018,7 +1019,7 @@ static void psb__MPEG2_set_reference_pictures(context_MPEG2_p ctx)
         break;
 
     case PICTURE_CODING_P:
-        psb__information_message("    P-Frame\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "    P-Frame\n");
         if (ctx->pic_params->picture_coding_extension.bits.is_first_field) {
             /* forward reference picture */
             /* LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES */
@@ -1049,7 +1050,7 @@ static void psb__MPEG2_set_reference_pictures(context_MPEG2_p ctx)
         break;
 
     case PICTURE_CODING_B:
-        psb__information_message("    B-Frame\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "    B-Frame\n");
         /* backward reference picture */
         /* LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                    */
         psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->backward_ref_surface->psb_surface->buf, ctx->backward_ref_surface->psb_surface->buf.buffer_ofs);
@@ -1168,7 +1169,7 @@ static void psb__MPEG2_set_picture_header(context_MPEG2_p ctx, VASliceParameterB
                            BE_QUANTISER_SCALE_CODE,
                            slice_param->quantiser_scale_code);
 
-    psb__information_message("BE_slice = %08x first_field = %d\n", BE_slice, ctx->pic_params->picture_coding_extension.bits.is_first_field);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "BE_slice = %08x first_field = %d\n", BE_slice, ctx->pic_params->picture_coding_extension.bits.is_first_field);
 
     psb_cmdbuf_rendec_write(cmdbuf, BE_slice);
 
@@ -1220,12 +1221,12 @@ static void psb__MPEG2_write_qmatrices(context_MPEG2_p ctx)
     /*  NONINTRA_LUMA_Q --> REG_MSVDX_VEC_IQRAM_OFFSET + 0 */
     for (i = 0; i < 16; i++) {
         psb_cmdbuf_rendec_write(cmdbuf, ctx->qmatrix_data[NONINTRA_LUMA_Q][i]);
-// psb__information_message("NONINTRA_LUMA_Q[i] = %08x\n", ctx->qmatrix_data[NONINTRA_LUMA_Q][i]);
+// drv_debug_msg(VIDEO_DEBUG_GENERAL, "NONINTRA_LUMA_Q[i] = %08x\n", ctx->qmatrix_data[NONINTRA_LUMA_Q][i]);
     }
     /*  INTRA_LUMA_Q --> REG_MSVDX_VEC_IQRAM_OFFSET + (16*4) */
     for (i = 0; i < 16; i++) {
         psb_cmdbuf_rendec_write(cmdbuf, ctx->qmatrix_data[INTRA_LUMA_Q][i]);
-// psb__information_message("INTRA_LUMA_Q[i] = %08x\n", ctx->qmatrix_data[INTRA_LUMA_Q][i]);
+// drv_debug_msg(VIDEO_DEBUG_GENERAL, "INTRA_LUMA_Q[i] = %08x\n", ctx->qmatrix_data[INTRA_LUMA_Q][i]);
     }
 
     psb_cmdbuf_rendec_end(cmdbuf);
@@ -1331,11 +1332,11 @@ static VAStatus psb__MPEG2_process_slice(context_MPEG2_p ctx,
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 
-    psb__information_message("MPEG2 process slice\n");
-    psb__information_message("    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
-    psb__information_message("    vertical pos = %d\n", slice_param->slice_vertical_position);
-    psb__information_message("    slice_data_flag = %d\n", slice_param->slice_data_flag);
-    psb__information_message("    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "MPEG2 process slice\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    vertical pos = %d\n", slice_param->slice_vertical_position);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    slice_data_flag = %d\n", slice_param->slice_data_flag);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
         (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
@@ -1591,7 +1592,7 @@ static VAStatus pnw_MPEG2_BeginPicture(
 {
     INIT_CONTEXT_MPEG2
 
-    psb__information_message("pnw_MPEG2_BeginPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_BeginPicture\n");
     if (ctx->pic_params) {
         free(ctx->pic_params);
         ctx->pic_params = NULL;
@@ -1612,23 +1613,23 @@ static VAStatus pnw_MPEG2_RenderPicture(
 
     for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
-        psb__dump_buffers_allkinds(obj_buffer);
+        psb__dump_va_buffers(obj_buffer);
 
         switch (obj_buffer->type) {
         case VAPictureParameterBufferType:
-            psb__information_message("pnw_MPEG2_RenderPicture got VAPictureParameterBuffer\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_RenderPicture got VAPictureParameterBuffer\n");
             vaStatus = psb__MPEG2_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAIQMatrixBufferType:
-            psb__information_message("pnw_MPEG2_RenderPicture got VAIQMatrixBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_RenderPicture got VAIQMatrixBufferType\n");
             vaStatus = psb__MPEG2_process_iq_matrix(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VASliceParameterBufferType:
-            psb__information_message("pnw_MPEG2_RenderPicture got VASliceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_RenderPicture got VASliceParameterBufferType\n");
             vaStatus = psb__MPEG2_add_slice_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
@@ -1636,7 +1637,7 @@ static VAStatus pnw_MPEG2_RenderPicture(
         case VASliceDataBufferType:
         case VAProtectedSliceDataBufferType:
 
-            psb__information_message("pnw_MPEG2_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
             vaStatus = psb__MPEG2_process_slice_data(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
@@ -1659,7 +1660,7 @@ static VAStatus pnw_MPEG2_EndPicture(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     INIT_CONTEXT_MPEG2
 
-    psb__information_message("pnw_MPEG2_EndPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_EndPicture\n");
 
     if (CONTEXT_ROTATE(ctx->obj_context)) {
         if (!(ctx->pic_params->picture_coding_extension.bits.progressive_frame) &&

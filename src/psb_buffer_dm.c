@@ -36,7 +36,7 @@
 
 #include "psb_drm.h"
 #include "psb_def.h"
-
+#include "psb_drv_debug.h"
 
 static VAStatus psb_buffer_offset_camerav4l2(psb_driver_data_p driver_data,
         psb_buffer_p buf,
@@ -76,13 +76,13 @@ static int psb_buffer_info_ci(psb_driver_data_p driver_data)
     if (ret == 0) {
         driver_data->camera_phyaddr = camera_info[0];
         driver_data->camera_size = camera_info[1];
-        psb__information_message("CI region physical address = 0x%08x, size=%dK\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "CI region physical address = 0x%08x, size=%dK\n",
                                  driver_data->camera_phyaddr,  driver_data->camera_size / 1024);
 
         return ret;
     }
 
-    psb__information_message("CI region get_info failed\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "CI region get_info failed\n");
     return ret;
 }
 
@@ -101,14 +101,14 @@ static VAStatus psb_buffer_init_camera(psb_driver_data_p driver_data)
     if (driver_data->camera_bo == NULL)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
-    psb__information_message("Grab whole camera device memory\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Grab whole camera device memory\n");
     ret = psb_buffer_create(driver_data, driver_data->camera_size, psb_bt_camera, (psb_buffer_p) driver_data->camera_bo);
 
     if (ret != VA_STATUS_SUCCESS) {
         free(driver_data->camera_bo);
         driver_data->camera_bo = NULL;
 
-        psb__error_message("Grab camera device memory failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Grab camera device memory failed\n");
     }
 
     return ret;
@@ -132,13 +132,13 @@ VAStatus psb_buffer_create_camera(psb_driver_data_p driver_data,
 
     if (driver_data->camera_bo  == NULL) {
         if (psb_buffer_info_ci(driver_data)) {
-            psb__error_message("Can't get CI region information\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't get CI region information\n");
             return VA_STATUS_ERROR_UNKNOWN;
         }
 
         vaStatus = psb_buffer_init_camera(driver_data);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("Grab camera device memory failed\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Grab camera device memory failed\n");
             return ret;
         }
     }
@@ -146,7 +146,7 @@ VAStatus psb_buffer_create_camera(psb_driver_data_p driver_data,
     /* reference the global camear BO */
     ret = psb_buffer_reference(driver_data, buf, (psb_buffer_p) driver_data->camera_bo);
     if (ret != VA_STATUS_SUCCESS) {
-        psb__error_message("Reference camera device memory failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Reference camera device memory failed\n");
         return ret;
     }
 
@@ -194,7 +194,7 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
     ret = wsbmGenBuffers(driver_data->main_pool, 1, &buf->drm_buf,
                          allignment, placement);
     if (!buf->drm_buf) {
-        psb__error_message("failed to gen wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to gen wsbm buffers\n");
         UNLOCK_HARDWARE(driver_data);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -208,10 +208,10 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
     ret = wsbmBODataUB(buf->drm_buf, size, NULL, NULL, 0, user_ptr);
     UNLOCK_HARDWARE(driver_data);
     if (ret) {
-        psb__error_message("failed to alloc wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to alloc wsbm buffers\n");
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
-    psb__information_message("Create BO from user buffer 0x%08x (%d byte),BO GPU offset hint=0x%08x\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create BO from user buffer 0x%08x (%d byte),BO GPU offset hint=0x%08x\n",
                              user_ptr, size, wsbmBOOffsetHint(buf->drm_buf));
 
 #endif
@@ -239,13 +239,13 @@ static int psb_buffer_info_rar(psb_driver_data_p driver_data)
         driver_data->rar_phyaddr = rar_info[0];
         driver_data->rar_size = rar_info[1];
         driver_data->rar_size = driver_data->rar_size & 0xfffff000; /* page align */
-        psb__information_message("RAR region physical address = 0x%08x, size=%dK\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "RAR region physical address = 0x%08x, size=%dK\n",
                                  driver_data->rar_phyaddr,  driver_data->rar_size / 1024);
 
         return ret;
     }
 
-    psb__information_message("RAR region get size failed\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "RAR region get size failed\n");
     return ret;
 }
 
@@ -261,17 +261,17 @@ static VAStatus psb_buffer_init_imr(psb_driver_data_p driver_data)
     if (driver_data->rar_bo == NULL)
         goto exit_error;
 
-    psb__information_message("Init IMR device\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Init IMR device\n");
     if (psb_buffer_info_rar(driver_data)) {
-        psb__error_message("Get IMR region size failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Get IMR region size failed\n");
         goto exit_error;
     }
 
-    psb__information_message("Grab whole camera device memory\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Grab whole camera device memory\n");
     ret = psb_buffer_create(driver_data, driver_data->rar_size, psb_bt_rar, (psb_buffer_p) driver_data->rar_bo);
 
     if (ret != VA_STATUS_SUCCESS) {
-        psb__error_message("Grab IMR device memory failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Grab IMR device memory failed\n");
         goto exit_error;
     }
 
@@ -302,7 +302,7 @@ VAStatus psb_buffer_reference_imr(psb_driver_data_p driver_data,
     if (driver_data->rar_bo  == NULL) {
         vaStatus = psb_buffer_init_imr(driver_data);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("IMR init failed!\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "IMR init failed!\n");
             return vaStatus;
         }
     }
@@ -316,7 +316,7 @@ VAStatus psb_buffer_reference_imr(psb_driver_data_p driver_data,
     /* reference the global IMR BO */
     ret = psb_buffer_reference(driver_data, buf, (psb_buffer_p) driver_data->rar_bo);
     if (ret != VA_STATUS_SUCCESS) {
-        psb__error_message("Reference IMR device memory failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Reference IMR device memory failed\n");
         return ret;
     }
 
@@ -326,7 +326,7 @@ VAStatus psb_buffer_reference_imr(psb_driver_data_p driver_data,
     /* reference the global IMR buffer, reset buffer type */
     buf->type = psb_bt_rar_slice; /* don't need to IMR_release */
 
-    psb__information_message("Reference IMR buffer, IMR region offset =0x%08x, IMR BO GPU offset hint=0x%08x\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Reference IMR buffer, IMR region offset =0x%08x, IMR BO GPU offset hint=0x%08x\n",
                              imr_offset, wsbmBOOffsetHint(buf->drm_buf));
 
     return VA_STATUS_SUCCESS;

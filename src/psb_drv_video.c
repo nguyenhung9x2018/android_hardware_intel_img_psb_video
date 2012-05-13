@@ -78,6 +78,7 @@
 #include "android/psb_gralloc.h"
 #include "android/psb_android_glue.h"
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 #include "psb_ws_driver.h"
 #include "ci_va.h"
 #include "pnw_rotate.h"
@@ -96,9 +97,9 @@
 
 #define PSB_MAX_FLIP_DELAY (1000/30/10)
 
-#ifdef DEBUG_TRACE
 #include <signal.h>
-#endif
+
+extern int force_texure_1080p_60fps;
 
 #define EXPORT __attribute__ ((visibility("default")))
 
@@ -123,626 +124,13 @@ static int psb_get_device_info(VADriverContextP ctx);
 void psb_init_surface_pvr2dbuf(psb_driver_data_p driver_data);
 void psb_free_surface_pvr2dbuf(psb_driver_data_p driver_data);
 
-static FILE *psb_video_debug_fp = NULL;
-static FILE *psb_video_debug_dump_buffer_fp = NULL;
-static int  debug_fp_count = 0;
-static FILE *psb_video_debug_nv_buffer_fp=NULL;
-int force_texure_1080p_60fps = 0;
-
-/*
- * read a config "env" for libva.conf or from environment setting
- * liva.conf has higher priority
- * return 0: the "env" is set, and the value is copied into env_value
- *        1: the env is not set
- */
-int psb_parse_config(char *env, char *env_value)
-{
-    char *token, *value, *saveptr;
-    char oneline[1024];
-    FILE *fp = NULL;
-    char *env_ptr;
-
-    if (env == NULL)
-        return 1;
-
-    fp = fopen("/etc/psbvideo.conf", "r");
-    while (fp && (fgets(oneline, 1024, fp) != NULL)) {
-        if (strlen(oneline) == 1)
-            continue;
-        token = strtok_r(oneline, "=\n", &saveptr);
-        value = strtok_r(NULL, "=\n", &saveptr);
-
-        if (NULL == token || NULL == value)
-            continue;
-
-        if (strcmp(token, env) == 0) {
-            if (env_value)
-                strcpy(env_value, value);
-
-            fclose(fp);
-
-            return 0;
-        }
-    }
-    if (fp)
-        fclose(fp);
-
-    env_ptr = getenv(env);
-    if (env_ptr) {
-        if (env_value)
-            strncpy(env_value, env_ptr, strlen(env_ptr));
-
-        return 0;
-    }
-
-    return 1;
-}
-
-void psb__error_message(const char *msg, ...)
-{
-    va_list args;
-    FILE *fp;
-    char tag[128];
-
-    (void)tag;
-
-    if (psb_video_debug_fp == NULL) /* not set the debug */
-        fp = stderr;
-    else
-        fp = psb_video_debug_fp;
-
-    fprintf(fp, "[0x%08lx]psb_drv_video error(%d:0x%08lx) ",
-            GetTickCount(), getpid(), pthread_self());
-    va_start(args, msg);
-    vfprintf(fp, msg, args);
-#ifdef ANDROID
-    sprintf(tag, "pvr_drv_video[%d:0x%08lx]", getpid(), pthread_self());
-    __android_log_vprint(ANDROID_LOG_ERROR, tag, msg, args);
-#endif
-    va_end(args);
-
-    fflush(fp);
-    fsync(fileno(fp));
-}
-
-void psb__dump_buffers_allkinds(object_buffer_p obj_buffer )
-{
-    int i, j,k;
-    void *mapped_buffer;
-    int print_num;
-
-    if(psb_video_debug_dump_buffer_fp) {
-        fprintf(psb_video_debug_dump_buffer_fp, "%s", buffer_type_to_string(obj_buffer->type));
-        print_num = fprintf(psb_video_debug_dump_buffer_fp, "BUFF SIZE :%d	NUMELEMENTS:%d BUFF INFO:\n", obj_buffer->size, obj_buffer->num_elements);
-
-        switch(obj_buffer->type) {
-            case VAPictureParameterBufferType:
-            case VAIQMatrixBufferType:
-            case VASliceParameterBufferType:
-                j=0;
-                for(k=0;k < obj_buffer->size;++k)
-                    print_num = fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ,",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                    fprintf(psb_video_debug_dump_buffer_fp,"\n ");
-                break;
-
-            case VASliceGroupMapBufferType:
-            case VABitPlaneBufferType:
-//            case VASliceDataBufferType:
-//            case VAProtectedSliceDataBufferType:
-                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
-                for(j=0; j<obj_buffer->size;++j) {
-                    if(j%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    for(k=0;k < obj_buffer->num_elements;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
-                }
-
-                psb_buffer_unmap(obj_buffer->psb_buffer);
-                break;
-
-            case  VASliceDataBufferType:
-                fprintf(psb_video_debug_dump_buffer_fp,"first 256 bytes:\n");
-                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
-                for(j=0; j<256;++j) {
-                    if(j%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    for(k=0;k < obj_buffer->num_elements;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
-                }
-                psb_buffer_unmap(obj_buffer->psb_buffer);
-                break;
-
-            default:
-                break;
-
-        }
-        fprintf(psb_video_debug_dump_buffer_fp, "\n");
-        fflush(psb_video_debug_dump_buffer_fp);
-        fsync(fileno(psb_video_debug_dump_buffer_fp));
-    }
-
-}
-
-void psb__dump_buffers(object_buffer_p obj_buffer )
-{
-    int i, j,k;
-    void *mapped_buffer;
-    if(psb_video_debug_dump_buffer_fp) {
-        fprintf(psb_video_debug_dump_buffer_fp, "%s", buffer_type_to_string(obj_buffer->type));
-        fprintf(psb_video_debug_dump_buffer_fp, "BUFF SIZE :%d	NUMELEMENTS:%d BUFF INFO:\n", obj_buffer->size, obj_buffer->num_elements);
-        switch(obj_buffer->type) {
-            case VAPictureParameterBufferType:
-                for(j=0; j < 340; j = j+20) {
-                    if(j==0) fprintf(psb_video_debug_dump_buffer_fp,"\nCurrPic:\n");
-                    else fprintf(psb_video_debug_dump_buffer_fp,"\nReferenceFrames%d\n", j / 20);
-                    fprintf(psb_video_debug_dump_buffer_fp,"picture_id:");
-                    for(k=0;k < 4;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"    frame_idx:");
-                    for(k=4;k < 8;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"    flags:");
-                    for(k=8;k < 12;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"    TopFieldOrderCnt:");
-                    for(k=12;k < 16;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"    BottomFieldOrderCnt:");
-                    for(k=16;k < 20;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                }
-                j=340;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\npicture_width_in_mbs_minus1:");
-                for(k=0;k < 2;++k)
-                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=342;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp, "\npicture_height_in_mbs_minus1:");
-                for(k=0;k < 2;++k)
-                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=344;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,  "\nbit_depth_luma_minus8:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=345;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp, "\nbit_depth_chroma_minus8:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=346;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp, "\nnum_ref_frames:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=348;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nseq_fields_value:");
-                for(k=0;k < 4;++k)
-                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=352;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nnum_slice_groups_minus1:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=353;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_group_map_type:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=354;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp, "\nslice_group_change_rate_minus1:");
-                for(k=0;k < 2;++k)
-                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=356;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\npic_init_qp_minus26:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=357;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\npic_init_qs_minus26:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=358;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_qp_index_offset:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=359;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp, "\nsecond_chroma_qp_index_offset:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=360;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\npic_fields_value:");
-                for(k=0;k < 4;++k)
-                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=364;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nframe_num:");
-                for(k=0;k < 2;++k)
-                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                break;
-
-            case VAIQMatrixBufferType:
-                for(j=0;j<96;j=j+16) {
-                    fprintf(psb_video_debug_dump_buffer_fp,"\nScalingList4x4_%d:", j/16);
-                    for(k=0; k<16;++k) {
-                        if(k%4 == 0) fprintf(psb_video_debug_dump_buffer_fp, "\n");
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                    }
-                }
-                for(j=96;j<224;j=j+64) {
-                    fprintf(psb_video_debug_dump_buffer_fp,"\nScalingList4x4_%d:",( j-96)/64);
-                    for(k=0; k<64;++k) {
-                        if(k%8 == 0) fprintf(psb_video_debug_dump_buffer_fp, "\n");
-                        printf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                    }
-                }
-                break;
-
-            case VASliceParameterBufferType:
-                j=0;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_data_size:");
-                for(k=0;k < 4;++k)
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=4;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_data_offset:");
-                for(k=0;k < 4;++k)
-                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=8;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_data_flag:");
-                for(k=0;k < 4;++k)
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=12;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_data_bit_offset:");
-                for(k=0;k < 2;++k)
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=14;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nfirst_mb_in_slice:");
-                for(k=0;k < 2;++k)
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=16;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_type:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=17;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\ndirect_spatial_mv_pred_flag:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=18;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,  "\nnum_ref_idx_l0_active_minus1:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=19;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp, "\nnum_ref_idx_l1_active_minus1:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=20;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\ncabac_init_idc:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=21;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_qp_delta:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=22;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp, "\ndisable_deblocking_filter_idc:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=23;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_alpha_c0_offset_div2:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=24;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nslice_beta_offset_div2:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                for(j=28; j < 668; j = j+20) {
-                    fprintf(psb_video_debug_dump_buffer_fp,"\nRefPicList0 ListIndex=%d\n", (j -28)/ 20);
-                    fprintf(psb_video_debug_dump_buffer_fp,"picture_id:");
-                    for(k=0;k < 4;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"   frame_idx:");
-                    for(k=4;k < 8;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"   flags:");
-                    for(k=8;k < 12;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"   TopFieldOrderCnt:");
-                    for(k=12;k < 16;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"   BottomFieldOrderCnt:");
-                    for(k=16;k < 20;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                    }
-                for(j=668; j < 1308; j = j+20) {
-                    fprintf(psb_video_debug_dump_buffer_fp,"\nRefPicList1 ListIndex=%d\n", (j -668)/ 20);
-                    fprintf(psb_video_debug_dump_buffer_fp,"picture_id:");
-                    for(k=0;k < 4;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"   frame_idx:");
-                    for(k=4;k < 8;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"   flags:");
-                    for(k=8;k < 12;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"   TopFieldOrderCnt:");
-                    for(k=12;k < 16;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp,"   BottomFieldOrderCnt:");
-                    for(k=16;k < 20;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                    }
-                j=1308;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_log2_weight_denom:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-j=1309;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_log2_weight_denom:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=1310;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_weight_l0_flag:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=1312;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_weight_l0:");
-                for(j=1312;j<1376;j=j+2) {
-                    if((j-1312)%16 == 0)fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    fprintf(psb_video_debug_dump_buffer_fp,"     :");
-                    for(k=0;k < 2;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                }
-                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_offset_l0:");
-                for(j=1376;j<1440;j=j+2) {
-                    if((j-1376)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
-                    for(k=0;k < 2;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                }
-                j=1440;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_weight_l0_flag:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                j=1442;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_weight_l0:");
-                for(j=1442;j<1570;j=j+4) {
-                    if((j-1442)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
-                    for(k=0;k < 2;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp," , ");
-                    for(k=2;k < 4;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-
-                }
-
-                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_offset_l0:");
-                for(j=1570;j<1698;j=j+4) {
-                    if((j-1570)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
-                    for(k=0;k < 2;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp," , ");
-                    for(k=2;k < 4;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                }
-                j=1698;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_weight_l1_flag:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_weight_l1:");
-                for(j=1700;j<1764;j=j+2) {
-                    if((j-1700)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
-                    for(k=0;k < 2;++k)
-                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                }
-                fprintf(psb_video_debug_dump_buffer_fp,"\nluma_offset_l1:");
-                for(j=1764;j<1828;j=j+2) {
-                    if((j-1764)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
-                    for(k=0;k < 2;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                }
-                j=1828;k=0;
-                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_weight_l1_flag:");
-                fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_weight_l1:");
-                for(j=1830;j<1958;j=j+4) {
-                    if((j-1830)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
-                    for(k=0;k < 2;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp," , ");
-                    for(k=2;k < 4;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                }
-                fprintf(psb_video_debug_dump_buffer_fp,"\nchroma_offset_l1:");
-                for(j=1958;j<2086;j=j+4) {
-                    if((j-1958)%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    fprintf(psb_video_debug_dump_buffer_fp,"     ");
-                    for(k=0;k < 2;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                        fprintf(psb_video_debug_dump_buffer_fp," , ");
-                    for(k=2;k < 4;++k)
-                    fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
-                }
-                break;
-
-            case VASliceGroupMapBufferType:
-	///	    case VASliceDataBufferType:
-	///	    case VAProtectedSliceDataBufferType:
-                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
-                for(j=0; j<obj_buffer->size;++j) {
-                    if(j%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    for(k=0;k < obj_buffer->num_elements;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
-                }
-                psb_buffer_unmap(obj_buffer->psb_buffer);
-                break;
-
-            case  VASliceDataBufferType:
-                fprintf(psb_video_debug_dump_buffer_fp,"first 256 bytes:\n");
-                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
-                for(j=0; j<256;++j) {
-                    if(j%16 == 0) fprintf(psb_video_debug_dump_buffer_fp,"\n");
-                    for(k=0;k < obj_buffer->num_elements;++k)
-                        fprintf(psb_video_debug_dump_buffer_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
-                }
-                psb_buffer_unmap(obj_buffer->psb_buffer);
-                break;
-            default:
-                break;
-
-            }
-        fprintf(psb_video_debug_dump_buffer_fp, "\n");
-        fflush(psb_video_debug_dump_buffer_fp);
-        fsync(fileno(psb_video_debug_dump_buffer_fp));
-    }
-
-}
-
-void psb__information_message(const char *msg, ...)
-{
-    if (psb_video_debug_fp) {
-        va_list args;
-        char tag[128];
-
-        (void)tag;
-
-        fprintf(psb_video_debug_fp, "[0x%08lx]psb_drv_video(%d:0x%08lx) ",
-                GetTickCount(), getpid(), pthread_self());
-        va_start(args, msg);
-        vfprintf(psb_video_debug_fp, msg, args);
-#ifdef ANDROID
-        sprintf(tag, "pvr_drv_video[%d:0x%08lx]", getpid(), pthread_self());
-        __android_log_vprint(ANDROID_LOG_DEBUG, tag, msg, args);
-#endif
-        va_end(args);
-        fflush(psb_video_debug_fp);
-        fsync(fileno(psb_video_debug_fp));
-    }
-}
-
-
-static void psb__open_log(void)
-{
-    char log_fn[1024];
-    unsigned int suffix;
-#ifdef ANDROID
-	LOGD("psb__open_log.\n");
-#endif
-    if(psb_parse_config("PSB_VIDEO_DEBUG_DUMP_BUFFER", &log_fn[0]) == 0) {
-
-        unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
-        if(strcmp(log_fn, "/dev/stdout") != 0)
-        sprintf(log_fn + strlen(log_fn), ".%d", suffix);
-        psb_video_debug_dump_buffer_fp = fopen(log_fn, "w");
-    }
-
-    if(psb_parse_config("PSB_VIDEO_DEBUG_NV_BUFFER", &log_fn[0]) == 0) {
-        unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
-        if(strcmp(log_fn, "/dev/stdout") != 0)
-        sprintf(log_fn + strlen(log_fn), ".%d", suffix);
-        psb_video_debug_nv_buffer_fp = fopen(log_fn, "ab");
-    }
-
-    if(psb_parse_config("PSB_VIDEO_1080P_60FPS", &log_fn[0]) == 0) {
-        if(strstr(log_fn, "texture") != NULL)
-            force_texure_1080p_60fps = 1;
-        else
-            force_texure_1080p_60fps = 0;
-    }
-
-    if ((psb_video_debug_fp != NULL) && (psb_video_debug_fp != stderr)) {
-        debug_fp_count++;
-        return;
-    }
-
-    if (psb_parse_config("PSB_VIDEO_DEBUG", &log_fn[0]) != 0)
-        return;
-
-    suffix = 0xffff & ((unsigned int)time(NULL));
-    snprintf(log_fn + strnlen(log_fn, 1024),
-             (1024 - 8 - strnlen(log_fn, 1024)),
-             ".%d.%d", getpid(), suffix);
-    psb_video_debug_fp = fopen(log_fn, "w");
-    if (psb_video_debug_fp == 0) {
-        psb__error_message("Log file %s open failed, reason %s, fall back to stderr\n",
-                           log_fn, strerror(errno));
-        psb_video_debug_fp = stderr;
-    } else {
-        psb__information_message("Log file %s open successfully\n", log_fn);
-        debug_fp_count++;
-    }
-}
-
-static void psb__close_log(void)
-{
-    if ((psb_video_debug_fp != NULL) & (psb_video_debug_fp != stderr)) {
-        debug_fp_count--;
-        if (debug_fp_count == 0)
-            fclose(psb_video_debug_fp);
-    }
-
-    if(psb_video_debug_nv_buffer_fp !=NULL)
-        fclose(psb_video_debug_nv_buffer_fp);
-
-    return;
-}
-
-void psb__dump_NV_buffers(
-    object_surface_p obj_surface,
-    short srcx,
-    short srcy,
-    unsigned short srcw,
-    unsigned short srch)
-{
-    void *mapped_buffer;
-    void *mapped_buffer1, *mapped_buffer2;
-    if (psb_video_debug_nv_buffer_fp) {
-        psb_buffer_map(&obj_surface->psb_surface->buf, &mapped_buffer);
-
-        int j,k;
-        mapped_buffer1 = mapped_buffer +obj_surface->psb_surface->stride * srcy;
-        mapped_buffer2= mapped_buffer + obj_surface->psb_surface->stride * (obj_surface->height + srcy / 2);
-        mapped_buffer=mapped_buffer2;
-        for(j = 0; j < srch; ++j)
-        {
-            fwrite(mapped_buffer1,  srcw, 1, psb_video_debug_nv_buffer_fp);
-            mapped_buffer1 += obj_surface->psb_surface->stride;
-        }
-        for(j = 0 ; j < srch /2; ++j)
-        {
-            for(k = 0; k < srcw; ++k)
-            {
-                if((k%2) == 0)fwrite(mapped_buffer2,1,1,psb_video_debug_nv_buffer_fp);
-                mapped_buffer2++;
-            }
-            mapped_buffer2 += obj_surface->psb_surface->stride-srcw;
-        }
-        mapped_buffer2=mapped_buffer;
-        for(j = 0 ; j < srch /2; ++j)
-        {
-            for(k = 0; k < srcw; ++k)
-            {
-                if((k%2) == 1)fwrite(mapped_buffer2,1,1,psb_video_debug_nv_buffer_fp);
-                mapped_buffer2++;
-            }
-            mapped_buffer2 += obj_surface->psb_surface->stride-srcw;
-        }
-        psb_buffer_unmap(&obj_surface->psb_surface->buf);
-    }
-}
-
-#ifdef DEBUG_TRACE
-void psb__trace_message(const char *msg, ...)
-{
-    va_list args;
-    static const char *trace_file = 0;
-    static FILE *trace = 0;
-
-    if (!trace_file) {
-        char trace_fn[1024];
-
-        if (psb_parse_config("PSB_VIDEO_TRACE", &trace_fn[0]) == 0)
-            trace_file = trace_fn;
-
-        if (trace_file) {
-            trace = fopen(trace_file, "w");
-            if (trace) {
-                time_t curtime;
-                time(&curtime);
-                fprintf(trace, "---- %s\n---- Start Trace ----\n", ctime(&curtime));
-            }
-        } else {
-            trace_file = "none";
-        }
-    }
-    if (trace) {
-        if (msg) {
-            va_start(args, msg);
-            vfprintf(trace, msg, args);
-            va_end(args);
-        } else {
-            fflush(trace);
-        }
-    }
-}
-#endif
-
 VAStatus psb_QueryConfigProfiles(
     VADriverContextP ctx,
     VAProfile *profile_list,    /* out */
     int *num_profiles            /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     (void) ctx; /* unused */
     int i = 0;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -781,7 +169,7 @@ VAStatus psb_QueryConfigProfiles(
     /* If the assert fails then PSB_MAX_PROFILES needs to be bigger */
     ASSERT(i <= PSB_MAX_PROFILES);
     *num_profiles = i;
-
+    DEBUG_FUNC_EXIT
     return VA_STATUS_SUCCESS;
 }
 
@@ -793,6 +181,7 @@ VAStatus psb_QueryConfigEntrypoints(
     int *num_entrypoints        /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int entrypoints = 0;
@@ -824,6 +213,7 @@ VAStatus psb_QueryConfigEntrypoints(
     }
 
     *num_entrypoints = entrypoints;
+    DEBUG_FUNC_EXIT
     return VA_STATUS_SUCCESS;
 }
 
@@ -855,6 +245,7 @@ VAStatus psb_GetConfigAttributes(
     int num_attribs
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     INIT_FORMAT_VTABLE
     int i;
@@ -887,7 +278,7 @@ VAStatus psb_GetConfigAttributes(
     }
     /* format specific attributes */
     format_vtable->queryConfigAttributes(profile, entrypoint, attrib_list, num_attribs);
-
+    DEBUG_FUNC_EXIT
     return VA_STATUS_SUCCESS;
 }
 
@@ -948,7 +339,7 @@ static int psb_get_active_entrypoint_number(
 
     if (VAEntrypointVLD > entrypoint ||
         entrypoint > VAEntrypointEncPicture) {
-        psb__error_message("%s :Invalid entrypoint %d.\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s :Invalid entrypoint %d.\n",
                            __FUNCTION__, entrypoint);
         return -1;
     }
@@ -959,7 +350,7 @@ static int psb_get_active_entrypoint_number(
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
     if (ret) {
-        psb__error_message("%s drmCommandWriteRead fails %d.\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s drmCommandWriteRead fails %d.\n",
                            __FUNCTION__, ret);
         return -1;
     }
@@ -976,6 +367,7 @@ VAStatus psb_CreateConfig(
     VAConfigID *config_id        /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     INIT_FORMAT_VTABLE
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -983,6 +375,8 @@ VAStatus psb_CreateConfig(
     object_config_p obj_config;
     int i;
 
+    drv_debug_msg(VIDEO_DEBUG_INIT, "CreateConfig profile:%d, entrypoint:%d, num_attribs:%d.\n",
+        profile, entrypoint, num_attribs);
     /*echo 8 > /sys/module/pvrsrvkm/parameters/no_ec will disable error concealment*/
     if ((profile == VAProfileH264ConstrainedBaseline) && (VAEntrypointVLD == entrypoint)) {
         char ec_disable[2];
@@ -991,7 +385,7 @@ VAStatus psb_CreateConfig(
             if (fgets(ec_disable, 2, ec_fp) != NULL) {
                 /* force profile to VAProfileH264High */
                 if (strcmp(ec_disable, "8") == 0) {
-                    psb__information_message("disabled error concealment by setting profile to VAProfileH264High\n");
+                    drv_debug_msg(VIDEO_DEBUG_INIT, "disabled error concealment by setting profile to VAProfileH264High\n");
                     profile = VAProfileH264High;
                 }
             }
@@ -1033,12 +427,12 @@ VAStatus psb_CreateConfig(
 	active_pic = psb_get_active_entrypoint_number(ctx, VAEntrypointEncPicture);
 
 	if (active_slc > 0) {
-	    psb__error_message("There already is a active video encoding entrypoint."
+	    drv_debug_msg(VIDEO_DEBUG_ERROR, "There already is a active video encoding entrypoint."
 		   "Entrypoint %d isn't available.\n", entrypoint);
 	    return VA_STATUS_ERROR_HW_BUSY;
 	}
 	else if (active_pic > 0 && VAEntrypointEncPicture == entrypoint) {
-	    psb__error_message("There already is a active picture encoding entrypoint."
+	    drv_debug_msg(VIDEO_DEBUG_ERROR, "There already is a active picture encoding entrypoint."
 		   "Entrypoint %d isn't available.\n", entrypoint);
 	    return VA_STATUS_ERROR_HW_BUSY;
 	}
@@ -1090,18 +484,19 @@ VAStatus psb_CreateConfig(
     if (IS_MRST(driver_data) &&
         (getenv("PSB_VIDEO_NOEC") == NULL)
         && (profile == VAProfileH264ConstrainedBaseline)) {
-        psb__information_message("profile is VAProfileH264ConstrainedBaseline, error concealment is enabled. \n");
+        drv_debug_msg(VIDEO_DEBUG_INIT, "profile is VAProfileH264ConstrainedBaseline, error concealment is enabled. \n");
         driver_data->ec_enabled = 1;
 #ifdef MFLD_ERROR_CONCEALMENT
     } else if(IS_MFLD(driver_data) &&
         (getenv("PSB_VIDEO_NOEC") == NULL)
         && (profile == VAProfileH264ConstrainedBaseline)) {
-        psb__information_message("profile is VAProfileH264ConstrainedBaseline, error concealment is enabled. \n");
+        drv_debug_msg(VIDEO_DEBUG_INIT, "profile is VAProfileH264ConstrainedBaseline, error concealment is enabled. \n");
         driver_data->ec_enabled = 1;
 #endif
     } else {
         driver_data->ec_enabled = 0;
     }
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -1110,6 +505,7 @@ VAStatus psb_DestroyConfig(
     VAConfigID config_id
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_config_p obj_config;
@@ -1122,6 +518,7 @@ VAStatus psb_DestroyConfig(
     }
 
     object_heap_free(&driver_data->config_heap, (object_base_p) obj_config);
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -1134,6 +531,7 @@ VAStatus psb_QueryConfigAttributes(
     int *num_attribs        /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_config_p obj_config;
@@ -1173,6 +571,7 @@ VAStatus psb_QueryConfigAttributes(
         attrib_list[i] = obj_config->attrib_list[i];
     }
 
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -1224,6 +623,7 @@ VAStatus psb_CreateSurfaces(
     int num_attribs
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i, height_origin, usage, buffer_stride = 0;
@@ -1233,6 +633,9 @@ VAStatus psb_CreateSurfaces(
     buffer_handle_t handle;
     void *vaddr[2];
     unsigned int *tmp_khandles = NULL;
+    drv_debug_msg(VIDEO_DEBUG_INIT,
+        "CreateSurfaces w:%d, h:%d, format:%d, num_surfaces:%d, num_attribs:%d\n",
+        width, height, format, num_surfaces, num_attribs);
 
     format = format & (~VA_RT_FORMAT_PROTECTED);
     if (num_surfaces <= 0) {
@@ -1262,7 +665,7 @@ VAStatus psb_CreateSurfaces(
                 }
                 break;
             default:
-                psb__error_message("Unsupported attribute.\n");
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "Unsupported attribute.\n");
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
             }
         }
@@ -1334,9 +737,7 @@ VAStatus psb_CreateSurfaces(
         if (NULL == psb_surface) {
             object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
             obj_surface->surface_id = VA_INVALID_SURFACE;
-
             vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-
             DEBUG_FAILURE;
             break;
         }
@@ -1380,13 +781,13 @@ VAStatus psb_CreateSurfaces(
                     obj_surface->share_info->renderStatus = 0;
                     obj_surface->share_info->used_by_widi = 0;
 
-                    psb__information_message("%s : Create graphic buffer success"
+                    drv_debug_msg(VIDEO_DEBUG_INIT, "%s : Create graphic buffer success"
                          "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n", __FUNCTION__, surfaceID, vaddr[0], vaddr[1]);
                     gralloc_unlock(handle);
                 }
                 break;
             default:
-                psb__error_message("Unsupported external buffer.\n");
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "Unsupported external buffer.\n");
             }
         } else {
             vaStatus = psb_surface_create(driver_data, width, height, fourcc,
@@ -1396,7 +797,6 @@ VAStatus psb_CreateSurfaces(
             free(psb_surface);
             object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
             obj_surface->surface_id = VA_INVALID_SURFACE;
-
             DEBUG_FAILURE;
             break;
         }
@@ -1414,7 +814,7 @@ VAStatus psb_CreateSurfaces(
             psb__destroy_surface(driver_data, obj_surface);
             surface_list[i] = VA_INVALID_SURFACE;
         }
-        psb__error_message("CreateSurfaces failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "CreateSurfaces failed\n");
         return vaStatus;
     }
 
@@ -1436,9 +836,9 @@ VAStatus psb_CreateSurfaces(
     if (fourcc == VA_FOURCC_NV12)
         psb_add_video_bcd(ctx, width, height, buffer_stride,
                           num_surfaces, surface_list);
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
-
 
 VAStatus psb_CreateSurfaceFromCIFrame(
     VADriverContextP ctx,
@@ -1446,6 +846,7 @@ VAStatus psb_CreateSurfaceFromCIFrame(
     VASurfaceID *surface        /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int surfaceID;
@@ -1474,21 +875,21 @@ VAStatus psb_CreateSurfaceFromCIFrame(
     if (ret != 0)
         return  VA_STATUS_ERROR_UNKNOWN;
 
-    psb__information_message("CI Frame: id=0x%08x, %dx%d, stride=%d, offset=0x%08x, fourcc=0x%08x\n",
+    drv_debug_msg(VIDEO_DEBUG_INIT, "CI Frame: id=0x%08x, %dx%d, stride=%d, offset=0x%08x, fourcc=0x%08x\n",
                              frame_info.frame_id, frame_info.width, frame_info.height,
                              frame_info.stride, frame_info.offset, frame_info.fourcc);
 
     if (frame_info.stride & 0x3f) {
-        psb__error_message("CI Frame must be 64byte aligned!\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "CI Frame must be 64byte aligned!\n");
         /* return  VA_STATUS_ERROR_UNKNOWN; */
     }
 
     if (frame_info.fourcc != VA_FOURCC_NV12) {
-        psb__error_message("CI Frame must be NV12 format!\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "CI Frame must be NV12 format!\n");
         return  VA_STATUS_ERROR_UNKNOWN;
     }
     if (frame_info.offset & 0xfff) {
-        psb__error_message("CI Frame offset must be page aligned!\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "CI Frame offset must be page aligned!\n");
         /* return  VA_STATUS_ERROR_UNKNOWN; */
     }
 
@@ -1551,6 +952,7 @@ VAStatus psb_CreateSurfaceFromCIFrame(
         *surface = VA_INVALID_SURFACE;
     }
 
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -1560,6 +962,7 @@ VAStatus psb_DestroySurfaces(
     int num_surfaces
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     int i;
 
@@ -1574,7 +977,7 @@ VAStatus psb_DestroySurfaces(
 #ifdef ANDROID
 #include "android/psb_android_glue.h"
         if (driver_data->ts_source_created) {
-            psb__information_message("In psb_release_video_bcd, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
+            drv_debug_msg(VIDEO_DEBUG_INIT, "In psb_release_video_bcd, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
             psb_android_texture_streaming_destroy();
             driver_data->ts_source_created = 0;
         }
@@ -1596,7 +999,7 @@ VAStatus psb_DestroySurfaces(
             return VA_STATUS_ERROR_INVALID_SURFACE;
         }
         if (obj_surface->derived_imgcnt > 0) {
-            psb__error_message("Some surface is deriving by images\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Some surface is deriving by images\n");
             return VA_STATUS_ERROR_OPERATION_FAILED;
         }
     }
@@ -1608,7 +1011,7 @@ VAStatus psb_DestroySurfaces(
             /* Surface is being displaying. Need to stop overlay here */
             psb_coverlay_stop(ctx);
         }
-        psb__information_message("%s : obj_surface->surface_id = 0x%x\n",__FUNCTION__, obj_surface->surface_id);
+        drv_debug_msg(VIDEO_DEBUG_INIT, "%s : obj_surface->surface_id = 0x%x\n",__FUNCTION__, obj_surface->surface_id);
         psb__destroy_surface(driver_data, obj_surface);
         surface_list[i] = VA_INVALID_SURFACE;
         if (obj_surface->share_info) {
@@ -1625,6 +1028,7 @@ VAStatus psb_DestroySurfaces(
         }
     }
 
+    DEBUG_FUNC_EXIT
     return VA_STATUS_SUCCESS;
 }
 
@@ -1638,7 +1042,7 @@ int psb_new_context(psb_driver_data_p driver_data, int ctx_type)
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
     if (ret != 0)
-        psb__error_message("Set context %d failed\n", ctx_type);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Set context %d failed\n", ctx_type);
 
     return ret;
 }
@@ -1654,7 +1058,7 @@ int psb_rm_context(psb_driver_data_p driver_data)
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
     if (ret != 0)
-        psb__error_message("Remove context failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Remove context failed\n");
 
     return ret;
 }
@@ -1670,11 +1074,14 @@ VAStatus psb_CreateContext(
     VAContextID *context        /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_config_p obj_config;
     int cmdbuf_num, encode = 0;
     int i;
+    drv_debug_msg(VIDEO_DEBUG_INIT, "CreateContext config_id:%d, pic_w:%d, pic_h:%d, flag:%d, num_render_targets:%d.\n",
+        config_id, picture_width, picture_height, flag, num_render_targets);
 
     if (num_render_targets <= 0) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -1928,6 +1335,7 @@ VAStatus psb_CreateContext(
 
     psb_new_context(driver_data, (obj_config->profile << 8) | obj_config->entrypoint);
 
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -1952,7 +1360,7 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
     ASSERT(NULL == obj_buffer->buffer_data);
 
     if (obj_buffer->psb_buffer && (psb_bs_queued == obj_buffer->psb_buffer->status)) {
-        psb__information_message("Abandoning BO for buffer %08x type %s\n", obj_buffer->base.id,
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Abandoning BO for buffer %08x type %s\n", obj_buffer->base.id,
                                  buffer_type_to_string(obj_buffer->type));
         /* need to set psb_buffer aside and get another one */
         obj_buffer->psb_buffer->status = psb_bs_abandoned;
@@ -1963,15 +1371,15 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
 
     if (type == VAProtectedSliceDataBufferType) {
         if (obj_buffer->psb_buffer) {
-            psb__information_message("RAR: old RAR slice buffer with RAR handle 0%08x, current RAR handle 0x%08x\n",
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "RAR: old RAR slice buffer with RAR handle 0%08x, current RAR handle 0x%08x\n",
                                      obj_buffer->psb_buffer->rar_handle, (uint32_t)data);
-            psb__information_message("RAR: force old RAR buffer destroy and new buffer re-allocation by set size=0\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "RAR: force old RAR buffer destroy and new buffer re-allocation by set size=0\n");
             obj_buffer->alloc_size = 0;
         }
     }
 
     if (obj_buffer->alloc_size < (unsigned int)size) {
-        psb__information_message("Buffer size mismatch: Need %d, currently have %d\n", size, obj_buffer->alloc_size);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Buffer size mismatch: Need %d, currently have %d\n", size, obj_buffer->alloc_size);
         if (obj_buffer->psb_buffer) {
             if (obj_buffer->buffer_data) {
                 psb__unmap_buffer(obj_buffer);
@@ -1986,7 +1394,7 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
             }
         }
         if (VA_STATUS_SUCCESS == vaStatus) {
-            psb__information_message("Allocate new GPU buffers for vaCreateBuffer:type=%s,size=%d.\n",
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate new GPU buffers for vaCreateBuffer:type=%s,size=%d.\n",
                                      buffer_type_to_string(obj_buffer->type), size);
 
             size = (size + 0x7fff) & ~0x7fff; /* Round up */
@@ -2069,7 +1477,7 @@ void psb__suspend_buffer(psb_driver_data_p driver_data, object_buffer_p obj_buff
         obj_context->buffers_unused_tail[type] = obj_buffer;
         obj_context->buffers_unused_count[type]++;
 
-        psb__information_message("Adding buffer %08x type %s to unused list. unused count = %d\n", obj_buffer->base.id,
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Adding buffer %08x type %s to unused list. unused count = %d\n", obj_buffer->base.id,
                                  buffer_type_to_string(obj_buffer->type), obj_context->buffers_unused_count[type]);
         object_heap_suspend_object((object_base_p) obj_buffer, 1); /* suspend */
         return;
@@ -2101,12 +1509,12 @@ static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p
         object_buffer_p obj_buffer;
         obj_buffer = obj_context->buffers_active[i];
         for (; obj_buffer; obj_buffer = obj_buffer->ptr_next) {
-            psb__information_message("%s: destroying active buffer %08x\n", __FUNCTION__, obj_buffer->base.id);
+            drv_debug_msg(VIDEO_DEBUG_INIT, "%s: destroying active buffer %08x\n", __FUNCTION__, obj_buffer->base.id);
             psb__destroy_buffer(driver_data, obj_buffer);
         }
         obj_buffer = obj_context->buffers_unused[i];
         for (; obj_buffer; obj_buffer = obj_buffer->ptr_next) {
-            psb__information_message("%s: destroying unused buffer %08x\n", __FUNCTION__, obj_buffer->base.id);
+            drv_debug_msg(VIDEO_DEBUG_INIT, "%s: destroying unused buffer %08x\n", __FUNCTION__, obj_buffer->base.id);
             psb__destroy_buffer(driver_data, obj_buffer);
         }
         obj_context->buffers_unused_count[i] = 0;
@@ -2163,6 +1571,7 @@ VAStatus psb_DestroyContext(
     VAContextID context
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_context_p obj_context = CONTEXT(context);
@@ -2174,6 +1583,7 @@ VAStatus psb_DestroyContext(
 
     psb__destroy_context(driver_data, obj_context);
 
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2187,6 +1597,7 @@ VAStatus psb__CreateBuffer(
     VABufferID *buf_desc    /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int bufferID;
     object_buffer_p obj_buffer = obj_context ? obj_context->buffers_unused[type] : NULL;
@@ -2207,7 +1618,7 @@ VAStatus psb__CreateBuffer(
      * The buffer that is returned will be moved to the list of active buffers
      *   - vaDestroyBuffer and vaRenderPicture will move the active buffer back to the list of unused buffers
     */
-    psb__information_message("Requesting buffer creation, size=%d,elements=%d,type=%s\n", size, num_elements,
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Requesting buffer creation, size=%d,elements=%d,type=%s\n", size, num_elements,
                              buffer_type_to_string(type));
 
     /* on MFLD, data is IMR offset, and could be 0 */
@@ -2221,22 +1632,22 @@ VAStatus psb__CreateBuffer(
     if (obj_buffer && obj_buffer->psb_buffer) {
         if (psb_bs_queued == obj_buffer->psb_buffer->status) {
             /* Buffer is still queued, allocate new buffer instead */
-            psb__information_message("Skipping idle buffer %08x, still queued\n", obj_buffer->base.id);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Skipping idle buffer %08x, still queued\n", obj_buffer->base.id);
             obj_buffer = NULL;
         } else if ((obj_buffer->last_used == obj_context->frame_count) && (unused_count < MAX_UNUSED_BUFFERS)) {
             /* Buffer was used for this frame, allocate new buffer instead */
-            psb__information_message("Skipping idle buffer %08x, recently used. Unused = %d\n", obj_buffer->base.id, unused_count);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Skipping idle buffer %08x, recently used. Unused = %d\n", obj_buffer->base.id, unused_count);
             obj_buffer = NULL;
         } else if (obj_context->frame_count - obj_buffer->last_used < 5) {
             /* Buffer was used for previous frame, allocate new buffer instead */
-            psb__information_message("Skipping idle buffer %08x used by frame %d. Unused = %d\n", obj_buffer->base.id, obj_buffer->last_used, unused_count);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Skipping idle buffer %08x used by frame %d. Unused = %d\n", obj_buffer->base.id, obj_buffer->last_used, unused_count);
             obj_buffer = NULL;
         }
     }
 
     if (obj_buffer) {
         bufferID = obj_buffer->base.id;
-        psb__information_message("Reusing buffer %08x type %s from unused list. Unused = %d\n", bufferID,
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Reusing buffer %08x type %s from unused list. Unused = %d\n", bufferID,
                                  buffer_type_to_string(type), unused_count);
 
         /* Remove from unused list */
@@ -2264,7 +1675,7 @@ VAStatus psb__CreateBuffer(
 
         MEMSET_OBJECT(obj_buffer, struct object_buffer_s);
 
-        psb__information_message("Allocating new buffer %08x type %s.\n", bufferID, buffer_type_to_string(type));
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocating new buffer %08x type %s.\n", bufferID, buffer_type_to_string(type));
         obj_buffer->type = type;
         obj_buffer->buffer_data = NULL;
         obj_buffer->psb_buffer = NULL;
@@ -2304,7 +1715,7 @@ VAStatus psb__CreateBuffer(
     case VAEncSliceParameterBufferType:
     case VAQMatrixBufferType:
     case VAEncMiscParameterBufferType:
-        psb__information_message("Allocate new malloc buffers for vaCreateBuffer:type=%s,size=%d, buffer_data=%p.\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate new malloc buffers for vaCreateBuffer:type=%s,size=%d, buffer_data=%p.\n",
                                  buffer_type_to_string(type), size, obj_buffer->buffer_data);
         vaStatus = psb__allocate_malloc_buffer(obj_buffer, size * num_elements);
         DEBUG_FAILURE;
@@ -2335,6 +1746,7 @@ VAStatus psb__CreateBuffer(
         psb__destroy_buffer(driver_data, obj_buffer);
     }
 
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2348,6 +1760,7 @@ VAStatus psb_CreateBuffer(
     VABufferID *buf_desc    /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
@@ -2394,7 +1807,10 @@ VAStatus psb_CreateBuffer(
         return vaStatus;
     }
 
-    return psb__CreateBuffer(driver_data, obj_context, type, size, num_elements, data, buf_desc);
+    vaStatus = psb__CreateBuffer(driver_data, obj_context, type, size, num_elements, data, buf_desc);
+
+    DEBUG_FUNC_EXIT
+    return vaStatus;
 }
 
 
@@ -2406,6 +1822,7 @@ VAStatus psb_BufferInfo(
     unsigned int *num_elements /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
@@ -2419,6 +1836,7 @@ VAStatus psb_BufferInfo(
     *type = obj_buffer->type;
     *size = obj_buffer->size;
     *num_elements = obj_buffer->num_elements;
+    DEBUG_FUNC_EXIT
     return VA_STATUS_SUCCESS;
 }
 
@@ -2429,6 +1847,7 @@ VAStatus psb_BufferSetNumElements(
     unsigned int num_elements    /* in */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = BUFFER(buf_id);
@@ -2445,6 +1864,7 @@ VAStatus psb_BufferSetNumElements(
         obj_buffer->num_elements = num_elements;
     }
 
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2454,6 +1874,7 @@ VAStatus psb_MapBuffer(
     void **pbuf         /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = BUFFER(buf_id);
@@ -2488,6 +1909,7 @@ VAStatus psb_MapBuffer(
     } else {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2496,6 +1918,7 @@ VAStatus psb_UnmapBuffer(
     VABufferID buf_id    /* in */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = BUFFER(buf_id);
@@ -2506,7 +1929,7 @@ VAStatus psb_UnmapBuffer(
     }
 
     vaStatus = psb__unmap_buffer(obj_buffer);
-
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2516,6 +1939,7 @@ VAStatus psb_DestroyBuffer(
     VABufferID buffer_id
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = BUFFER(buffer_id);
@@ -2527,6 +1951,7 @@ VAStatus psb_DestroyBuffer(
     }
 
     psb__suspend_buffer(driver_data, obj_buffer);
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2537,6 +1962,7 @@ VAStatus psb_BeginPicture(
     VASurfaceID render_target
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_context_p obj_context;
@@ -2570,7 +1996,7 @@ VAStatus psb_BeginPicture(
     if (obj_config &&
         (obj_config->entrypoint != VAEntrypointEncSlice) &&
         (driver_data->cur_displaying_surface == render_target))
-        psb__error_message("WARNING: rendering a displaying surface, may see tearing\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "WARNING: rendering a displaying surface, may see tearing\n");
 
     if (VA_STATUS_SUCCESS == vaStatus) {
         vaStatus = obj_context->format_vtable->beginPicture(obj_context);
@@ -2636,12 +2062,11 @@ VAStatus psb_BeginPicture(
     }
     obj_context->is_oold = driver_data->is_oold;
 
-    psb__information_message("---BeginPicture 0x%08x for frame %d --\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "---BeginPicture 0x%08x for frame %d --\n",
                              render_target, obj_context->frame_count);
-#ifdef DEBUG_TRACE
     psb__trace_message("------Trace frame %d------\n", obj_context->frame_count);
-#endif
 
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2652,6 +2077,7 @@ VAStatus psb_RenderPicture(
     int num_buffers
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_context_p obj_context;
@@ -2703,7 +2129,7 @@ VAStatus psb_RenderPicture(
                 return vaStatus;
             }
             buffer_list[i] = obj_buffer;
-            psb__information_message("Render buffer %08x type %s\n", obj_buffer->base.id,
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Render buffer %08x type %s\n", obj_buffer->base.id,
                                      buffer_type_to_string(obj_buffer->type));
         }
     }
@@ -2721,6 +2147,7 @@ VAStatus psb_RenderPicture(
         }
     }
 
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2729,6 +2156,7 @@ VAStatus psb_EndPicture(
     VAContextID context
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus;
     object_context_p obj_context;
@@ -2742,16 +2170,16 @@ VAStatus psb_EndPicture(
 
     vaStatus = obj_context->format_vtable->endPicture(obj_context);
 
-    psb__information_message("---EndPicture for frame %d --\n", obj_context->frame_count);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "---EndPicture for frame %d --\n", obj_context->frame_count);
 
     obj_context->current_render_target = NULL;
     obj_context->frame_count++;
-#ifdef DEBUG_TRACE
-    psb__trace_message("FrameCount = %03d\n", obj_context->frame_count);
-    psb__information_message("FrameCount = %03d\n", obj_context->frame_count);
-    psb__trace_message(NULL);
-#endif
 
+    psb__trace_message("FrameCount = %03d\n", obj_context->frame_count);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "FrameCount = %03d\n", obj_context->frame_count);
+    psb__trace_message(NULL);
+
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2809,12 +2237,13 @@ VAStatus psb_SyncSurface(
     VASurfaceID render_target
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_surface_p obj_surface;
     int decode = 0, encode = 0, rc_enable = 0;
 
-    psb__information_message("psb_SyncSurface: 0x%08x\n", render_target);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_SyncSurface: 0x%08x\n", render_target);
 
     obj_surface = SURFACE(render_target);
     if (NULL == obj_surface) {
@@ -2865,12 +2294,13 @@ VAStatus psb_SyncSurface(
             if (fw_status != 0)
                 vaStatus = VA_STATUS_ERROR_DECODING_ERROR;
         } else {
-            psb__information_message("IMG_VIDEO_DECODE_STATUS ioctl return failed.\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "IMG_VIDEO_DECODE_STATUS ioctl return failed.\n");
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         }
     }
     psb__dump_NV_buffers(obj_surface, 0, 0, obj_surface->width, obj_surface->height);
     DEBUG_FAILURE;
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2881,6 +2311,7 @@ VAStatus psb_QuerySurfaceStatus(
     VASurfaceStatus *status    /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_surface_p obj_surface;
@@ -2943,7 +2374,7 @@ VAStatus psb_QuerySurfaceStatus(
     }
 
     *status = surface_status;
-
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -2954,6 +2385,7 @@ VAStatus psb_QuerySurfaceError(
     void **error_info /*out*/
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_surface_p obj_surface;
@@ -2971,7 +2403,7 @@ VAStatus psb_QuerySurfaceError(
 #else
     if (!IS_MRST(driver_data) || (driver_data->ec_enabled == 0)) {
 #endif
-        psb__information_message("error concealment is not supported for this profile.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "error concealment is not supported for this profile.\n");
         error_info = NULL;
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -2989,7 +2421,7 @@ VAStatus psb_QuerySurfaceError(
                                   &arg, sizeof(arg));
 
         if (decode_status->num_error_slice > MAX_MB_ERRORS) {
-            psb__information_message("too much mb errors are reported.\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "too much mb errors are reported.\n");
             return VA_STATUS_ERROR_UNKNOWN;
         }
         i = 0;
@@ -3001,12 +2433,12 @@ VAStatus psb_QuerySurfaceError(
         }
         driver_data->surface_mb_error[i].status = -1;
         *error_info = driver_data->surface_mb_error;
-
-        return vaStatus;
     } else {
         error_info = NULL;
         return VA_STATUS_ERROR_UNKNOWN;
     }
+    DEBUG_FUNC_EXIT
+    return vaStatus;
 }
 
 VAStatus psb_LockSurface(
@@ -3023,6 +2455,7 @@ VAStatus psb_LockSurface(
     void **buffer
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned char *surface_data;
@@ -3060,7 +2493,7 @@ VAStatus psb_LockSurface(
     *luma_offset = 0;
     *chroma_u_offset = obj_surface->height * psb_surface->stride;
     *chroma_v_offset = obj_surface->height * psb_surface->stride + 1;
-
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -3070,6 +2503,7 @@ VAStatus psb_UnlockSurface(
     VASurfaceID surface
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
@@ -3083,7 +2517,7 @@ VAStatus psb_UnlockSurface(
     psb_surface_p psb_surface = obj_surface->psb_surface;
 
     psb_buffer_unmap(&psb_surface->buf);
-
+    DEBUG_FUNC_EXIT
     return VA_STATUS_SUCCESS;
 }
 
@@ -3093,6 +2527,7 @@ VAStatus psb_GetEGLClientBufferFromSurface(
     void **buffer
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
@@ -3105,7 +2540,7 @@ VAStatus psb_GetEGLClientBufferFromSurface(
 
     psb_surface_p psb_surface = obj_surface->psb_surface;
     *buffer = (unsigned char *)psb_surface->bc_buffer;
-
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -3117,6 +2552,7 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
     VASurfaceID *surface        /* out */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int surfaceID;
@@ -3126,7 +2562,7 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
     unsigned long *user_ptr = NULL;
 
     if (IS_MRST(driver_data) == 0 && IS_MFLD(driver_data) == 0) {
-        psb__error_message("CreateSurfaceFromV4L2Buf isn't supported on non-MRST platform\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "CreateSurfaceFromV4L2Buf isn't supported on non-MRST platform\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -3137,7 +2573,7 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
         unsigned long tmp = (unsigned long)(v4l2_buf->m.userptr);
 
         if (tmp & 0xfff) {
-            psb__error_message("The buffer address 0x%08x must be page aligned\n", tmp);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "The buffer address 0x%08x must be page aligned\n", tmp);
             return VA_STATUS_ERROR_UNKNOWN;
         }
     }
@@ -3158,7 +2594,7 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
     buf_offset = v4l2_buf->m.offset;
     size = v4l2_buf->length;
 
-    psb__information_message("Create Surface from V4L2 buffer: %dx%d, stride=%d, buffer offset=0x%08x, size=%d\n",
+    drv_debug_msg(VIDEO_DEBUG_INIT, "Create Surface from V4L2 buffer: %dx%d, stride=%d, buffer offset=0x%08x, size=%d\n",
                              width, height, buf_stride, buf_offset, size);
 
     obj_surface->surface_id = surfaceID;
@@ -3227,7 +2663,7 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
         psb__destroy_surface(driver_data, obj_surface);
         *surface = VA_INVALID_SURFACE;
     }
-
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -3249,6 +2685,7 @@ VAStatus psb_CreateSurfacesForUserPtr(
     unsigned int chroma_v_offset
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i, height_origin;
@@ -3258,7 +2695,7 @@ VAStatus psb_CreateSurfacesForUserPtr(
     unsigned int width = (unsigned int)Width;
     unsigned int height = (unsigned int)Height;
 
-    psb__information_message("Create surface: width %d, height %d, format 0x%08x"
+    drv_debug_msg(VIDEO_DEBUG_INIT, "Create surface: width %d, height %d, format 0x%08x"
                              "\n\t\t\t\t\tnum_surface %d, buffer size %d, fourcc 0x%08x"
                              "\n\t\t\t\t\tluma_stride %d, chroma u stride %d, chroma v stride %d"
                              "\n\t\t\t\t\tluma_offset %d, chroma u offset %d, chroma v offset %d\n",
@@ -3290,7 +2727,7 @@ VAStatus psb_CreateSurfacesForUserPtr(
     /* We only support NV12/YV12 */
     if (((VA_RT_FORMAT_YUV420 == format) && (fourcc != VA_FOURCC_NV12)) ||
         ((VA_RT_FORMAT_YUV422 == format) && (fourcc != VA_FOURCC_YV16))) {
-        psb__error_message("Only support NV12/YV16 format\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Only support NV12/YV16 format\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -3396,7 +2833,7 @@ VAStatus psb_CreateSurfacesForUserPtr(
         }
     }
 
-
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -3417,6 +2854,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     unsigned int chroma_v_offset
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i ;
@@ -3426,7 +2864,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
     unsigned int width = (unsigned int)_width;
     unsigned int height = (unsigned int)_height;
 
-    psb__information_message("Create surface: width %d, height %d, format 0x%08x"
+    drv_debug_msg(VIDEO_DEBUG_INIT, "Create surface: width %d, height %d, format 0x%08x"
                              "\n\t\t\t\t\tnum_surface %d, buffer size %d, fourcc 0x%08x"
                              "\n\t\t\t\t\tluma_stride %d, chroma u stride %d, chroma v stride %d"
                              "\n\t\t\t\t\tluma_offset %d, chroma u offset %d, chroma v offset %d\n",
@@ -3453,7 +2891,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
 
     if (((VA_RT_FORMAT_YUV420 == format) && (kBuf_fourcc != VA_FOURCC_NV12)) ||
         ((VA_RT_FORMAT_YUV422 == format) && (kBuf_fourcc != VA_FOURCC_YV16))) {
-        psb__error_message("Only support NV12/YV16 format\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Only support NV12/YV16 format\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -3538,6 +2976,7 @@ VAStatus  psb_CreateSurfaceFromKbuf(
         *surface = VA_INVALID_SURFACE;
     }
 
+    DEBUG_FUNC_EXIT
     return vaStatus;
 }
 
@@ -3560,6 +2999,7 @@ VAStatus psb_PutSurfaceBuf(
     unsigned int flags /* de-interlacing flags */
 )
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA;
     object_surface_p obj_surface = SURFACE(surface);
     psb_surface_p psb_surface;
@@ -3572,6 +3012,7 @@ VAStatus psb_PutSurfaceBuf(
                                psb_surface->stride, psb_surface->buf.drm_buf,
                                psb_surface->buf.pl_flags, 1 /* wrap dst */);
 
+    DEBUG_FUNC_EXIT
     return VA_STATUS_SUCCESS;
 }
 
@@ -3664,7 +3105,7 @@ static VAStatus psb__initTTM(VADriverContextP ctx)
     /* init wsbm */
     ret = wsbmInit(wsbmNullThreadFuncs(), psbVNodeFuncs());
     if (ret) {
-        psb__error_message("failed initializing libwsbm.\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed initializing libwsbm.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -3675,7 +3116,7 @@ static VAStatus psb__initTTM(VADriverContextP ctx)
     ret = drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_EXTENSION,
                               &arg, sizeof(arg));
     if (ret != 0 || !arg.rep.exists) {
-        psb__error_message("failed to detect DRM extension \"%s\".\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to detect DRM extension \"%s\".\n",
                            drm_ext);
         driver_data->main_pool = NULL;
         return VA_STATUS_ERROR_UNKNOWN;
@@ -3683,7 +3124,7 @@ static VAStatus psb__initTTM(VADriverContextP ctx)
         pool = wsbmTTMPoolInit(driver_data->drm_fd,
                                arg.rep.driver_ioctl_offset);
         if (pool == NULL) {
-            psb__error_message("failed to get ttm pool\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to get ttm pool\n");
             return VA_STATUS_ERROR_UNKNOWN;
         }
         driver_data->main_pool = pool;
@@ -3693,7 +3134,7 @@ static VAStatus psb__initTTM(VADriverContextP ctx)
     ret = drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_EXTENSION, &exec_arg,
                               sizeof(exec_arg));
     if (ret != 0 || !exec_arg.rep.exists) {
-        psb__error_message("failed to detect DRM extension \"%s\".\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to detect DRM extension \"%s\".\n",
                            exec_ext);
         return FALSE;
     }
@@ -3703,7 +3144,7 @@ static VAStatus psb__initTTM(VADriverContextP ctx)
     ret = drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_EXTENSION, &lncvideo_getparam_arg,
                               sizeof(lncvideo_getparam_arg));
     if (ret != 0 || !lncvideo_getparam_arg.rep.exists) {
-        psb__error_message("failed to detect DRM extension \"%s\".\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to detect DRM extension \"%s\".\n",
                            lncvideo_getparam_ext);
         /* return FALSE; */ /* not reture FALSE, so it still can run */
     }
@@ -3725,6 +3166,7 @@ static VAStatus psb__initDRM(VADriverContextP ctx)
 
 VAStatus psb_Terminate(VADriverContextP ctx)
 {
+    DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     object_subpic_p obj_subpic;
     object_image_p obj_image;
@@ -3734,7 +3176,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     object_config_p obj_config;
     object_heap_iterator iter;
 
-    psb__information_message("vaTerminate: begin to tear down\n");
+    drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: begin to tear down\n");
 
     if (driver_data->bcd_registered != 0)
         if (VA_STATUS_SUCCESS != psb_release_video_bcd(ctx))
@@ -3743,7 +3185,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     /* Clean up left over contexts */
     obj_context = (object_context_p) object_heap_first(&driver_data->context_heap, &iter);
     while (obj_context) {
-        psb__information_message("vaTerminate: contextID %08x still allocated, destroying\n", obj_context->base.id);
+        drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: contextID %08x still allocated, destroying\n", obj_context->base.id);
         psb__destroy_context(driver_data, obj_context);
         obj_context = (object_context_p) object_heap_next(&driver_data->context_heap, &iter);
     }
@@ -3752,7 +3194,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     /* Clean up SubpicIDs */
     obj_subpic = (object_subpic_p) object_heap_first(&driver_data->subpic_heap, &iter);
     while (obj_subpic) {
-        psb__information_message("vaTerminate: subpictureID %08x still allocated, destroying\n", obj_subpic->base.id);
+        drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: subpictureID %08x still allocated, destroying\n", obj_subpic->base.id);
         psb__destroy_subpicture(driver_data, obj_subpic);
         obj_subpic = (object_subpic_p) object_heap_next(&driver_data->subpic_heap, &iter);
     }
@@ -3761,7 +3203,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     /* Clean up ImageIDs */
     obj_image = (object_image_p) object_heap_first(&driver_data->image_heap, &iter);
     while (obj_image) {
-        psb__information_message("vaTerminate: imageID %08x still allocated, destroying\n", obj_image->base.id);
+        drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: imageID %08x still allocated, destroying\n", obj_image->base.id);
         psb__destroy_image(driver_data, obj_image);
         obj_image = (object_image_p) object_heap_next(&driver_data->image_heap, &iter);
     }
@@ -3770,7 +3212,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     /* Clean up left over buffers */
     obj_buffer = (object_buffer_p) object_heap_first(&driver_data->buffer_heap, &iter);
     while (obj_buffer) {
-        psb__information_message("vaTerminate: bufferID %08x still allocated, destroying\n", obj_buffer->base.id);
+        drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: bufferID %08x still allocated, destroying\n", obj_buffer->base.id);
         psb__destroy_buffer(driver_data, obj_buffer);
         obj_buffer = (object_buffer_p) object_heap_next(&driver_data->buffer_heap, &iter);
     }
@@ -3782,7 +3224,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     psb_free_surface_pvr2dbuf(driver_data);
     obj_surface = (object_surface_p) object_heap_first(&driver_data->surface_heap, &iter);
     while (obj_surface) {
-        psb__information_message("vaTerminate: surfaceID %08x still allocated, destroying\n", obj_surface->base.id);
+        drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: surfaceID %08x still allocated, destroying\n", obj_surface->base.id);
         psb__destroy_surface(driver_data, obj_surface);
         obj_surface = (object_surface_p) object_heap_next(&driver_data->surface_heap, &iter);
     }
@@ -3797,7 +3239,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     object_heap_destroy(&driver_data->config_heap);
 
     if (driver_data->camera_bo) {
-        psb__information_message("vaTerminate: clearup camera global BO\n");
+        drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: clearup camera global BO\n");
 
         psb_buffer_destroy((psb_buffer_p)driver_data->camera_bo);
         free(driver_data->camera_bo);
@@ -3805,7 +3247,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     }
 
     if (driver_data->rar_bo) {
-        psb__information_message("vaTerminate: clearup RAR global BO\n");
+        drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: clearup RAR global BO\n");
 
         psb_buffer_destroy((psb_buffer_p)driver_data->rar_bo);
         free(driver_data->rar_bo);
@@ -3813,13 +3255,13 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     }
 
     if (driver_data->ws_priv) {
-        psb__information_message("vaTerminate: tear down output portion\n");
+        drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: tear down output portion\n");
 
         psb_deinitOutput(ctx);
         driver_data->ws_priv = NULL;
     }
 
-    psb__information_message("vaTerminate: de-initialized DRM\n");
+    drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: de-initialized DRM\n");
 
     psb__deinitDRM(ctx);
 
@@ -3837,10 +3279,10 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     free(ctx->vtable_tpi);
 
     ctx->pDriverData = NULL;
-    psb__information_message("vaTerminate: goodbye\n\n");
+    drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: goodbye\n\n");
 
     psb__close_log();
-
+    DEBUG_FUNC_EXIT
     return VA_STATUS_SUCCESS;
 }
 
@@ -3851,15 +3293,15 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     struct VADriverVTableEGL *va_egl;
     int result;
 
-#ifdef DEBUG_TRACE
-    /* make gdb always stop here */
-    signal(SIGUSR1, SIG_IGN);
-    kill(getpid(), SIGUSR1);
-#endif
+    if (psb_video_trace_fp) {
+        /* make gdb always stop here */
+        signal(SIGUSR1, SIG_IGN);
+        kill(getpid(), SIGUSR1);
+    }
 
     psb__open_log();
 
-    psb__information_message("vaInitilize: start the journey\n");
+    drv_debug_msg(VIDEO_DEBUG_INIT, "vaInitilize: start the journey\n");
 
     ctx->version_major = 0;
     ctx->version_minor = 31;
@@ -3974,8 +3416,8 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
 
     driver_data->video_sd_disabled = !!(hw_info.caps & PCI_PORT5_REG80_VIDEO_SD_DISABLE);
     driver_data->video_hd_disabled = !!(hw_info.caps & PCI_PORT5_REG80_VIDEO_HD_DISABLE);
-    psb__information_message("hw_info: rev_id = %08x capabilities = %08x\n", hw_info.rev_id, hw_info.caps);
-    psb__information_message("hw_info: video_sd_disable=%d,video_hd_disable=%d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "hw_info: rev_id = %08x capabilities = %08x\n", hw_info.rev_id, hw_info.caps);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "hw_info: video_sd_disable=%d,video_hd_disable=%d\n",
                              driver_data->video_sd_disabled, driver_data->video_hd_disabled);
     if (driver_data->video_sd_disabled != 0) {
         psb__error_message("MRST: hw_info shows video_sd_disable is true,fix it manually\n");
@@ -3988,7 +3430,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
 #endif
 
     if (0 != psb_get_device_info(ctx)) {
-        psb__error_message("ERROR: failed to get video device info\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: failed to get video device info\n");
         driver_data->encode_supported = 1;
         driver_data->decode_supported = 1;
         driver_data->hd_encode_supported = 1;
@@ -4103,7 +3545,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
-    psb__information_message("vaInitilize: succeeded!\n\n");
+    drv_debug_msg(VIDEO_DEBUG_INIT, "vaInitilize: succeeded!\n\n");
 
 #ifdef ANDROID
     gralloc_init();
@@ -4135,7 +3577,7 @@ static int psb_get_device_info(VADriverContextP ctx)
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
     if (ret != 0) {
-        psb__information_message("failed to get video device info\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to get video device info\n");
         return ret;
     }
 
@@ -4143,7 +3585,7 @@ static int psb_get_device_info(VADriverContextP ctx)
     video_capability = device_info & 0xffff;
 
     driver_data->dev_id = pci_device;
-    psb__information_message("Retrieve Device ID 0x%04x\n", driver_data->dev_id);
+    drv_debug_msg(VIDEO_DEBUG_INIT, "Retrieve Device ID 0x%04x\n", driver_data->dev_id);
 
     if ((IS_MRST(driver_data) && (pci_device != 0x4101)) ||
         IS_MFLD(driver_data))
@@ -4156,11 +3598,11 @@ static int psb_get_device_info(VADriverContextP ctx)
         driver_data->hd_decode_supported = !(video_capability & 0x3);
         driver_data->hd_encode_supported = !(video_capability & 0x4);
 
-        psb__information_message("video capability: decode %s, HD decode %s\n",
+        drv_debug_msg(VIDEO_DEBUG_INIT, "video capability: decode %s, HD decode %s\n",
                                  driver_data->decode_supported ? "support" : "not support",
                                  driver_data->hd_decode_supported ? "support" : "not support");
 
-        psb__information_message("video capability: encode %s, HD encode %s\n",
+        drv_debug_msg(VIDEO_DEBUG_INIT, "video capability: encode %s, HD encode %s\n",
                                  driver_data->encode_supported ? "support" : "not support",
                                  driver_data->hd_encode_supported ? "support" : "not support");
 

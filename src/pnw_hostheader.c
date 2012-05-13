@@ -33,6 +33,7 @@
 #include <string.h>
 #include "img_types.h"
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 #include "pnw_hostheader.h"
 
 
@@ -91,13 +92,13 @@ static void Show_Elements(
     RTotalByteSize = TotalByteSize = 0;
     for (f = 0; f < mtx_hdr->Elements; f++) {
 #if HEADERS_VERBOSE_OUTPUT
-        psb__information_message("Encoding Element [%i] - Type:%i\n", f, elt_p[f]->Element_Type);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Encoding Element [%i] - Type:%i\n", f, elt_p[f]->Element_Type);
 #endif
         if (elt_p[f]->Element_Type == ELEMENT_STARTCODE_RAWDATA ||
             elt_p[f]->Element_Type == ELEMENT_RAWDATA) {
             TotalByteSize = elt_p[f]->Size;
 #if HEADERS_VERBOSE_OUTPUT
-            psb__information_message("Writing %i RAW bits to element.\n", elt_p[f]->Size);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Writing %i RAW bits to element.\n", elt_p[f]->Size);
             Show_Bits((IMG_UINT8 *)(&elt_p[f]->Size) + 1, 0, TotalByteSize);
 #endif
             TotalByteSize += 8;
@@ -109,32 +110,32 @@ static void Show_Elements(
             switch (elt_p[f]->Element_Type) {
             case ELEMENT_QP:
 #if HEADERS_VERBOSE_OUTPUT
-                psb__information_message("Insert token ELEMENT_QP (H264)- for MTX to generate and insert this value\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Insert token ELEMENT_QP (H264)- for MTX to generate and insert this value\n");
 #endif
                 break;
             case ELEMENT_SQP:
 #if HEADERS_VERBOSE_OUTPUT
-                psb__information_message("Insert token ELEMENT_SQP (H264)- for MTX to generate and insert this value\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Insert token ELEMENT_SQP (H264)- for MTX to generate and insert this value\n");
 #endif
                 break;
             case ELEMENT_FRAMEQSCALE:
 #if HEADERS_VERBOSE_OUTPUT
-                psb__information_message("Insert token ELEMENT_FRAMEQSCALE (H263/MPEG4) - for MTX to generate and insert this value\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Insert token ELEMENT_FRAMEQSCALE (H263/MPEG4) - for MTX to generate and insert this value\n");
 #endif
                 break;
             case ELEMENT_SLICEQSCALE:
 #if HEADERS_VERBOSE_OUTPUT
-                psb__information_message("Insert token ELEMENT_SLICEQSCALE (H263/MPEG4) - for MTX to generate and insert this value\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Insert token ELEMENT_SLICEQSCALE (H263/MPEG4) - for MTX to generate and insert this value\n");
 #endif
                 break;
             case ELEMENT_INSERTBYTEALIGN_H264:
 #if HEADERS_VERBOSE_OUTPUT
-                psb__information_message("Insert token ELEMENT_INSERTBYTEALIGN_H264 -  MTX to generate 'rbsp_trailing_bits()' field\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Insert token ELEMENT_INSERTBYTEALIGN_H264 -  MTX to generate 'rbsp_trailing_bits()' field\n");
 #endif
                 break;
             case ELEMENT_INSERTBYTEALIGN_MPG4:
 #if HEADERS_VERBOSE_OUTPUT
-                psb__information_message("Insert token ELEMENT_INSERTBYTEALIGN_MPG4 -  MTX to generate MPEG4 'byte_aligned_bits' field\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Insert token ELEMENT_INSERTBYTEALIGN_MPG4 -  MTX to generate MPEG4 'byte_aligned_bits' field\n");
 #endif
                 break;
             default:
@@ -143,7 +144,7 @@ static void Show_Elements(
 
             RTotalByteSize += 32;
 #if HEADERS_VERBOSE_OUTPUT
-            psb__information_message("No RAW bits\n\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "No RAW bits\n\n");
 #endif
         }
     }
@@ -151,7 +152,7 @@ static void Show_Elements(
     /* TotalByteSize=TotalByteSize+32+(&elt_p[f-1]->Element_Type-&elt_p[0]->Element_Type)*8; */
 
 #if HEADERS_VERBOSE_OUTPUT
-    psb__information_message("\nCombined ELEMENTS Stream:\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "\nCombined ELEMENTS Stream:\n");
     Show_Bits((IMG_UINT8 *) mtx_hdr->asElementStream, 0, RTotalByteSize);
 #endif
 }
@@ -185,7 +186,7 @@ static void pnw__write_upto8bits_elements(
 
     /* WA for klockwork */
     if (mtx_hdr->Elements >= MAXNUMBERELEMENTS) {
-        psb__error_message("mtx_hdr->Elments overflow\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "mtx_hdr->Elments overflow\n");
         return;
     }
 
@@ -2697,9 +2698,9 @@ void pnw__H264_prepare_sequence_header(
      */
 
 #if HEADERS_VERBOSE_OUTPUT
-    psb__information_message("\n\n**********************************************************************\n");
-    psb__information_message("******** HOST FIRMWARE ROUTINES TO PASS HEADERS AND TOKENS TO MTX******\n");
-    psb__information_message("**********************************************************************\n\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n\n**********************************************************************\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "******** HOST FIRMWARE ROUTINES TO PASS HEADERS AND TOKENS TO MTX******\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "**********************************************************************\n\n");
 #endif
 
     /* Functions that actually pack Elements (MTX_HEADER_PARAMS structure) with header information */
@@ -2755,7 +2756,7 @@ void pnw__H264_prepare_slice_header(
     SlHParams.IsLongTermRef = bIsLongTermRef;
 
     if (bForceIDR || (uiFrameNumber == 0)) {
-        psb__information_message("TOPAZ: Generate a IDR slice\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "TOPAZ: Generate a IDR slice\n");
         SlHParams.SliceFrame_Type = SLHP_IDR_SLICEFRAME_TYPE;
     } else
         SlHParams.SliceFrame_Type = bIntraSlice ? SLHP_I_SLICEFRAME_TYPE : SLHP_P_SLICEFRAME_TYPE;

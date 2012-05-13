@@ -50,7 +50,7 @@ int (*oldHandler)(Display *, XErrorEvent *) = 0;
 static int XErrorFlag = 1;
 static int psb_XErrorHandler(Display *dpy, XErrorEvent *event)
 {
-    psb__information_message("XErrorEvent caught in psb_XErrorHandler in psb_xvva.c\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "XErrorEvent caught in psb_XErrorHandler in psb_xvva.c\n");
     if (event->type == 0 && event->request_code == 132 && event->error_code == 11 /* BadAlloc */) {
         XErrorFlag = 1;
         return 0;
@@ -73,7 +73,7 @@ static int GetPortId(VADriverContextP ctx, psb_x11_output_p output)
     info[1].num_ports = 1;
 
     if (Success != ret) {
-        psb__error_message("Can't find Xvideo adaptor\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't find Xvideo adaptor\n");
         return -1;
     }
 
@@ -106,7 +106,7 @@ static int GetPortId(VADriverContextP ctx, psb_x11_output_p output)
         XUngrabServer(ctx->native_dpy);
 
     if ((output->textured_portID == 0) && (output->overlay_portID == 0)) {
-        psb__information_message("Can't detect any usable Xv XVVA port\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Can't detect any usable Xv XVVA port\n");
         return -1;
     }
 
@@ -121,18 +121,18 @@ VAStatus psb_init_xvideo(VADriverContextP ctx, psb_x11_output_p output)
 
     output->textured_portID = output->overlay_portID = 0;
     if (GetPortId(ctx, output)) {
-        psb__error_message("Grab Xvideo port failed, fallback to software vaPutSurface.\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Grab Xvideo port failed, fallback to software vaPutSurface.\n");
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
     if (output->textured_portID)
-        psb__information_message("Detected textured Xvideo port_id = %d.\n", (unsigned int)output->textured_portID);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Detected textured Xvideo port_id = %d.\n", (unsigned int)output->textured_portID);
     if (output->overlay_portID)
-        psb__information_message("Detected overlay  Xvideo port_id = %d.\n", (unsigned int)output->overlay_portID);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Detected overlay  Xvideo port_id = %d.\n", (unsigned int)output->overlay_portID);
 
     output->sprite_enabled = 0;
     if (getenv("PSB_SPRITE_ENABLE")) {
-        psb__information_message("use sprite plane to playback rotated protected video\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "use sprite plane to playback rotated protected video\n");
         output->sprite_enabled = 1;
     }
 
@@ -144,7 +144,7 @@ VAStatus psb_init_xvideo(VADriverContextP ctx, psb_x11_output_p output)
             CARD16 state;
 
             DPMSInfo((Display *)ctx->native_dpy, &state, &onoff);
-            psb__information_message("DPMS is %s, monitor state=%s\n", onoff ? "enabled" : "disabled",
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "DPMS is %s, monitor state=%s\n", onoff ? "enabled" : "disabled",
                                      (state == DPMSModeOn) ? "on" : (
                                          (state == DPMSModeOff) ? "off" : (
                                              (state == DPMSModeStandby) ? "standby" : (
@@ -162,7 +162,7 @@ VAStatus psb_init_xvideo(VADriverContextP ctx, psb_x11_output_p output)
 
     ret = psb_xrandr_init(ctx);
     if (ret != 0) {
-        psb__error_message("%s: Failed to initialize psb xrandr error # %d\n", __func__, ret);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to initialize psb xrandr error # %d\n", __func__, ret);
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -186,13 +186,13 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
     }
 
     if (output->textured_xvimage) {
-        psb__information_message("Destroy XvImage for texture Xv\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Destroy XvImage for texture Xv\n");
         XFree(output->textured_xvimage);
         output->textured_xvimage = NULL;
     }
 
     if (output->overlay_xvimage) {
-        psb__information_message("Destroy XvImage for overlay  Xv\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Destroy XvImage for overlay  Xv\n");
         XFree(output->overlay_xvimage);
         output->textured_xvimage = NULL;
     }
@@ -200,11 +200,11 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
     if (output->textured_portID) {
         if ((output->using_port == USING_TEXTURE_PORT) && output->output_drawable
             && (psb_CheckDrawable(ctx, output->output_drawable) == 0)) {
-            psb__information_message("Deinit: stop textured Xvideo\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Deinit: stop textured Xvideo\n");
             XvStopVideo((Display *)ctx->native_dpy, output->textured_portID, output->output_drawable);
         }
 
-        psb__information_message("Deinit: ungrab textured Xvideo port\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Deinit: ungrab textured Xvideo port\n");
         XvUngrabPort((Display *)ctx->native_dpy, output->textured_portID, CurrentTime);
         output->textured_portID = 0;
     }
@@ -212,11 +212,11 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
     if (output->overlay_portID) {
         if ((output->using_port == USING_OVERLAY_PORT) && output->output_drawable
             && (psb_CheckDrawable(ctx, output->output_drawable) == 0)) {
-            psb__information_message("Deinit: stop overlay Xvideo\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Deinit: stop overlay Xvideo\n");
             XvStopVideo((Display *)ctx->native_dpy, output->overlay_portID, output->output_drawable);
         }
 
-        psb__information_message("Deinit: ungrab overlay Xvideo port\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Deinit: ungrab overlay Xvideo port\n");
         XvUngrabPort((Display *)ctx->native_dpy, output->overlay_portID, CurrentTime);
         output->overlay_portID = 0;
     }
@@ -350,7 +350,7 @@ static int psb_CheckDrawable(VADriverContextP ctx, Drawable draw)
     }
     driver_data->drawable_info = val;
 
-    psb__information_message("Get xvDrawable = 0x%08x\n", val);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Get xvDrawable = 0x%08x\n", val);
 
     if (driver_data->drawable_info == XVDRAWABLE_INVALID_DRAWABLE)
         return -1;
@@ -395,12 +395,12 @@ static int psb__CheckPutSurfaceXvPort(
     }
 
     if (driver_data->output_method == PSB_PUTSURFACE_FORCE_OVERLAY) {
-        psb__information_message("Force Overlay Xvideo for PutSurface\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Force Overlay Xvideo for PutSurface\n");
         return 0;
     }
 
     if ((driver_data->output_method == PSB_PUTSURFACE_FORCE_TEXTURE)) {
-        psb__information_message("Force Textured Xvideo for PutSurface\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Force Textured Xvideo for PutSurface\n");
         return 0;
     }
 
@@ -469,12 +469,12 @@ static int psb__CheckGCXvImage(
 
     if (flags & VA_CLEAR_DRAWABLE) {
         if (output->textured_portID && (output->using_port == USING_TEXTURE_PORT)) {
-            psb__information_message("Clear drawable, and stop textured Xvideo\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Clear drawable, and stop textured Xvideo\n");
             XvStopVideo((Display *)ctx->native_dpy, output->textured_portID, draw);
         }
 
         if (output->overlay_portID && (output->using_port == USING_OVERLAY_PORT)) {
-            psb__information_message("Clear drawable, and stop overlay Xvideo\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Clear drawable, and stop overlay Xvideo\n");
             XvStopVideo((Display *)ctx->native_dpy, output->overlay_portID, draw);
         }
 
@@ -496,7 +496,7 @@ static int psb__CheckGCXvImage(
             if (output->overlay_xvimage)
                 XFree(output->overlay_xvimage);
 
-            psb__information_message("Create new XvImage for overlay\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create new XvImage for overlay\n");
             output->overlay_xvimage = XvCreateImage((Display *)ctx->native_dpy, output->overlay_portID,
                                                     FOURCC_XVVA, 0,
                                                     obj_surface->width, obj_surface->height);
@@ -509,13 +509,13 @@ static int psb__CheckGCXvImage(
         *port_id = output->overlay_portID;
 
         if ((output->textured_portID) && (output->using_port == USING_TEXTURE_PORT)) { /* stop texture port */
-            psb__information_message("Using overlay xvideo, stop textured xvideo\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Using overlay xvideo, stop textured xvideo\n");
             XvStopVideo((Display *)ctx->native_dpy, output->textured_portID, draw);
             XSync((Display *)ctx->native_dpy, False);
         }
         output->using_port = USING_OVERLAY_PORT;
 
-        psb__information_message("Using Overlay Xvideo (%d) for PutSurface\n", output->textured_portID);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Using Overlay Xvideo (%d) for PutSurface\n", output->textured_portID);
 
         return 0;
     }
@@ -530,7 +530,7 @@ static int psb__CheckGCXvImage(
             if (output->textured_xvimage)
                 XFree(output->textured_xvimage);
 
-            psb__information_message("Create new XvImage for overlay\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create new XvImage for overlay\n");
             output->textured_xvimage = XvCreateImage((Display *)ctx->native_dpy, output->textured_portID, FOURCC_XVVA, 0,
                                        obj_surface->width, obj_surface->height);
             output->textured_xvimage->data = (char *) & output->imgdata_vasrf;
@@ -543,14 +543,14 @@ static int psb__CheckGCXvImage(
         *port_id = output->textured_portID;
 
         if ((output->overlay_portID) && (output->using_port == USING_OVERLAY_PORT)) { /* stop overlay port */
-            psb__information_message("Using textured xvideo, stop Overlay xvideo\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Using textured xvideo, stop Overlay xvideo\n");
             XvStopVideo((Display *)ctx->native_dpy, output->overlay_portID, draw);
             XSync((Display *)ctx->native_dpy, False);
 
             output->using_port = USING_TEXTURE_PORT;
         }
 
-        psb__information_message("Using Texture Xvideo (%d) for PutSurface\n", output->textured_portID);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Using Texture Xvideo (%d) for PutSurface\n", output->textured_portID);
 
         return 0;
     }
@@ -564,13 +564,13 @@ static int psb_force_dpms_on(VADriverContextP ctx)
     CARD16 state;
 
     DPMSInfo((Display *)ctx->native_dpy, &state, &onoff);
-    psb__information_message("DPMS is %s, monitor state=%s\n", onoff ? "enabled" : "disabled",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "DPMS is %s, monitor state=%s\n", onoff ? "enabled" : "disabled",
                              (state == DPMSModeOn) ? "on" : (
                                  (state == DPMSModeOff) ? "off" : (
                                      (state == DPMSModeStandby) ? "standby" : (
                                          (state == DPMSModeSuspend) ? "suspend" : "unknow"))));
     if (onoff && (state != DPMSModeOn)) {
-        psb__information_message("DPMS is enabled, and monitor isn't DPMSModeOn, force it on\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "DPMS is enabled, and monitor isn't DPMSModeOn, force it on\n");
         DPMSForceLevel((Display *)ctx->native_dpy, DPMSModeOn);
     }
 
@@ -685,21 +685,21 @@ VAStatus psb_putsurface_xvideo(
 
     if (XErrorFlag == 1) {
         if (psb_CheckDrawable(ctx, draw) != 0) {
-            psb__error_message("vaPutSurface: invalidate drawable\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "vaPutSurface: invalidate drawable\n");
             return VA_STATUS_ERROR_UNKNOWN;
         }
 
-        psb__information_message("ran psb_CheckDrawable the first time!\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "ran psb_CheckDrawable the first time!\n");
         XErrorFlag = 0;
     }
 
     /* check display configuration for every 100 frames */
     if ((driver_data->frame_count % 100) == 0) {
         if (psb_CheckDrawable(ctx, draw) != 0) {
-            psb__error_message("vaPutSurface: invalidate drawable\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "vaPutSurface: invalidate drawable\n");
             return VA_STATUS_ERROR_UNKNOWN;
         }
-        psb__information_message("ran psb_CheckDrawable the first time!\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "ran psb_CheckDrawable the first time!\n");
     }
 
 
@@ -711,7 +711,7 @@ VAStatus psb_putsurface_xvideo(
     psb__CheckGCXvImage(ctx, surface, draw, &xvImage, &portID, flags);
 
     if (flags & VA_CLEAR_DRAWABLE) {
-        psb__information_message("Clean draw with color 0x%08x\n", driver_data->clear_color);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Clean draw with color 0x%08x\n", driver_data->clear_color);
 
         XFillRectangle((Display *)ctx->native_dpy, draw, output->gc, destx, desty, destw, desth);
         XSync((Display *)ctx->native_dpy, False);

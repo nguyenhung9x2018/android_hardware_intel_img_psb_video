@@ -31,7 +31,7 @@
 
 #include "psb_def.h"
 #include "psb_surface.h"
-
+#include "psb_drv_debug.h"
 
 /*
  * Create surface
@@ -245,7 +245,7 @@ VAStatus psb_surface_create_camera(psb_driver_data_p driver_data,
 
     psb_surface->stride = stride;
     if ((width == 640) && (height == 360)) {
-        psb__information_message("CI Frame is 640x360, and allocated as 640x368,adjust chroma_offset\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "CI Frame is 640x360, and allocated as 640x368,adjust chroma_offset\n");
         psb_surface->chroma_offset = psb_surface->stride * 368;
     } else
         psb_surface->chroma_offset = psb_surface->stride * height;
@@ -257,7 +257,7 @@ VAStatus psb_surface_create_camera(psb_driver_data_p driver_data,
     if (ret != VA_STATUS_SUCCESS) {
         psb_surface_destroy(psb_surface);
 
-        psb__error_message("Get surfae offset of camear device memory failed!\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Get surfae offset of camear device memory failed!\n");
         return ret;
     }
 
@@ -292,7 +292,7 @@ VAStatus psb_surface_create_camera_from_ub(psb_driver_data_p driver_data,
     if (ret != VA_STATUS_SUCCESS) {
         psb_surface_destroy(psb_surface);
 
-        psb__error_message("Get surfae offset of camear device memory failed!\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Get surfae offset of camear device memory failed!\n");
         return ret;
     }
 
@@ -384,7 +384,7 @@ int psb_surface_set_displaying(psb_driver_data_p driver_data,
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
     if (ret != 0)
-        psb__error_message("IMG_VIDEO_SET_DISPLAYING_FRAME failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "IMG_VIDEO_SET_DISPLAYING_FRAME failed\n");
 
     return ret;
 }

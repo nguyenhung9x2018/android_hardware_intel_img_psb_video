@@ -345,7 +345,7 @@ static void psb__VC1_pack_index_table_info(uint32_t *packed_index_table,
         width = index_data[i][1];
         opcode = index_data[i][0];
 
-        psb__information_message("packed_index_table[%02d]->start = %08x length = %08x (%d)\n", i, start * 2, length * 2, length * 2);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "packed_index_table[%02d]->start = %08x length = %08x (%d)\n", i, start * 2, length * 2, length * 2);
 
         packed_index_table[i] = opcode;
         packed_index_table[i] <<= 3;
@@ -554,7 +554,7 @@ static VAStatus psb__VC1_allocate_colocated_buffer(context_VC1_p ctx, object_sur
 {
     psb_surface_p surface = obj_surface->psb_surface;
 
-    psb__information_message("psb_VC1: Allocationg colocated buffer for surface %08x\n", surface);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VC1: Allocationg colocated buffer for surface %08x\n", surface);
 
     if (!GET_SURFACE_INFO_colocated_index(surface)) {
         VAStatus vaStatus;
@@ -576,7 +576,7 @@ static VAStatus psb__VC1_allocate_colocated_buffer(context_VC1_p ctx, object_sur
 
 static psb_buffer_p psb__VC1_lookup_colocated_buffer(context_VC1_p ctx, psb_surface_p surface)
 {
-    psb__information_message("psb_VC1: Looking up colocated buffer for surface %08x\n", surface);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VC1: Looking up colocated buffer for surface %08x\n", surface);
     int index = GET_SURFACE_INFO_colocated_index(surface);
     if (!index) {
         return NULL;
@@ -612,8 +612,7 @@ static uint32_t psb__vc1_get_izz_scan_index(context_VC1_p ctx)
 }
 
 
-#ifdef DEBUG_TRACE
-#define psb__trace_message(...)
+//#define psb__trace_message(...)
 
 #define P(x)    psb__trace_message("PARAMS: " #x "\t= %d\n", p->x)
 static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
@@ -704,7 +703,6 @@ static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
     P7(transform_ac_codingset_idx2);
     P7(intra_transform_dc_table);
 }
-#endif
 
 static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_p obj_buffer)
 {
@@ -732,9 +730,8 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
-#ifdef DEBUG_TRACE
-    psb__VC1_trace_pic_params(pic_params);
-#endif
+    if (psb_video_trace_fp && (psb_video_trace_level & VABUF_TRACE))
+        psb__VC1_trace_pic_params(pic_params);
 
     if (pic_params->pic_quantizer_fields.bits.quantizer == 0) {
         /* Non uniform quantizer indicates PQINDEX > 8 */
@@ -780,10 +777,10 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     }
 #endif
 
-    psb__information_message("Target ref = %08x ID = %08x\n",  ctx->obj_context->current_render_target->psb_surface,  ctx->obj_context->current_render_target->surface_id);
-    psb__information_message("Decoded ref = %08x ID = %08x\n", ctx->decoded_surface->psb_surface, pic_params->inloop_decoded_picture);
-    psb__information_message("Forward ref = %08x ID = %08x\n", ctx->forward_ref_surface ? ctx->forward_ref_surface->psb_surface : 0, pic_params->forward_reference_picture);
-    psb__information_message("Backwrd ref = %08x ID = %08x\n", ctx->backward_ref_surface ? ctx->backward_ref_surface->psb_surface : 0, pic_params->backward_reference_picture);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Target ref = %08x ID = %08x\n",  ctx->obj_context->current_render_target->psb_surface,  ctx->obj_context->current_render_target->surface_id);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Decoded ref = %08x ID = %08x\n", ctx->decoded_surface->psb_surface, pic_params->inloop_decoded_picture);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Forward ref = %08x ID = %08x\n", ctx->forward_ref_surface ? ctx->forward_ref_surface->psb_surface : 0, pic_params->forward_reference_picture);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Backwrd ref = %08x ID = %08x\n", ctx->backward_ref_surface ? ctx->backward_ref_surface->psb_surface : 0, pic_params->backward_reference_picture);
 
     // NOTE: coded_width and coded_height do not have to be an exact multiple of MBs
 
@@ -846,7 +843,7 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     default:
         break;
     }
-    psb__information_message("bitplane_present_flag = %02x raw_coding_flag = %02x bitplane_present = %02x\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "bitplane_present_flag = %02x raw_coding_flag = %02x bitplane_present = %02x\n",
                              pic_params->bitplane_present.value, pic_params->raw_coding.value, ctx->bitplane_present);
 
     if (pic_params->reference_fields.bits.reference_distance_flag == 0) {
@@ -935,7 +932,7 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
             ui32BFractionDen = sizeof(gaui16Inverse) / sizeof(IMG_UINT16);
 
         if (ui32BFractionDen == 0) {
-            psb__error_message("Invalid ui32BFractionDen value %d\n", ui32BFractionDen);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid ui32BFractionDen value %d\n", ui32BFractionDen);
             ui32BFractionDen = 1;
         }
 
@@ -1718,7 +1715,7 @@ static void psb__VC1_build_VLC_tables(context_VC1_p ctx)
                                       ctx->sTableInfo[i].aui16VLCTableLength * sizeof(IMG_UINT16), /* size */
                                       RAM_location * sizeof(IMG_UINT32), /* destination */
                                       LLDMA_TYPE_VLC_TABLE);
-        psb__information_message("table[%02d] start_loc = %08x RAM_location = %08x | %08x\n", i, ctx->sTableInfo[i].aui16StartLocation * sizeof(IMG_UINT16), RAM_location, RAM_location * sizeof(IMG_UINT32));
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "table[%02d] start_loc = %08x RAM_location = %08x | %08x\n", i, ctx->sTableInfo[i].aui16StartLocation * sizeof(IMG_UINT16), RAM_location, RAM_location * sizeof(IMG_UINT32));
         RAM_location += ctx->sTableInfo[i].aui16VLCTableLength;
     }
 
@@ -1810,7 +1807,7 @@ static void psb__VC1_setup_alternative_frame(context_VC1_p ctx)
     object_context_p obj_context = ctx->obj_context;
 
     if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)
-        psb__error_message("Display rotate mode does not match surface rotate mode!\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Display rotate mode does not match surface rotate mode!\n");
 
 
     /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
@@ -2242,7 +2239,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     /* CHUNK: 6c (Back-end registers) */
     psb_cmdbuf_rendec_start_chunk(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, VC1_CR_VEC_VC1_BE_PARAM_BASE_ADDR));
 
-    psb__information_message("psb_VC1: picture_type = %d\n", pic_params->picture_fields.bits.picture_type);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VC1: picture_type = %d\n", pic_params->picture_fields.bits.picture_type);
 
     if (PIC_TYPE_IS_INTRA(pic_params->picture_fields.bits.picture_type) || (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P)) {
         psb_buffer_p colocated_target_buffer = psb__VC1_lookup_colocated_buffer(ctx, target_surface);
@@ -2287,7 +2284,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
             psb_buffer_p colocated_backward_ref_buffer;
 
             if (NULL == ctx->backward_ref_surface) {
-                psb__error_message("%s L%d Invalid backward_ref_surface handle\n", __FUNCTION__, __LINE__);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid backward_ref_surface handle\n", __FUNCTION__, __LINE__);
                 return;
             }
 
@@ -2454,10 +2451,8 @@ static void psb__VC1_setup_bitplane(context_VC1_p ctx)
         ASSERT(ctx->has_bitplane);
         psb_cmdbuf_reg_set_address(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR0),
                                    ctx->bitplane_buffer, 0);
-#ifdef DEBUG_TRACE
-        //psb__debug_schedule_hexdump("Bitplane buffer", ctx->bitplane_buffer, 0, (ctx->size_mb + 1) / 2);
-#endif
-
+        //if (psb_video_trace_fp && (psb_video_trace_level & AUXBUF_TRACE))
+            //psb__debug_schedule_hexdump("Bitplane buffer", ctx->bitplane_buffer, 0, (ctx->size_mb + 1) / 2);
     } else {
         psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VC1, CR_VEC_VC1_FE_BITPLANES_BASE_ADDR0), 0);
     }
@@ -2501,10 +2496,10 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 
-    psb__information_message("VC1 process slice\n");
-    psb__information_message("    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
-    psb__information_message("    vertical pos = %d offset = %d\n", slice_param->slice_vertical_position, slice_param->macroblock_offset);
-    psb__information_message("    slice_data_flag = %d\n", slice_param->slice_data_flag);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "VC1 process slice\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    vertical pos = %d offset = %d\n", slice_param->slice_vertical_position, slice_param->macroblock_offset);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    slice_data_flag = %d\n", slice_param->slice_data_flag);
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
         (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
@@ -2575,11 +2570,11 @@ static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
         }
         ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
 
-#ifdef DEBUG_TRACE_VERBOSE
-        psb__debug_schedule_hexdump("Preload buffer", &ctx->preload_buffer, 0, PRELOAD_BUFFER_SIZE);
-        psb__debug_schedule_hexdump("AUXMSB buffer", &ctx->aux_msb_buffer, 0, 0x8000 /* AUXMSB_BUFFER_SIZE */);
-        psb__debug_schedule_hexdump("VLC Table", &ctx->vlc_packed_table, 0, gui16vc1VlcTableSize * sizeof(IMG_UINT16));
-#endif
+        if (psb_video_trace_fp && (psb_video_trace_level & AUXBUF_TRACE)) {
+            psb__debug_schedule_hexdump("Preload buffer", &ctx->preload_buffer, 0, PRELOAD_BUFFER_SIZE);
+            psb__debug_schedule_hexdump("AUXMSB buffer", &ctx->aux_msb_buffer, 0, 0x8000 /* AUXMSB_BUFFER_SIZE */);
+            psb__debug_schedule_hexdump("VLC Table", &ctx->vlc_packed_table, 0, gui16vc1VlcTableSize * sizeof(IMG_UINT16));
+        }
 
         if (psb_context_submit_cmdbuf(ctx->obj_context)) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
@@ -2667,19 +2662,19 @@ static VAStatus psb_VC1_RenderPicture(
 
         switch (obj_buffer->type) {
         case VAPictureParameterBufferType:
-            psb__information_message("psb_VC1_RenderPicture got VAPictureParameterBuffer\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VC1_RenderPicture got VAPictureParameterBuffer\n");
             vaStatus = psb__VC1_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VABitPlaneBufferType:
-            psb__information_message("psb_VC1_RenderPicture got VABitPlaneBuffer\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VC1_RenderPicture got VABitPlaneBuffer\n");
             vaStatus = psb__VC1_process_bitplane(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VASliceParameterBufferType:
-            psb__information_message("psb_VC1_RenderPicture got VASliceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VC1_RenderPicture got VASliceParameterBufferType\n");
             vaStatus = psb__VC1_add_slice_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
@@ -2687,7 +2682,7 @@ static VAStatus psb_VC1_RenderPicture(
         case VASliceDataBufferType:
         case VAProtectedSliceDataBufferType:
 
-            psb__information_message("psb_VC1_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VC1_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
             vaStatus = psb__VC1_process_slice_data(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;

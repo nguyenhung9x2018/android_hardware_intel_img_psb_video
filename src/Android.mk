@@ -38,6 +38,7 @@ LOCAL_SRC_FILES :=		\
     psb_cmdbuf.c            \
     psb_deblock.c           \
     psb_drv_video.c         \
+    psb_drv_debug.c         \
     psb_output.c		\
     psb_texstreaming.c            \
     psb_texture.c            \

@@ -43,6 +43,7 @@
 #include "psb_drv_video.h"
 #include "psb_output.h"
 #include "psb_overlay.h"
+#include "psb_drv_debug.h"
 
 #ifdef ANDROID
 #define psb_xrandr_single_mode() 0
@@ -163,7 +164,7 @@ static void I830StopVideo(VADriverContextP ctx)
     struct drm_psb_register_rw_arg regs;
 
     if (!pPriv->overlayA_enabled && !pPriv->overlayC_enabled) {
-        psb__information_message("I830StopVideo : no overlay has been enabled, do nothing.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "I830StopVideo : no overlay has been enabled, do nothing.\n");
         return;
     }
 
@@ -237,7 +238,7 @@ static void I830SwitchPipe(VADriverContextP ctx , int overlayId, int pipeId)
     else
         return;  /*No overlay enabled, do nothing.*/
 
-    psb__information_message("Overlay %d switch to pipe %d\n", overlayId, pipeId);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Overlay %d switch to pipe %d\n", overlayId, pipeId);
     memset(&regs, 0, sizeof(regs));
     memset(overlay, 0, sizeof(*overlay));
     overlay->OCLRC0 = (pPriv->contrast.Value << 18) | (pPriv->brightness.Value & 0xff);
@@ -1048,7 +1049,7 @@ static int I830PutImage(
 
     if (NULL == psb_surface) {
         /*Rotate surface may not be ready, so we have to discard this frame.*/
-        psb__information_message("Discard this frame if rotate surface hasn't be ready.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Discard this frame if rotate surface hasn't be ready.\n");
 
         return 1;
     }
@@ -1364,12 +1365,12 @@ int psb_coverlay_init(VADriverContextP ctx)
 
     ret = psbSetupImageVideoOverlay(ctx, pPriv);
     if (ret != 0) {
-        psb__error_message("psb_coverlay_init : Create overlay cmd buffer failed.\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "psb_coverlay_init : Create overlay cmd buffer failed.\n");
         return -1;
     }
 
     if (pPriv->is_mfld && driver_data->is_android) {
-        psb__information_message("Android ExtVideo: set PIPEB(HDMI)display plane on the bottom.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Android ExtVideo: set PIPEB(HDMI)display plane on the bottom.\n");
 
         memset(&regs, 0, sizeof(regs));
         regs.display_read_mask = REGRWBITS_DSPBCNTR;
@@ -1398,7 +1399,7 @@ int psb_coverlay_deinit(VADriverContextP ctx)
     struct drm_psb_register_rw_arg regs;
 
     if (pPriv->is_mfld && driver_data->is_android) {
-        psb__information_message("Android ExtVideo: set PIPEB(HDMI)display plane normal.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Android ExtVideo: set PIPEB(HDMI)display plane normal.\n");
 
         memset(&regs, 0, sizeof(regs));
         regs.display_read_mask = REGRWBITS_DSPBCNTR;
@@ -1436,11 +1437,11 @@ VAStatus psb_putsurface_overlay(
     if ((overlayId == OVERLAY_A) && (pPriv->overlayA_pipeId != pipeId)) {
         pPriv->overlayA_pipeId = pipeId;
         I830SwitchPipe(ctx, OVERLAY_A, pipeId);
-        psb__information_message("OverlayA switch pipe to %d, stop overlayA first.\n", pipeId);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "OverlayA switch pipe to %d, stop overlayA first.\n", pipeId);
     } else if ((overlayId == OVERLAY_C) && (pPriv->overlayC_pipeId != pipeId)) {
         pPriv->overlayC_pipeId = pipeId;
         I830SwitchPipe(ctx, OVERLAY_C, pipeId);
-        psb__information_message("OverlayC switch pipe to %d, stop overlayC first.\n", pipeId);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "OverlayC switch pipe to %d, stop overlayC first.\n", pipeId);
     }
     I830PutImage(ctx, surface, srcx, srcy, srcw, srch,
                  destx, desty, destw, desth,
@@ -1451,7 +1452,7 @@ VAStatus psb_putsurface_overlay(
         driver_data->last_displaying_surface = driver_data->cur_displaying_surface;
 
     if (obj_surface == NULL) {
-        psb__error_message("Invalid surface ID: 0x%08x\n", surface);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid surface ID: 0x%08x\n", surface);
         return VA_STATUS_ERROR_INVALID_SURFACE;
     }
 

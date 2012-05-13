@@ -35,6 +35,7 @@
 #include <psb_drm.h>
 #include <va/va_backend.h>
 #include <va/va_dricommon.h>
+#include "psb_drv_debug.h"
 
 #include <wsbm/wsbm_manager.h>
 
@@ -162,19 +163,19 @@ static int pvr_context_create(unsigned char **pvr_ctx)
     PVR2DDEVICEINFO *pvr_devs = NULL;
 
     if ((pvr_devices < PVR2D_OK) || (pvr_devices == 0)) {
-        psb__error_message("%s(): PowerVR device not found", __func__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): PowerVR device not found", __func__);
         goto out;
     }
 
     pvr_devs = calloc(1, pvr_devices * sizeof(*pvr_devs));
     if (!pvr_devs) {
-        psb__error_message("%s(): not enough memory", __func__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): not enough memory", __func__);
         goto out;
     }
 
     ret = PVR2DEnumerateDevices(pvr_devs);
     if (ret != PVR2D_OK) {
-        psb__error_message("%s(): PVR2DEnumerateDevices() failed(%d)", __func__,
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): PVR2DEnumerateDevices() failed(%d)", __func__,
                            ret);
         goto out;
     }
@@ -182,7 +183,7 @@ static int pvr_context_create(unsigned char **pvr_ctx)
     /* Choose the first display device */
     ret = PVR2DCreateDeviceContext(pvr_devs[0].ulDevID, (PVR2DCONTEXTHANDLE *)pvr_ctx, 0);
     if (ret != PVR2D_OK) {
-        psb__error_message("%s(): PVR2DCreateDeviceContext() failed(%d)", __func__,
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): PVR2DCreateDeviceContext() failed(%d)", __func__,
                            ret);
         goto out;
     }
@@ -209,7 +210,7 @@ int psb_ctexture_init(VADriverContextP ctx)
 
     ret = pvr_context_create(&driver_data->hPVR2DContext);
     if (ret != PVR2D_OK) {
-        psb__error_message("%s(): null PVR context!!", __func__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): null PVR context!!", __func__);
         return ret;
     }
 
@@ -276,14 +277,14 @@ void psb_ctexture_deinit(VADriverContextP ctx)
     if (texture_priv->blt_meminfo_pixmap) {
         ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, texture_priv->blt_meminfo_pixmap);
         if (ePVR2DStatus != PVR2D_OK)
-            psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
     }
 
     for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
         if (texture_priv->blt_meminfo[i]) {
             ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, texture_priv->blt_meminfo[i]);
             if (ePVR2DStatus != PVR2D_OK)
-                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
             texture_priv->blt_meminfo[i] = NULL;
         }
     }
@@ -292,7 +293,7 @@ void psb_ctexture_deinit(VADriverContextP ctx)
         if (texture_priv->flip_meminfo[i]) {
             ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, texture_priv->flip_meminfo[i]);
             if (ePVR2DStatus != PVR2D_OK)
-                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
             texture_priv->flip_meminfo[i] = NULL;
         }
     }
@@ -301,7 +302,7 @@ void psb_ctexture_deinit(VADriverContextP ctx)
         if (texture_priv->extend_blt_meminfo[i]) {
             ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, texture_priv->extend_blt_meminfo[i]);
             if (ePVR2DStatus != PVR2D_OK)
-                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
             texture_priv->extend_blt_meminfo[i] = NULL;
         }
     }
@@ -311,7 +312,7 @@ void psb_ctexture_deinit(VADriverContextP ctx)
         if (texture_priv->pal_meminfo[i]) {
             ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, texture_priv->pal_meminfo[i]);
             if (ePVR2DStatus != PVR2D_OK)
-                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
             texture_priv->pal_meminfo[i] = NULL;
         }
     }
@@ -319,7 +320,7 @@ void psb_ctexture_deinit(VADriverContextP ctx)
     if (driver_data->hPVR2DContext) {
         ePVR2DStatus = PVR2DDestroyDeviceContext(driver_data->hPVR2DContext);
         if (ePVR2DStatus != PVR2D_OK)
-            psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
         driver_data->hPVR2DContext = NULL;
     }
 
@@ -389,7 +390,7 @@ static PPVR2DMEMINFO psb_check_subpic_buffer(psb_driver_data_p driver_data, PsbV
                                         NULL,
                                         &driver_data->subpicBuf[i]);
             if (ePVR2DStatus != PVR2D_OK) {
-                psb__error_message("%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
                 return NULL;
             }
 
@@ -399,7 +400,7 @@ static PPVR2DMEMINFO psb_check_subpic_buffer(psb_driver_data_p driver_data, PsbV
     }
 
     if (i == VIDEO_BUFFER_NUM - 1) {
-        psb__error_message("%s: Out of warpped subpic buffer memory\n", __FUNCTION__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Out of warpped subpic buffer memory\n", __FUNCTION__);
         return NULL;
     }
 
@@ -428,13 +429,13 @@ void psb_free_surface_pvr2dbuf(psb_driver_data_p driver_data)
         if ((driver_data->wrapped_surface_id[i] != VA_INVALID_ID) && driver_data->videoBuf[i]) {
             ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, driver_data->videoBuf[i]);
             if (ePVR2DStatus != PVR2D_OK)
-                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
         }
 
         if ((driver_data->wrapped_subpic_id[i] != VA_INVALID_ID) && driver_data->subpicBuf[i]) {
             ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, driver_data->subpicBuf[i]);
             if (ePVR2DStatus != PVR2D_OK)
-                psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
         }
 
         driver_data->wrapped_surface_id[i] = VA_INVALID_ID;
@@ -480,7 +481,7 @@ static PPVR2DMEMINFO psb_wrap_surface_pvr2dbuf(psb_driver_data_p driver_data, VA
                                         NULL,
                                         &driver_data->videoBuf[i]);
             if (ePVR2DStatus != PVR2D_OK) {
-                psb__error_message("%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
             }
 
             driver_data->wrapped_surface_id[i] = surface;
@@ -489,7 +490,7 @@ static PPVR2DMEMINFO psb_wrap_surface_pvr2dbuf(psb_driver_data_p driver_data, VA
     }
 
     if (i == VIDEO_BUFFER_NUM - 1) {
-        psb__error_message("%s: Out of warpped buffer memory\n", __FUNCTION__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Out of warpped buffer memory\n", __FUNCTION__);
         return NULL;
     }
 
@@ -520,7 +521,7 @@ void psb_putsurface_textureblit(
     src_pitch = (src_pitch + 0x3) & ~0x3;
 
     if (NULL == obj_surface) {
-        psb__error_message("%s: Invalid surface ID 0x%08x!\n", __func__, surface);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Invalid surface ID 0x%08x!\n", __func__, surface);
         return;
     }
     surface_subpic = (PsbVASurfaceRec *)obj_surface->subpictures;
@@ -546,7 +547,7 @@ void psb_putsurface_textureblit(
 
     pVaVideoMemInfo = psb_wrap_surface_pvr2dbuf(driver_data, surface);
     if (!pVaVideoMemInfo) {
-        psb__error_message("%s: Failed to get source PVR2DMEMINFO!\n", __func__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to get source PVR2DMEMINFO!\n", __func__);
         return;
     }
 
@@ -569,7 +570,7 @@ void psb_putsurface_textureblit(
                                     NULL,
                                     &pDstMeminfo);
         if (ePVR2DStatus != PVR2D_OK) {
-            psb__error_message("%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemWrap error %d\n", __FUNCTION__, ePVR2DStatus);
             return;
         }
 
@@ -616,7 +617,7 @@ void psb_putsurface_textureblit(
 
             pVaVideoSubpicMemInfo = psb_check_subpic_buffer(driver_data, surface_subpic);
             if (!pVaVideoSubpicMemInfo) {
-                psb__error_message("%s: Failed to get subpic PVR2DMEMINFO!\n", __func__);
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to get subpic PVR2DMEMINFO!\n", __func__);
                 return;
             }
 
@@ -651,7 +652,7 @@ void psb_putsurface_textureblit(
                 if (!texture_priv->pal_meminfo[i]) {
                     ePVR2DStatus = PVR2DMemAlloc(driver_data->hPVR2DContext, 16 * sizeof(unsigned int), 0, 0, &texture_priv->pal_meminfo[i]);
                     if (ePVR2DStatus != PVR2D_OK) {
-                        psb__error_message("%s: PVR2DMemAlloc error %d\n", __FUNCTION__, ePVR2DStatus);
+                        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemAlloc error %d\n", __FUNCTION__, ePVR2DStatus);
                         return;
                     }
                 }
@@ -670,13 +671,13 @@ void psb_putsurface_textureblit(
 //#endif
 
     if (ePVR2DStatus != PVR2D_OK)
-        psb__error_message("%s: failed to do PVR2DBltVideo with error code %d\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: failed to do PVR2DBltVideo with error code %d\n",
                            __FUNCTION__, ePVR2DStatus);
 
     if (wrap_dst) {
         ePVR2DStatus = PVR2DMemFree(driver_data->hPVR2DContext, pDstMeminfo);
         if (ePVR2DStatus != PVR2D_OK)
-            psb__error_message("%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: PVR2DMemFree error %d\n", __FUNCTION__, ePVR2DStatus);
     }
 
     driver_data->cur_displaying_surface = VA_INVALID_SURFACE;

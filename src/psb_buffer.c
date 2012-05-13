@@ -36,6 +36,7 @@
 
 #include "psb_drm.h"
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 
 #include <pnw_cmdbuf.h>
 
@@ -84,10 +85,10 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
             is_thumbnail = (gettid() == atoi(str));
 
         if (getenv("PSB_VIDEO_SURFACE_MMU") || is_thumbnail) {
-            psb__information_message("Allocate surface from MMU heap\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate surface from MMU heap\n");
             placement = DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_SHARED;
         } else {
-            psb__information_message("Allocate surface from TT heap\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate surface from TT heap\n");
             placement = WSBM_PL_FLAG_TT | WSBM_PL_FLAG_SHARED;
         }
         break;
@@ -135,7 +136,7 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
     ret = wsbmGenBuffers(driver_data->main_pool, 1, &buf->drm_buf,
                          allignment, placement);
     if (!buf->drm_buf) {
-        psb__error_message("failed to gen wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to gen wsbm buffers\n");
         UNLOCK_HARDWARE(driver_data);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -144,12 +145,12 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
     ret = wsbmBOData(buf->drm_buf, size, NULL, NULL, 0);
     UNLOCK_HARDWARE(driver_data);
     if (ret) {
-        psb__error_message("failed to alloc wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to alloc wsbm buffers\n");
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
     if (placement & WSBM_PL_FLAG_TT)
-        psb__information_message("Create BO with TT placement (%d byte),BO GPU offset hint=0x%08x\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create BO with TT placement (%d byte),BO GPU offset hint=0x%08x\n",
                                  size, wsbmBOOffsetHint(buf->drm_buf));
 
     buf->pl_flags = placement;
@@ -200,21 +201,21 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
     ret = wsbmGenBuffers(driver_data->main_pool, 1, &buf->drm_buf,
     allignment, placement);
     if (!buf->drm_buf) {
-        psb__error_message("failed to gen wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to gen wsbm buffers\n");
         UNLOCK_HARDWARE(driver_data);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
     /* here use the placement when gen buffer setted */
-    psb__information_message("Create BO from user buffer %p, size=%d\n", vaddr, size);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create BO from user buffer %p, size=%d\n", vaddr, size);
 
     ret = wsbmBODataUB(buf->drm_buf, size, NULL, NULL, 0, vaddr);
     if (ret) {
-        psb__error_message("Failed to alloc wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to alloc wsbm buffers\n");
         return 1;
     }
 
-    psb__information_message("Create BO from user buffer 0x%08x (%d byte),BO GPU offset hint=0x%08x\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create BO from user buffer 0x%08x (%d byte),BO GPU offset hint=0x%08x\n",
     vaddr, size, wsbmBOOffsetHint(buf->drm_buf));
 
     buf->pl_flags = placement;
@@ -269,7 +270,7 @@ VAStatus psb_buffer_reference(psb_driver_data_p driver_data,
                          4096,  /* page alignment */
                          0);
     if (!buf->drm_buf) {
-        psb__error_message("failed to gen wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to gen wsbm buffers\n");
         UNLOCK_HARDWARE(driver_data);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -277,7 +278,7 @@ VAStatus psb_buffer_reference(psb_driver_data_p driver_data,
     ret = wsbmBOSetReferenced(buf->drm_buf, wsbmKBufHandle(wsbmKBuf(reference_buf->drm_buf)));
     UNLOCK_HARDWARE(driver_data);
     if (ret) {
-        psb__error_message("failed to alloc wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to alloc wsbm buffers\n");
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
@@ -308,7 +309,7 @@ VAStatus psb_kbuffer_reference(psb_driver_data_p driver_data,
                          4096,  /* page alignment */
                          0);
     if (!buf->drm_buf) {
-        psb__error_message("failed to gen wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to gen wsbm buffers\n");
         UNLOCK_HARDWARE(driver_data);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -316,7 +317,7 @@ VAStatus psb_kbuffer_reference(psb_driver_data_p driver_data,
     ret = wsbmBOSetReferenced(buf->drm_buf, kbuf_handle);
     UNLOCK_HARDWARE(driver_data);
     if (ret) {
-        psb__error_message("failed to alloc wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to alloc wsbm buffers\n");
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
     buf->pl_flags = wsbmBOPlacementHint(buf->drm_buf);
@@ -355,23 +356,23 @@ int psb_buffer_map(psb_buffer_p buf, unsigned char **address /* out */)
 
     /* multiple mapping not allowed */
     if (buf->wsbm_synccpu_flag) {
-        psb__information_message("Multiple mapping request detected, unmap previous mapping\n");
-        psb__information_message("Need to fix application to unmap at first, then request second mapping request\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Multiple mapping request detected, unmap previous mapping\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Need to fix application to unmap at first, then request second mapping request\n");
 
         psb_buffer_unmap(buf);
     }
 
     /* don't think TG deal with READ/WRITE differently */
     buf->wsbm_synccpu_flag = WSBM_SYNCCPU_READ | WSBM_SYNCCPU_WRITE;
-#ifdef DEBUG_TRACE
-    wsbmBOWaitIdle(buf->drm_buf, 0);
-#else
-    ret = wsbmBOSyncForCpu(buf->drm_buf, buf->wsbm_synccpu_flag);
-    if (ret) {
-        psb__error_message("faild to sync bo for cpu\n");
-        return ret;
+    if (psb_video_trace_fp) {
+        wsbmBOWaitIdle(buf->drm_buf, 0);
+    } else {
+        ret = wsbmBOSyncForCpu(buf->drm_buf, buf->wsbm_synccpu_flag);
+        if (ret) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "faild to sync bo for cpu\n");
+            return ret;
+        }
     }
-#endif
 
     if ((buf->type == psb_bt_user_buffer) || buf->handle)
         *address = buf->user_ptr;
@@ -379,7 +380,7 @@ int psb_buffer_map(psb_buffer_p buf, unsigned char **address /* out */)
         *address = wsbmBOMap(buf->drm_buf, buf->wsbm_synccpu_flag);
 
     if (*address == NULL) {
-        psb__error_message("failed to map buffer\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to map buffer\n");
         return -1;
     }
 
@@ -489,7 +490,7 @@ int psb_codedbuf_map_mangle(
             /* one segment */
             p->size = *((unsigned long *) raw_codedbuf);
             p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
-            psb__information_message("coded buffer size %d\n", p->size);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "coded buffer size %d\n", p->size);
             break;
 
         case VAProfileH264Baseline:
@@ -509,10 +510,10 @@ int psb_codedbuf_map_mangle(
             if (GET_CODEDBUF_INFO(SLICE_NUM, obj_buffer->codedbuf_aux_info) <= 2 &&
                 GET_CODEDBUF_INFO(NONE_VCL_NUM, obj_buffer->codedbuf_aux_info) == 0) {
                 p[i].status =  VA_CODED_BUF_STATUS_AVC_SINGLE_NALU;
-                psb__information_message("Only VCL NAL in this segment %i of coded buffer\n",
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Only VCL NAL in this segment %i of coded buffer\n",
                     i);
             }
-            psb__information_message("2nd segment coded buffer offset: 0x%08x,  size: %d\n",
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "2nd segment coded buffer offset: 0x%08x,  size: %d\n",
                 next_buf_off, p[i].size);
             i++;
             }
@@ -522,10 +523,10 @@ int psb_codedbuf_map_mangle(
             if (GET_CODEDBUF_INFO(SLICE_NUM, obj_buffer->codedbuf_aux_info) <= 2 &&
                 GET_CODEDBUF_INFO(NONE_VCL_NUM, obj_buffer->codedbuf_aux_info) == 0) {
             p[i].status =  VA_CODED_BUF_STATUS_AVC_SINGLE_NALU;
-            psb__information_message("Only VCL NAL in this segment %i of coded buffer\n",
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Only VCL NAL in this segment %i of coded buffer\n",
                 i);
             }
-            psb__information_message("1st segment coded buffer size %d\n", p[i].size);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "1st segment coded buffer size %d\n", p[i].size);
 
             break;
 
@@ -533,7 +534,7 @@ int psb_codedbuf_map_mangle(
                 /* one segment */
             p->size = *((unsigned long *) raw_codedbuf);
             p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
-            psb__information_message("coded buffer size %d\n", p->size);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "coded buffer size %d\n", p->size);
             break;
 
         case VAProfileJPEGBaseline:
@@ -547,8 +548,8 @@ int psb_codedbuf_map_mangle(
                 p->buf = (unsigned char *)((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 4);  /* skip 4DWs */
                 next_buf_off = *((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 3);
 
-                psb__information_message("JPEG coded buffer segment %d size: %d\n", i, p->size);
-                psb__information_message("JPEG coded buffer next segment %d offset: %d\n", i + 1, next_buf_off);
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG coded buffer segment %d size: %d\n", i, p->size);
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG coded buffer next segment %d offset: %d\n", i + 1, next_buf_off);
 
                 if (next_buf_off == 0) {
                     p->next = NULL;
@@ -560,7 +561,7 @@ int psb_codedbuf_map_mangle(
             break;
 
         default:
-            psb__error_message("unexpected case\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "unexpected case\n");
 
             psb_buffer_unmap(obj_buffer->psb_buffer);
             obj_buffer->buffer_data = NULL;
@@ -581,7 +582,7 @@ int psb_buffer_sync(psb_buffer_p buf)
 
     ret = wsbmBOSyncForCpu(buf->drm_buf, buf->wsbm_synccpu_flag);
     if (ret) {
-        psb__error_message("faild to sync bo for cpu\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "faild to sync bo for cpu\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 

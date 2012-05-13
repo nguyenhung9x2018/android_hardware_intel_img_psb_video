@@ -356,11 +356,4 @@ int psb_cmdbuf_second_pass(object_context_p obj_context,
                            uint32_t chroma_offset
                           );
 
-#ifdef DEBUG_TRACE
-/*
- * Dump contents of buffer object after command submission
- */
-void psb__debug_schedule_hexdump(const char *name, psb_buffer_p buf, uint32_t offset, uint32_t size);
-#endif
-
 #endif /* _PSB_CMDBUF_H_ */

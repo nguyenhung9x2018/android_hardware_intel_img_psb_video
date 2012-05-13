@@ -35,6 +35,7 @@
 #include "pnw_hostcode.h"
 #include "hwdefs/topazSC_defs.h"
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 #include "psb_cmdbuf.h"
 #include <stdio.h>
 #include "psb_output.h"
@@ -606,7 +607,7 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
     /* Initialise the command buffer */
     ret = pnw_context_get_next_cmdbuf(ctx->obj_context);
     if (ret) {
-        psb__information_message("get next cmdbuf fail\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "get next cmdbuf fail\n");
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         return vaStatus;
     }
@@ -891,12 +892,12 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
 
     if (ctx->sRCParams.bDisableFrameSkipping) {
         psPicParams->Flags |= DISABLE_FRAME_SKIPPING;
-	psb__information_message("Frame skip is disabled.\n");
+	drv_debug_msg(VIDEO_DEBUG_GENERAL, "Frame skip is disabled.\n");
     }
 
     if (ctx->sRCParams.bDisableBitStuffing) {
         psPicParams->Flags |= DISABLE_BIT_STUFFING;
-	psb__information_message("Bit stuffing is disabled.\n");
+	drv_debug_msg(VIDEO_DEBUG_GENERAL, "Bit stuffing is disabled.\n");
     }
 
     if (ctx->sRCParams.RCEnable) {
@@ -920,7 +921,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
     /* some relocations have to been done here */
     srf_buf_offset = src_surface->psb_surface->buf.buffer_ofs;
     if (src_surface->psb_surface->buf.type == psb_bt_camera)
-        psb__information_message("src surface GPU offset 0x%08x, luma offset 0x%08x\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "src surface GPU offset 0x%08x, luma offset 0x%08x\n",
                                  wsbmBOOffsetHint(src_surface->psb_surface->buf.drm_buf), srf_buf_offset);
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->SrcYBase, srf_buf_offset, &src_surface->psb_surface->buf);
@@ -962,37 +963,37 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
                          cmdbuf->topaz_above_params);
 
     RELOC_PIC_PARAMS_PNW(&psPicParams->CodedBase, ctx->coded_buf_per_slice * core, ctx->coded_buf->psb_buffer);
-    psb__information_message("For core %d, above_parmas_off %x\n", core, ctx->above_params_ofs + ctx->above_params_size *(core * 2 + ((ctx->AccessUnitNum) & 0x1)));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "For core %d, above_parmas_off %x\n", core, ctx->above_params_ofs + ctx->above_params_size *(core * 2 + ((ctx->AccessUnitNum) & 0x1)));
 
 #if TOPAZ_PIC_PARAMS_VERBOSE
-    psb__information_message("PicParams->SrcYBase  0x%08x\n", psPicParams->SrcYBase);
-    psb__information_message("PicParams->SrcUBase 0x%08x\n", psPicParams->SrcUBase);
-    psb__information_message("PicParams->SrcVBase 0x%08x\n", psPicParams->SrcVBase);
-    psb__information_message("PicParams->DstYBase 0x%08x\n", psPicParams->DstYBase);
-    psb__information_message("PicParams->DstUVBase 0x%08x\n", psPicParams->DstUVBase);
-    psb__information_message("PicParams->SrcYStride 0x%08x\n", psPicParams->SrcYStride);
-    psb__information_message("PicParams->SrcUVStride 0x%08x\n", psPicParams->SrcUVStride);
-    psb__information_message("PicParams->SrcYRowStride 0x%08x\n", psPicParams->SrcYRowStride);
-    psb__information_message("PicParams->SrcUVRowStride 0x%08x\n", psPicParams->SrcUVRowStride);
-    psb__information_message("PicParams->DstYStride 0x%08x\n", psPicParams->DstYStride);
-    psb__information_message("PicParams->DstUVStride 0x%08x\n", psPicParams->DstUVStride);
-    psb__information_message("PicParams->DstYRowStride 0x%08x\n", psPicParams->DstYRowStride);
-    psb__information_message("PicParams->DstUVRowStride 0x%08x\n", psPicParams->DstUVRowStride);
-    psb__information_message("PicParams->InParamsBase 0x%08x\n", psPicParams->InParamsBase);
-    psb__information_message("PicParams->InParamsRowStride 0x%08x\n", psPicParams->InParamsRowStride);
-    psb__information_message("PicParams->OutParamsBase 0x%08x\n", psPicParams->OutParamsBase);
-    psb__information_message("PicParams->CodedBase 0x%08x\n", psPicParams->CodedBase);
-    psb__information_message("PicParams->BelowParamsInBase 0x%08x\n", psPicParams->BelowParamsInBase);
-    psb__information_message("PicParams->BelowParamsOutBase 0x%08x\n", psPicParams->BelowParamsOutBase);
-    psb__information_message("PicParams->BelowParamRowStride 0x%08x\n", psPicParams->BelowParamRowStride);
-    psb__information_message("PicParams->AboveParamsBase 0x%08x\n", psPicParams->AboveParamsBase);
-    psb__information_message("PicParams->AboveParamRowStride 0x%08x\n", psPicParams->AboveParamRowStride);
-    psb__information_message("PicParams->Width 0x%08x\n", psPicParams->Width);
-    psb__information_message("PicParams->Height 0x%08x\n", psPicParams->Height);
-    psb__information_message("PicParams->Flags 0x%08x\n", psPicParams->Flags);
-    psb__information_message("PicParams->SerachWidth 0x%08x\n", psPicParams->SearchWidth);
-    psb__information_message("PicParams->SearchHeight 0x%08x\n", psPicParams->SearchHeight);
-    psb__information_message("PicParams->NumSlices 0x%08x\n", psPicParams->NumSlices);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcYBase  0x%08x\n", psPicParams->SrcYBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcUBase 0x%08x\n", psPicParams->SrcUBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcVBase 0x%08x\n", psPicParams->SrcVBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstYBase 0x%08x\n", psPicParams->DstYBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstUVBase 0x%08x\n", psPicParams->DstUVBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcYStride 0x%08x\n", psPicParams->SrcYStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcUVStride 0x%08x\n", psPicParams->SrcUVStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcYRowStride 0x%08x\n", psPicParams->SrcYRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcUVRowStride 0x%08x\n", psPicParams->SrcUVRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstYStride 0x%08x\n", psPicParams->DstYStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstUVStride 0x%08x\n", psPicParams->DstUVStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstYRowStride 0x%08x\n", psPicParams->DstYRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstUVRowStride 0x%08x\n", psPicParams->DstUVRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->InParamsBase 0x%08x\n", psPicParams->InParamsBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->InParamsRowStride 0x%08x\n", psPicParams->InParamsRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->OutParamsBase 0x%08x\n", psPicParams->OutParamsBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->CodedBase 0x%08x\n", psPicParams->CodedBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->BelowParamsInBase 0x%08x\n", psPicParams->BelowParamsInBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->BelowParamsOutBase 0x%08x\n", psPicParams->BelowParamsOutBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->BelowParamRowStride 0x%08x\n", psPicParams->BelowParamRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->AboveParamsBase 0x%08x\n", psPicParams->AboveParamsBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->AboveParamRowStride 0x%08x\n", psPicParams->AboveParamRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->Width 0x%08x\n", psPicParams->Width);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->Height 0x%08x\n", psPicParams->Height);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->Flags 0x%08x\n", psPicParams->Flags);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SerachWidth 0x%08x\n", psPicParams->SearchWidth);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SearchHeight 0x%08x\n", psPicParams->SearchHeight);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->NumSlices 0x%08x\n", psPicParams->NumSlices);
 #endif
     return VA_STATUS_SUCCESS;
 }
@@ -1044,7 +1045,7 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
         if (ctx->raw_frame_count == 0)
             pnw_SetupRCParam(ctx);
         else  if (ctx->sRCParams.bBitrateChanged) {
-            psb__information_message("bitrate is changed to %d, "
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "bitrate is changed to %d, "
                                      "update the rc data accordingly\n", ctx->sRCParams.BitsPerSecond);
 	    pnw__update_rcdata(ctx, psPicParams, &ctx->sRCParams);
 	    memcpy(&ctx->in_params_cache, (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
@@ -1052,36 +1053,36 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     }
 
 #if TOPAZ_PIC_PARAMS_VERBOSE
-    psb__information_message("sizeof PIC_PARAMS %d\n", sizeof(PIC_PARAMS));
-    psb__information_message("sizeof in_params %d\n", sizeof(psPicParams->sInParams));
-    psb__information_message("End Picture for frame %d\n", ctx->obj_context->frame_count);
-    psb__information_message("psPicParams->ClockDivBitrate %lld\n", psPicParams->ClockDivBitrate);
-    psb__information_message("psPicParams->MaxBufferMultClockDivBitrate %d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "sizeof PIC_PARAMS %d\n", sizeof(PIC_PARAMS));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "sizeof in_params %d\n", sizeof(psPicParams->sInParams));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "End Picture for frame %d\n", ctx->obj_context->frame_count);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->ClockDivBitrate %lld\n", psPicParams->ClockDivBitrate);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->MaxBufferMultClockDivBitrate %d\n",
                              psPicParams->MaxBufferMultClockDivBitrate);
-    psb__information_message("psPicParams->sInParams.SeInitQP %d\n", psPicParams->sInParams.SeInitQP);
-    psb__information_message("psPicParams->sInParams.MinQPVal %d\n", psPicParams->sInParams.MinQPVal);
-    psb__information_message("psPicParams->sInParams.MaxQPVal %d\n", psPicParams->sInParams.MaxQPVal);
-    psb__information_message("psPicParams->sInParams.MBPerRow %d\n", psPicParams->sInParams.MBPerRow);
-    psb__information_message("psPicParams->sInParams.MBPerFrm %d\n", psPicParams->sInParams.MBPerFrm);
-    psb__information_message("psPicParams->sInParams.MBPerBU %d\n", psPicParams->sInParams.MBPerBU);
-    psb__information_message("psPicParams->sInParams.BUPerFrm %d\n", psPicParams->sInParams.BUPerFrm);
-    psb__information_message("psPicParams->sInParams.IntraPeriod %d\n", psPicParams->sInParams.IntraPeriod);
-    psb__information_message("psPicParams->sInParams.BitsPerFrm %d\n", psPicParams->sInParams.BitsPerFrm);
-    psb__information_message("psPicParams->sInParams.BitsPerBU %d\n", psPicParams->sInParams.BitsPerBU);
-    psb__information_message("psPicParams->sInParams.BitsPerMB %d\n", psPicParams->sInParams.BitsPerMB);
-    psb__information_message("psPicParams->sInParams.BitRate %d\n", psPicParams->sInParams.BitRate);
-    psb__information_message("psPicParams->sInParams.BufferSize %d\n", psPicParams->sInParams.BufferSize);
-    psb__information_message("psPicParams->sInParams.InitialLevel %d\n", psPicParams->sInParams.InitialLevel);
-    psb__information_message("psPicParams->sInParams.InitialDelay %d\n", psPicParams->sInParams.InitialDelay);
-    psb__information_message("psPicParams->sInParams.ScaleFactor %d\n", psPicParams->sInParams.ScaleFactor);
-    psb__information_message("psPicParams->sInParams.VCMBitrateMargin %d\n", psPicParams->sInParams.VCMBitrateMargin);
-    psb__information_message("psPicParams->sInParams.HalfFrameRate %d\n", psPicParams->sInParams.HalfFrameRate);
-    psb__information_message("psPicParams->sInParams.FCode %d\n", psPicParams->sInParams.FCode);
-    psb__information_message("psPicParams->sInParams.BitsPerGOP %d\n", psPicParams->sInParams.BitsPerGOP);
-    psb__information_message("psPicParams->sInParams.AvQPVal %d\n", psPicParams->sInParams.AvQPVal);
-    psb__information_message("psPicParams->sInParams.MyInitQP %d\n", psPicParams->sInParams.MyInitQP);
-    psb__information_message("psPicParams->sInParams.ForeceSkipMargin %d\n", psPicParams->sInParams.ForeceSkipMargin);
-    psb__information_message("psPicParams->sInParams.RCScaleFactor %d\n", psPicParams->sInParams.RCScaleFactor);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.SeInitQP %d\n", psPicParams->sInParams.SeInitQP);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.MinQPVal %d\n", psPicParams->sInParams.MinQPVal);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.MaxQPVal %d\n", psPicParams->sInParams.MaxQPVal);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.MBPerRow %d\n", psPicParams->sInParams.MBPerRow);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.MBPerFrm %d\n", psPicParams->sInParams.MBPerFrm);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.MBPerBU %d\n", psPicParams->sInParams.MBPerBU);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.BUPerFrm %d\n", psPicParams->sInParams.BUPerFrm);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.IntraPeriod %d\n", psPicParams->sInParams.IntraPeriod);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.BitsPerFrm %d\n", psPicParams->sInParams.BitsPerFrm);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.BitsPerBU %d\n", psPicParams->sInParams.BitsPerBU);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.BitsPerMB %d\n", psPicParams->sInParams.BitsPerMB);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.BitRate %d\n", psPicParams->sInParams.BitRate);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.BufferSize %d\n", psPicParams->sInParams.BufferSize);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.InitialLevel %d\n", psPicParams->sInParams.InitialLevel);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.InitialDelay %d\n", psPicParams->sInParams.InitialDelay);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.ScaleFactor %d\n", psPicParams->sInParams.ScaleFactor);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.VCMBitrateMargin %d\n", psPicParams->sInParams.VCMBitrateMargin);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.HalfFrameRate %d\n", psPicParams->sInParams.HalfFrameRate);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.FCode %d\n", psPicParams->sInParams.FCode);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.BitsPerGOP %d\n", psPicParams->sInParams.BitsPerGOP);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.AvQPVal %d\n", psPicParams->sInParams.AvQPVal);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.MyInitQP %d\n", psPicParams->sInParams.MyInitQP);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.ForeceSkipMargin %d\n", psPicParams->sInParams.ForeceSkipMargin);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.RCScaleFactor %d\n", psPicParams->sInParams.RCScaleFactor);
 #endif
     /* save current settings */
     ctx->previous_src_surface = ctx->src_surface;
@@ -1157,25 +1158,25 @@ static void pnw__setup_busize(context_ENC_p ctx)
 
         /* they have given us a basic unit so validate it */
         if (ctx->sRCParams.BUSize < 6) {
-            psb__error_message("ERROR: Basic unit size too small, must be greater than 6\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too small, must be greater than 6\n");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
         if (ctx->sRCParams.BUSize > MBsperSlice) {
-            psb__error_message("ERROR: Basic unit size too large, must be less than the number of macroblocks in a slice\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too large, must be less than the number of macroblocks in a slice\n");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
         if (ctx->sRCParams.BUSize > MBsLastSlice) {
-            psb__error_message("ERROR: Basic unit size too large, must be less than number of macroblocks in the last slice\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too large, must be less than number of macroblocks in the last slice\n");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
         BUs = MBsperSlice / ctx->sRCParams.BUSize;
         if ((BUs * ctx->sRCParams.BUSize) != MBsperSlice)   {
-            psb__error_message("ERROR: Basic unit size not an integer divisor of MB's in a slice");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size not an integer divisor of MB's in a slice");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
         BUs = MBsLastSlice / ctx->sRCParams.BUSize;
         if ((BUs * ctx->sRCParams.BUSize) != MBsLastSlice)   {
-            psb__error_message("ERROR: Basic unit size not an integer divisor of MB's in a slice");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size not an integer divisor of MB's in a slice");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
 
@@ -1184,7 +1185,7 @@ static void pnw__setup_busize(context_ENC_p ctx)
         MaxMBsPerPipe = (MBsperSlice * (MaxSlicesPerPipe - 1)) + MBsLastSlice;
         MaxBUsPerPipe = (MaxMBsPerPipe + ctx->sRCParams.BUSize - 1) / ctx->sRCParams.BUSize;
         if (MaxBUsPerPipe > 200) {
-            psb__error_message("ERROR: Basic unit size too small. There must be less than 200 basic units per slice");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too small. There must be less than 200 basic units per slice");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
     }
@@ -1233,7 +1234,7 @@ static void pnw__setup_busize(context_ENC_p ctx)
     }
 
     if (ctx->sRCParams.BUSize != old_busize)
-        psb__information_message("Patched Basic unit to %d (original=%d)\n", ctx->sRCParams.BUSize, old_busize);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Patched Basic unit to %d (original=%d)\n", ctx->sRCParams.BUSize, old_busize);
 }
 
 
@@ -1614,7 +1615,7 @@ static void pnw__setup_slice_row_params(
     if (IsIntra && cmdbuf->topaz_in_params_I_p == NULL) {
         VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_in_params_I, &cmdbuf->topaz_in_params_I_p);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("map topaz MTX_CURRENT_IN_PARAMS failed\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "map topaz MTX_CURRENT_IN_PARAMS failed\n");
             return;
         }
     }
@@ -1622,7 +1623,7 @@ static void pnw__setup_slice_row_params(
     if ((!IsIntra) && cmdbuf->topaz_in_params_P_p == NULL) {
         VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_in_params_P, &cmdbuf->topaz_in_params_P_p);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("map topaz MTX_CURRENT_IN_PARAMS failed\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "map topaz MTX_CURRENT_IN_PARAMS failed\n");
             return;
         }
     }
@@ -1848,7 +1849,7 @@ IMG_UINT32 pnw__send_encode_slice_params(
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
 
 
-    psb__information_message("Send encode slice parmas, Is Intra:%d, CurrentRow:%d" \
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Send encode slice parmas, Is Intra:%d, CurrentRow:%d" \
                              "DeblockIDC:%d, FrameNum:%d, SliceHeight:%d, CurrentSlice:%d\n",
                              IsIntra, CurrentRow, DeblockIDC, FrameNum, SliceHeight, CurrentSlice);
 
@@ -1953,23 +1954,23 @@ IMG_UINT32 pnw__send_encode_slice_params(
                                cmdbuf->topaz_in_params_P);
 
 #if  TOPAZ_PIC_PARAMS_VERBOSE
-    psb__information_message("sizeof psSliceParams %d\n", sizeof(*psSliceParams));
-    psb__information_message("sizeof MTX_CURRENT_IN_PARAMS %d\n", sizeof(MTX_CURRENT_IN_PARAMS));
-    psb__information_message("psSliceParams->SliceStartRowNum %d\n", psSliceParams->SliceStartRowNum);
-    psb__information_message("psSliceParams->SliceHeight %d\n", psSliceParams->SliceHeight);
-    psb__information_message("psSliceParams->RefYBase %x\n", psSliceParams->RefYBase);
-    psb__information_message("psSliceParams->RefUVBase %x\n", psSliceParams->RefUVBase);
-    psb__information_message("psSliceParams->RefYStride %d\n", psSliceParams->RefYStride);
-    psb__information_message("psSliceParams->RefUVStride %d\n", psSliceParams->RefUVStride);
-    psb__information_message("psSliceParams->RefYRowStride %d\n", psSliceParams->RefYRowStride);
-    psb__information_message("psSliceParams->RefUVRowStride %d\n", psSliceParams->RefUVRowStride);
-    psb__information_message("psSliceParams->HostCtx %d\n", psSliceParams->HostCtx);
-    psb__information_message("psSliceParams->Flags %x\n", psSliceParams->Flags);
-    psb__information_message("psSliceParams->MaxSliceSize %d\n",  psSliceParams->MaxSliceSize);
-    psb__information_message("psSliceParams->FCode %x\n", psSliceParams->FCode);
-    psb__information_message("psSliceParams->InParamsBase %x\n", psSliceParams->InParamsBase);
-    psb__information_message("psSliceParams->NumAirMBs %d\n", psSliceParams->NumAirMBs);
-    psb__information_message("psSliceParams->AirThreshold %x\n", psSliceParams->AirThreshold);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "sizeof psSliceParams %d\n", sizeof(*psSliceParams));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "sizeof MTX_CURRENT_IN_PARAMS %d\n", sizeof(MTX_CURRENT_IN_PARAMS));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->SliceStartRowNum %d\n", psSliceParams->SliceStartRowNum);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->SliceHeight %d\n", psSliceParams->SliceHeight);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->RefYBase %x\n", psSliceParams->RefYBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->RefUVBase %x\n", psSliceParams->RefUVBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->RefYStride %d\n", psSliceParams->RefYStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->RefUVStride %d\n", psSliceParams->RefUVStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->RefYRowStride %d\n", psSliceParams->RefYRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->RefUVRowStride %d\n", psSliceParams->RefUVRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->HostCtx %d\n", psSliceParams->HostCtx);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->Flags %x\n", psSliceParams->Flags);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->MaxSliceSize %d\n",  psSliceParams->MaxSliceSize);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->FCode %x\n", psSliceParams->FCode);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->InParamsBase %x\n", psSliceParams->InParamsBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->NumAirMBs %d\n", psSliceParams->NumAirMBs);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->AirThreshold %x\n", psSliceParams->AirThreshold);
 #endif
 
     pnw_cmdbuf_insert_command_package(ctx->obj_context,
@@ -1999,7 +2000,7 @@ void pnw_reset_encoder_params(context_ENC_p ctx)
     if (cmdbuf->topaz_above_params_p == NULL) {
         VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_above_params, &cmdbuf->topaz_above_params_p);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("map topaz MTX_CURRENT_IN_PARAMS failed\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "map topaz MTX_CURRENT_IN_PARAMS failed\n");
             return;
         }
     }
@@ -2007,7 +2008,7 @@ void pnw_reset_encoder_params(context_ENC_p ctx)
     if (cmdbuf->topaz_below_params_p == NULL) {
         VAStatus vaStatus = psb_buffer_map(cmdbuf->topaz_below_params, &cmdbuf->topaz_below_params_p);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            psb__error_message("map topaz MTX_CURRENT_IN_PARAMS failed\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "map topaz MTX_CURRENT_IN_PARAMS failed\n");
             return;
         }
     }

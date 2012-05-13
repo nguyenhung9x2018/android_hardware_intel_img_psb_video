@@ -43,6 +43,7 @@
 #include "psb_output_android.h"
 #include "psb_HDMIExtMode.h"
 #include "pnw_rotate.h"
+#include "psb_drv_debug.h"
 #include <wsbm/wsbm_manager.h>
 #include <psb_drm.h>
 #include <hardware.h>
@@ -94,7 +95,7 @@ unsigned char *psb_android_output_init(VADriverContextP ctx)
     int ret;
 
     if (output == NULL) {
-        psb__error_message("Can't malloc memory\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't malloc memory\n");
         return NULL;
     }
     memset(output, 0, sizeof(psb_android_output_s));
@@ -108,7 +109,7 @@ unsigned char *psb_android_output_init(VADriverContextP ctx)
     fbfd = open("/dev/graphics/fb0", O_RDONLY);
     if (fbfd) {
         if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo))
-            psb__information_message("Error reading screen information.\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Error reading screen information.\n");
     }
     close(fbfd);
     output->screen_width = vinfo.xres;
@@ -120,12 +121,12 @@ unsigned char *psb_android_output_init(VADriverContextP ctx)
     driver_data->color_key = 0x000001; /*light blue*/
 
     if (psb_parse_config("PSB_VIDEO_CTEXTURES", &put_surface[0]) == 0) {
-        psb__information_message("PSB_VIDEO_CTEXTURES is enabled for vaPutSurfaceBuf\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "PSB_VIDEO_CTEXTURES is enabled for vaPutSurfaceBuf\n");
         driver_data->ctexture = 1; /* Init CTEXTURE for vaPutSurfaceBuf */
     }
 
     if (psb_parse_config("PSB_VIDEO_COVERLAY", &put_surface[0]) == 0) {
-        psb__information_message("Putsurface use client overlay\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Putsurface use client overlay\n");
         driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
     }
 
@@ -225,7 +226,7 @@ VAStatus psb_putsurface_coverlay(
     destw = _destw;
     desth = _desth;
 
-    psb__information_message("psb_putsurface_overlay: src (%d, %d, %d, %d), destx (%d, %d, %d, %d).\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_putsurface_overlay: src (%d, %d, %d, %d), destx (%d, %d, %d, %d).\n",
                              srcx, srcy, srcw, srch, destx, desty, destw, desth);
     /* display by overlay */
     vaStatus = psb_putsurface_overlay(
@@ -249,7 +250,7 @@ static int psb_update_destbox(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     psb_android_get_destbox(&destx, &desty, &destw, &desth);
-    /*psb__information_message("destbox = (%d,%d,%d,%d)\n", destx, desty, destw, desth);*/
+    /*drv_debug_msg(VIDEO_DEBUG_GENERAL, "destbox = (%d,%d,%d,%d)\n", destx, desty, destw, desth);*/
     if ((destx >= 0) && (desty >= 0) &&
         ((destx + destw) <= output->screen_width) &&
         ((desty + desth) <= output->screen_height) &&
@@ -290,7 +291,7 @@ static int psb_check_outputmethod(
     int rotate_srf_rotate = -1; /* degree of the rotate surface */
 
     if ((srcw >= 2048) || (srch >= 2048)) {
-        psb__information_message("Clip size extend overlay hw limit, use texstreaming\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Clip size extend overlay hw limit, use texstreaming\n");
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
         return 0;
     }
@@ -304,7 +305,7 @@ static int psb_check_outputmethod(
     /* check the status at outputmethod_checkinterval frequency */
     /* at first check HDMI status */
     if (psb_HDMIExt_update(ctx, psb_HDMIExt_info)) {
-        psb__error_message("%s: Failed to update HDMIExt info.\n", __FUNCTION__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to update HDMIExt info.\n", __FUNCTION__);
         return -1;
     }
 
@@ -350,7 +351,7 @@ static int psb_check_outputmethod(
         driver_data->render_rect.y = _pos_y;
         driver_data->render_rect.width = _destw;
         driver_data->render_rect.height = _desth;
-        psb__information_message("HDMI mode is on (%d), Render Rect: (%d,%d,%d,%d)\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "HDMI mode is on (%d), Render Rect: (%d,%d,%d,%d)\n",
                                  *hdmi_mode,
                                  driver_data->render_rect.x, driver_data->render_rect.y,
                                  driver_data->render_rect.width, driver_data->render_rect.height);
@@ -369,7 +370,7 @@ static int psb_check_outputmethod(
     /*If overlay can not get correct destbox, use texstreaming.*/
     if (output->destw == 0 || output->desth == 0 ||
         ((output->destw == srcw) && (output->desth == srch))) {
-        psb__information_message("No proper destbox, use texstreaming (%dx%d+%d+%d)\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "No proper destbox, use texstreaming (%dx%d+%d+%d)\n",
                                  output->destw, output->desth, output->destx, output->desty);
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
         return 0;
@@ -379,7 +380,7 @@ static int psb_check_outputmethod(
     delta_rotation = Rotation2Angle(driver_data->mipi0_rotation) - Rotation2Angle(rotation);
     if ((((abs(delta_rotation) == 90) || (abs(delta_rotation) == 270)) && output->new_destbox) ||
         (abs(delta_rotation) == 180)) {
-        psb__information_message("New rotation degree %d of MIPI0 WM, Need to recalc rotation\n", rotation);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "New rotation degree %d of MIPI0 WM, Need to recalc rotation\n", rotation);
         driver_data->mipi0_rotation = rotation;
         driver_data->hdmi_rotation = rotation;
         driver_data->rotation_dirty |= PSB_NEW_WM_ROTATION;
@@ -393,21 +394,21 @@ static int psb_check_outputmethod(
 
     obj_surface = SURFACE(surface);
     if (GET_SURFACE_INFO_protect(obj_surface->psb_surface)) {
-        psb__information_message("Protected surface, use overlay\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Protected surface, use overlay\n");
         driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
 
         return 0;
     }
 
     if (widi == eWidiClone) {
-        psb__information_message("WIDI in clone mode, use texstreaming\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "WIDI in clone mode, use texstreaming\n");
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
         driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
 
         return 0;
     }
     if (widi == eWidiExtendedVideo) {
-        psb__information_message("WIDI in extend video mode, disable local displaying\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "WIDI in extend video mode, disable local displaying\n");
         driver_data->output_method = PSB_PUTSURFACE_NONE;
         driver_data->msvdx_rotate_want = 0;/* disable msvdx rotae */
 
@@ -415,7 +416,7 @@ static int psb_check_outputmethod(
     }
 
     if (output->sf_composition) {
-        psb__information_message("Composition is detected, use texstreaming\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Composition is detected, use texstreaming\n");
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
         return 0;
     }
@@ -425,15 +426,15 @@ static int psb_check_outputmethod(
     if (rotate_surface != NULL)
         rotate_srf_rotate = GET_SURFACE_INFO_rotate(rotate_surface);
 
-    psb__information_message("SF rotation %d, VA rotation %d, final MSVDX rotation %d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "SF rotation %d, VA rotation %d, final MSVDX rotation %d\n",
                              rotation, driver_data->va_rotate, driver_data->local_rotation);
-    psb__information_message("Primary surface rotation %d, rotated surface rotation %d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Primary surface rotation %d, rotated surface rotation %d\n",
                              srf_rotate, rotate_srf_rotate);
 
     /* The surface rotation is not same with the final rotation */
     if ((driver_data->local_rotation != 0) &&
         ((srf_rotate != driver_data->local_rotation) || (rotate_srf_rotate != driver_data->local_rotation))) {
-        psb__information_message("Use texstreaming due to different VA surface rotation and final rotaion\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Use texstreaming due to different VA surface rotation and final rotaion\n",
                                  srf_rotate, rotate_srf_rotate);
         driver_data->output_method = PSB_PUTSURFACE_TEXSTREAMING;
         return 0;
@@ -487,16 +488,16 @@ VAStatus psb_PutSurface(
 
     if ((srcx < 0) || (srcx > obj_surface->width) || (srcw > (obj_surface->width - srcx)) ||
         (srcy < 0) || (srcy > obj_surface->height_origin) || (srch > (obj_surface->height_origin - srcy))) {
-        psb__error_message("vaPutSurface: source rectangle passed from upper layer is not correct.\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "vaPutSurface: source rectangle passed from upper layer is not correct.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
     if ((destx < 0) || (desty < 0)) {
-        psb__error_message("vaPutSurface: dest rectangle passed from upper layer is not correct.\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "vaPutSurface: dest rectangle passed from upper layer is not correct.\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
     if (driver_data->dummy_putsurface) {
-        psb__information_message("vaPutSurface: dummy mode, return directly\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "vaPutSurface: dummy mode, return directly\n");
         return VA_STATUS_SUCCESS;
     }
 
@@ -504,7 +505,7 @@ VAStatus psb_PutSurface(
     if (!driver_data->coverlay_init) {
         ret = psb_coverlay_init(ctx);
         if (ret != 0) {
-            psb__information_message("vaPutSurface: psb_coverlay_init failed. Fallback to texture streaming.\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "vaPutSurface: psb_coverlay_init failed. Fallback to texture streaming.\n");
             driver_data->coverlay_init = 0;
         } else
             driver_data->coverlay_init = 1;
@@ -517,7 +518,7 @@ VAStatus psb_PutSurface(
 
     /* exit MRST path at first */
     if (IS_MRST(driver_data)) {
-        psb__information_message("Force overlay to display\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Force overlay to display\n");
         vaStatus = psb_putsurface_coverlay(ctx, surface,
                                            srcx, srcy, srcw, srch,
                                            destx, desty, destw, desth,
@@ -528,7 +529,7 @@ VAStatus psb_PutSurface(
     driver_data->ts_source_created = 1;
 
     /* local video playback */
-    psb__information_message("MIPI: Use overlay to display.\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "MIPI: Use overlay to display.\n");
 
     /*initialize output destbox using default destbox if it has not been initialized until here.*/
     if (output->destw == 0 || output->desth == 0) {
@@ -538,7 +539,7 @@ VAStatus psb_PutSurface(
         output->desth = ((output->desty + desth) > output->screen_height) ? (output->screen_height - output->desty) : desth;
     }
 
-    psb__information_message("Overlay position = (%d,%d,%d,%d)\n", output->destx, output->desty, output->destw, output->desth);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Overlay position = (%d,%d,%d,%d)\n", output->destx, output->desty, output->destw, output->desth);
     vaStatus = psb_putsurface_overlay(ctx, surface,
                                       srcx, srcy, srcw, srch,
                                       output->destx, output->desty, output->destw, output->desth,

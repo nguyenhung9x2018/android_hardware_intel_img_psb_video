@@ -1409,7 +1409,7 @@ static VAStatus psb_MPEG2MC_RenderPicture(
             ctx->mb_param = (VAMacroblockParameterBufferMPEG2 *)obj_buffer->buffer_data;
             ctx->mb_first_addr = ctx->mb_param->macroblock_address;
             ctx->mb_in_buffer = obj_buffer->num_elements;
-            /* psb__information_message("Macroblock count %d\n",ctx->mb_in_buffer); */
+            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "Macroblock count %d\n",ctx->mb_in_buffer); */
             break;
         }
         /* Residual Difference Data processing */
@@ -1420,7 +1420,7 @@ static VAStatus psb_MPEG2MC_RenderPicture(
             break;
         }
         default:
-            psb__information_message("Unhandled buffer type 0x%x\n", obj_buffer->type);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Unhandled buffer type 0x%x\n", obj_buffer->type);
             break;
         }
     }
@@ -1448,7 +1448,7 @@ static VAStatus psb_MPEG2MC_EndPicture(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     INIT_CONTEXT_MPEG2MC;
 
-    psb__information_message("psb_MPEG2MC_EndPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_MPEG2MC_EndPicture\n");
 
     if (psb_context_flush_cmdbuf(ctx->obj_context)) {
         vaStatus = VA_STATUS_ERROR_UNKNOWN;

@@ -37,6 +37,7 @@
 #include "psb_drv_video.h"
 #include "psb_surface.h"
 #include "psb_texstreaming.h"
+#include "psb_drv_debug.h"
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define SURFACE(id) ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
@@ -64,37 +65,37 @@ int psb_register_video_bcd(VADriverContextP ctx)
     buf_param.fourcc = BC_PIX_FMT_NV12;
     buf_param.type = BC_MEMORY_USERPTR;
     driver_data->bcd_ioctrl_num = driver_data->getParamIoctlOffset + 1;
-    psb__information_message("BCD: request buffers in BCD driver\n");
-    psb__information_message("BCD: %d buffers, %dx%d, stride %d\n", num_surfaces, width, stride, height);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "BCD: request buffers in BCD driver\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "BCD: %d buffers, %dx%d, stride %d\n", num_surfaces, width, stride, height);
     ioctl_package.ioctl_cmd = BC_Video_ioctl_request_buffers;
     ioctl_package.inputparam = (int)(&buf_param);
     if (drmCommandWriteRead(driver_data->drm_fd,
                             driver_data->bcd_ioctrl_num,
                             &ioctl_package,
                             sizeof(ioctl_package)) != 0) {
-        psb__error_message("BCD: failed to request buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "BCD: failed to request buffers\n");
         return -1;
     }
     driver_data->bcd_id = ioctl_package.outputparam;
     driver_data->bcd_registered = 1;
-    psb__information_message("BCD: allocated bc device id is %d\n", driver_data->bcd_id);
-    psb__information_message("BCD: try to get buffer count\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "BCD: allocated bc device id is %d\n", driver_data->bcd_id);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "BCD: try to get buffer count\n");
     ioctl_package.ioctl_cmd = BC_Video_ioctl_get_buffer_count;
     ioctl_package.device_id = driver_data->bcd_id;
     if (drmCommandWriteRead(driver_data->drm_fd,
                             driver_data->bcd_ioctrl_num,
                             &ioctl_package,
                             sizeof(ioctl_package)) != 0) {
-        psb__error_message("BCD: failed to get buffer count\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "BCD: failed to get buffer count\n");
         return -1;
     }
 
     if (ioctl_package.outputparam != num_surfaces) {
-        psb__error_message("BCD: buffer count is not correct (%d expected, actual %d).\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "BCD: buffer count is not correct (%d expected, actual %d).\n",
                            num_surfaces, ioctl_package.outputparam);
         return -1;
     }
-    psb__information_message("BCD:set_buffer_phyaddr to bind buffer id with physical address.\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "BCD:set_buffer_phyaddr to bind buffer id with physical address.\n");
     for (i = 0; i < num_surfaces; i++) {
         psb_surface_p psb_surface;
         object_surface_p obj_surface = SURFACE(surface_list[i]);
@@ -112,12 +113,12 @@ int psb_register_video_bcd(VADriverContextP ctx)
                                 driver_data->bcd_ioctrl_num,
                                 &ioctl_package,
                                 sizeof(ioctl_package)) != 0) {
-            psb__error_message("BCD: failed to set buffer phyaddr\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "BCD: failed to set buffer phyaddr\n");
             return -1;
         }
     }
-    psb__information_message("BCD: num_surface = %d, bcd_id = %d\n", num_surfaces, driver_data->bcd_id);
-    psb__android_message("BCD: register num_surface = %d, %dx%d, bcd_id = %d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "BCD: num_surface = %d, bcd_id = %d\n", num_surfaces, driver_data->bcd_id);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "BCD: register num_surface = %d, %dx%d, bcd_id = %d\n",
                          num_surfaces, width, height, driver_data->bcd_id);
 
     return 0;
@@ -134,19 +135,19 @@ int psb_release_video_bcd(VADriverContextP ctx)
      */
 #ifdef ANDROID
     if (driver_data->ts_source_created) {
-        psb__information_message("BCD:destroy texture streaming source.\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "BCD:destroy texture streaming source.\n");
         psb_android_texture_streaming_destroy();
         driver_data->ts_source_created = 0;
     }
 #endif
-    psb__information_message("BCD: release video buffer device id.\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "BCD: release video buffer device id.\n");
     ioctl_package.ioctl_cmd = BC_Video_ioctl_release_buffer_device;
     ioctl_package.device_id = driver_data->bcd_id;
     if (drmCommandWriteRead(driver_data->drm_fd,
                             driver_data->bcd_ioctrl_num,
                             &ioctl_package,
                             sizeof(ioctl_package)) != 0) {
-        psb__error_message("BCD: failed to release video buffer class device.\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "BCD: failed to release video buffer class device.\n");
         return -1;
     }
     driver_data->bcd_registered = 0;
@@ -213,7 +214,7 @@ int psb_add_video_bcd(
         ((driver_data->bcd_buffer_width != width ||
           driver_data->bcd_buffer_height != height ||
           driver_data->bcd_buffer_stride != stride))) {
-        psb__error_message("BCD only supports one instance, previous (%dx%d,stride %d), new (%dx%d,stride %d)\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "BCD only supports one instance, previous (%dx%d,stride %d), new (%dx%d,stride %d)\n",
                            driver_data->bcd_buffer_width,
                            driver_data->bcd_buffer_height,
                            driver_data->bcd_buffer_stride,

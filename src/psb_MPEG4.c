@@ -469,12 +469,12 @@ static VAStatus psb_MPEG4_CreateContext(
 
     switch (obj_config->profile) {
     case VAProfileMPEG4Simple:
-        psb__information_message("MPEG4_PROFILE_SIMPLE\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "MPEG4_PROFILE_SIMPLE\n");
         ctx->profile = MPEG4_PROFILE_SIMPLE;
         break;
 
     case VAProfileMPEG4AdvancedSimple:
-        psb__information_message("MPEG4_PROFILE_ASP\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "MPEG4_PROFILE_ASP\n");
         ctx->profile = MPEG4_PROFILE_ASP;
         break;
 
@@ -606,9 +606,9 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
     case PICTURE_CODING_I:
         ctx->forward_ref_surface = NULL;
         ctx->backward_ref_surface = NULL;
-        psb__information_message("PICTURE_CODING_I\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
-        psb__information_message("Forward ref  = NULL\n");
-        psb__information_message("Backward ref = NULL\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "PICTURE_CODING_I\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Forward ref  = NULL\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Backward ref = NULL\n");
         break;
 
     case PICTURE_CODING_P:
@@ -617,9 +617,9 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
         if (NULL == ctx->forward_ref_surface) {
             return VA_STATUS_ERROR_INVALID_SURFACE;
         }
-        psb__information_message("PICTURE_CODING_P\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
-        psb__information_message("Forward ref  = %08x (%08x)\n", ctx->forward_ref_surface->psb_surface, ctx->pic_params->forward_reference_picture);
-        psb__information_message("Backward ref = NULL\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "PICTURE_CODING_P\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Forward ref  = %08x (%08x)\n", ctx->forward_ref_surface->psb_surface, ctx->pic_params->forward_reference_picture);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Backward ref = NULL\n");
         break;
 
     case PICTURE_CODING_B:
@@ -629,21 +629,21 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
             (NULL == ctx->backward_ref_surface)) {
             return VA_STATUS_ERROR_INVALID_SURFACE;
         }
-        psb__information_message("PICTURE_CODING_B\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
-        psb__information_message("Forward ref  = %08x (%08x)\n", ctx->forward_ref_surface->psb_surface, ctx->pic_params->forward_reference_picture);
-        psb__information_message("Backward ref = %08x (%08x)\n", ctx->backward_ref_surface->psb_surface, ctx->pic_params->backward_reference_picture);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "PICTURE_CODING_B\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Forward ref  = %08x (%08x)\n", ctx->forward_ref_surface->psb_surface, ctx->pic_params->forward_reference_picture);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Backward ref = %08x (%08x)\n", ctx->backward_ref_surface->psb_surface, ctx->pic_params->backward_reference_picture);
         break;
 
     case PICTURE_CODING_S:
         ctx->forward_ref_surface = SURFACE(ctx->pic_params->forward_reference_picture);
         ctx->backward_ref_surface = SURFACE(ctx->pic_params->backward_reference_picture);
-        psb__information_message("PICTURE_CODING_S\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
-        psb__information_message("Forward ref  = %08x (%08x)\n", ctx->forward_ref_surface ? ctx->forward_ref_surface->psb_surface : 0, ctx->pic_params->forward_reference_picture);
-        psb__information_message("Backward ref = %08x (%08x)\n", ctx->backward_ref_surface ? ctx->backward_ref_surface->psb_surface : 0, ctx->pic_params->backward_reference_picture);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "PICTURE_CODING_S\nTarget surface = %08x (%08x)\n", ctx->obj_context->current_render_target->psb_surface, ctx->obj_context->current_render_target->base.id);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Forward ref  = %08x (%08x)\n", ctx->forward_ref_surface ? ctx->forward_ref_surface->psb_surface : 0, ctx->pic_params->forward_reference_picture);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Backward ref = %08x (%08x)\n", ctx->backward_ref_surface ? ctx->backward_ref_surface->psb_surface : 0, ctx->pic_params->backward_reference_picture);
         break;
 
     default:
-        psb__error_message("Unhandled MPEG4 vop_coding_type '%d'\n", ctx->pic_params->vop_fields.bits.vop_coding_type);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Unhandled MPEG4 vop_coding_type '%d'\n", ctx->pic_params->vop_fields.bits.vop_coding_type);
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -945,7 +945,7 @@ static void psb__MPEG4_setup_alternative_frame(context_MPEG4_p ctx)
     object_context_p obj_context = ctx->obj_context;
 
     if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)
-        psb__error_message("Display rotate mode does not match surface rotate mode!\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Display rotate mode does not match surface rotate mode!\n");
 
 
     /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
@@ -1032,8 +1032,8 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
     ctx->obj_context->operating_mode = cmd;
 
-    psb__information_message("    vop_coding_type = %s\n", psb__debug_picture_coding_str(ctx->pic_params->vop_fields.bits.vop_coding_type));
-    psb__information_message("    backward ref vop_coding_type = %s\n", psb__debug_picture_coding_str(ctx->pic_params->vop_fields.bits.backward_reference_vop_coding_type));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    vop_coding_type = %s\n", psb__debug_picture_coding_str(ctx->pic_params->vop_fields.bits.vop_coding_type));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    backward ref vop_coding_type = %s\n", psb__debug_picture_coding_str(ctx->pic_params->vop_fields.bits.backward_reference_vop_coding_type));
 
     /* LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                    */
     psb_cmdbuf_rendec_write_address(cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
@@ -1045,9 +1045,9 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
     /* Reference pictures base addresses                                            */
     psb_cmdbuf_rendec_start_chunk(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES));
 
-//psb__information_message("Target surface = %08x\n", target_surface);
-//psb__information_message("Forward ref = %08x\n", ctx->forward_ref_surface->psb_surface);
-//psb__information_message("Backward ref = %08x\n", ctx->backward_ref_surface->psb_surface);
+//drv_debug_msg(VIDEO_DEBUG_GENERAL, "Target surface = %08x\n", target_surface);
+//drv_debug_msg(VIDEO_DEBUG_GENERAL, "Forward ref = %08x\n", ctx->forward_ref_surface->psb_surface);
+//drv_debug_msg(VIDEO_DEBUG_GENERAL, "Backward ref = %08x\n", ctx->backward_ref_surface->psb_surface);
 
     /* forward reference picture */
     /* LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                    */
@@ -1256,12 +1256,12 @@ static VAStatus psb__MPEG4_process_slice(context_MPEG4_p ctx,
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 
-    psb__information_message("MPEG4 process slice\n");
-    psb__information_message("    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
-    psb__information_message("    macroblock nr = %d offset = %d\n", slice_param->macroblock_number, slice_param->macroblock_offset);
-    psb__information_message("    slice_data_flag = %d\n", slice_param->slice_data_flag);
-    psb__information_message("    interlaced = %d\n", ctx->pic_params->vol_fields.bits.interlaced);
-    psb__information_message("    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "MPEG4 process slice\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    macroblock nr = %d offset = %d\n", slice_param->macroblock_number, slice_param->macroblock_offset);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    slice_data_flag = %d\n", slice_param->slice_data_flag);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    interlaced = %d\n", ctx->pic_params->vol_fields.bits.interlaced);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
         (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
@@ -1402,19 +1402,19 @@ static VAStatus psb_MPEG4_RenderPicture(
 
         switch (obj_buffer->type) {
         case VAPictureParameterBufferType:
-            psb__information_message("psb_MPEG4_RenderPicture got VAPictureParameterBuffer\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_MPEG4_RenderPicture got VAPictureParameterBuffer\n");
             vaStatus = psb__MPEG4_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAIQMatrixBufferType:
-            psb__information_message("psb_MPEG4_RenderPicture got VAIQMatrixBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_MPEG4_RenderPicture got VAIQMatrixBufferType\n");
             vaStatus = psb__MPEG4_process_iq_matrix(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VASliceParameterBufferType:
-            psb__information_message("psb_MPEG4_RenderPicture got VASliceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_MPEG4_RenderPicture got VASliceParameterBufferType\n");
             vaStatus = psb__MPEG4_add_slice_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
@@ -1422,7 +1422,7 @@ static VAStatus psb_MPEG4_RenderPicture(
         case VASliceDataBufferType:
         case VAProtectedSliceDataBufferType:
 
-            psb__information_message("psb_MPEG4_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_MPEG4_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
             vaStatus = psb__MPEG4_process_slice_data(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;

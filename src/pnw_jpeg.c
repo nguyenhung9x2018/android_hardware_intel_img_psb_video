@@ -33,6 +33,7 @@
 #include <string.h>
 
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
 #include "pnw_jpeg.h"
@@ -54,7 +55,7 @@ static void pnw_jpeg_QueryConfigAttributes(
 {
     int i;
 
-    psb__information_message("pnw_jpeg_QueryConfigAttributes\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_QueryConfigAttributes\n");
 
     /* RateControl attributes */
     for (i = 0; i < num_attribs; i++) {
@@ -102,7 +103,7 @@ static VAStatus pnw_jpeg_CreateContext(
     TOPAZSC_JPEG_ENCODER_CONTEXT *jpeg_ctx_p;
     int i;
 
-    psb__information_message("pnw_jpeg_CreateContext\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_CreateContext\n");
 
     vaStatus = pnw_CreateContext(obj_context, obj_config, 1);
     if (VA_STATUS_SUCCESS != vaStatus)
@@ -117,14 +118,14 @@ static VAStatus pnw_jpeg_CreateContext(
             switch (obj_config->attrib_list[i].value) {
             case VA_RT_FORMAT_YUV420:
                 ctx->eFormat = IMG_CODEC_PL12;
-                psb__information_message("JPEG encoding: Choose NV12 format\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG encoding: Choose NV12 format\n");
                 break;
             case VA_RT_FORMAT_YUV422:
                 ctx->eFormat = IMG_CODEC_YV16;
-                psb__information_message("JPEG encoding: Choose YV16 format\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG encoding: Choose YV16 format\n");
                 break;
             default:
-                psb__error_message("JPEG encoding: unsupported YUV format!\n");
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "JPEG encoding: unsupported YUV format!\n");
                 ctx->eFormat = IMG_CODEC_PL12;
                 break;
             }
@@ -147,7 +148,7 @@ static VAStatus pnw_jpeg_CreateContext(
     jpeg_ctx_p->ui8ScanNum = JPEG_SCANNING_COUNT(ctx->Width, ctx->Height, ctx->NumCores, jpeg_ctx_p->eFormat);
 
     if (jpeg_ctx_p->ui8ScanNum < 2 || jpeg_ctx_p->ui8ScanNum > PNW_JPEG_MAX_SCAN_NUM) {
-        psb__error_message("JPEG MCU scanning number(%d) is wrong!\n", jpeg_ctx_p->ui8ScanNum);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "JPEG MCU scanning number(%d) is wrong!\n", jpeg_ctx_p->ui8ScanNum);
         free(ctx->jpeg_ctx);
         ctx->jpeg_ctx = NULL;
         return VA_STATUS_ERROR_UNKNOWN;
@@ -155,7 +156,7 @@ static VAStatus pnw_jpeg_CreateContext(
 
     jpeg_ctx_p->sScan_Encode_Info.ui8NumberOfCodedBuffers = jpeg_ctx_p->ui8ScanNum;
 
-    psb__information_message(" JPEG Scanning Number %d\n", jpeg_ctx_p->ui8ScanNum);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, " JPEG Scanning Number %d\n", jpeg_ctx_p->ui8ScanNum);
     jpeg_ctx_p->sScan_Encode_Info.aBufferTable =
         (TOPAZSC_JPEG_BUFFER_INFO *)calloc(1, sizeof(TOPAZSC_JPEG_BUFFER_INFO)
                                            * jpeg_ctx_p->sScan_Encode_Info.ui8NumberOfCodedBuffers);
@@ -181,7 +182,7 @@ static void pnw_jpeg_DestroyContext(
 {
     context_ENC_p ctx;
 
-    psb__information_message("pnw_jpeg_DestroyPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_DestroyPicture\n");
 
     ctx = (context_ENC_p)(obj_context->format_data);
 
@@ -205,14 +206,14 @@ static VAStatus pnw_jpeg_BeginPicture(
     int ret;
     pnw_cmdbuf_p cmdbuf;
 
-    psb__information_message("pnw_jpeg_BeginPicture: Frame %d\n", ctx->obj_context->frame_count);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_BeginPicture: Frame %d\n", ctx->obj_context->frame_count);
 
     ctx->src_surface = ctx->obj_context->current_render_target;
 
     /* Initialise the command buffer */
     ret = pnw_context_get_next_cmdbuf(ctx->obj_context);
     if (ret) {
-        psb__information_message("get next cmdbuf fail\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "get next cmdbuf fail\n");
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         return vaStatus;
     }
@@ -289,11 +290,11 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
     free(pBuffer);
 
     if (NULL == ctx->coded_buf) {
-        psb__error_message("%s L%d Invalid coded buffer handle\n", __FUNCTION__, __LINE__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid coded buffer handle\n", __FUNCTION__, __LINE__);
         return VA_STATUS_ERROR_INVALID_BUFFER;
     }
 
-    psb__information_message("Set Quant Tables\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Set Quant Tables\n");
     /*Set Quant Tables*/
     for (i = ctx->NumCores - 1; i >= 0; i--)
         pnw_cmdbuf_insert_command_package(ctx->obj_context,
@@ -302,38 +303,38 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
                                           &cmdbuf->pic_params,
                                           0);
 
-    psb__information_message("Quant Table \n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Quant Table \n");
 
     for (i = 0; i < 128 ; i++) {
-        psb__information_message("%d \t", *((unsigned char *)cmdbuf->pic_params_p + i));
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%d \t", *((unsigned char *)cmdbuf->pic_params_p + i));
         if (((i + 1) % 8) == 0)
-            psb__information_message("\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n");
     }
 
     jpeg_ctx->ui32SizePerCodedBuffer =
         JPEG_CODED_BUF_SEGMENT_SIZE(ctx->coded_buf->size,
                                     ctx->Width, ctx->Height, ctx->NumCores, jpeg_ctx->eFormat);
 
-    psb__information_message("Coded buffer total size is %d,"
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Coded buffer total size is %d,"
                              "coded segment size per scan is %d\n",
                              ctx->coded_buf->size, jpeg_ctx->ui32SizePerCodedBuffer);
 
     vaStatus = psb_buffer_map(ctx->coded_buf->psb_buffer, (unsigned char **)&jpeg_ctx->jpeg_coded_buf.pMemInfo);
     if (vaStatus) {
-        psb__error_message("ERROR: Map coded_buf failed!");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Map coded_buf failed!");
         return vaStatus;
     }
     jpeg_ctx->jpeg_coded_buf.ui32Size = ctx->coded_buf->size;
     jpeg_ctx->jpeg_coded_buf.sLock = BUFFER_FREE;
     jpeg_ctx->jpeg_coded_buf.ui32BytesWritten = 0;
 
-    psb__information_message("Setup JPEG Tables\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Setup JPEG Tables\n");
     rc = SetupJPEGTables(ctx->jpeg_ctx, &jpeg_ctx->jpeg_coded_buf,  ctx->src_surface);
 
     if (rc != IMG_ERR_OK)
         return VA_STATUS_ERROR_UNKNOWN;
 
-    psb__information_message("Write JPEG Headers to coded buf\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Write JPEG Headers to coded buf\n");
 
     pBufHeader = (BUFFER_HEADER *)jpeg_ctx->jpeg_coded_buf.pMemInfo;
     pBufHeader->ui32BytesUsed = 0; /* Not include BUFFER_HEADER*/
@@ -344,7 +345,7 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
     pBufHeader->ui32Reserved3 = PNW_JPEG_HEADER_MAX_SIZE;//Next coded buffer offset
     pBufHeader->ui32BytesUsed = jpeg_ctx->jpeg_coded_buf.ui32BytesWritten - sizeof(BUFFER_HEADER);
 
-    psb__information_message("JPEG Buffer Header size: %d, File Header size :%d, next codef buffer offset: %d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG Buffer Header size: %d, File Header size :%d, next codef buffer offset: %d\n",
                              sizeof(BUFFER_HEADER), pBufHeader->ui32BytesUsed, pBufHeader->ui32Reserved3);
     return vaStatus;
 }
@@ -388,19 +389,19 @@ static VAStatus pnw_jpeg_RenderPicture(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i;
 
-    psb__information_message("pnw_jpeg_RenderPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_RenderPicture\n");
 
     for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
 
         switch (obj_buffer->type) {
         case VAQMatrixBufferType:
-            psb__information_message("pnw_jpeg_RenderPicture got VAEncSliceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_RenderPicture got VAEncSliceParameterBufferType\n");
             vaStatus = pnw__jpeg_process_qmatrix_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
         case VAEncPictureParameterBufferType:
-            psb__information_message("pnw_jpeg_RenderPicture got VAEncPictureParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_RenderPicture got VAEncPictureParameterBufferType\n");
             vaStatus = pnw__jpeg_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
@@ -441,7 +442,7 @@ static VAStatus pnw_jpeg_EndPicture(
     IMG_UINT32 ui32NoMCUsToEncode;
     IMG_UINT32 ui32RemainMCUs;
 
-    psb__information_message("pnw_jpeg_EndPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_EndPicture\n");
 
     ui32RemainMCUs = pContext->sScan_Encode_Info.ui32NumberMCUsToEncode;
 
@@ -518,7 +519,7 @@ VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, unsigned char *raw
 
     pBufHeader = (BUFFER_HEADER *)pSegStart;
 
-    psb__information_message("Number of Coded buffers %d, Per Coded Buffer size : %d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Number of Coded buffers %d, Per Coded Buffer size : %d\n",
                              pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers, pContext->ui32SizePerCodedBuffer);
 
     /*The first part of coded buffer contains JPEG headers*/
@@ -533,11 +534,11 @@ VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, unsigned char *raw
         pBufHeader->ui32Reserved3 =
             PNW_JPEG_HEADER_MAX_SIZE + pContext->ui32SizePerCodedBuffer * ui16BCnt ;
 
-        psb__information_message("Coded Buffer Part %d, size %d, next part offset: %d\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Coded Buffer Part %d, size %d, next part offset: %d\n",
                                  ui16BCnt, pBufHeader->ui32BytesUsed, pBufHeader->ui32Reserved3);
 
         if (ui16BCnt > 0 && pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers > 1) {
-            psb__information_message("Append 2 bytes Reset Interval %d "
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Append 2 bytes Reset Interval %d "
                                      "to Coded Buffer Part %d\n", ui16BCnt - 1, ui16BCnt);
 
              while(*(pSegStart +sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed - 1) == 0xff)
@@ -561,7 +562,7 @@ VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, unsigned char *raw
     pBufHeader->ui32Reserved3 = 0; /*Last Part of Coded Buffer*/
     pContext->jpeg_coded_buf.ui32BytesWritten += pBufHeader->ui32BytesUsed;
 
-    psb__information_message("Coded Buffer Part %d, size %d, next part offset: %d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Coded Buffer Part %d, size %d, next part offset: %d\n",
                              ui16BCnt, pBufHeader->ui32BytesUsed, pBufHeader->ui32Reserved3);
 
     s_streamW.Buffer = pSegStart;
@@ -572,7 +573,7 @@ VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, unsigned char *raw
     pBufHeader->ui32BytesUsed += 2;
     pContext->jpeg_coded_buf.ui32BytesWritten += 2;
 
-    psb__information_message("Add two bytes to last part of coded buffer,"
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Add two bytes to last part of coded buffer,"
                              " total: %d\n", pContext->jpeg_coded_buf.ui32BytesWritten);
     return VA_STATUS_SUCCESS;
 }

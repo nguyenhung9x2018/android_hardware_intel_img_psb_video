@@ -105,11 +105,11 @@ static void psb_xrandr_hdmi_property(VADriverContextP ctx)
     /* Check HDMI properties */
     props = XRRListOutputProperties(psb_xrandr_info->dpy, psb_xrandr_info->extend_output->output_id, &nprop);
     if (!props) {
-        psb__error_message("Xrandr: XRRListOutputProperties failed\n", psb_xrandr_info->extend_output->output_id);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Xrandr: XRRListOutputProperties failed\n", psb_xrandr_info->extend_output->output_id);
         return;
     }
 
-    psb__information_message("Xrandr: extend output %08x has %d properties\n", psb_xrandr_info->extend_output->output_id, nprop);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: extend output %08x has %d properties\n", psb_xrandr_info->extend_output->output_id, nprop);
 
     for (i = 0; i < nprop; i++) {
         XRRGetOutputProperty(psb_xrandr_info->dpy, psb_xrandr_info->extend_output->output_id, props[i],
@@ -118,7 +118,7 @@ static void psb_xrandr_hdmi_property(VADriverContextP ctx)
 
         propinfo = XRRQueryOutputProperty(psb_xrandr_info->dpy, psb_xrandr_info->extend_output->output_id, props[i]);
         if (!propinfo) {
-            psb__error_message("Xrandr: get output %08x prop %08x failed\n", psb_xrandr_info->extend_output->output_id, props[i]);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Xrandr: get output %08x prop %08x failed\n", psb_xrandr_info->extend_output->output_id, props[i]);
             return;
         }
 
@@ -127,38 +127,38 @@ static void psb_xrandr_hdmi_property(VADriverContextP ctx)
         /* Currently all properties are XA_INTEGER, 32 */
         if (!strcmp(prop_name, "ExtVideoMode")) {
             psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: ExtVideoMode (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: ExtVideoMode (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode);
         } else if (!strcmp(prop_name, "ExtVideoMode_Xres")) {
             psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_XRes = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: ExtVideoMode_XRes (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_XRes);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: ExtVideoMode_XRes (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_XRes);
         } else if (!strcmp(prop_name, "ExtVideoMode_Yres")) {
             psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_YRes = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: ExtVideoMode_YRes (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_YRes);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: ExtVideoMode_YRes (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_YRes);
         } else if (!strcmp(prop_name, "ExtVideoMode_X_Offset")) {
             psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_X_Offset = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: ExtVideoMode_X_Offset (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_X_Offset);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: ExtVideoMode_X_Offset (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_X_Offset);
         } else if (!strcmp(prop_name, "ExtVideoMode_Y_Offset")) {
             psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Y_Offset = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: ExtVideoMode_Y_Offset (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Y_Offset);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: ExtVideoMode_Y_Offset (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Y_Offset);
         } else if (!strcmp(prop_name, "ExtVideoMode_Center")) {
             psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Center = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: ExtVideoMode_Center (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Center);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: ExtVideoMode_Center (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_Center);
         } else if (!strcmp(prop_name, "ExtVideoMode_SubTitle")) {
             psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_SubTitle = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: ExtVideoMode_SubTitle (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_SubTitle);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: ExtVideoMode_SubTitle (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtVideoMode_SubTitle);
         } else if (!strcmp(prop_name, "ExtDesktopMode")) {
             if ((psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode != EXTENDEDVIDEO) &&
                 ((int)((INT32*)prop)[0] == EXTENDEDVIDEO)) {
                 driver_data->xrandr_dirty |= PSB_NEW_EXTVIDEO;
             }
             psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: ExtDesktopMode (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: ExtDesktopMode (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->ExtDesktopMode);
         } else if (!strcmp(prop_name, "OverscanMode")) {
             psb_xrandr_info->hdmi_extvideo_prop->OverscanMode = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: OverscanMode (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->OverscanMode);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: OverscanMode (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->OverscanMode);
         } else if (!strcmp(prop_name, "PANELFITTING")) {
             psb_xrandr_info->hdmi_extvideo_prop->PANELFITTING = (int)((INT32*)prop)[0];
-            psb__information_message("Xrandr: PANELFITTING (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->PANELFITTING);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: PANELFITTING (%08x)\n", psb_xrandr_info->hdmi_extvideo_prop->PANELFITTING);
         }
     }
 }
@@ -185,7 +185,7 @@ static void psb_xrandr_mipi_location_init(psb_output_device_mode output_device_m
     }
 
     if (!local_crtc || !extend_crtc) {
-        psb__error_message("Failed to get crtc info\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to get crtc info\n");
         return;
     }
 
@@ -231,7 +231,7 @@ static void psb_xrandr_hdmi_location_init(psb_output_device_mode output_device_m
     }
 
     if (!local_crtc || !extend_crtc) {
-        psb__error_message("Failed to get crtc info\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to get crtc info\n");
         return;
     }
 
@@ -395,7 +395,7 @@ void psb_xrandr_refresh(VADriverContextP ctx)
         if (crtc_info) {
             p_crtc = (psb_xrandr_crtc_p)calloc(1, sizeof(psb_xrandr_crtc_s));
             if (!p_crtc) {
-                psb__error_message("output of memory\n");
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "output of memory\n");
                 return;
             }
 
@@ -415,7 +415,7 @@ void psb_xrandr_refresh(VADriverContextP ctx)
             p_crtc->next = NULL;
             psb_xrandr_info->crtc_tail = p_crtc;
         } else {
-            psb__error_message("failed to get crtc_info\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to get crtc_info\n");
             pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
             return;
         }
@@ -448,7 +448,7 @@ void psb_xrandr_refresh(VADriverContextP ctx)
         if (output_info) {
             p_output = (psb_xrandr_output_p)calloc(1, sizeof(psb_xrandr_output_s));
             if (!p_output) {
-                psb__error_message("output of memory\n");
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "output of memory\n");
                 return;
             }
 
@@ -472,7 +472,7 @@ void psb_xrandr_refresh(VADriverContextP ctx)
             p_output->next = NULL;
             psb_xrandr_info->output_tail = p_output;
         } else {
-            psb__error_message("failed to get output_info\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to get output_info\n");
             pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
             return;
         }
@@ -503,23 +503,23 @@ void psb_xrandr_thread(void* arg)
     XEvent event;
     XRRQueryExtension(psb_xrandr_info->dpy, &event_base, &error_base);
     XRRSelectInput(psb_xrandr_info->dpy, psb_xrandr_info->root, RRScreenChangeNotifyMask | RRCrtcChangeNotifyMask | RROutputChangeNotifyMask | RROutputPropertyNotifyMask);
-    psb__information_message("Xrandr: psb xrandr thread start\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: psb xrandr thread start\n");
 
     while (1) {
         if (XCheckIfEvent(psb_xrandr_info->dpy, (XEvent *)&event, outputChangePredicate, NULL)) {
             if (event.type == ClientMessage) {
-                psb__information_message("Xrandr: receive ClientMessage event, thread should exit\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: receive ClientMessage event, thread should exit\n");
                 XClientMessageEvent *evt;
                 evt = (XClientMessageEvent*) & event;
                 if (evt->message_type == psb_xrandr_info->psb_exit_atom) {
-                    psb__information_message("Xrandr: xrandr thread exit safely\n");
+                    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: xrandr thread exit safely\n");
                     pthread_exit(NULL);
                 }
             }
             switch (event.type - event_base) {
             case RRNotify_OutputChange:
                 XRRUpdateConfiguration(&event);
-                psb__information_message("Xrandr: receive RRNotify_OutputChange event, refresh output/crtc info\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: receive RRNotify_OutputChange event, refresh output/crtc info\n");
                 driver_data->xrandr_update = 1;
                 psb_xrandr_refresh(ctx);
                 break;
@@ -694,7 +694,7 @@ VAStatus psb_xrandr_local_crtc_coordinate(psb_output_device *local_device_enable
         p_crtc = psb_xrandr_info->extend_crtc;
         break;
     default:
-        psb__error_message("Xrandr: Unknown statue\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Xrandr: Unknown statue\n");
         pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
         return VA_STATUS_ERROR_UNKNOWN;
         break;
@@ -707,11 +707,11 @@ VAStatus psb_xrandr_local_crtc_coordinate(psb_output_device *local_device_enable
         *height = p_crtc->height;
         *rotation = p_crtc->rotation;
         pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
-        psb__information_message("Xrandr: device %08x enabled, crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d, rotate = %08x\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: device %08x enabled, crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d, rotate = %08x\n",
                                  *local_device_enabled, p_crtc->crtc_id, *x, *y, *width + 1, *height + 1, *rotation);
         return VA_STATUS_SUCCESS;
     } else {
-        psb__error_message("Xrandr: local device is not available\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Xrandr: local device is not available\n");
         pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -735,7 +735,7 @@ VAStatus psb_xrandr_extend_crtc_coordinate(psb_output_device *extend_device_enab
         p_crtc = psb_xrandr_info->extend_crtc;
         break;
     default:
-        psb__error_message("Xrandr: Unknown status, may be extend device is not available\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Xrandr: Unknown status, may be extend device is not available\n");
         pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
         return VA_STATUS_ERROR_UNKNOWN;
         break;
@@ -749,10 +749,10 @@ VAStatus psb_xrandr_extend_crtc_coordinate(psb_output_device *extend_device_enab
         *location = p_crtc->location;
         *rotation = p_crtc->rotation;
         pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
-        psb__information_message("Xrandr: extend device %08x enabled, crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d, location = %s, rotation = %08x\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: extend device %08x enabled, crtc %08x coordinate: x = %d, y = %d, widht = %d, height = %d, location = %s, rotation = %08x\n",
                                  *extend_device_enabled, p_crtc->crtc_id, *x, *y, *width + 1, *height + 1, location2string(p_crtc->location), *rotation);
     } else {
-        psb__error_message("Xrandr: extend device is not available\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Xrandr: extend device is not available\n");
         pthread_mutex_unlock(&psb_xrandr_info->psb_extvideo_mutex);
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -773,10 +773,10 @@ VAStatus psb_xrandr_thread_exit()
     ret = XSendEvent(psb_xrandr_info->dpy, psb_xrandr_info->root, 0, StructureNotifyMask, (XEvent*) & xevent);
     XFlush(psb_xrandr_info->dpy);
     if (!ret) {
-        psb__information_message("Xrandr: send thread exit event to drawable: failed\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: send thread exit event to drawable: failed\n");
         return VA_STATUS_ERROR_UNKNOWN;
     } else {
-        psb__information_message("Xrandr: send thread exit event to drawable: success\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Xrandr: send thread exit event to drawable: success\n");
         return VA_STATUS_SUCCESS;
     }
 }
@@ -838,7 +838,7 @@ VAStatus psb_xrandr_init(VADriverContextP ctx)
     psb_xrandr_info = (psb_xrandr_info_p)calloc(1, sizeof(psb_xrandr_info_s));
 
     if (!psb_xrandr_info) {
-        psb__error_message("output of memory\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "output of memory\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
     memset(psb_xrandr_info, 0, sizeof(psb_xrandr_info_s));
@@ -848,7 +848,7 @@ VAStatus psb_xrandr_init(VADriverContextP ctx)
 
     psb_xrandr_info->hdmi_extvideo_prop = (psb_extvideo_prop_p)calloc(1, sizeof(psb_extvideo_prop_s));
     if (!psb_xrandr_info->hdmi_extvideo_prop) {
-        psb__error_message("output of memory\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "output of memory\n");
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
     memset(psb_xrandr_info->hdmi_extvideo_prop, 0, sizeof(psb_extvideo_prop_s));
@@ -857,7 +857,7 @@ VAStatus psb_xrandr_init(VADriverContextP ctx)
     screen = DefaultScreen(psb_xrandr_info->dpy);
 
     if (screen >= ScreenCount(psb_xrandr_info->dpy)) {
-        psb__error_message("Xrandr: Invalid screen number %d (display has %d)\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Xrandr: Invalid screen number %d (display has %d)\n",
                            screen, ScreenCount(psb_xrandr_info->dpy));
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -865,13 +865,13 @@ VAStatus psb_xrandr_init(VADriverContextP ctx)
     psb_xrandr_info->root = RootWindow(psb_xrandr_info->dpy, screen);
 
     if (!XRRQueryVersion(psb_xrandr_info->dpy, &major, &minor)) {
-        psb__error_message("Xrandr: RandR extension missing\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Xrandr: RandR extension missing\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
     psb_xrandr_info->res = XRRGetScreenResources(psb_xrandr_info->dpy, psb_xrandr_info->root);
     if (!psb_xrandr_info->res)
-        psb__error_message("Xrandr: failed to get screen resources\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Xrandr: failed to get screen resources\n");
 
     pthread_mutex_init(&psb_xrandr_info->psb_extvideo_mutex, NULL);
 

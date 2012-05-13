@@ -39,6 +39,7 @@
 #include <wsbm/wsbm_manager.h>
 
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 #include "lnc_hostcode.h"
 #include "psb_ws_driver.h"
 #include "psb_drm.h"
@@ -65,7 +66,6 @@
 #define MAX_CMD_COUNT         12
 
 #define MTX_SEG_SIZE          (0x0800)
-
 
 /*
  * Create command buffer
@@ -352,7 +352,7 @@ lncDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 
     arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg) * buffer_count);
     if (arg_list == NULL) {
-        psb__error_message("Allocate memory failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Allocate memory failed\n");
         return -ENOMEM;
     }
 
@@ -370,7 +370,7 @@ lncDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
         req->presumed_gpu_offset = (uint64_t)wsbmBOOffsetHint(buffer_list[i]->drm_buf);
         req->presumed_flags = PSB_USE_PRESUMED;
         if ((req->presumed_gpu_offset >> 28) & 0x1) {
-            psb__error_message("buffer is at the address topaz can not access\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "buffer is at the address topaz can not access\n");
             ret = -1;
             goto out;
         }
@@ -514,7 +514,7 @@ int lnc_surface_get_frameskip(psb_driver_data_p driver_data, psb_surface_p surfa
         SET_SURFACE_INFO_skipped_flag(surface, temp);
         *frame_skip = temp;
         if (temp == 1)
-            psb__information_message("Detected a skipped frame for encode\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Detected a skipped frame for encode\n");
     }
 
     return ret;
@@ -553,11 +553,10 @@ int lnc_context_flush_cmdbuf(object_context_p obj_context)
 
     ASSERT(NULL == cmdbuf->reloc_base);
 
-#ifdef DEBUG_TRACE
-    fence_flags = 0;
-#else
-    fence_flags = DRM_PSB_FENCE_NO_USER;
-#endif
+    if (psb_video_trace_fp)
+        fence_flags = 0;
+    else
+        fence_flags = DRM_PSB_FENCE_NO_USER;
 
 #ifndef LNC_ENGINE_ENCODE
 #define LNC_ENGINE_ENCODE  5
@@ -579,16 +578,15 @@ int lnc_context_flush_cmdbuf(object_context_p obj_context)
         return ret;
     }
 
-#if 0 /*DEBUG_TRACE*/
+#if 0
     int status = -1;
     struct _WsbmFenceObject *fence = NULL;
 
     fence = lnc_fence_wait(driver_data, &fence_rep, &status);
-    psb__information_message("psb_fence_wait returns: %d (fence=0x%08x)\n", status, fence);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_fence_wait returns: %d (fence=0x%08x)\n", status, fence);
 
     if (fence)
         wsbmFenceUnreference(fence);
-
 #endif
 
     obj_context->lnc_cmdbuf = NULL;

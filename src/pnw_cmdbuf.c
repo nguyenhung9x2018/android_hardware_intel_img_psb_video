@@ -39,6 +39,7 @@
 #include <wsbm/wsbm_manager.h>
 
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 #include "pnw_hostcode.h"
 #include "psb_ws_driver.h"
 #include "psb_drm.h"
@@ -409,7 +410,7 @@ pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 
     arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg) * buffer_count);
     if (arg_list == NULL) {
-        psb__error_message("Allocate memory failed\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Allocate memory failed\n");
         return -ENOMEM;
     }
 
@@ -592,11 +593,10 @@ int pnw_context_flush_cmdbuf(object_context_p obj_context)
 
     ASSERT(NULL == cmdbuf->reloc_base);
 
-#ifdef DEBUG_TRACE
-    fence_flags = 0;
-#else
-    fence_flags = DRM_PSB_FENCE_NO_USER;
-#endif
+    if (psb_video_trace_fp)
+        fence_flags = 0;
+    else
+        fence_flags = DRM_PSB_FENCE_NO_USER;
 
 #ifndef LNC_ENGINE_ENCODE
 #define LNC_ENGINE_ENCODE  5
@@ -619,16 +619,15 @@ int pnw_context_flush_cmdbuf(object_context_p obj_context)
         return ret;
     }
 
-#if 0 /*DEBUG_TRACE*/
+#if 0
     int status = -1;
     struct _WsbmFenceObject *fence = NULL;
 
     fence = lnc_fence_wait(driver_data, &fence_rep, &status);
-    psb__information_message("psb_fence_wait returns: %d (fence=0x%08x)\n", status, fence);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_fence_wait returns: %d (fence=0x%08x)\n", status, fence);
 
     if (fence)
         wsbmFenceUnreference(fence);
-
 #endif
 
     obj_context->pnw_cmdbuf = NULL;

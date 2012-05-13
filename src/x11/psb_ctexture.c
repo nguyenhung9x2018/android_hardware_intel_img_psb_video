@@ -69,7 +69,7 @@ static VAStatus psb_extend_dri_init(VADriverContextP ctx, unsigned int destx, un
 
     output->extend_drawable = (Window)psb_xrandr_create_full_screen_window(destx, desty, destw, desth);
     if (!output->extend_drawable) {
-        psb__error_message("%s: Failed to create drawable for extend display # %d\n", __func__, output->extend_drawable);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to create drawable for extend display # %d\n", __func__, output->extend_drawable);
     }
 
     if (texture_priv->extend_dri_drawable) {
@@ -79,19 +79,19 @@ static VAStatus psb_extend_dri_init(VADriverContextP ctx, unsigned int destx, un
 
     texture_priv->extend_dri_drawable = dri_get_drawable(ctx, output->extend_drawable);
     if (!texture_priv->extend_dri_drawable) {
-        psb__error_message("%s(): Failed to get extend_dri_drawable\n", __func__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): Failed to get extend_dri_drawable\n", __func__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
     extend_dri_buffer = dri_get_rendering_buffer(ctx, texture_priv->extend_dri_drawable);
     if (!extend_dri_buffer) {
-        psb__error_message("%s(): Failed to get extend_dri_buffer\n", __func__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): Failed to get extend_dri_buffer\n", __func__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
     ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)extend_dri_buffer->dri2.name, &dri2_bb_export_meminfo);
     if (ret != PVR2D_OK) {
-        psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -100,7 +100,7 @@ static VAStatus psb_extend_dri_init(VADriverContextP ctx, unsigned int destx, un
     for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
         ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->extend_dri2_bb_export.hBuffers[i], &texture_priv->extend_blt_meminfo[i]);
         if (ret != PVR2D_OK) {
-            psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
     }
@@ -153,14 +153,14 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
 
     texture_priv->dri_drawable = dri_get_drawable(ctx, draw);
     if (!texture_priv->dri_drawable) {
-        psb__error_message("%s(): Failed to get dri_drawable\n", __func__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): Failed to get dri_drawable\n", __func__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
     tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;
 
     dri_buffer = dri_get_rendering_buffer(ctx, texture_priv->dri_drawable);
     if (!dri_buffer) {
-        psb__error_message("%s(): Failed to get dri_buffer\n", __func__);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): Failed to get dri_buffer\n", __func__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
@@ -171,36 +171,36 @@ static VAStatus psb_dri_init(VADriverContextP ctx, Drawable draw)
 
         ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &texture_priv->blt_meminfo_pixmap);
         if (ret != PVR2D_OK) {
-            psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
         /* window */
     } else {
         ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, (PVR2D_HANDLE)(dri_buffer->dri2.name & 0x00FFFFFF), &dri2_bb_export_meminfo);
         if (ret != PVR2D_OK) {
-            psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
 
         memcpy(&texture_priv->dri2_bb_export, dri2_bb_export_meminfo->pBase, sizeof(PVRDRI2BackBuffersExport));
 
         if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS) {
-            psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS\n");
 
             for (i = 0; i < DRI2_BLIT_BUFFERS_NUM; i++) {
                 ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->blt_meminfo[i]);
                 if (ret != PVR2D_OK) {
-                    psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
                     return VA_STATUS_ERROR_UNKNOWN;
                 }
             }
         } else if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN) {
-            psb__information_message("psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_dri_init: Now map buffer, DRI2 back buffer export type: DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN\n");
 
             for (i = 0; i < DRI2_FLIP_BUFFERS_NUM; i++) {
                 ret = PVR2DMemMap(driver_data->hPVR2DContext, 0, texture_priv->dri2_bb_export.hBuffers[i], &texture_priv->flip_meminfo[i]);
                 if (ret != PVR2D_OK) {
-                    psb__error_message("%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "%s(): PVR2DMemMap failed, ret = %d\n", __func__, ret);
                     return VA_STATUS_ERROR_UNKNOWN;
                 }
             }
@@ -249,7 +249,7 @@ VAStatus psb_putsurface_ctexture(
 
     obj_surface = SURFACE(surface);
     if (NULL == obj_surface) {
-        psb__error_message("%s: Invalid surface ID 0x%08x.\n", __func__, surface);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Invalid surface ID 0x%08x.\n", __func__, surface);
         return VA_STATUS_ERROR_INVALID_SURFACE;
     }
 
@@ -280,7 +280,7 @@ VAStatus psb_putsurface_ctexture(
     if (driver_data->use_xrandr_thread && !driver_data->xrandr_thread_id) {
         ret = psb_xrandr_thread_create(ctx);
         if (ret != 0) {
-            psb__error_message("%s: Failed to create psb xrandr thread error # %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to create psb xrandr thread error # %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
     }
@@ -298,14 +298,14 @@ VAStatus psb_putsurface_ctexture(
 
     ret = psb_xrandr_local_crtc_coordinate(&local_device, &local_crtc_x, &local_crtc_y, &display_width, &display_height, &local_rotation);
     if (ret != VA_STATUS_SUCCESS) {
-        psb__error_message("%s: Failed to get local crtc coordinates error # %d\n", __func__, ret);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to get local crtc coordinates error # %d\n", __func__, ret);
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
     if (!psb_xrandr_single_mode() && IS_MFLD(driver_data)) {
         ret = psb_xrandr_extend_crtc_coordinate(&extend_device, &extend_crtc_x, &extend_crtc_y, &extend_display_width, &extend_display_height, &extend_location, &extend_rotation);
         if (ret != VA_STATUS_SUCCESS) {
-            psb__error_message("%s: Failed to get extend crtc coordinates error # %d\n", __func__, ret);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Failed to get extend crtc coordinates error # %d\n", __func__, ret);
             return VA_STATUS_ERROR_UNKNOWN;
         }
     }
@@ -323,7 +323,7 @@ VAStatus psb_putsurface_ctexture(
     if (!psb_xrandr_extvideo_mode()) {
         if (!texture_priv->dri_init_flag || texture_priv->drawable_update_flag) {
             if (texture_priv->drawable_update_flag) {
-                psb__information_message("Drawable update, reinit DRI\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Drawable update, reinit DRI\n");
                 texture_priv->drawable_update_flag = 0;
             }
 
@@ -341,7 +341,7 @@ VAStatus psb_putsurface_ctexture(
             texture_priv->extend_dri_init_flag = 0;
         }
 
-        psb__information_message("psb_putsurface_ctexture: Clone Mode\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_putsurface_ctexture: Clone Mode\n");
     } else if (psb_xrandr_extend_mode()) {
         if (output->extend_drawable) {
             XDestroyWindow(ctx->native_dpy, output->extend_drawable);
@@ -382,7 +382,7 @@ VAStatus psb_putsurface_ctexture(
             break;
         }
 
-        psb__information_message("psb_putsurface_ctexture: Extend Mode, Location: %08x\n", extend_location);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_putsurface_ctexture: Extend Mode, Location: %08x\n", extend_location);
     } else if (psb_xrandr_extvideo_mode()) {
 
         unsigned int xres, yres, xoffset, yoffset, overscanmode, pannelfitting;
@@ -399,8 +399,8 @@ VAStatus psb_putsurface_ctexture(
                 return VA_STATUS_ERROR_UNKNOWN;
         }
 
-        psb__information_message("psb_putsurface_ctexture: ExtendVideo Mode, Location: %08x\n", extend_location);
-        psb__information_message("psb_putsurface_ctexture: ExtVideo coordinate srcx= %d, srcy=%d, \
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_putsurface_ctexture: ExtendVideo Mode, Location: %08x\n", extend_location);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_putsurface_ctexture: ExtVideo coordinate srcx= %d, srcy=%d, \
 				  srcw=%d, srch=%d, destx=%d, desty=%d, destw=%d, desth=%d, cur_buffer=%d\n",
                                  srcx, srcy, srcw, srch, xoffset, yoffset, xres, yres, texture_priv->extend_current_blt_buffer);
 
@@ -447,7 +447,7 @@ VAStatus psb_putsurface_ctexture(
 
         if (!texture_priv->dri_init_flag || texture_priv->drawable_update_flag) {
             if (texture_priv->drawable_update_flag) {
-                psb__information_message("Drawable update, reinit DRI\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Drawable update, reinit DRI\n");
                 texture_priv->drawable_update_flag = 0;
             }
 
@@ -461,7 +461,7 @@ VAStatus psb_putsurface_ctexture(
     /* Main Video for pixmap*/
     tmp_drawable = (struct dri_drawable *)texture_priv->dri_drawable;
     if (!tmp_drawable->is_window) {
-        psb__information_message("psb_putsurface_ctexture: Main video Pixmap, coordinate: srcx= %d, srcy=%d, srcw=%d, srch=%d, destx=%d, desty=%d, destw=%d, desth=%d, cur_buffer=%d\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_putsurface_ctexture: Main video Pixmap, coordinate: srcx= %d, srcy=%d, srcw=%d, srch=%d, destx=%d, desty=%d, destw=%d, desth=%d, cur_buffer=%d\n",
                                  srcx, srcy, srcw, srch, destx, desty, destw, desth, texture_priv->current_blt_buffer);
         if (subtitle == BOTH || (subtitle == NOSUBTITLE && obj_surface->subpic_count))
             psb_putsurface_textureblit(ctx, (unsigned char *)texture_priv->blt_meminfo_pixmap, surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 1,
@@ -479,7 +479,7 @@ VAStatus psb_putsurface_ctexture(
 
     /* Main Video for window*/
     if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS) {
-        psb__information_message("psb_putsurface_ctexture: Main video, swap buffer, coordinate: srcx= %d, srcy=%d, srcw=%d, srch=%d, destx=%d, desty=%d, destw=%d, desth=%d, cur_buffer=%d\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_putsurface_ctexture: Main video, swap buffer, coordinate: srcx= %d, srcy=%d, srcw=%d, srch=%d, destx=%d, desty=%d, destw=%d, desth=%d, cur_buffer=%d\n",
                                  srcx, srcy, srcw, srch, destx, desty, destw, desth, texture_priv->current_blt_buffer);
 
         if (subtitle == BOTH || (subtitle == NOSUBTITLE && obj_surface->subpic_count))
@@ -497,7 +497,7 @@ VAStatus psb_putsurface_ctexture(
         texture_priv->current_blt_buffer = (texture_priv->current_blt_buffer + 1) & 0x01;
 
     } else if (texture_priv->dri2_bb_export.ui32Type == DRI2_BACK_BUFFER_EXPORT_TYPE_SWAPCHAIN) {
-        psb__information_message("psb_putsurface_ctexture: Main video, flip chain, coordinate: srcx= %d, srcy=%d, srcw=%d, srch=%d, destx=%d, desty=%d, destw=%d, desth=%d, cur_buffer=%d\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_putsurface_ctexture: Main video, flip chain, coordinate: srcx= %d, srcy=%d, srcw=%d, srch=%d, destx=%d, desty=%d, destw=%d, desth=%d, cur_buffer=%d\n",
                                  srcx, srcy, srcw, srch, destx, desty, display_width, display_height, texture_priv->current_blt_buffer);
 
         if (subtitle == BOTH || (subtitle == NOSUBTITLE && obj_surface->subpic_count))

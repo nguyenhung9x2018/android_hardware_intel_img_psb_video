@@ -57,7 +57,7 @@ static void lnc_MPEG4ES_QueryConfigAttributes(
 {
     int i;
 
-    psb__information_message("lnc_MPEG4ES_QueryConfigAttributes\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_QueryConfigAttributes\n");
 
     /* RateControl attributes */
     for (i = 0; i < num_attribs; i++) {
@@ -113,7 +113,7 @@ static VAStatus lnc_MPEG4ES_CreateContext(
     int i;
     unsigned int eRCmode;
 
-    psb__information_message("lnc_MPEG4ES_CreateContext\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_CreateContext\n");
 
     vaStatus = lnc_CreateContext(obj_context, obj_config);
     if (VA_STATUS_SUCCESS != vaStatus)
@@ -172,7 +172,7 @@ static VAStatus lnc_MPEG4ES_CreateContext(
 static void lnc_MPEG4ES_DestroyContext(
     object_context_p obj_context)
 {
-    psb__information_message("lnc_MPEG4ES_DestroyPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_DestroyPicture\n");
 
     lnc_DestroyContext(obj_context);
 }
@@ -183,7 +183,7 @@ static VAStatus lnc_MPEG4ES_BeginPicture(
     INIT_CONTEXT_MPEG4ES;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    psb__information_message("lnc_MPEG4ES_BeginPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_BeginPicture\n");
 
     vaStatus = lnc_BeginPicture(ctx);
 
@@ -216,7 +216,7 @@ static VAStatus lnc__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
 
     if (seq_params->bits_per_second > TOPAZ_MPEG4_MAX_BITRATE) {
         ctx->sRCParams.BitsPerSecond = TOPAZ_MPEG4_MAX_BITRATE;
-        psb__information_message(" bits_per_second(%d) exceeds \
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, " bits_per_second(%d) exceeds \
 		the maximum bitrate, set it with %d\n",
                                  seq_params->bits_per_second,
                                  TOPAZ_MPEG4_MAX_BITRATE);
@@ -348,7 +348,7 @@ static VAStatus lnc__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
 
     /*In case the slice number changes*/
     if ((ctx->slice_param_cache != NULL) && (obj_buffer->num_elements != ctx->slice_param_num)) {
-        psb__information_message("Slice number changes. Previous value is %d. Now it's %d\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Slice number changes. Previous value is %d. Now it's %d\n",
                                  ctx->slice_param_num, obj_buffer->num_elements);
         free(ctx->slice_param_cache);
         ctx->slice_param_cache = NULL;
@@ -356,11 +356,11 @@ static VAStatus lnc__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     }
 
     if (NULL == ctx->slice_param_cache) {
-        psb__information_message("Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2 * ctx->slice_param_num);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate %d VAEncSliceParameterBuffer cache buffers\n", 2 * ctx->slice_param_num);
         ctx->slice_param_num = obj_buffer->num_elements;
         ctx->slice_param_cache = calloc(2 * ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
         if (NULL == ctx->slice_param_cache) {
-            psb__error_message("Run out of memory!\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Run out of memory!\n");
             free(obj_buffer->buffer_data);
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
         }
@@ -397,7 +397,7 @@ static VAStatus lnc__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
                                           ctx->obj_context->slice_count,
                                           ctx->max_slice_size);
 
-            psb__information_message("Now frame_count/slice_count is %d/%d\n",
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Now frame_count/slice_count is %d/%d\n",
                                      ctx->obj_context->frame_count, ctx->obj_context->slice_count);
         }
         ctx->obj_context->slice_count++;
@@ -431,14 +431,14 @@ static VAStatus lnc__MPEG4ES_process_misc_param(context_ENC_p ctx, object_buffer
     switch (pBuffer->type) {
     case VAEncMiscParameterTypeFrameRate:
         frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
-        psb__information_message("%s: frame rate changed to %d\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: frame rate changed to %d\n",
                                  frame_rate_param->framerate);
         break;
 
     case VAEncMiscParameterTypeRateControl:
         rate_control_param = (VAEncMiscParameterRateControl *)pBuffer->data;
 
-        psb__information_message("%s: bit rate changed to %d\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bit rate changed to %d\n",
                                  rate_control_param->bits_per_second);
 
         if (rate_control_param->bits_per_second == ctx->sRCParams.BitsPerSecond)
@@ -448,7 +448,7 @@ static VAStatus lnc__MPEG4ES_process_misc_param(context_ENC_p ctx, object_buffer
 
         if (rate_control_param->bits_per_second > TOPAZ_MPEG4_MAX_BITRATE) {
             ctx->sRCParams.BitsPerSecond = TOPAZ_MPEG4_MAX_BITRATE;
-            psb__information_message(" bits_per_second(%d) exceeds \
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, " bits_per_second(%d) exceeds \
 		the maximum bitrate, set it with %d\n",
                                      rate_control_param->bits_per_second,
                                      TOPAZ_MPEG4_MAX_BITRATE);
@@ -463,7 +463,7 @@ static VAStatus lnc__MPEG4ES_process_misc_param(context_ENC_p ctx, object_buffer
         if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
             break;
 
-        psb__information_message("%s: max slice size changed to %d\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: max slice size changed to %d\n",
                                  max_slice_size_param->max_slice_size);
 
         ctx->max_slice_size = max_slice_size_param->max_slice_size;
@@ -473,7 +473,7 @@ static VAStatus lnc__MPEG4ES_process_misc_param(context_ENC_p ctx, object_buffer
     case VAEncMiscParameterTypeAIR:
         air_param = (VAEncMiscParameterAIR *)pBuffer->data;
 
-        psb__information_message("%s: air slice size changed to num_air_mbs %d "
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: air slice size changed to num_air_mbs %d "
                                  "air_threshold %d, air_auto %d\n",
                                  air_param->air_num_mbs, air_param->air_threshold,
                                  air_param->air_auto);
@@ -505,32 +505,32 @@ static VAStatus lnc_MPEG4ES_RenderPicture(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i;
 
-    psb__information_message("lnc_MPEG4ES_RenderPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_RenderPicture\n");
 
     for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
 
         switch (obj_buffer->type) {
         case VAEncSequenceParameterBufferType:
-            psb__information_message("lnc_MPEG4ES_RenderPicture got VAEncSequenceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_RenderPicture got VAEncSequenceParameterBufferType\n");
             vaStatus = lnc__MPEG4ES_process_sequence_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAEncPictureParameterBufferType:
-            psb__information_message("lnc_MPEG4ES_RenderPicture got VAEncPictureParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_RenderPicture got VAEncPictureParameterBufferType\n");
             vaStatus = lnc__MPEG4ES_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAEncSliceParameterBufferType:
-            psb__information_message("lnc_MPEG4ES_RenderPicture got VAEncSliceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_RenderPicture got VAEncSliceParameterBufferType\n");
             vaStatus = lnc__MPEG4ES_process_slice_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAEncMiscParameterBufferType:
-            psb__information_message("lnc_MPEG4ES_RenderPicture got VAEncMiscParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_RenderPicture got VAEncMiscParameterBufferType\n");
             vaStatus = lnc__MPEG4ES_process_misc_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
@@ -549,7 +549,7 @@ static VAStatus lnc_MPEG4ES_EndPicture(
 {
     INIT_CONTEXT_MPEG4ES;
 
-    psb__information_message("lnc_MPEG4ES_EndPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "lnc_MPEG4ES_EndPicture\n");
     return lnc_EndPicture(ctx);
 }
 

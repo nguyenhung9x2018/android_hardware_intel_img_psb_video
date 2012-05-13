@@ -32,29 +32,6 @@
 #include <assert.h>
 #include <string.h>
 
-/* #define VA_EMULATOR 1 */
-
-/* #define DEBUG_TRACE */
-/* #define DEBUG_TRACE_VERBOSE */
-
-#ifdef DEBUG_TRACE
-#ifndef ASSERT
-#define ASSERT  assert
-#endif
-
-#ifndef IMG_ASSERT
-#define IMG_ASSERT  assert
-#endif
-
-#else /* DEBUG_TRACE */
-
-#undef ASSERT
-#undef IMG_ASSERT
-#define ASSERT(x)
-#define IMG_ASSERT(x)
-
-#endif /* DEBUG_TRACE */
-
 #ifndef FALSE
 #define FALSE   0
 #endif
@@ -63,21 +40,11 @@
 #define TRUE    1
 #endif
 
+#define MAX_CMD_COUNT         12
 
-void psb__error_message(const char *msg, ...);
-void psb__information_message(const char *msg, ...);
-#ifdef ANDROID
-#define psb__android_message(format, ...) \
-    LOGD(format, ##__VA_ARGS__)
-#else
-#define psb__android_message(format, ...)
-#endif
-void psb__trace_message(const char *msg, ...);
+#define MTX_SEG_SIZE          (0x0800)
 
-
-#define DEBUG_FAILURE           while(vaStatus) {psb__information_message("%s fails with '%d' at %s:%d\n", __FUNCTION__, vaStatus, __FILE__, __LINE__);break;}
-#define DEBUG_FAILURE_RET       while(ret)              {psb__information_message("%s fails with '%s' at %s:%d\n", __FUNCTION__, strerror(ret < 0 ? -ret : ret), __FILE__, __LINE__);break;}
-
+#define PSB_TIMEOUT_USEC 990000
 
 #ifndef VA_FOURCC_YV16
 #define VA_FOURCC_YV16 0x36315659

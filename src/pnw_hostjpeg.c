@@ -32,6 +32,7 @@
 
 #include <pnw_hostcode.h>
 #include <pnw_hostjpeg.h>
+#include "psb_drv_debug.h"
 
 #define TRACK_FREE(ptr)                 free(ptr)
 #define TRACK_MALLOC(ptr)               malloc(ptr)
@@ -549,7 +550,7 @@ void SetupMCUDetails(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
     pMCUComp->ui32XLimit = uiLastCol;
     pMCUComp->ui32YLimit = uiLastRow;
 
-    psb__information_message("MCU Details %i : %ix%i  %i  %i\n", uiComponentNumber, uiWidthBlocks , uiHeightBlocks ,  uiLastCol , uiLastRow);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "MCU Details %i : %ix%i  %i  %i\n", uiComponentNumber, uiWidthBlocks , uiHeightBlocks ,  uiLastCol , uiLastRow);
 
 }
 
@@ -1238,19 +1239,19 @@ IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UIN
                              &pTFrame->psb_surface->buf);
         break;
     default:
-        psb__error_message(" Not supported FOURCC %x!\n", pContext->eFormat);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, " Not supported FOURCC %x!\n", pContext->eFormat);
         return -1;
 
     }
 
 
-    psb__information_message("TOPAZ_PDUMP: ui32DataInterleaveStatus %x\n", pContext->pMTXSetup->ui32DataInterleaveStatus);
-    psb__information_message("TOPAZ_PDUMP: ui32TableA %x \n", pContext->pMTXSetup->ui32TableA);
-    psb__information_message("TOPAZ_PDUMP:ui32ComponentsInScan %x\n", pContext->pMTXSetup->ui32ComponentsInScan);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "TOPAZ_PDUMP: ui32DataInterleaveStatus %x\n", pContext->pMTXSetup->ui32DataInterleaveStatus);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "TOPAZ_PDUMP: ui32TableA %x \n", pContext->pMTXSetup->ui32TableA);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "TOPAZ_PDUMP:ui32ComponentsInScan %x\n", pContext->pMTXSetup->ui32ComponentsInScan);
     for (i32Lp = 0; i32Lp < 3; i32Lp++) {
-        psb__information_message("TOPAZ_PDUMP: ComponentPlane[%d]: 0x%x, %d, %d\n",
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "TOPAZ_PDUMP: ComponentPlane[%d]: 0x%x, %d, %d\n",
                                  i32Lp, pContext->pMTXSetup->ComponentPlane[i32Lp].ui32PhysAddr, pContext->pMTXSetup->ComponentPlane[i32Lp].ui32Stride, pContext->pMTXSetup->ComponentPlane[i32Lp].ui32Height);
-        psb__information_message("TOPAZ_PDUMP: MCUComponent[%d]: %d, %d, %d, %d\n", i32Lp, pContext->pMTXSetup->MCUComponent[i32Lp].ui32WidthBlocks, pContext->pMTXSetup->MCUComponent[i32Lp].ui32HeightBlocks, pContext->pMTXSetup->MCUComponent[i32Lp].ui32XLimit, pContext->pMTXSetup->MCUComponent[i32Lp].ui32YLimit);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "TOPAZ_PDUMP: MCUComponent[%d]: %d, %d, %d, %d\n", i32Lp, pContext->pMTXSetup->MCUComponent[i32Lp].ui32WidthBlocks, pContext->pMTXSetup->MCUComponent[i32Lp].ui32HeightBlocks, pContext->pMTXSetup->MCUComponent[i32Lp].ui32XLimit, pContext->pMTXSetup->MCUComponent[i32Lp].ui32YLimit);
     }
 
     i32Lp = ctx->NumCores;
@@ -1299,7 +1300,7 @@ IMG_UINT32 Legacy_JPGEncodeSOSHeader(LEGACY_JPEG_ENCODER_CONTEXT *pContext, IMG_
     for (ui8Comp = 0; ui8Comp < pContext->JPEGEncoderParams.uc_num_comp_in_scan; ui8Comp++) {
         uc_comp_id = pContext->JPEGEncoderParams.puc_comp_id[ui8Comp];
         if (uc_comp_id >= MAX_COMP_IN_SCAN) {
-            psb__error_message("Invalide component index %d\n", uc_comp_id);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalide component index %d\n", uc_comp_id);
             uc_comp_id = MAX_COMP_IN_SCAN - 1;
         }
 
@@ -1476,10 +1477,10 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
     pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan =
         JPEG_MCU_PER_SCAN(ctx->Width, ctx->Height, ctx->NumCores, pContext->eFormat);
 
-    psb__information_message("MCUs To Encode %dx%d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "MCUs To Encode %dx%d\n",
                              pContext->sScan_Encode_Info.ui32NumberMCUsX,
                              pContext->sScan_Encode_Info.ui32NumberMCUsY);
-    psb__information_message("Total MCU %d, per scan %d\n", pContext->sScan_Encode_Info.ui32NumberMCUsToEncode, pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Total MCU %d, per scan %d\n", pContext->sScan_Encode_Info.ui32NumberMCUsToEncode, pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan);
 
     //Allocate our coded data buffers here now we know the number of MCUs we're encoding
     /*Use slice parameter buffer*/
@@ -1661,15 +1662,15 @@ IMG_ERRORCODE PrepareHeader(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED_B
     rc = JPGEncodeMarker(pContext, (IMG_UINT8 *) ui8OutputBuffer,  &pCBuffer->ui32BytesWritten, bIncludeHuffmanTables);
     if (rc) return rc;
 
-    psb__information_message("Current bytes of coded buf used: %d\n", pCBuffer->ui32BytesWritten);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Current bytes of coded buf used: %d\n", pCBuffer->ui32BytesWritten);
     rc = JPGEncodeHeader(pContext , (IMG_UINT8 *) ui8OutputBuffer ,  &pCBuffer->ui32BytesWritten);
     if (rc) return rc;
 
-    psb__information_message("Current bytes of coded buf used: %d\n", pCBuffer->ui32BytesWritten);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Current bytes of coded buf used: %d\n", pCBuffer->ui32BytesWritten);
     rc = JPGEncodeSOSHeader(pContext, (IMG_UINT8 *) ui8OutputBuffer, &pCBuffer->ui32BytesWritten);
     if (rc) return rc;
 
-    psb__information_message("Current bytes of coded buf used: %d\n", pCBuffer->ui32BytesWritten);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Current bytes of coded buf used: %d\n", pCBuffer->ui32BytesWritten);
     /*IMG_C_ReleaseBuffer((IMG_HENC_CONTEXT) pContext, pCBuffer);*/
     return IMG_ERR_OK;
 }
@@ -1697,7 +1698,7 @@ IMG_ERRORCODE IssueBufferToHW(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, TOPAZSC_JP
     printf("\n**************************************************************************\n");
     printf("** HOST SENDING Scan:%i (%i MCUs) to MTX %i, using Buffer %i\n", pWriteBuf->ui16ScanNumber, ui32NoMCUsToEncode, i8MTXNumber - 1, ui16BCnt);
 #endif
-    psb__information_message("HOST SENDING Scan:%d (%d MCUs, offset %d MCUs)"
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "HOST SENDING Scan:%d (%d MCUs, offset %d MCUs)"
                              " to MTX %d, using Buffer %d\n",
                              pWriteBuf->ui16ScanNumber, ui32NoMCUsToEncode,
                              pContext->sScan_Encode_Info.ui32CurMCUsOffset,
@@ -1714,8 +1715,8 @@ IMG_ERRORCODE IssueBufferToHW(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, TOPAZSC_JP
 
     psBufferCmd->ui32MCUCntAndResetFlag = (ui32NoMCUsToEncode << 1) | 0x1;
     psBufferCmd->ui32CurrentMTXScanMCUPosition = pContext->sScan_Encode_Info.ui32CurMCUsOffset;
-    psb__information_message("TOPAZ_PDUMP: ui32MCUCntAndResetFlag 0x%x\n", psBufferCmd->ui32MCUCntAndResetFlag);
-    psb__information_message("TOPAZ_PDUMP: ui32CurrentMTXScanMCUPosition 0x%x\n", psBufferCmd->ui32CurrentMTXScanMCUPosition);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "TOPAZ_PDUMP: ui32MCUCntAndResetFlag 0x%x\n", psBufferCmd->ui32MCUCntAndResetFlag);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "TOPAZ_PDUMP: ui32CurrentMTXScanMCUPosition 0x%x\n", psBufferCmd->ui32CurrentMTXScanMCUPosition);
     /* We do not need to do this but in order for params to match on HW we need to know whats in the buffer*/
     /*MMUpdateDeviceMemory(pWriteBuf->pMemInfo );*/
 
@@ -1771,7 +1772,7 @@ IMG_ERRORCODE SubmitScanToMTX(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
     pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui32DataBufferUsedBytes = ((BUFFER_HEADER*)(pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].pMemInfo))->ui32BytesUsed = -1; // Won't be necessary with SC Peek commands enabled
     IssueBufferToHW(pContext, &(pContext->sScan_Encode_Info.aBufferTable[ui16BCnt]), ui16BCnt, ui32NoMCUsToEncode, i8MTXNumber);
 
-    psb__information_message("Submitting scan %i to MTX %i and Buffer %i\n", pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber, i8MTXNumber, ui16BCnt);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Submitting scan %i to MTX %i and Buffer %i\n", pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber, i8MTXNumber, ui16BCnt);
     return IMG_ERR_OK;
 }
 

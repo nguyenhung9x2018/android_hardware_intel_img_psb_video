@@ -32,6 +32,7 @@
 #include <string.h>
 
 #include "psb_def.h"
+#include "psb_drv_debug.h"
 
 #define LAST_FREE    -1
 #define ALLOCATED    -2
