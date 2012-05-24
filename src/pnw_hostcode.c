@@ -1273,7 +1273,10 @@ static void pnw__update_rcdata(
         L1 = 0.1;
         L2 = 0.15;
         L3 = 0.2;
-        psPicParams->sInParams.MaxQPVal = 51;
+        if (psContext->eCodec != IMG_CODEC_H264_CBR)
+            psPicParams->sInParams.MaxQPVal = 51;
+        else
+            psPicParams->sInParams.MaxQPVal = 40; /* especially for WiDi */
 
         /* Setup MAX and MIN Quant Values */
         if (flBpp <= 0.3)
