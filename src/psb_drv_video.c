@@ -3016,6 +3016,25 @@ VAStatus psb_PutSurfaceBuf(
     return VA_STATUS_SUCCESS;
 }
 
+VAStatus psb_SetTimestampForSurface(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    long long timestamp
+)
+{
+    INIT_DRIVER_DATA;
+    object_surface_p obj_surface = SURFACE(surface);
+
+    obj_surface = SURFACE(surface);
+
+    if (obj_surface->share_info) {
+        obj_surface->share_info->timestamp = timestamp;
+        return VA_STATUS_SUCCESS;
+    } else {
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+}
+
 
 int  LOCK_HARDWARE(psb_driver_data_p driver_data)
 {
@@ -3369,6 +3388,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     tpi->vaCreateSurfacesForUserPtr = psb_CreateSurfacesForUserPtr;
     tpi->vaCreateSurfaceFromKBuf = psb_CreateSurfaceFromKbuf;
     tpi->vaPutSurfaceBuf = psb_PutSurfaceBuf;
+    tpi->vaSetTimestampForSurface = psb_SetTimestampForSurface;
 
     ctx->vtable_egl = calloc(1, sizeof(struct VADriverVTableEGL));
     if (NULL == ctx->vtable_egl)

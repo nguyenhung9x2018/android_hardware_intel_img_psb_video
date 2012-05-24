@@ -192,6 +192,12 @@ VAStatus psb_PutSurfaceBuf(
     unsigned int flags /* de-interlacing flags */
 );
 
+VAStatus psb_SetTimestampForSurface(
+    VADriverContextP ctx,
+    VASurfaceID surface,
+    long long timestamp
+);
+
 VAStatus psb_PutSurface(
     VADriverContextP ctx,
     VASurfaceID surface,

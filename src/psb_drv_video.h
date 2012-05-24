@@ -390,6 +390,7 @@ struct psb_surface_share_info_s {
     unsigned int khandle;
     unsigned int khandles_count;   /* the number of khandle */
     unsigned int khandles[MAX_SHARE_INFO_KHANDLES];      /* save all khandles */
+    long long timestamp;
 };
 
 struct object_surface_s {
