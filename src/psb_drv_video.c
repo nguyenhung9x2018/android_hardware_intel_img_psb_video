@@ -627,7 +627,7 @@ VAStatus psb_CreateSurfaces(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i, height_origin, usage, buffer_stride = 0;
-    int protected = (VA_RT_FORMAT_PROTECTED & format);
+    driver_data->protected = (VA_RT_FORMAT_PROTECTED & format);
     unsigned long fourcc;
     VAExternalMemoryBuffers *external_buffers = NULL;
     buffer_handle_t handle;
@@ -765,7 +765,7 @@ VAStatus psb_CreateSurfaces(
                     psb_surface->buf.handle = handle;
                     obj_surface->share_info = (psb_surface_share_info_t *)vaddr[1];
                     memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
-                    obj_surface->share_info->force_output_method = protected ? OUTPUT_FORCE_OVERLAY : 0;
+                    obj_surface->share_info->force_output_method = driver_data->protected ? OUTPUT_FORCE_OVERLAY : 0;
                     obj_surface->share_info->width = obj_surface->width;
                     obj_surface->share_info->height = obj_surface->height;
 
@@ -791,7 +791,7 @@ VAStatus psb_CreateSurfaces(
             }
         } else {
             vaStatus = psb_surface_create(driver_data, width, height, fourcc,
-            protected, psb_surface);
+            driver_data->protected, psb_surface);
         }
         if (VA_STATUS_SUCCESS != vaStatus) {
             free(psb_surface);
@@ -1333,7 +1333,8 @@ VAStatus psb_CreateContext(
     } else
         lnc_ospm_start(driver_data, encode);
 
-    psb_new_context(driver_data, (obj_config->profile << 8) | obj_config->entrypoint);
+    psb_new_context(driver_data, (obj_config->profile << 8) |
+                    obj_config->entrypoint | driver_data->protected);
 
     DEBUG_FUNC_EXIT
     return vaStatus;

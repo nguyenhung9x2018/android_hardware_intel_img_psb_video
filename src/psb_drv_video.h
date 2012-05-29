@@ -282,6 +282,8 @@ struct psb_driver_data_s {
     PVR2DMEMINFO *subpicBuf[VIDEO_BUFFER_NUM];
     void *native_window;
     int is_android;
+    /* VA_RT_FORMAT_PROTECTED is set to protected for Widevine case */
+    int protected;
 };
 
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)
