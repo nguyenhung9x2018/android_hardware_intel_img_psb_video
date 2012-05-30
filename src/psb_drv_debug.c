@@ -684,7 +684,7 @@ void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
         unsigned int start;
         unsigned int end;
         char *name;
-    } msvdx_regs[10] = {{0x04800000, 0x048003FF, "MTX_MTX"},
+    } msvdx_regs[11] = {{0x04800000, 0x048003FF, "MTX_MTX"},
         {0x04800400, 0x0480047F, "VDMC_MTX"},
         {0x04800480, 0x048004FF, "VDEB_MTX"},
         {0x04800500, 0x048005FF, "DMAC_MTX"},
@@ -693,7 +693,8 @@ void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
         {0x04800800, 0x04800FFF, "VEC_MTX"},
         {0x04801000, 0x04801FFF, "CMD_MTX"},
         {0x04802000, 0x04802FFF, "VEC_RAM_MTX"},
-        {0x04803000, 0x04804FFF, "VEC_VLC_M"}
+        {0x04803000, 0x04804FFF, "VEC_VLC_M"},
+        {0x04805000, 0xFFFFFFFF, "OUT_OF_RANGE"}
     };
 
     DBH("CMD BUFFER [%08x] - [%08x], %08x bytes, %08x dwords\n", (uint32_t) cmd_idx, cmd_end, cmd_size_in_bytes, cmd_size);
