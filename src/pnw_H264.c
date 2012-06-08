@@ -1808,11 +1808,10 @@ static void psb__H264_choose_ec_frames(context_H264_p ctx)
     if (ctx->slice_param->num_ref_idx_l0_active_minus1 >= 0)
     {
         object_surface_p ref_surface = SURFACE(ctx->slice_param->RefPicList0[0].picture_id);
-
         ctx->obj_context->ec_target = ref_surface;
     }
     /* Otherwise we conceal from the previous I or P frame*/
-    else
+    if (!ctx->obj_context->ec_target)
     {
         ctx->obj_context->ec_target = ctx->obj_context->ec_candidate;
     }
@@ -1821,8 +1820,9 @@ static void psb__H264_choose_ec_frames(context_H264_p ctx)
     {
         ctx->obj_context->ec_candidate = ctx->obj_context->current_render_target; /* in case the next frame is an I frame we will need this */
     }
-    if (!ctx->obj_context->ec_target)
+    if (!ctx->obj_context->ec_target) {
         ctx->obj_context->ec_target = ctx->obj_context->current_render_target;
+    }
 }
 #endif
 

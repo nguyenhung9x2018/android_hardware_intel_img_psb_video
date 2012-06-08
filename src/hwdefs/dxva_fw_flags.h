@@ -48,6 +48,7 @@
 #define REPORT_STATUS                                                                           0x00000010
 
 #define FW_VA_RENDER_IS_VLD_NOT_MC                                              0x00000800
+#define FW_DEVA_IMMEDIATE_ABORT_FAULTED                                         0x00000800
 
 #define FW_ERROR_DETECTION_AND_RECOVERY                                         0x00000100
 #define FW_VA_RENDER_NO_RESPONCE_MSG                                            0x00002000  /* Cause no responce message to be sent, and no interupt generation on successfull completion */

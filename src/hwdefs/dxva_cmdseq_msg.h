@@ -111,6 +111,9 @@ uint32_t pic_width_mb   :
         uint32_t address_b0;
         uint32_t address_b1;
         uint32_t rotation_flags;
+        /* additional msg outside of IMG msg */
+        uint32_t address_c0;
+        uint32_t address_c1;
     } FW_VA_DEBLOCK_MSG;
 
     /* OOLD message */

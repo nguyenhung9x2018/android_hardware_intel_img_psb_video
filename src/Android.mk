@@ -100,7 +100,7 @@ MERRIFIELD_PRODUCT := \
 	mrfl_sle
 ifneq ($(filter $(TARGET_PRODUCT),$(MERRIFIELD_PRODUCT)),)
 LOCAL_SRC_FILES += \
-    pnw_VP8.c \
+    tng_VP8.c \
     tng_jpegdec.c \
     ptg_cmdbuf.c ptg_hostheader.c ptg_hostcode.c ptg_picmgmt.c ptg_hostbias.c \
     ptg_H264ES.c ptg_H263ES.c  ptg_MPEG4ES.c ptg_jpeg.c ptg_slotorder.c \

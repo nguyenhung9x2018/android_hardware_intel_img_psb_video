@@ -545,6 +545,7 @@ VAStatus psb_PutSurface(
     }
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Overlay position = (%d,%d,%d,%d)\n", output->destx, output->desty, output->destw, output->desth);
+    srcw = srcw <= 2047? srcw : 2047;
     vaStatus = psb_putsurface_overlay(ctx, surface,
                                       srcx, srcy, srcw, srch,
                                       output->destx, output->desty, output->destw, output->desth,

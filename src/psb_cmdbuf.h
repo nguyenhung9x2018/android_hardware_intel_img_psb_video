@@ -184,7 +184,7 @@ int psb_context_submit_host_be_opp(object_context_p obj_context, psb_buffer_p ds
 int psb_context_submit_host_be_opp(object_context_p obj_context,
                                   psb_buffer_p buf_a,
                                   psb_buffer_p buf_b,
-                                  psb_buffer_p colocate_buffer,
+                                  psb_buffer_p buf_c,
                                   uint32_t picture_widht_mb,
                                   uint32_t frame_height_mb,
                                   uint32_t rotation_flags,

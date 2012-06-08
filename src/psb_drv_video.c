@@ -518,7 +518,6 @@ VAStatus psb_CreateConfig(
     } else {
         driver_data->ec_enabled = 0;
     }
-    //driver_data->ec_enabled = 1;
     DEBUG_FUNC_EXIT
     return vaStatus;
 }
@@ -2440,16 +2439,18 @@ VAStatus psb_QuerySurfaceError(
         ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                                   &arg, sizeof(arg));
 
-        if (decode_status->num_error_slice > MAX_MB_ERRORS) {
+        if (decode_status->num_region > MAX_MB_ERRORS) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "too much mb errors are reported.\n");
             return VA_STATUS_ERROR_UNKNOWN;
         }
         i = 0;
-        for (i = 0; i < decode_status->num_error_slice; ++i) {
+        for (i = 0; i < decode_status->num_region; ++i) {
+/*
             driver_data->surface_mb_error[i].status = 1;
             driver_data->surface_mb_error[i].start_mb = decode_status->start_error_mb_list[i];
             driver_data->surface_mb_error[i].end_mb = decode_status->end_error_mb_list[i];
             driver_data->surface_mb_error[i].decode_error_type = decode_status->slice_missing_or_error[i];
+*/
         }
         driver_data->surface_mb_error[i].status = -1;
         *error_info = driver_data->surface_mb_error;
@@ -3092,7 +3093,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
 #ifdef PSBVIDEO_MRFL_DEC
     if (IS_MRFL(driver_data)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "merrifield VXD392 decoder\n");
-	driver_data->profile2Format[VAProfileVP8Version0_3][VAEntrypointVLD] = &pnw_VP8_vtable;
+	driver_data->profile2Format[VAProfileVP8Version0_3][VAEntrypointVLD] = &tng_VP8_vtable;
         driver_data->profile2Format[VAProfileJPEGBaseline][VAEntrypointVLD] = &tng_JPEG_vtable;
 
         driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointVLD] = &pnw_MPEG4_vtable;
