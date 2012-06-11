@@ -33,6 +33,9 @@
 
 #include <va/va_backend.h>
 #include <va/va.h>
+#ifdef PSBVIDEO_MRFL_VPP
+#include <va/va_vpp.h>
+#endif
 #include "object_heap.h"
 #include "psb_def.h"
 //#include "psb_drv_debug.h"
@@ -66,6 +69,16 @@
 #define max(a, b) ((a) > (b)) ? (a) : (b)
 #endif
 
+//#define _TOPAZHP_VIRTUAL_
+#define _TOPAZHP_VIR_ADDR_
+#define _TOPAZHP_ALLOC_
+#define _TOPAZHP_SLICE_PARAM_
+//#define _TOPAZHP_PDUMP_
+//#define _TOPAZHP_PDUMP_ALL_
+#define _TOPAZHP_OLD_LIBVA_
+#define FORCED_REFERENCE 1
+#define LTREFHEADER 1
+
 /*
  * WORKAROUND_DMA_OFF_BY_ONE: LLDMA requests may access one additional byte which can cause
  * a MMU fault if the next byte after the buffer end is on a different page that isn't mapped.
@@ -73,18 +86,29 @@
 #define WORKAROUND_DMA_OFF_BY_ONE
 #define FOURCC_XVVA     (('A' << 24) + ('V' << 16) + ('V' << 8) + 'X')
 
-#define PSB_MAX_PROFILES                                14
-#define PSB_MAX_ENTRYPOINTS                             8
+#ifdef PSBVIDEO_MRFL_VPP
+#define PSB_MAX_PROFILES			VAProfileMax
+#define PSB_MAX_ENTRYPOINTS			VAEntrypointMax
+#define PSB_MAX_CONFIG_ATTRIBUTES		VAConfigAttribTypeMax
+#define PSB_MAX_BUFFERTYPES			VABufferTypeMax
+#else
+#define PSB_MAX_PROFILES                        18
+#define PSB_MAX_ENTRYPOINTS                      8
 #define PSB_MAX_CONFIG_ATTRIBUTES               10
 #define PSB_MAX_BUFFERTYPES                     32
+#endif
 
 /* Max # of command submission buffers */
 #define PSB_MAX_CMDBUFS                         10
 #define LNC_MAX_CMDBUFS_ENCODE                  4
 #define PNW_MAX_CMDBUFS_ENCODE                  4
+#define PTG_MAX_CMDBUFS_ENCODE                  4
+#define VSP_MAX_CMDBUFS                         10
 
 #define PSB_SURFACE_DISPLAYING_F (0x1U<<0)
 #define PSB_SURFACE_IS_FLAG_SET(flags, mask) (((flags)& PSB_SURFACE_DISPLAYING_F) != 0)
+
+#define PSB_CTX_TILING_MASK	0x00FF0000
 
 /*xrandr dirty flag*/
 #define PSB_NEW_ROTATION        1
@@ -95,6 +119,7 @@
 
 #define MAX_SLICES_PER_PICTURE 72
 #define MAX_MB_ERRORS 72
+
 
 typedef struct object_config_s *object_config_p;
 typedef struct object_context_s *object_context_p;
@@ -156,10 +181,10 @@ struct psb_driver_data_s {
     uint32_t                    msvdx_context_base;
     int                         video_sd_disabled;
     int                         video_hd_disabled;
-    unsigned char *                      camera_bo;
+    unsigned char *             camera_bo;
     uint32_t                    camera_phyaddr;
     uint32_t                    camera_size;
-    unsigned char *                      rar_bo;
+    unsigned char *             rar_bo;
     uint32_t                    rar_phyaddr;
     uint32_t                    rar_size;
 
@@ -286,8 +311,17 @@ struct psb_driver_data_s {
     int protected;
 };
 
+
+#ifdef _FOR_FPGA_
+#define IS_MFLD(driver_data) 1
+#define IS_MRFL(driver_data) 1
+#define IS_MRST(driver_data) 0
+#else
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)
-#define IS_MFLD(driver_data) (((driver_data->dev_id & 0xFFFC) == 0x0130) || ((driver_data->dev_id & 0xFFFF) == 0x08C0) || ((driver_data->dev_id & 0xFFFF) == 0x08C7) || ((driver_data->dev_id & 0xFFFF) == 0x08C8))
+#define IS_MFLD(driver_data) (((driver_data->dev_id & 0xFFFC) == 0x0130) || ((driver_data->dev_id & 0xFFFF) == 0x08C0) || ((driver_data->dev_id & 0xFFFF) == 0x08C7) || ((driver_data->dev_id & 0xFFFF) == 0x01FF) || ((driver_data->dev_id & 0xFFFF) == 0x08C8))
+#define IS_MRFL(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x1180)
+#define IS_LEXINGTON(driver_data) ((driver_data->dev_id & 0xFFFF) == 0x01FF)
+#endif
 
 struct object_config_s {
     struct object_base_s base;
@@ -311,6 +345,8 @@ struct object_context_s {
     int va_flags;
 
     object_surface_p current_render_target;
+    object_surface_p ec_target;
+    object_surface_p ec_candidate;
     VASurfaceID current_render_surface_id;
     psb_driver_data_p driver_data;
     format_vtable_p format_vtable;
@@ -318,10 +354,18 @@ struct object_context_s {
     struct psb_cmdbuf_s *cmdbuf_list[PSB_MAX_CMDBUFS];
     struct lnc_cmdbuf_s *lnc_cmdbuf_list[LNC_MAX_CMDBUFS_ENCODE];
     struct pnw_cmdbuf_s *pnw_cmdbuf_list[PNW_MAX_CMDBUFS_ENCODE];
+    struct ptg_cmdbuf_s	*ptg_cmdbuf_list[PTG_MAX_CMDBUFS_ENCODE];
+#ifdef PSBVIDEO_MRFL_VPP
+    struct vsp_cmdbuf_s *vsp_cmdbuf_list[VSP_MAX_CMDBUFS];
+#endif
 
     struct psb_cmdbuf_s *cmdbuf; /* Current cmd buffer */
     struct lnc_cmdbuf_s *lnc_cmdbuf;
     struct pnw_cmdbuf_s *pnw_cmdbuf;
+    struct ptg_cmdbuf_s *ptg_cmdbuf;
+#ifdef PSBVIDEO_MRFL_VPP
+    struct vsp_cmdbuf_s *vsp_cmdbuf;
+#endif
 
     int cmdbuf_current;
 
@@ -349,6 +393,8 @@ struct object_context_s {
     int is_oold;
     int msvdx_rotate;
     int interlaced_stream;
+    unsigned long ctp_type;
+    unsigned long msvdx_tile; /* normal tile | (rotate tile << 4) */
 
     uint32_t msvdx_context;
 
@@ -383,6 +429,9 @@ struct psb_surface_share_info_s {
     unsigned int renderStatus;
     unsigned int used_by_widi;
     int bob_deinterlace;
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+    int tiling;
+#endif
     unsigned int width;
     unsigned int height;
     unsigned int luma_stride;
@@ -520,6 +569,7 @@ struct format_vtable_s {
     );
 };
 
+#ifdef ANDROID
 typedef struct IMG_native_handle
 {
     native_handle_t base;
@@ -530,7 +580,8 @@ typedef struct IMG_native_handle
     int height;
     unsigned int bpp;
     int format;
-}IMG_native_handle_t;
+} IMG_native_handle_t;
+#endif
 
 #define psb__bounds_check(x, max)                                       \
     do { ASSERT(x < max); if (x >= max) x = max - 1; } while(0);
@@ -576,12 +627,12 @@ inline static char * buffer_type_to_string(int type)
         return "VAEncPictureParameterBufferType";
     case VAEncSliceParameterBufferType:
         return "VAEncSliceParameterBufferType";
-    case VAEncH264VUIBufferType:
-        return "VAEncH264VUIBufferType";
-    case VAEncH264SEIBufferType:
-        return "VAEncH264SEIBufferType";
     case VAEncMiscParameterBufferType:
         return "VAEncMiscParameterBufferType";
+    case VAProbabilityBufferType:
+	return "VAProbabilityBufferType";
+    case VAHuffmanTableBufferType:
+        return "VAHuffmanTableBufferType";
     default:
         return "UnknowBuffer";
     }
@@ -621,6 +672,8 @@ inline static int Rotation2Angle(int rotation)
 }
 
 int psb_parse_config(char *env, char *env_value);
+void psb__destroy_surface(psb_driver_data_p driver_data, object_surface_p obj_surface);
+unsigned long psb_tile_stride_mode(int w);
 
 int LOCK_HARDWARE(psb_driver_data_p driver_data);
 int UNLOCK_HARDWARE(psb_driver_data_p driver_data);

@@ -35,6 +35,7 @@
 #include "lnc_H263ES.h"
 #include "lnc_hostheader.h"
 #include "lnc_hostcode.h"
+#include "psb_drv_debug.h"
 
 #include <stdlib.h>
 #include <stdint.h>

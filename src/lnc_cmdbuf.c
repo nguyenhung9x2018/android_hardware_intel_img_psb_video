@@ -454,7 +454,7 @@ lnc_fence_wait(psb_driver_data_p driver_data,
 
     /* copy fence information */
     if (fence_rep->error != 0) {
-        psb__error_message("drm failed to create a fence"
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "drm failed to create a fence"
                            " and has idled the HW\n");
         DEBUG_FAILURE_RET;
         return NULL;

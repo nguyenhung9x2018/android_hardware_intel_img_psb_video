@@ -2489,6 +2489,34 @@ static void pnw__H264_writebits_SEI_picture_timing_header(
     return;
 }
 
+static void pnw__H264_writebits_SEI_FPA_header(
+        MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_ELEMENT **aui32ElementPointers,
+        char* sei_data_buf, IMG_UINT32 data_size)
+{
+    IMG_UINT8 ui8PayloadSizeBits, ui8Tmp, i;
+#ifdef SEI_NOT_USE_TOKEN_ALIGN
+    IMG_UINT8 ui8Pad;
+#endif
+
+    // Essential we insert the element before we try to fill it!
+    pnw__insert_element_token(pMTX_Header,
+            aui32ElementPointers,
+            ELEMENT_STARTCODE_RAWDATA);
+
+    pnw__H264_writebits_startcode_prefix_element(pMTX_Header,
+            aui32ElementPointers,
+            4); // 00 00 01 start code prefix
+
+    for(i=0; i<data_size; i++)
+        pnw__write_upto8bits_elements(pMTX_Header,
+                aui32ElementPointers,
+                sei_data_buf[i], 8); //sei_data_buf (SEI Message)
+    // Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point)
+    //pnw__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_INSERTBYTEALIGN_H264);
+
+    return;
+}
+
 
 
 void pnw__H264_prepare_AUD_header(MTX_HEADER_PARAMS * pMTX_Header)
@@ -2608,17 +2636,38 @@ void pnw__H264_prepare_SEI_picture_timing_header(
     return;
 }
 
+void pnw__H264_prepare_SEI_FPA_header(
+        MTX_HEADER_PARAMS * pMTX_Header,
+        char* sei_data_buf,
+        IMG_UINT32 data_size)
+{
+    // Essential we initialise our header structures before building
+    MTX_HEADER_ELEMENT *This_Element;
+    MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
+    pMTX_Header->Elements = ELEMENTS_EMPTY;
+    This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
+    aui32ElementPointers[0] = This_Element;
+
+    pnw__H264_writebits_SEI_FPA_header(
+            pMTX_Header, aui32ElementPointers,
+            sei_data_buf, data_size);
+
+    pMTX_Header->Elements++;
+    //Has been used as an index, so need to add 1 for a valid element count
+    return;
+}
+
 
 
 
 void pnw__H264_prepare_sequence_header(
-    unsigned char *pHeaderMemory,
-    IMG_UINT32 uiPicWidthInMbs,
-    IMG_UINT32 uiPicHeightInMbs,
-    IMG_BOOL VUI_present, H264_VUI_PARAMS *VUI_params,
-    H264_CROP_PARAMS *psCropParams,
-    IMG_UINT8 uiLevel,
-    IMG_UINT8 uiProfile)
+        unsigned char *pHeaderMemory,
+        IMG_UINT32 uiPicWidthInMbs,
+        IMG_UINT32 uiPicHeightInMbs,
+        IMG_BOOL VUI_present, H264_VUI_PARAMS *VUI_params,
+        H264_CROP_PARAMS *psCropParams,
+        IMG_UINT8 uiLevel,
+        IMG_UINT8 uiProfile)
 {
     H264_SEQUENCE_HEADER_PARAMS SHParams;
     MTX_HEADER_PARAMS   *mtx_hdr;

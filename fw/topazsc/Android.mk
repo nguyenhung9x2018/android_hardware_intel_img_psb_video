@@ -7,11 +7,11 @@
 # distribute, sub license, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
-# 
+#
 # The above copyright notice and this permission notice (including the
 # next paragraph) shall be included in all copies or substantial portions
 # of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
 # OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -20,28 +20,39 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
-AC_PREREQ(2.57)
-AC_INIT([psb-video], 0.1, [waldo.bastian@intel.com], psb-video)
-AC_CONFIG_SRCDIR([Makefile.am])
-AM_INIT_AUTOMAKE([dist-bzip2])
 
-AM_CONFIG_HEADER([src/config.h])
 
-AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
-AC_PROG_CC
+LOCAL_PATH := $(call my-dir)
+# For topaz_bin
+# =====================================================
+include $(CLEAR_VARS)
 
-AC_HEADER_STDC
-AC_SYS_LARGEFILE
+LOCAL_SRC_FILES := topaz_bin.c H263Firmware_bin.c H263FirmwareCBR_bin.c H263FirmwareVBR_bin.c H264Firmware_bin.c H264FirmwareCBR_bin.c H264FirmwareVBR_bin.c MPG4Firmware_bin.c MPG4FirmwareCBR_bin.c MPG4FirmwareVBR_bin.c H264FirmwareVCM_bin.c
 
-PKG_CHECK_MODULES([X11], [x11])
-PKG_CHECK_MODULES([XEXT], [xext])
-PKG_CHECK_MODULES([DRM], [libdrm])
-PKG_CHECK_MODULES([WSBM], [libwsbm])
-PKG_CHECK_MODULES([LIBVA], [libva])
-PKG_CHECK_MODULES([XV], [xv])
+LOCAL_CFLAGS +=
 
-pkgconfigdir=${libdir}/pkgconfig
-AC_SUBST(pkgconfigdir)
+LOCAL_C_INCLUDES :=
 
-AC_OUTPUT([Makefile src/Makefile fw/Makefile fw/topazsc/Makefile fw/msvdx/Makefile])
+LOCAL_SHARED_LIBRARIES :=
+
+LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE := topaz_bin
+
+include $(BUILD_EXECUTABLE)
+
+# For fwinfo
+# =====================================================
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES := fwinfo.c
+
+LOCAL_CFLAGS +=
+
+LOCAL_C_INCLUDES :=
+
+LOCAL_SHARED_LIBRARIES :=
+
+LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE := imginfo
+
+include $(BUILD_EXECUTABLE)

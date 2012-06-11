@@ -27,6 +27,7 @@
  *
  */
 
+#include <sys/types.h>
 #include "psb_buffer.h"
 
 #include <errno.h>
@@ -81,9 +82,10 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
          */
         int is_thumbnail = 0;
         char *str;
+#ifdef ANDROID        
         if((str = getenv("PSB_VIDEO_THUMBNAIL")))
             is_thumbnail = (gettid() == atoi(str));
-
+#endif
         if (getenv("PSB_VIDEO_SURFACE_MMU") || is_thumbnail) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate surface from MMU heap\n");
             placement = DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_SHARED;
@@ -92,6 +94,17 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
             placement = WSBM_PL_FLAG_TT | WSBM_PL_FLAG_SHARED;
         }
         break;
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+    case psb_bt_surface_tiling:
+            psb__information_message("Allocate tiled surface from TT heap\n");
+            placement =  WSBM_PL_FLAG_TT | WSBM_PL_FLAG_SHARED;
+            allignment = 2048 * 16; /* Tiled row aligned */
+        break;
+    case psb_bt_mmu_tiling:
+            placement =  DRM_PSB_FLAG_MEM_MMU_TILING | WSBM_PL_FLAG_CACHED | WSBM_PL_FLAG_SHARED;
+            allignment = 2048 * 16; /* Tiled row aligned */
+        break;
+#endif
     case psb_bt_vpu_only:
         allignment = 1;
         placement = DRM_PSB_FLAG_MEM_MMU;
@@ -126,13 +139,23 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
     placement |= WSBM_PL_FLAG_SHARED;
 #endif
 
+#ifndef ANDROID
+    if(!(placement & WSBM_PL_FLAG_SYSTEM)) {
+        //drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: buffer->pl_flags 0x%08x\n", __func__, placement);
+        placement &= ~WSBM_PL_MASK_MEM;
+        placement |= TTM_PL_FLAG_VRAM;
+        //drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: repleace buffer->pl_flags 0x%08x\n", __func__, placement);
+    }
+#endif
+
 #ifdef MSVDX_VA_EMULATOR
     placement |= WSBM_PL_FLAG_SHARED;
 #endif
 
-    allignment = 4096; /* temporily more safe */
+    if(allignment < 4096)
+        allignment = 4096; /* temporily more safe */
 
-    //psb__error_message("FIXME: should use geetpagesize() ?\n");
+    //drv_debug_msg(VIDEO_DEBUG_ERROR, "FIXME: should use geetpagesize() ?\n");
     ret = wsbmGenBuffers(driver_data->main_pool, 1, &buf->drm_buf,
                          allignment, placement);
     if (!buf->drm_buf) {
@@ -196,8 +219,13 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
     }
 
     allignment = 4096; /* temporily more safe */
-
-    //psb__error_message("FIXME: should use geetpagesize() ?\n");
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+    if (type == psb_bt_mmu_tiling) {
+        placement =  DRM_PSB_FLAG_MEM_MMU_TILING | WSBM_PL_FLAG_CACHED | WSBM_PL_FLAG_SHARED ;
+        allignment = 2048 * 16; /* Tiled row aligned */
+    }
+#endif
+    //drv_debug_msg(VIDEO_DEBUG_ERROR, "FIXME: should use geetpagesize() ?\n");
     ret = wsbmGenBuffers(driver_data->main_pool, 1, &buf->drm_buf,
     allignment, placement);
     if (!buf->drm_buf) {
@@ -408,6 +436,18 @@ int psb_buffer_unmap(psb_buffer_p buf)
     return 0;
 }
 
+void psb__trace_coded(unsigned int *pBuf)
+{
+    int i, j;
+    printf("%s code buffer is\n", __FUNCTION__);
+    for (i = 0; i < 6; i++) {
+        printf("\t");
+        for (j = 0; j < 4; j++) {
+             printf("0x%08x, ", pBuf[(i*4) + j]);
+        }
+        printf("\n");
+    }
+}
 
 /*
  * Return special data structure for codedbuffer
@@ -464,6 +504,68 @@ int psb_codedbuf_map_mangle(
                                  &(p->size));
     }
 #endif
+#ifdef PSBVIDEO_MRFL
+    if (IS_MRFL(driver_data)) {
+        object_config_p obj_config = CONFIG(obj_context->config_id);
+        if (NULL == obj_config) {
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            DEBUG_FAILURE;
+
+            psb_buffer_unmap(obj_buffer->psb_buffer);
+            obj_buffer->buffer_data = NULL;
+
+            return vaStatus;
+        }
+
+        switch (obj_config->profile) {
+        case VAProfileMPEG4Simple:
+        case VAProfileMPEG4AdvancedSimple:
+        case VAProfileMPEG4Main:
+
+        case VAProfileH264Baseline:
+        case VAProfileH264Main:
+        case VAProfileH264High:
+        case VAProfileH264StereoHigh:
+        case VAProfileH264ConstrainedBaseline:
+        case VAProfileH263Baseline:
+            /* 1st segment */
+            p->size = *((unsigned long *) raw_codedbuf);
+            p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 16); /* skip 16DWs */
+            p->next = NULL;
+          psb__trace_coded((unsigned int*)raw_codedbuf);
+            break;
+
+        case VAProfileJPEGBaseline:
+            /* 3~6 segment */
+            ptg_jpeg_AppendMarkers(obj_context, raw_codedbuf);
+            next_buf_off = 0;
+            /*Max resolution 4096x4096 use 6 segments*/
+            for (i = 0; i < PTG_JPEG_MAX_SCAN_NUM + 1; i++) {
+                p->size = *(unsigned long *)((unsigned long)raw_codedbuf + next_buf_off);  /* ui32BytesUsed in HEADER_BUFFER*/
+                p->buf = (unsigned char *)((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 4);  /* skip 4DWs (HEADER_BUFFER) */
+                next_buf_off = *((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 3);  /* ui32Reserved3 in HEADER_BUFFER*/
+
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG coded buffer segment %d size: %d\n", i, p->size);
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG coded buffer next segment %d offset: %d\n", i + 1, next_buf_off);
+
+                if (next_buf_off == 0) {
+                    p->next = NULL;
+                    break;
+                } else
+                    p->next = &p[1];
+                p++;
+            }
+            break;
+
+        default:
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "unexpected case\n");
+
+            psb_buffer_unmap(obj_buffer->psb_buffer);
+            obj_buffer->buffer_data = NULL;
+            break;
+        }
+    }
+#endif
 #ifdef PSBVIDEO_MFLD
     if (IS_MFLD(driver_data)){ /* MFLD */
         object_config_p obj_config = CONFIG(obj_context->config_id);
@@ -509,7 +611,7 @@ int psb_codedbuf_map_mangle(
 
             if (GET_CODEDBUF_INFO(SLICE_NUM, obj_buffer->codedbuf_aux_info) <= 2 &&
                 GET_CODEDBUF_INFO(NONE_VCL_NUM, obj_buffer->codedbuf_aux_info) == 0) {
-                p[i].status =  VA_CODED_BUF_STATUS_AVC_SINGLE_NALU;
+                p[i].status =  VA_CODED_BUF_STATUS_SINGLE_NALU;
                 drv_debug_msg(VIDEO_DEBUG_GENERAL, "Only VCL NAL in this segment %i of coded buffer\n",
                     i);
             }
@@ -522,7 +624,7 @@ int psb_codedbuf_map_mangle(
             p[i].buf = (unsigned char *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
             if (GET_CODEDBUF_INFO(SLICE_NUM, obj_buffer->codedbuf_aux_info) <= 2 &&
                 GET_CODEDBUF_INFO(NONE_VCL_NUM, obj_buffer->codedbuf_aux_info) == 0) {
-            p[i].status =  VA_CODED_BUF_STATUS_AVC_SINGLE_NALU;
+            p[i].status =  VA_CODED_BUF_STATUS_SINGLE_NALU;
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Only VCL NAL in this segment %i of coded buffer\n",
                 i);
             }

@@ -42,6 +42,12 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
                            )
 {
     int ret = 0;
+    int buffer_type = psb_bt_surface;
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+    int tiling = GET_SURFACE_INFO_tiling(psb_surface);
+    if (tiling)
+        buffer_type = psb_bt_surface_tiling;
+#endif
 
     if (fourcc == VA_FOURCC_NV12) {
         if ((width <= 0) || (width * height > 5120 * 5120) || (height <= 0)) {
@@ -59,6 +65,12 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
         } else if (1280 >= width) {
             psb_surface->stride_mode = STRIDE_1280;
             psb_surface->stride = 1280;
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+            if (tiling) {
+                psb_surface->stride_mode = STRIDE_2048;
+                psb_surface->stride = 2048;
+            }
+#endif
         } else if (2048 >= width) {
             psb_surface->stride_mode = STRIDE_2048;
             psb_surface->stride = 2048;
@@ -90,13 +102,20 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
         psb_surface->chroma_offset = psb_surface->stride * height;
         psb_surface->size = psb_surface->stride * height * 2;
         psb_surface->extra_info[4] = VA_FOURCC_YV16;
+    } else if (fourcc == VA_FOURCC_YV32) {
+        psb_surface->stride_mode = STRIDE_NA;
+        psb_surface->stride = (width + 0x3f) & ~0x3f; /*round up to 16 */
+        psb_surface->luma_offset = 0;
+        psb_surface->chroma_offset = psb_surface->stride * height;
+        psb_surface->size = psb_surface->stride * height * 4;
+        psb_surface->extra_info[4] = VA_FOURCC_YV32;
     }
 
     if (protected == 0)
-        ret = psb_buffer_create(driver_data, psb_surface->size, psb_bt_surface, &psb_surface->buf);
+        ret = psb_buffer_create(driver_data, psb_surface->size, buffer_type, &psb_surface->buf);
     else {
         if (IS_MFLD(driver_data)) { /* as normal */
-            ret = psb_buffer_create(driver_data, psb_surface->size, psb_bt_surface, &psb_surface->buf);
+            ret = psb_buffer_create(driver_data, psb_surface->size, buffer_type, &psb_surface->buf);
             SET_SURFACE_INFO_protect(psb_surface, 1);
         }
     }
@@ -104,59 +123,7 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }
 
-/*
- * Create surface
- */
-VAStatus psb_surface_create_from_ub(psb_driver_data_p driver_data,
-                            int width, int height, int fourcc,
-                            VAExternalMemoryBuffers *graphic_buffers,
-                            psb_surface_p psb_surface, /* out */
-                            void *vaddr
-                           )
-{
-    int ret = 0;
 
-    if (fourcc == VA_FOURCC_NV12) {
-        if ((width <= 0) || (width * height > 5120 * 5120) || (height <= 0)) {
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        }
-
-        if (0) {
-            ;
-        } else if (512 >= width) {
-            psb_surface->stride_mode = STRIDE_512;
-            psb_surface->stride = 512;
-        } else if (1024 >= width) {
-            psb_surface->stride_mode = STRIDE_1024;
-            psb_surface->stride = 1024;
-        } else if (1280 >= width) {
-            psb_surface->stride_mode = STRIDE_1280;
-            psb_surface->stride = 1280;
-        } else if (2048 >= width) {
-            psb_surface->stride_mode = STRIDE_2048;
-            psb_surface->stride = 2048;
-        } else if (4096 >= width) {
-            psb_surface->stride_mode = STRIDE_4096;
-            psb_surface->stride = 4096;
-        } else {
-            psb_surface->stride_mode = STRIDE_NA;
-            psb_surface->stride = (width + 0x1f) & ~0x1f;
-        }
-        if (psb_surface->stride != graphic_buffers->luma_stride) {
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        }
-
-        psb_surface->luma_offset = 0;
-        psb_surface->chroma_offset = psb_surface->stride * height;
-        psb_surface->size = (psb_surface->stride * height * 3) / 2;
-        psb_surface->extra_info[4] = VA_FOURCC_NV12;
-    } else {
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    }
-    ret = psb_buffer_create_from_ub(driver_data, psb_surface->size, psb_bt_surface, &psb_surface->buf, vaddr);
-
-    return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
-}
 
 VAStatus psb_surface_create_for_userptr(
     psb_driver_data_p driver_data,

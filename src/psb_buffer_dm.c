@@ -199,11 +199,6 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 
-#ifndef ANDROID
-    extern int wsbmBODataUB(struct _WsbmBufferObject * buf,
-                            unsigned size, const unsigned char * data,
-                            struct _WsbmBufferPool * newPool, uint32_t placement, const unsigned long * user_ptr);
-
     /* here use the placement when gen buffer setted */
     ret = wsbmBODataUB(buf->drm_buf, size, NULL, NULL, 0, user_ptr);
     UNLOCK_HARDWARE(driver_data);
@@ -214,7 +209,6 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create BO from user buffer 0x%08x (%d byte),BO GPU offset hint=0x%08x\n",
                              user_ptr, size, wsbmBOOffsetHint(buf->drm_buf));
 
-#endif
 
     buf->pl_flags = placement;
     buf->status = psb_bs_ready;

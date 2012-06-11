@@ -35,6 +35,7 @@
 #include "lnc_MPEG4ES.h"
 #include "lnc_hostcode.h"
 #include "lnc_hostheader.h"
+#include "psb_drv_debug.h"
 
 #include <stdlib.h>
 #include <stdint.h>

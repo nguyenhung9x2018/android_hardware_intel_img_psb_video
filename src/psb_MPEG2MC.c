@@ -31,6 +31,7 @@
 #include "psb_def.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
+#include "psb_drv_debug.h"
 
 #include "hwdefs/reg_io2.h"
 #include "hwdefs/msvdx_offsets.h"
@@ -542,7 +543,7 @@ static void psb__MPEG2MC_finalise_residDMA(
     if (ctx->residual_pendingDMA) {
 #if 0
         if (ctx->residual_pendingDMA != (ctx->blk_size * ctx->blk_in_buffer)) {
-            psb__error_message("psb__MPEG2MC_finalise_residDMA:residual_pendingDMA=%d(block:%d),"
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "psb__MPEG2MC_finalise_residDMA:residual_pendingDMA=%d(block:%d),"
                                "actual data size=%d (block:%d)\n",
                                ctx->residual_pendingDMA, ctx->residual_pendingDMA / ctx->blk_size,
                                ctx->blk_size * ctx->blk_in_buffer,

@@ -763,6 +763,7 @@ int psb_context_submit_oold(object_context_p obj_context,
     return 0;
 }
 
+#ifndef DE3_FIRMWARE
 int psb_context_submit_host_be_opp(object_context_p obj_context, psb_buffer_p dst_buf,
                                    uint32_t stride, uint32_t size,
                                    uint32_t picture_width_mb,
@@ -804,6 +805,56 @@ int psb_context_submit_host_be_opp(object_context_p obj_context, psb_buffer_p ds
 
     return 0;
 }
+#else
+int psb_context_submit_host_be_opp(object_context_p obj_context,
+                                  psb_buffer_p buf_a,
+                                  psb_buffer_p buf_b,
+                                  psb_buffer_p colocate_buffer,
+                                  uint32_t picture_widht_mb,
+                                  uint32_t frame_height_mb,
+                                  uint32_t rotation_flags,
+                                  uint32_t field_type,
+                                  uint32_t ext_stride_a,
+                                  uint32_t chroma_offset_a,
+                                  uint32_t chroma_offset_b)
+{
+    psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
+    psb_driver_data_p driver_data = obj_context->driver_data;
+    uint32_t msg_size = FW_DEVA_DEBLOCK_SIZE;
+    unsigned int item_size; /* Size of a render/deocde msg */
+    FW_VA_DEBLOCK_MSG *deblock_msg;
+
+    if (IS_MFLD(driver_data))
+        item_size = FW_DEVA_DECODE_SIZE;
+    else
+        item_size = FW_VA_RENDER_SIZE;
+
+    uint32_t *msg = (uint32_t *)(cmdbuf->MTX_msg + item_size * cmdbuf->cmd_count + cmdbuf->deblock_count * msg_size);
+
+    memset(msg, 0, sizeof(FW_VA_DEBLOCK_MSG));
+    deblock_msg = (FW_VA_DEBLOCK_MSG *)msg;
+
+    deblock_msg->header.bits.msg_size = msg_size;
+    deblock_msg->header.bits.msg_type = VA_MSGID_HOST_BE_OPP_MFLD;
+    deblock_msg->flags.bits.flags = FW_VA_RENDER_HOST_INT | FW_ERROR_DETECTION_AND_RECOVERY;
+    deblock_msg->flags.bits.slice_type = field_type;
+    deblock_msg->operating_mode = obj_context->operating_mode;
+    deblock_msg->mmu_context.bits.context = (uint8_t)(obj_context->msvdx_context);
+    deblock_msg->pic_size.bits.frame_height_mb = (uint16_t)frame_height_mb;
+    deblock_msg->pic_size.bits.pic_width_mb = (uint16_t)picture_widht_mb;
+    deblock_msg->ext_stride_a = ext_stride_a;
+    deblock_msg->rotation_flags = rotation_flags;
+
+    RELOC_MSG(deblock_msg->address_a0, buf_a->buffer_ofs, buf_a);
+    RELOC_MSG(deblock_msg->address_a1, buf_a->buffer_ofs + chroma_offset_a, buf_a);
+    deblock_msg->address_b0 = 0;
+    deblock_msg->address_b1 = 0;
+
+    deblock_msg->mb_param_address = NULL;
+    cmdbuf->host_be_opp_count++;
+    return 0;
+}
+#endif
 
 int psb_context_submit_frame_info(object_context_p obj_context, psb_buffer_p dst_buf,
                                   uint32_t stride, uint32_t size,
@@ -1017,7 +1068,7 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
             (bBatchEnd ? FW_VA_RENDER_HOST_INT : FW_VA_RENDER_NO_RESPONCE_MSG) |
             (obj_context->video_op == psb_video_vld    ? FW_VA_RENDER_IS_VLD_NOT_MC : 0);
 
-#ifdef MFLD_ERROR_CONCEALMENT
+#ifdef PSBVIDEO_MSVDX_EC
         if (driver_data->ec_enabled)
 #else
         if (driver_data->ec_enabled && IS_MRST(driver_data))
@@ -1070,7 +1121,7 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
     }
 
     for (i = 1; i <= cmdbuf->oold_count; i++) {
-        msg_size += FW_VA_OOLD_SIZE;
+        msg_size += FW_DEVA_DEBLOCK_SIZE;
     }
 
     for (i = 1; i <= cmdbuf->host_be_opp_count; i++) {

@@ -158,6 +158,9 @@ static unsigned long PVRCalculateStride(unsigned long widthInPixels, unsigned in
 
 static int pvr_context_create(unsigned char **pvr_ctx)
 {
+#ifdef _FOR_FPGA_
+    return PVR2D_OK;
+#endif
     int ret = 0;
     int pvr_devices = PVR2DEnumerateDevices(0);
     PVR2DDEVICEINFO *pvr_devs = NULL;

@@ -32,6 +32,7 @@
 #include "psb_def.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
+#include "psb_drv_debug.h"
 
 #include "hwdefs/reg_io2.h"
 #include "hwdefs/msvdx_offsets.h"

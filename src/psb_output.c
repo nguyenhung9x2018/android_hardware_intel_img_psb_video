@@ -79,7 +79,8 @@ static VAImageFormat psb__CreateImageFormat[] = {
     psb__ImageRGBA,
     //psb__ImageAYUV,
     //psb__ImageAI44,
-    psb__ImageYV16
+    psb__ImageYV16,
+    psb__ImageYV32
 };
 
 unsigned char *psb_x11_output_init(VADriverContextP ctx);
@@ -179,8 +180,9 @@ VAStatus psb_deinitOutput(
         psb_ctexstreaing_deinit(ctx);
     */
     /* clean the displaying surface information in kernel */
+#ifndef _FOR_FPGA_
     psb_surface_set_displaying(driver_data, 0, 0, NULL);
-
+#endif
     pthread_mutex_destroy(&driver_data->output_mutex);
 
     return VA_STATUS_SUCCESS;
@@ -394,6 +396,27 @@ VAStatus psb_CreateImage(
         obj_image->image.component_order[1] = 'U';
         obj_image->image.component_order[2] = 'V';
         obj_image->image.component_order[3] = '\0';
+        break;
+    }
+    case VA_FOURCC_YV32: {
+        obj_image->image.width = width;
+        obj_image->image.height = height;
+        obj_image->image.data_size = 4 * pitch_pot * height;
+        obj_image->image.num_planes = 4;
+        obj_image->image.pitches[0] = pitch_pot;
+        obj_image->image.pitches[1] = pitch_pot;
+        obj_image->image.pitches[2] = pitch_pot;
+        obj_image->image.pitches[3] = pitch_pot;
+        obj_image->image.offsets[0] = 0;
+        obj_image->image.offsets[1] = pitch_pot * height;
+        obj_image->image.offsets[2] = pitch_pot * height * 2;
+        obj_image->image.offsets[3] = pitch_pot * height * 3;
+        obj_image->image.num_palette_entries = 0;
+        obj_image->image.entry_bytes = 0;
+        obj_image->image.component_order[0] = 'V';
+        obj_image->image.component_order[1] = 'U';
+        obj_image->image.component_order[2] = 'Y';
+        obj_image->image.component_order[3] = 'A';
         break;
     }
     default: {
@@ -1838,35 +1861,6 @@ static  VADisplayAttribute psb__DisplayAttribute[] = {
         VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
     },
     {
-        VADisplayAttribBLEBlackMode,
-        0x00000000,
-        0xffffffff,
-        0x00000000,
-        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-    },
-    {
-        VADisplayAttribBLEWhiteMode,
-        0x00000000,
-        0xffffffff,
-        0x00000000,
-        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-    },
-
-    {
-        VADisplayAttribBlueStretch,
-        0x00000000,
-        0xffffffff,
-        0x00000000,
-        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-    },
-    {
-        VADisplayAttribSkinColorCorrection,
-        0x00000000,
-        0xffffffff,
-        0x00000000,
-        VA_DISPLAY_ATTRIB_GETTABLE | VA_DISPLAY_ATTRIB_SETTABLE
-    },
-    {
         VADisplayAttribBlendColor,
         0x00000000,
         0xffffffff,
@@ -2119,22 +2113,6 @@ VAStatus psb_SetDisplayAttributes(
             driver_data->contrast.value = (p->value / 50) * (1 << 25);
             /* 0~100 ==> 100~200 */
             overlay_priv->saturation.Value = texture_priv->saturation.Value = p->value + 100;
-            update_coeffs = 1;
-            break;
-        case VADisplayAttribBLEBlackMode:
-            driver_data->ble_black_mode.value = p->value;
-            update_coeffs = 1;
-            break;
-        case VADisplayAttribBLEWhiteMode:
-            driver_data->ble_white_mode.value = p->value;
-            update_coeffs = 1;
-            break;
-        case VADisplayAttribBlueStretch:
-            driver_data->blueStretch_gain.value = p->value;
-            update_coeffs = 1;
-            break;
-        case VADisplayAttribSkinColorCorrection:
-            driver_data->skinColorCorrection_gain.value = p->value;
             update_coeffs = 1;
             break;
         case VADisplayAttribBackgroundColor:

@@ -35,6 +35,7 @@
 #include "psb_surface.h"
 #include "psb_buffer.h"
 #include "psb_x11.h"
+#include "psb_drv_debug.h"
 
 #include <stdio.h>
 #include <string.h>

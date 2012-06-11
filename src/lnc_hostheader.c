@@ -35,6 +35,7 @@
 #include "img_types.h"
 #include "psb_def.h"
 #include "lnc_hostheader.h"
+#include "psb_drv_debug.h"
 
 
 /* Global stores the latest QP information for the DoHeader()

@@ -39,12 +39,14 @@ LOCAL_SRC_FILES :=		\
     psb_deblock.c           \
     psb_drv_video.c         \
     psb_drv_debug.c         \
+    psb_surface_attrib.c    \
     psb_output.c		\
     psb_texstreaming.c            \
     psb_texture.c            \
     android/psb_output_android.c            \
     android/psb_HDMIExtMode.c               \
     android/psb_android_glue.cpp            \
+    android/psb_surface_gralloc.c         \
     android/psb_gralloc.cpp            \
     psb_surface.c           \
     psb_overlay.c		\
@@ -78,12 +80,7 @@ LOCAL_C_INCLUDES :=			\
     $(TARGET_OUT_HEADERS)/libwsbm	\
     $(TARGET_OUT_HEADERS)/libpsb_drm\
     $(TARGET_OUT_HEADERS)/opengles  \
-    $(LOCAL_PATH)/hwdefs		\
-    $(LOCAL_PATH)/powervr_iep_lite/include		\
-    $(LOCAL_PATH)/powervr_iep_lite/include/win32	\
-    $(LOCAL_PATH)/powervr_iep_lite/csc		\
-    $(LOCAL_PATH)/powervr_iep_lite/iep_lite		\
-    $(LOCAL_PATH)/powervr_iep_lite/fixedpointmaths
+    $(LOCAL_PATH)/hwdefs
 
 LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := pvr_drv_video
@@ -96,7 +93,29 @@ LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE
 LOCAL_SHARED_LIBRARIES += liblog
 endif
 
+# Add source codes for Merrifield
+MERRIFIELD_PRODUCT := \
+	mrfl_vp \
+	mrfl_hvp \
+	mrfl_sle
+ifneq ($(filter $(TARGET_PRODUCT),$(MERRIFIELD_PRODUCT)),)
+LOCAL_SRC_FILES += \
+    pnw_VP8.c \
+    tng_jpegdec.c \
+    ptg_cmdbuf.c ptg_hostheader.c ptg_hostcode.c ptg_picmgmt.c ptg_hostbias.c \
+    ptg_H264ES.c ptg_H263ES.c  ptg_jpeg.c ptg_slotorder.c \
+#LOCAL_SRC_FILES += \
+    vsp_VPP.c \
+    vsp_cmdbuf.c
+#LOCAL_CFLAGS += -DPSBVIDEO_MRFL_VPP
+LOCAL_CFLAGS += -DPSBVIDEO_MRFL_DEC 
+LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_DEC_TILING
+LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_EC
+LOCAL_CFLAGS += -DPSBVIDEO_MRFL
+else
 LOCAL_CFLAGS += -DPSBVIDEO_MFLD
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 endif
 

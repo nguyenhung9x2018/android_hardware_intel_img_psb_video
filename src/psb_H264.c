@@ -31,6 +31,7 @@
 #include "psb_def.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
+#include "psb_drv_debug.h"
 
 #include "hwdefs/reg_io2.h"
 #include "hwdefs/msvdx_offsets.h"
@@ -633,7 +634,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
-    if (psb_video_trace_fp && (psb_video_trace_level & VABUF_TRACE)) {
+    if (psb_video_trace_fp && (psb_video_trace_level & VABUF_TRACE))
         psb__H264_trace_pic_params(pic_params);
 
     /* Table 6-1 */
@@ -1848,11 +1849,13 @@ static VAStatus psb_H264_EndPicture(
     driver_data->decode_info.num_surface = ctx->obj_context->num_render_targets;
     driver_data->decode_info.surface_id = obj_context->current_render_surface_id;
 
+#if 0
     if (driver_data->ec_enabled && IS_MRST(driver_data)) {
         psb_context_submit_host_be_opp(ctx->obj_context, &target_surface->buf,
                                        target_surface->stride, target_surface->size,
                                        ctx->picture_width_mb, ctx->size_mb);
     }
+#endif
 
     if (psb_context_flush_cmdbuf(ctx->obj_context)) {
         return VA_STATUS_ERROR_UNKNOWN;

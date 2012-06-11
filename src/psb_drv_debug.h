@@ -58,7 +58,7 @@
 #endif /* DEBUG_TRACE */
 
 /****************************
- * debug level structures 
+ * debug level structures
  ****************************/
 typedef enum
 {

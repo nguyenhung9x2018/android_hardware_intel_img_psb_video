@@ -36,6 +36,8 @@
 #include "lnc_hostcode.h"
 #include "lnc_H264ES.h"
 #include "lnc_hostheader.h"
+#include "va/va_enc_h264.h"
+#include "psb_drv_debug.h"
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -242,27 +244,6 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     } else
         ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
 
-    ctx->sRCParams.FrameRate = pSequenceParams->frame_rate;
-
-
-    if (psb_parse_config("PSB_VIDEO_IQP", hardcoded_qp) == 0)
-        pSequenceParams->initial_qp = atoi(hardcoded_qp);
-
-    if (pSequenceParams->initial_qp < 3)
-        pSequenceParams->initial_qp = 3;
-
-    if (psb_parse_config("PSB_VIDEO_MQP", hardcoded_qp) == 0)
-        pSequenceParams->min_qp = atoi(hardcoded_qp);
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Rate control parameter initial_qp=%d, min_qp=%d\n",
-                             pSequenceParams->initial_qp,
-                             pSequenceParams->min_qp);
-
-    ctx->sRCParams.InitialQp = pSequenceParams->initial_qp;
-
-    ctx->sRCParams.MinQP = pSequenceParams->min_qp;
-    ctx->sRCParams.BUSize = pSequenceParams->basic_unit_size;
-
     ctx->sRCParams.Slices = 1;
 
     ctx->sRCParams.IntraFreq = pSequenceParams->intra_period;
@@ -304,8 +285,8 @@ static VAStatus lnc__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     lnc__H264_prepare_sequence_header((IMG_UINT32 *)(cmdbuf->header_mem_p + ctx->seq_header_ofs), pSequenceParams->max_num_ref_frames,
                                       pSequenceParams->picture_width_in_mbs,
                                       pSequenceParams->picture_height_in_mbs,
-                                      pSequenceParams->vui_flag,
-                                      pSequenceParams->vui_flag ? (&VUI_Params) : NULL,
+                                      pSequenceParams->vui_parameters_present_flag,
+                                      pSequenceParams->vui_parameters_present_flag ? (&VUI_Params) : NULL,
                                       &sCrop,
                                       pSequenceParams->level_idc, ctx->profile_idc);
 
@@ -350,12 +331,12 @@ static VAStatus lnc__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
-    ctx->ref_surface = SURFACE(pBuffer->reference_picture);
-    ctx->dest_surface = SURFACE(pBuffer->reconstructed_picture);
+	ctx->ref_surface = SURFACE(pBuffer->ReferenceFrames[0].picture_id);
+    ctx->dest_surface = SURFACE(pBuffer->CurrPic.picture_id);
     ctx->coded_buf = BUFFER(pBuffer->coded_buf);
 
-    ASSERT(ctx->Width == pBuffer->picture_width);
-    ASSERT(ctx->Height == pBuffer->picture_height);
+    //ASSERT(ctx->Width == pBuffer->picture_width);
+    //ASSERT(ctx->Height == pBuffer->picture_height);
 
     if ((ctx->sRCParams.IntraFreq != 0) && (ctx->sRCParams.IDRFreq != 0)) { /* period IDR is desired */
         unsigned int is_intra = 0;
@@ -599,6 +580,11 @@ static VAStatus lnc__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
     obj_buffer->size = 0;
 
+	//initialize the frame_rate and qp
+	rate_control_param->initial_qp=26;
+	rate_control_param->min_qp=3;
+	frame_rate_param->framerate=30;
+	
     switch (pBuffer->type) {
     case VAEncMiscParameterTypeFrameRate:
         frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;

@@ -37,6 +37,7 @@
 #include "android/psb_android_glue.h"
 #include "psb_drv_debug.h"
 #include "vc1_defs.h"
+#include "pnw_rotate.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -46,18 +47,22 @@
 #include <wsbm/wsbm_manager.h>
 #include <wsbm/wsbm_util.h>
 #include <wsbm/wsbm_fencemgr.h>
+
+#ifdef ANROID
 #include <system/graphics.h>
+#endif
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 #define INIT_OUTPUT_PRIV    unsigned char* output = ((psb_driver_data_p)ctx->pDriverData)->ws_priv
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
+#define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
 
 #define CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need)  \
 do {                                                            \
     int old_rotate = GET_SURFACE_INFO_rotate(psb_surface);      \
     switch (msvdx_rotate) {                                     \
     case 2: /* 180 */                                           \
-        if (old_rotate == 2)                                  \
+        if (old_rotate == 180)                                  \
             need = 0;                                           \
         else                                                    \
             need = 1;                                           \
@@ -73,19 +78,6 @@ do {                                                            \
 } while (0)
 
 //#define OVERLAY_ENABLE_MIRROR
-
-static uint32_t VAROTATION2HAL(int va_rotate) {
-        switch (va_rotate) {
-        case VA_ROTATION_90:
-            return HAL_TRANSFORM_ROT_90;
-        case VA_ROTATION_180:
-            return HAL_TRANSFORM_ROT_180;
-        case VA_ROTATION_270:
-            return HAL_TRANSFORM_ROT_270;
-        default:
-            return 0;
-        }
-}
 
 void psb_InitRotate(VADriverContextP ctx)
 {
@@ -171,11 +163,12 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
         for (i = 0; i < obj_context->num_render_targets; i++) {
             object_surface_p obj_surface = SURFACE(obj_context->render_targets[i]);
             /*we invalidate all surfaces's rotate buffer share info here.*/
-            if (obj_surface->share_info) {
+            if (obj_surface && obj_surface->share_info) {
                 obj_surface->share_info->surface_rotate = 0;
                 obj_surface->share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
             }
         }
+
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSVDX: new rotation %d desired\n", new_rotate);
         driver_data->msvdx_rotate_want = new_rotate;
     }
@@ -186,7 +179,6 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
 void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_param_tmp)
 {
     int interaced_stream;
-    object_surface_p obj_surface = obj_context->current_render_target;
 
     switch (obj_context->profile) {
     case VAProfileMPEG2Simple:
@@ -228,17 +220,13 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_p
         break;
     }
 
-    /* record just what type of picture we are */
-    if (obj_surface->share_info) {
-        psb_surface_share_info_p share_info = obj_surface->share_info;
-        if (obj_context->interlaced_stream) {
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Intelaced stream, no MSVDX rotate\n");
-            SET_SURFACE_INFO_rotate(obj_surface->psb_surface, 0);
-            obj_context->msvdx_rotate = 0;
-            share_info->bob_deinterlace = 1;
-        } else {
-            share_info->bob_deinterlace = 0;
-        }
+    if (obj_context->interlaced_stream) {
+        object_surface_p obj_surface = obj_context->current_render_target;
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Intelaced stream, no MSVDX rotate\n");
+
+        SET_SURFACE_INFO_rotate(obj_surface->psb_surface, 0);
+        obj_context->msvdx_rotate = 0;
     }
 }
 
@@ -299,13 +287,16 @@ VAStatus psb_CreateRotateSurface(
         if (need_realloc == 0) {
             goto exit;
         } else { /* free the old rotate surface */
-            /*FIX ME: No sync mechanism to hold surface buffer b/w msvdx and display(overlay).
-              So Disable dynamic surface destroy/create for avoiding buffer corruption.*/
-            return VA_STATUS_SUCCESS;
+            /*FIX ME: it is not safe to do that because surfaces may be in use for rendering.*/
+            psb_surface_destroy(obj_surface->psb_surface_rotate);
+            memset(psb_surface, 0, sizeof(*psb_surface));
         }
     } else
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
 
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+    SET_SURFACE_INFO_tiling(psb_surface, GET_SURFACE_INFO_tiling(obj_surface->psb_surface));
+#endif
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Try to allocate surface for alternative rotate output\n");
 
     width = obj_surface->width;
@@ -330,6 +321,20 @@ VAStatus psb_CreateRotateSurface(
         DEBUG_FAILURE;
         return vaStatus;
     }
+
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+    psb__information_message("attempt to update tile context\n");
+    if (GET_SURFACE_INFO_tiling(psb_surface)) {
+        psb__information_message("update tile context\n");
+        object_context_p obj_context = CONTEXT(obj_surface->context_id);
+        unsigned long msvdx_tile = psb__tile_stride_log2_256(obj_surface->width_r);
+        obj_context->msvdx_tile &= 0xf; /* clear rotate tile */
+        obj_context->msvdx_tile |= (msvdx_tile << 4);
+        obj_context->ctp_type &= (~PSB_CTX_TILING_MASK); /* clear tile context */
+        obj_context->ctp_type |= ((obj_context->msvdx_tile & 0xff) << 16);
+        psb_update_context(driver_data, obj_context->ctp_type);
+    }
+#endif
 
     obj_surface->psb_surface_rotate = psb_surface;
 exit:

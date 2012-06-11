@@ -47,6 +47,7 @@
 #include <stdint.h>
 #include <string.h>
 
+
 #define GET_SURFACE_INFO_is_used(psb_surface) ((int) (psb_surface->extra_info[0]))
 #define SET_SURFACE_INFO_is_used(psb_surface, val) psb_surface->extra_info[0] = (uint32_t) val;
 #define GET_SURFACE_INFO_col_pic_params(psb_surface) (psb_surface->extra_info[1])
@@ -185,6 +186,7 @@ struct context_H264_s {
 
     /* IQ matrix */
     VAIQMatrixBufferH264 *iq_matrix;
+    VASliceParameterBufferH264 *slice_param;
 
     /* Reference Cache */
     struct psb_buffer_s reference_cache;
@@ -758,14 +760,16 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     psb_CheckInterlaceRotate(ctx->obj_context, (unsigned char *)pic_params);
 
 
-#ifdef MFLD_ERROR_CONCEALMENT
+#ifdef PSBVIDEO_MSVDX_EC
     /* tell the driver to save the frame info for Error Concealment */
+    /*
     if (driver_data->ec_enabled) {
         psb_context_get_next_cmdbuf(ctx->obj_context);
         psb_context_submit_frame_info(ctx->obj_context, &target_surface->buf,
                                       target_surface->stride, target_surface->size,
                                       ctx->picture_width_mb, ctx->size_mb);
     }
+    */
 #endif
 
     return VA_STATUS_SUCCESS;
@@ -1731,8 +1735,9 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
         if (ctx->two_pass_mode) {
             ctx->obj_context->flags |= FW_VA_RENDER_IS_TWO_PASS_DEBLOCK;
         }
+        ctx->obj_context->flags |= FW_VA_RENDER_IS_VLD_NOT_MC; /* FW_ERROR_DETECTION_AND_RECOVERY */
 
-#ifdef MFLD_ERROR_CONCEALMENT
+#ifdef PSBVIDEO_MSVDX_EC
 	if (ctx->obj_context->driver_data->ec_enabled)
             ctx->obj_context->flags |= (FW_ERROR_DETECTION_AND_RECOVERY); /* FW_ERROR_DETECTION_AND_RECOVERY */
 #endif
@@ -1746,6 +1751,7 @@ static VAStatus psb__H264_process_slice(context_H264_p ctx,
         }
 
         ctx->slice_count++;
+        ctx->slice_param = slice_param;
     }
     return vaStatus;
 }
@@ -1794,6 +1800,31 @@ static VAStatus psb__H264_process_slice_data(context_H264_p ctx, object_buffer_p
 
     return vaStatus;
 }
+
+#ifdef PSBVIDEO_MSVDX_EC
+static void psb__H264_choose_ec_frames(context_H264_p ctx)
+{
+    /* If reference picture list has a valid entry, this is a P or B frame and we conceal from the frame that is at the top of the list*/
+    if (ctx->slice_param->num_ref_idx_l0_active_minus1 >= 0)
+    {
+        object_surface_p ref_surface = SURFACE(ctx->slice_param->RefPicList0[0].picture_id);
+
+        ctx->obj_context->ec_target = ref_surface;
+    }
+    /* Otherwise we conceal from the previous I or P frame*/
+    else
+    {
+        ctx->obj_context->ec_target = ctx->obj_context->ec_candidate;
+    }
+
+    if (ctx->slice_param->slice_type != ST_B)
+    {
+        ctx->obj_context->ec_candidate = ctx->obj_context->current_render_target; /* in case the next frame is an I frame we will need this */
+    }
+    if (!ctx->obj_context->ec_target)
+        ctx->obj_context->ec_target = ctx->obj_context->current_render_target;
+}
+#endif
 
 static VAStatus pnw_H264_BeginPicture(
     object_context_p obj_context)
@@ -1945,12 +1976,32 @@ static VAStatus pnw_H264_EndPicture(
         }
     }
 
-#ifdef MFLD_ERROR_CONCEALMENT
+#ifdef PSBVIDEO_MSVDX_EC
     /* Sent the HOST_BE_OPP command to detect slice error */
     if (driver_data->ec_enabled) {
-        psb_context_submit_host_be_opp(ctx->obj_context, &target_surface->buf,
-                                       target_surface->stride, target_surface->size,
-                                       ctx->picture_width_mb, ctx->size_mb);
+        uint32_t rotation_flags = 0;
+        uint32_t ext_stride_a = 0;
+        object_surface_p ec_target;
+
+        psb__H264_choose_ec_frames(ctx);
+        ec_target = ctx->obj_context->ec_target;
+        REGIO_WRITE_FIELD_LITE(ext_stride_a, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64);
+
+    /* FIXME ec ignor rotate condition */
+        if(ec_target)
+            if (psb_context_submit_host_be_opp(ctx->obj_context,
+                                          &target_surface->buf,
+                                          &ec_target->psb_surface->buf,
+                                          NULL,
+                                          ctx->picture_width_mb,
+                                          ctx->picture_height_mb,
+                                          rotation_flags,
+                                          ctx->field_type,
+                                          ext_stride_a,
+                                          target_surface->chroma_offset + target_surface->buf.buffer_ofs,
+                                          ec_target->psb_surface->chroma_offset + ec_target->psb_surface->buf.buffer_ofs)) {
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
     }
 #endif
 

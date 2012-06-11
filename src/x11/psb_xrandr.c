@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include "psb_xrandr.h"
 #include "psb_x11.h"
+#include "psb_drv_debug.h"
 
 /* Global variable for xrandr */
 psb_xrandr_info_p psb_xrandr_info;
@@ -794,6 +795,9 @@ VAStatus psb_xrandr_thread_create(VADriverContextP ctx)
 
 VAStatus psb_xrandr_deinit()
 {
+#ifdef _FOR_FPGA_
+    return VA_STATUS_SUCCESS;
+#endif
     pthread_mutex_lock(&psb_xrandr_info->psb_extvideo_mutex);
     //free crtc
     if (psb_xrandr_info->crtc_head) {

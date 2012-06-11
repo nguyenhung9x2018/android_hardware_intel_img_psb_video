@@ -7,11 +7,11 @@
 # distribute, sub license, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
-# 
+#
 # The above copyright notice and this permission notice (including the
 # next paragraph) shall be included in all copies or substantial portions
 # of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
 # OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -20,28 +20,25 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
-AC_PREREQ(2.57)
-AC_INIT([psb-video], 0.1, [waldo.bastian@intel.com], psb-video)
-AC_CONFIG_SRCDIR([Makefile.am])
-AM_INIT_AUTOMAKE([dist-bzip2])
+# Makefile to build MSVDX firmware
 
-AM_CONFIG_HEADER([src/config.h])
+CFLAGS = -DFRAME_SWITCHING_VARIANT=1 -DSLICE_SWITCHING_VARIANT=1
+firmware_DATA = msvdx_fw.bin msvdx_fw_mfld.bin msvdx_fw_mfld_DE2.0.bin
+firmwaredir = /lib/firmware
+msvdx_fw_bin_DEPENDENCIES = msvdx_bin
+topazsc_fw_bin_DEPENDENCIES = topazsc_bin
 
-AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
-AC_PROG_CC
+noinst_PROGRAMS = msvdx_bin
+msvdx_bin_SOURCES = msvdx_bin.c thread0_ss_bin.c thread0_bin.c thread1_bin.c thread2_bin.c thread3_bin.c
 
-AC_HEADER_STDC
-AC_SYS_LARGEFILE
+msvdx_fw.bin: msvdx_bin
+	./msvdx_bin
 
-PKG_CHECK_MODULES([X11], [x11])
-PKG_CHECK_MODULES([XEXT], [xext])
-PKG_CHECK_MODULES([DRM], [libdrm])
-PKG_CHECK_MODULES([WSBM], [libwsbm])
-PKG_CHECK_MODULES([LIBVA], [libva])
-PKG_CHECK_MODULES([XV], [xv])
+msvdx_fw_mfld.bin: msvdx_bin
+	./msvdx_bin
 
-pkgconfigdir=${libdir}/pkgconfig
-AC_SUBST(pkgconfigdir)
+msvdx_fw_mfld_DE2.0.bin: msvdx_bin
+	./msvdx_bin
 
-AC_OUTPUT([Makefile src/Makefile fw/Makefile fw/topazsc/Makefile fw/msvdx/Makefile])
+clean-generic:
+	rm -f ./msvdx_fw.bin ./msvdx_fw_mfld.bin

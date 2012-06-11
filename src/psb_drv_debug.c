@@ -74,7 +74,9 @@ void psb__open_log(void)
                 drv_debug_msg(VIDEO_DEBUG_GENERAL, "Log file %s open successfully\n", log_fn);
                 debug_fp_count++;
             }
+#ifdef ANDROID
             LOGD("PSB_VIDEO_DEBUG is enabled.\n");
+#endif
         } else {
             psb_video_debug_fp = NULL;
         }
@@ -82,15 +84,20 @@ void psb__open_log(void)
 
     if(psb_parse_config("PSB_VIDEO_TRACE", &log_fn[0]) == 0) {
         unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
+        time_t curtime;
+        
         if(strcmp(log_fn, "/dev/stdout") != 0)
             sprintf(log_fn + strlen(log_fn), ".%d", suffix);
         psb_video_trace_fp = fopen(log_fn, "w");
-        time_t curtime;
+        if (psb_video_trace_fp == NULL)
+            psb_video_trace_fp = stderr;
         time(&curtime);
         fprintf(psb_video_trace_fp, "---- %s\n---- Start Trace ----\n", ctime(&curtime));
         debug_dump_count = 0;
         g_hexdump_offset = 0;
+#ifdef ANDROID
         LOGD("PSB_VIDEO_TRACE is enabled.\n");
+#endif
     } else {
         psb_video_trace_fp = NULL;
     }
@@ -98,7 +105,9 @@ void psb__open_log(void)
     /* debug level include error, warning, general, init, entry, ...... */
     if(psb_parse_config("PSB_VIDEO_DEBUG_LEVEL", &log_fn[0]) == 0) {
         psb_video_debug_level = atoi(log_fn);
+#ifdef ANDROID
         LOGD("psb_video_debug_level is %d parsed.\n", psb_video_debug_level);
+#endif
     } else {
         psb_video_debug_level = 0x1;
     }
@@ -106,7 +115,9 @@ void psb__open_log(void)
     /* control debug output option, logcat output or print to file */
     if(psb_parse_config("PSB_VIDEO_DEBUG_OPTION", &log_fn[0]) == 0) {
         psb_video_debug_option = atoi(log_fn);
+#ifdef ANDROID
         LOGD("psb_video_debug_option is %d parsed.\n", psb_video_debug_option);
+#endif
     } else {
         psb_video_debug_option = 0;
     }
@@ -114,7 +125,9 @@ void psb__open_log(void)
     /* trace level include vabuf, cmdmsg buf, aux buffer, lldma */
     if(psb_parse_config("PSB_VIDEO_TRACE_LEVEL", &log_fn[0]) == 0) {
         psb_video_trace_level = atoi(log_fn);
+#ifdef ANDROID
         LOGD("psb_video_trace_level is %d parsed.\n", psb_video_trace_level);
+#endif
     } else {
         psb_video_trace_level = 0;
     }
@@ -122,7 +135,9 @@ void psb__open_log(void)
     /* control trace output option, logcat output or print to file */
     if(psb_parse_config("PSB_VIDEO_TRACE_OPTION", &log_fn[0]) == 0) {
         psb_video_trace_option = atoi(log_fn);
+#ifdef ANDROID
         LOGD("psb_video_debug_option is %d parsed.\n", psb_video_trace_option);
+#endif
     } else {
         psb_video_trace_option = 0;
     }
@@ -133,7 +148,9 @@ void psb__open_log(void)
             psb_video_dump_cmdbuf = TRUE;
         else
             psb_video_dump_cmdbuf = FALSE;
+#ifdef ANDROID
         LOGD("PSB_VIDEO_DUMP_CMDBUF is %d.\n", psb_video_dump_cmdbuf);
+#endif
     } else {
         psb_video_dump_cmdbuf = FALSE;
     }
@@ -144,7 +161,9 @@ void psb__open_log(void)
         if(strcmp(log_fn, "/dev/stdout") != 0)
             sprintf(log_fn + strlen(log_fn), ".%d", suffix);
         psb_dump_vabuf_fp = fopen(log_fn, "w");
+#ifdef ANDROID
         LOGD("PSB_VIDEO_DUMP_VABUF is enabled.\n");
+#endif
     } else {
         psb_dump_vabuf_fp = NULL;
     }
@@ -155,7 +174,9 @@ void psb__open_log(void)
         if(strcmp(log_fn, "/dev/stdout") != 0)
             sprintf(log_fn + strlen(log_fn), ".%d", suffix);
         psb_dump_vabuf_verbose_fp = fopen(log_fn, "w");
+#ifdef ANDROID
         LOGD("PSB_VIDEO_DUMP_VABUF_VERBOSE is enabled.\n");
+#endif
     } else {
         psb_dump_vabuf_verbose_fp = NULL;
     }
@@ -166,7 +187,9 @@ void psb__open_log(void)
         if(strcmp(log_fn, "/dev/stdout") != 0)
             sprintf(log_fn + strlen(log_fn), ".%d", suffix);
         psb_dump_yuvbuf_fp = fopen(log_fn, "ab");
+#ifdef ANDROID
         LOGD("PSB_VIDEO_DUMP_YUVBUF is enabled.\n");
+#endif
     } else {
         psb_dump_yuvbuf_fp = NULL;
     }
@@ -177,7 +200,9 @@ void psb__open_log(void)
             force_texure_1080p_60fps = 1;
         else
             force_texure_1080p_60fps = 0;
+#ifdef ANDROID
         LOGD("PSB_VIDEO_1080P_60FPS is %d.\n", force_texure_1080p_60fps);
+#endif
     } else {
         force_texure_1080p_60fps = 0;
     }

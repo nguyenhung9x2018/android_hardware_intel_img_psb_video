@@ -195,6 +195,11 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     ASSERT(obj_buffer->num_elements == 1);
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferMPEG4));
 
+    //initialize the frame_rate and qp
+    ctx->sRCParams.InitialQp = 15;
+    ctx->sRCParams.MinQP = 1;
+    ctx->sRCParams.FrameRate = 30;
+
     if ((obj_buffer->num_elements != 1) ||
         (obj_buffer->size != sizeof(VAEncSequenceParameterBufferMPEG4))) {
         return VA_STATUS_ERROR_UNKNOWN;

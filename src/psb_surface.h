@@ -30,6 +30,7 @@
 #define _PSB_SURFACE_H_
 
 #include <va/va.h>
+#include <va/va_tpi.h>
 #include "psb_buffer.h"
 //#include "xf86mm.h"
 
@@ -62,11 +63,12 @@ struct psb_surface_s {
      * extra_info[4]: surface fourcc
      * extra_info[5]: surface skippeded or not for encode, rotate info for decode
      * extra_info[6]: mfld protected surface
+     * extra_info[7]: linear or tiled
      */
     int extra_info[8];
     int size;
     unsigned int bc_buffer;
-    buffer_handle_t handle;
+    void *handle;
 };
 
 /*
@@ -77,67 +79,14 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
                             psb_surface_p psb_surface /* out */
                            );
 
-/*
- * Create surface from virtual address
- */
-VAStatus psb_surface_create_from_ub(psb_driver_data_p driver_data,
-                            int width, int height, int fourcc, VAExternalMemoryBuffers *graphic_buffers,
-                            psb_surface_p psb_surface, /* out */
-                            void *vaddr
-                           );
-
-VAStatus psb_surface_create_for_userptr(
-    psb_driver_data_p driver_data,
-    int width, int height,
-    unsigned size, /* total buffer size need to be allocated */
-    unsigned int fourcc, /* expected fourcc */
-    unsigned int luma_stride, /* luma stride, could be width aligned with a special value */
-    unsigned int chroma_u_stride, /* chroma stride */
-    unsigned int chroma_v_stride,
-    unsigned int luma_offset, /* could be 0 */
-    unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
-    unsigned int chroma_v_offset,
-    psb_surface_p psb_surface /* out */
-);
-
-VAStatus psb_surface_create_from_kbuf(
-    psb_driver_data_p driver_data,
-    int width, int height,
-    unsigned size, /* total buffer size need to be allocated */
-    unsigned int fourcc, /* expected fourcc */
-    int kbuf_handle, /*kernel handle */
-    unsigned int luma_stride, /* luma stride, could be width aligned with a special value */
-    unsigned int chroma_u_stride, /* chroma stride */
-    unsigned int chroma_v_stride,
-    unsigned int luma_offset, /* could be 0 */
-    unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
-    unsigned int chroma_v_offset,
-    psb_surface_p psb_surface /* out */
-);
 
 #define SET_SURFACE_INFO_rotate(psb_surface, rotate) psb_surface->extra_info[5] = (uint32_t) rotate;
 #define GET_SURFACE_INFO_rotate(psb_surface) ((int) psb_surface->extra_info[5])
 #define GET_SURFACE_INFO_protect(psb_surface) ((int) psb_surface->extra_info[6])
 #define SET_SURFACE_INFO_protect(psb_surface, protect) (psb_surface->extra_info[6] = protect)
+#define SET_SURFACE_INFO_tiling(psb_surface, tiling) psb_surface->extra_info[7] = (uint32_t) tiling;
+#define GET_SURFACE_INFO_tiling(psb_surface) ((unsigned long) psb_surface->extra_info[7])
 
-VAStatus psb_surface_create_camera(psb_driver_data_p driver_data,
-                                   int width, int height, int stride, int size,
-                                   psb_surface_p psb_surface, /* out */
-                                   int is_v4l2,
-                                   unsigned int id_or_ofs
-                                  );
-
-/* id_or_ofs: it is frame ID or frame offset in camear device memory
- *     for CI frame: it it always frame offset currently
- *     for v4l2 buf: it is offset used in V4L2 buffer mmap
- * user_ptr: virtual address of user buffer.
- */
-VAStatus psb_surface_create_camera_from_ub(psb_driver_data_p driver_data,
-        int width, int height, int stride, int size,
-        psb_surface_p psb_surface, /* out */
-        int is_v4l2,
-        unsigned int id_or_ofs,
-        const unsigned long *user_ptr);
 
 /*
  * Temporarily map surface and set all chroma values of surface to 'chroma'

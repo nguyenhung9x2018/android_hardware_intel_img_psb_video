@@ -7,11 +7,11 @@
 # distribute, sub license, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
-# 
+#
 # The above copyright notice and this permission notice (including the
 # next paragraph) shall be included in all copies or substantial portions
 # of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
 # OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -20,28 +20,24 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
-AC_PREREQ(2.57)
-AC_INIT([psb-video], 0.1, [waldo.bastian@intel.com], psb-video)
-AC_CONFIG_SRCDIR([Makefile.am])
-AM_INIT_AUTOMAKE([dist-bzip2])
 
-AM_CONFIG_HEADER([src/config.h])
 
-AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
-AC_PROG_CC
+LOCAL_PATH := $(call my-dir)
 
-AC_HEADER_STDC
-AC_SYS_LARGEFILE
+# For msvdx_bin
+# =====================================================
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES := msvdx_bin.c thread0_ss_bin.c thread0_bin.c thread1_bin.c thread2_bin.c thread3_bin.c
 
-PKG_CHECK_MODULES([X11], [x11])
-PKG_CHECK_MODULES([XEXT], [xext])
-PKG_CHECK_MODULES([DRM], [libdrm])
-PKG_CHECK_MODULES([WSBM], [libwsbm])
-PKG_CHECK_MODULES([LIBVA], [libva])
-PKG_CHECK_MODULES([XV], [xv])
+LOCAL_CFLAGS += -DFRAME_SWITCHING_VARIANT=1 -DSLICE_SWITCHING_VARIANT=1
 
-pkgconfigdir=${libdir}/pkgconfig
-AC_SUBST(pkgconfigdir)
+LOCAL_C_INCLUDES :=
 
-AC_OUTPUT([Makefile src/Makefile fw/Makefile fw/topazsc/Makefile fw/msvdx/Makefile])
+LOCAL_SHARED_LIBRARIES :=
+
+LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE := msvdx_bin
+
+include $(BUILD_EXECUTABLE)
+
+

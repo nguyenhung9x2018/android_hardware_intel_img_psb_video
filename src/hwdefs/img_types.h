@@ -43,25 +43,30 @@
 
 #include "img_defs.h"
 
-typedef unsigned int    IMG_UINT,       *IMG_PUINT;
-typedef signed int              IMG_INT,        *IMG_PINT;
+typedef unsigned int    IMG_UINT,      *IMG_PUINT;
+typedef signed int      IMG_INT,       *IMG_PINT;
 
-typedef unsigned char   IMG_UINT8,      *IMG_PUINT8;
-typedef unsigned char   IMG_BYTE,       *IMG_PBYTE;
-typedef signed char             IMG_INT8,       *IMG_PINT8;
-typedef char                    IMG_CHAR,       *IMG_PCHAR;
+typedef unsigned char   IMG_UINT8,     *IMG_PUINT8;
+typedef unsigned char   IMG_BYTE,      *IMG_PBYTE;
+typedef signed char     IMG_INT8,      *IMG_PINT8;
+typedef char            IMG_CHAR,      *IMG_PCHAR;
 
-typedef unsigned short  IMG_UINT16,     *IMG_PUINT16;
-typedef signed short    IMG_INT16,      *IMG_PINT16;
-typedef unsigned long   IMG_UINT32,     *IMG_PUINT32;
-typedef signed long             IMG_INT32,      *IMG_PINT32;
-typedef unsigned long long IMG_UINT64,  *IMG_PUINT64;
-typedef signed long long IMG_INT64,     *IMG_PINT64;
+typedef unsigned short  IMG_UINT16,    *IMG_PUINT16;
+typedef signed short    IMG_INT16,     *IMG_PINT16;
+typedef unsigned long   IMG_UINT32,    *IMG_PUINT32;
+typedef signed long     IMG_INT32,     *IMG_PINT32;
+typedef unsigned long long IMG_UINT64, *IMG_PUINT64;
+typedef signed long long IMG_INT64,    *IMG_PINT64;
+
+typedef unsigned char	IMG_BOOL8,     *IMG_PBOOL8;
+typedef unsigned short	IMG_BOOL16,    *IMG_PBOOL16;
+typedef unsigned long	IMG_BOOL32,    *IMG_PBOOL32;
+
 
 #if defined(_WIN32)
 
-typedef unsigned __int64        IMG_UINT64, *IMG_PUINT64;
-typedef __int64                         IMG_INT64,  *IMG_PINT64;
+typedef unsigned __int64   IMG_UINT64, *IMG_PUINT64;
+typedef __int64            IMG_INT64,  *IMG_PINT64;
 
 #else
 #if defined(LINUX) || defined (__SYMBIAN32__) || defined(_UITRON_)

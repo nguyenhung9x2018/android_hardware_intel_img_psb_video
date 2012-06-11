@@ -175,10 +175,37 @@ int psb_context_submit_oold(object_context_p obj_context,
                             uint32_t field_type,
                             uint32_t chroma_offset);
 
+#ifndef DE3_FIRMWARE
 int psb_context_submit_host_be_opp(object_context_p obj_context, psb_buffer_p dst_buf,
                                    uint32_t stride, uint32_t size,
                                    uint32_t picture_width_mb,
                                    uint32_t size_mb);
+#else
+int psb_context_submit_host_be_opp(object_context_p obj_context,
+                                  psb_buffer_p buf_a,
+                                  psb_buffer_p buf_b,
+                                  psb_buffer_p colocate_buffer,
+                                  uint32_t picture_widht_mb,
+                                  uint32_t frame_height_mb,
+                                  uint32_t rotation_flags,
+                                  uint32_t field_type,
+                                  uint32_t ext_stride_a,
+                                  uint32_t chroma_offset_a,
+                                  uint32_t chroma_offset_b);
+
+#endif
+int psb_context_submit_hw_deblock(object_context_p obj_context,
+                                  psb_buffer_p buf_a,
+                                  psb_buffer_p buf_b,
+                                  psb_buffer_p colocate_buffer,
+                                  uint32_t picture_widht_mb,
+                                  uint32_t frame_height_mb,
+                                  uint32_t rotation_flags,
+                                  uint32_t field_type,
+                                  uint32_t ext_stride_a,
+                                  uint32_t chroma_offset_a,
+                                  uint32_t chroma_offset_b,
+                                  uint32_t is_oold);
 
 int psb_context_submit_frame_info(object_context_p obj_context, psb_buffer_p dst_buf,
                                   uint32_t stride, uint32_t size,

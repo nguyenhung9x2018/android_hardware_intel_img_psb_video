@@ -185,6 +185,10 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->type == VAEncSequenceParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH263));
+    //initialize the frame_rate and qp
+    ctx->sRCParams.InitialQp = 15;
+    ctx->sRCParams.MinQP = 1;
+    ctx->sRCParams.FrameRate = 30;
 
     if ((obj_buffer->num_elements != 1) ||
         (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH263))) {

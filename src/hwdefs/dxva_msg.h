@@ -80,6 +80,8 @@ extern "C" {
 
         VA_MSGID_DEBLOCK_MFLD = FWRK_MSGID_HOST_EMULATED,
         VA_MSGID_OOLD_MFLD,
+        VA_MSGID_TEST1_MFLD,
+        VA_MSGID_HOST_BE_OPP_MFLD,
 
         /*! Sent by the VA firmware on the MTX to the host.
          */

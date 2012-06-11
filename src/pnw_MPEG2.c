@@ -1623,13 +1623,13 @@ static VAStatus pnw_MPEG2_RenderPicture(
             break;
 
         case VAIQMatrixBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_RenderPicture got VAIQMatrixBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL,"pnw_MPEG2_RenderPicture got VAIQMatrixBufferType\n");
             vaStatus = psb__MPEG2_process_iq_matrix(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VASliceParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_RenderPicture got VASliceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL,"pnw_MPEG2_RenderPicture got VASliceParameterBufferType\n");
             vaStatus = psb__MPEG2_add_slice_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;

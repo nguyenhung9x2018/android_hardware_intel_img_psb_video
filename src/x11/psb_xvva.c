@@ -34,6 +34,7 @@
 #include "psb_surface_ext.h"
 #include "psb_x11.h"
 #include "psb_xrandr.h"
+#include "psb_drv_debug.h"
 
 #include <X11/extensions/dpms.h>
 
@@ -116,6 +117,10 @@ static int GetPortId(VADriverContextP ctx, psb_x11_output_p output)
 
 VAStatus psb_init_xvideo(VADriverContextP ctx, psb_x11_output_p output)
 {
+#ifdef _FOR_FPGA_
+    return VA_STATUS_SUCCESS;
+#endif
+
     INIT_DRIVER_DATA;
     int dummy, ret;
 
@@ -231,9 +236,9 @@ VAStatus psb_deinit_xvideo(VADriverContextP ctx)
     output->using_port = 0;
     output->output_drawable = 0;
     output->extend_drawable = 0;
-
+#ifndef _FOR_FPGA_
     XSync((Display *)ctx->native_dpy, False);
-
+#endif
     return VA_STATUS_SUCCESS;
 }
 

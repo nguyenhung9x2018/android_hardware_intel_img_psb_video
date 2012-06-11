@@ -198,7 +198,6 @@ struct context_ENC_s {
     IMG_UINT32       NumCores; /* Number of encode cores in Penwell */
     IMG_UINT32       ParallelCores; /* Number of cores to use */
     IMG_INT32       BelowParamsBufIdx;
-
     IMG_INT16       RawWidth;
     IMG_INT16       RawHeight;
 
@@ -279,7 +278,9 @@ struct context_ENC_s {
     uint32_t aud_header_ofs;
     uint32_t sei_buf_prd_ofs;
     uint32_t sei_pic_tm_ofs;
-
+    uint32_t sei_pic_fpa_ofs;
+    uint32_t sei_pic_data_size;
+    
     uint32_t sliceparam_buffer_size;
 
     IN_RC_PARAMS in_params_cache; /* following frames reuse the first frame's IN_RC_PARAMS, cache it */

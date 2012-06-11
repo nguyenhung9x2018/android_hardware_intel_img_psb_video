@@ -46,6 +46,7 @@
 #include "psb_surface_ext.h"
 
 #include "psb_texture.h"
+#include "psb_drv_debug.h"
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define INIT_OUTPUT_PRIV    psb_x11_output_p output = (psb_x11_output_p)(((psb_driver_data_p)ctx->pDriverData)->ws_priv)

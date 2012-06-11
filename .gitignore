@@ -25,5 +25,4 @@ config.status
 config.sub
 configure
 depcomp
-fw/msvdx_bin
-fw/msvdx_fw.bin
+*_bin

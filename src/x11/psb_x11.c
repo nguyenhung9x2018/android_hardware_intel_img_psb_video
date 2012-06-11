@@ -37,6 +37,7 @@
 #include "psb_buffer.h"
 #include "psb_x11.h"
 #include "psb_surface_ext.h"
+#include "psb_drv_debug.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -353,6 +354,12 @@ error_handler(Display *dpy, XErrorEvent *error)
 
 void psb_x11_output_deinit(VADriverContextP ctx)
 {
+#ifdef _FOR_FPGA_
+    if (getenv("PSB_VIDEO_PUTSURFACE_X11"))
+        return;
+    else
+        psb_deinit_xvideo(ctx);
+#else
     INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
     struct dri_state *dri_state = (struct dri_state *)ctx->dri_state;
@@ -370,6 +377,7 @@ void psb_x11_output_deinit(VADriverContextP ctx)
     /* close dri fd and release all drawable buffer */
     if (driver_data->ctexture == 1)
         (*dri_state->close)(ctx);
+#endif
 }
 
 static void

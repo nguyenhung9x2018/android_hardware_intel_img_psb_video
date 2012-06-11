@@ -379,7 +379,7 @@ static VAStatus pnw__alloc_context_buffer(context_ENC_p ctx, unsigned char is_JP
     if (is_JPEG == 0) {
         ctx->pic_params_size  = 256;
 
-        ctx->header_buffer_size = 7 * HEADER_SIZE + MAX_SLICES_PER_PICTURE * HEADER_SIZE;
+        ctx->header_buffer_size = 8 * HEADER_SIZE + MAX_SLICES_PER_PICTURE * HEADER_SIZE;
 
         ctx->seq_header_ofs = 0;
         ctx->pic_header_ofs = HEADER_SIZE;
@@ -388,7 +388,8 @@ static VAStatus pnw__alloc_context_buffer(context_ENC_p ctx, unsigned char is_JP
         ctx->aud_header_ofs = 4 * HEADER_SIZE;
         ctx->sei_buf_prd_ofs = 5 * HEADER_SIZE;
         ctx->sei_pic_tm_ofs = 6 * HEADER_SIZE;
-        ctx->slice_header_ofs = 7 * HEADER_SIZE;
+        ctx->sei_pic_fpa_ofs = 7 * HEADER_SIZE;
+        ctx->slice_header_ofs = 8 * HEADER_SIZE;
         ctx->in_params_ofs = 0;
 
         ctx->sliceparam_buffer_size = ((sizeof(SLICE_PARAMS) + 15) & 0xfff0) * MAX_SLICES_PER_PICTURE;

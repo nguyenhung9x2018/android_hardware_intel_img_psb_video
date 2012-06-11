@@ -41,6 +41,7 @@
 #include "psb_output.h"
 #include <wsbm/wsbm_manager.h>
 #include "lnc_hostheader.h"
+#include "psb_drv_debug.h"
 
 #define ALIGN_TO(value, align) ((value + align - 1) & ~(align - 1))
 #define PAGE_ALIGN(value) ALIGN_TO(value, 4096)

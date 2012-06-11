@@ -43,7 +43,11 @@ typedef struct psb_buffer_s *psb_buffer_p;
 typedef enum psb_buffer_type_e {
     psb_bt_cpu_vpu = 0,                 /* Shared between CPU & Video PU */
     psb_bt_cpu_vpu_shared,              /* CPU/VPU can access, and can shared by other process */
-    psb_bt_surface,                     /* Tiled surface */
+    psb_bt_surface,                     /* linear surface */
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+    psb_bt_mmu_tiling,              /* Tiled surface */
+    psb_bt_surface_tiling,              /* Tiled surface */
+#endif
     psb_bt_vpu_only,                    /* Only used by Video PU */
     psb_bt_cpu_only,                    /* Only used by CPU */
     psb_bt_camera,                      /* memory is camera device memory */
@@ -73,7 +77,8 @@ struct psb_buffer_s {
     unsigned char *user_ptr; /* user pointer for user buffers */
     psb_driver_data_p driver_data; /* for RAR buffer release */
     uint32_t size;
-    buffer_handle_t handle;
+    void *handle;
+	unsigned char *virtual_addr;
 };
 
 /*

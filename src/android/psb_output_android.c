@@ -309,6 +309,12 @@ static int psb_check_outputmethod(
         return -1;
     }
 
+    obj_surface = SURFACE(surface);
+    if (obj_surface == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid surface\n");
+        return -1;
+    }
+        
     *hdmi_mode = psb_HDMIExt_get_mode(output);
     if ((*hdmi_mode == EXTENDED_VIDEO) || (*hdmi_mode == CLONE)) {
         unsigned short _destw, _desth;
@@ -392,7 +398,6 @@ static int psb_check_outputmethod(
         driver_data->rotation_dirty = 0;
     }
 
-    obj_surface = SURFACE(surface);
     if (GET_SURFACE_INFO_protect(obj_surface->psb_surface)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Protected surface, use overlay\n");
         driver_data->output_method = PSB_PUTSURFACE_COVERLAY;

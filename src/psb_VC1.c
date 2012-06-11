@@ -32,6 +32,7 @@
 #include "psb_def.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
+#include "psb_drv_debug.h"
 
 #include "vc1_header.h"
 #include "vc1_defs.h"
