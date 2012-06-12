@@ -209,7 +209,7 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
 
     /* Xvideo will share surface buffer, set SHARED flag
     */
-    placement =  DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_CACHED | WSBM_PL_FLAG_SHARED ;
+    placement =  DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_UNCACHED | WSBM_PL_FLAG_SHARED ;
 
     ret = LOCK_HARDWARE(driver_data);
     if (ret) {
