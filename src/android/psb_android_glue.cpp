@@ -171,11 +171,13 @@ int psb_android_is_extvideo_mode(void* output) {
     }
 
     if (mMDClient != NULL) {
-        int mode = mMDClient->getMode(false);
-        if (mode & MDS_HDMI_VIDEO_EXT)
-            return 1;
-        else if (mode & MDS_WIDI_ON)
-            return 2;
+        int mode;
+        if ((mode = mMDClient->getMode(false)) == MDS_ERROR)
+            return 0;
+
+        if (mode & MDS_HDMI_VIDEO_EXT) return 1;
+
+        if (mode & MDS_WIDI_ON) return 2;
     }
     return 0;
 }
