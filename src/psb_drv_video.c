@@ -2683,7 +2683,10 @@ static VAStatus psb__initDRI(VADriverContextP ctx)
     assert(dri_state);
 #ifdef _FOR_FPGA_
     dri_state->driConnectedFlag = VA_DUMMY;
-    dri_state->fd = open("/dev/dri/card0", O_RDWR);
+    /* ON FPGA machine, psb may co-exist with gfx's drm driver */
+    dri_state->fd = open("/dev/dri/card1", O_RDWR);
+    if (!dri_state->fd)
+        dri_state->fd = open("/dev/dri/card0", O_RDWR);
     assert(dri_state->fd >= 0);
 #endif
     assert(dri_state->driConnectedFlag == VA_DRI2 ||

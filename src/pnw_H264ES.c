@@ -150,8 +150,6 @@ static VAStatus pnw_H264ES_CreateContext(
     ctx->buffer_size = 0;
     ctx->initial_buffer_fullness = 0;
     //initialize the frame_rate and qp
-    ctx->sRCParams.InitialQp = 15;
-    ctx->sRCParams.MinQP = 1;
     ctx->sRCParams.FrameRate = 30;
 
     if (getenv("PSB_VIDEO_SIG_CORE") == NULL) {
