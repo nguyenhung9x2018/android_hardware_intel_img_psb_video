@@ -103,13 +103,13 @@ LOCAL_SRC_FILES += \
     pnw_VP8.c \
     tng_jpegdec.c \
     ptg_cmdbuf.c ptg_hostheader.c ptg_hostcode.c ptg_picmgmt.c ptg_hostbias.c \
-    ptg_H264ES.c ptg_H263ES.c  ptg_jpeg.c ptg_slotorder.c \
+    ptg_H264ES.c ptg_H263ES.c  ptg_MPEG4ES.c ptg_jpeg.c ptg_slotorder.c \
 #LOCAL_SRC_FILES += \
     vsp_VPP.c \
     vsp_cmdbuf.c
 #LOCAL_CFLAGS += -DPSBVIDEO_MRFL_VPP
 LOCAL_CFLAGS += -DPSBVIDEO_MRFL_DEC 
-LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_DEC_TILING
+#LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_DEC_TILING
 LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_EC
 LOCAL_CFLAGS += -DPSBVIDEO_MRFL
 else
