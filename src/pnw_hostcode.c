@@ -1927,7 +1927,6 @@ IMG_UINT32 pnw__send_encode_slice_params(
     case IMG_CODEC_H264_NO_RC:
     case IMG_CODEC_H264_CBR:
     case IMG_CODEC_H264_VCM:
-        psSliceParams->eIntraMBMode = INTRA_MB_SCANNING;
     case IMG_CODEC_H264_VBR:
         psSliceParams->Flags |= ISH264_FLAGS;
         break;
