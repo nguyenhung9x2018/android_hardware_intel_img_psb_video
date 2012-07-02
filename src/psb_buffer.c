@@ -449,7 +449,6 @@ void psb__trace_coded(unsigned int *pBuf)
         printf("\n");
     }
 }
-
 /*
  * Return special data structure for codedbuffer
  *
@@ -533,7 +532,6 @@ int psb_codedbuf_map_mangle(
             p->size = *((unsigned long *) raw_codedbuf);
             p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 16); /* skip 16DWs */
             p->next = NULL;
-          psb__trace_coded((unsigned int*)raw_codedbuf);
             break;
 
         case VAProfileJPEGBaseline:

@@ -77,7 +77,6 @@
 #include "vsp_VPP.h"
 #endif
 #include "psb_output.h"
-#include "lnc_ospm.h"
 #include "psb_texstreaming.h"
 #include <stdio.h>
 #include <string.h>
@@ -1261,9 +1260,7 @@ VAStatus psb_CreateContext(
         obj_context->num_render_targets = 0;
         obj_context->va_flags = 0;
         object_heap_free(&driver_data->context_heap, (object_base_p) obj_context);
-    } else
-        lnc_ospm_start(driver_data, encode);
-
+    } 
     obj_context->ctp_type = ((obj_config->profile << 8) |
                              obj_config->entrypoint | driver_data->protected);
 
@@ -1440,8 +1437,6 @@ static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p
     else
         encode = 0;
 
-    lnc_ospm_stop(driver_data, encode);
-
     obj_context->format_vtable->destroyContext(obj_context);
 
     for (i = 0; i < PSB_MAX_BUFFERTYPES; i++) {
@@ -1477,7 +1472,7 @@ static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p
 #ifdef PSBVIDEO_MRFL
     for (i = 0; i < PTG_MAX_CMDBUFS_ENCODE; i++) {
         if (obj_context->ptg_cmdbuf_list[i]) {
-            ptg_cmdbuf_destroy(obj_context->ptg_cmdbuf_list[i]);
+            tng_cmdbuf_destroy(obj_context->ptg_cmdbuf_list[i]);
             free(obj_context->ptg_cmdbuf_list[i]);
             obj_context->ptg_cmdbuf_list[i] = NULL;
         }
@@ -2686,7 +2681,7 @@ static VAStatus psb__initDRI(VADriverContextP ctx)
     dri_state->driConnectedFlag = VA_DUMMY;
     /* ON FPGA machine, psb may co-exist with gfx's drm driver */
     dri_state->fd = open("/dev/dri/card1", O_RDWR);
-    if (!dri_state->fd)
+    if (dri_state->fd < 0)
         dri_state->fd = open("/dev/dri/card0", O_RDWR);
     assert(dri_state->fd >= 0);
 #endif

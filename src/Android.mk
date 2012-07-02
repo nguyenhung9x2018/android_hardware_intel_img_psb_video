@@ -31,7 +31,6 @@ PSBVIDEO_LOG_ENABLE := true
 
 LOCAL_SRC_FILES :=		\
     lnc_cmdbuf.c            \
-    lnc_ospm.c		\
     object_heap.c           \
     psb_buffer.c            \
     psb_buffer_dm.c         \

@@ -23,7 +23,8 @@
 # Makefile to build MSVDX firmware
 
 CFLAGS = -DFRAME_SWITCHING_VARIANT=1 -DSLICE_SWITCHING_VARIANT=1
-firmware_DATA = msvdx_fw.bin msvdx_fw_mfld.bin msvdx_fw_mfld_DE2.0.bin topaz_fw.bin topazsc_fw.bin
+firmware_DATA = topaz_fw.bin topazsc_fw.bin
+#msvdx_fw.bin msvdx_fw_mfld.bin msvdx_fw_mfld_DE2.0.bin
 firmwaredir = /lib/firmware
 topaz_fw_bin_DEPENDENCIES = topaz_bin
 topazsc_fw_bin_DEPENDENCIES = topazsc_bin

@@ -696,7 +696,7 @@ int psb_context_submit_hw_deblock(object_context_p obj_context,
         deblock_msg->header.bits.msg_type = VA_MSGID_OOLD_MFLD;
     else
         deblock_msg->header.bits.msg_type = VA_MSGID_DEBLOCK_MFLD;
-    deblock_msg->flags.bits.flags = FW_VA_RENDER_HOST_INT | FW_VA_RENDER_IS_LAST_SLICE | FW_DEVA_DEBLOCK_ENABLE;
+    deblock_msg->flags.bits.flags = FW_VA_RENDER_HOST_INT | FW_VA_RENDER_IS_LAST_SLICE;
     deblock_msg->flags.bits.slice_type = field_type;
     deblock_msg->operating_mode = obj_context->operating_mode;
     deblock_msg->mmu_context.bits.context = (uint8_t)(obj_context->msvdx_context);

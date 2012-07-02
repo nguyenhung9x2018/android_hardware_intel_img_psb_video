@@ -35,6 +35,7 @@
 #include "psb_drv_video.h"
 #include "psb_drv_debug.h"
 #include "psb_buffer.h"
+#include "psb_cmdbuf.h"
 #include "psb_surface.h"
 #include "hwdefs/mem_io.h"
 #include "hwdefs/msvdx_offsets.h"
@@ -524,7 +525,7 @@ done:
 	return 0;
 }
 #else
-static int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
+int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
 {
     static int c=0;
     static char pFileName[50];

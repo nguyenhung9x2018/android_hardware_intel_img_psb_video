@@ -33,7 +33,7 @@ pvr_drv_video_la_SOURCES = psb_drv_video.c object_heap.c psb_buffer.c psb_buffer
 		psb_MPEG2.c psb_MPEG2MC.c psb_MPEG4.c psb_VC1.c psb_H264.c \
 		vc1_vlc.c vc1_idx.c psb_deblock.c  \
 		lnc_H263ES.c lnc_H264ES.c lnc_MPEG4ES.c lnc_cmdbuf.c \
-		lnc_hostcode.c lnc_hostheader.c lnc_ospm.c psb_ws_driver.c \
+		lnc_hostcode.c lnc_hostheader.c psb_ws_driver.c \
 		pnw_hostheader.c pnw_hostcode.c pnw_rotate.c\
 		pnw_cmdbuf.c pnw_H264ES.c pnw_H263ES.c pnw_MPEG4ES.c \
 		pnw_H264.c pnw_MPEG2.c pnw_MPEG4.c pnw_hostjpeg.c pnw_jpeg.c pnw_VC1.c pnw_VP8.c \

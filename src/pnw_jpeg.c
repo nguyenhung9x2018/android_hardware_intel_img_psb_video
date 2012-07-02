@@ -163,8 +163,6 @@ static VAStatus pnw_jpeg_CreateContext(
 
     if (NULL == jpeg_ctx_p->sScan_Encode_Info.aBufferTable)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
-    jpeg_ctx_p->ui32OutputWidth = ctx->Width;
-    jpeg_ctx_p->ui32OutputHeight = ctx->Height;
 
     /*It will be figured out when known the size of whole coded buffer.*/
     jpeg_ctx_p->ui32SizePerCodedBuffer = 0;
@@ -282,11 +280,31 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
-    ASSERT(ctx->Width == pBuffer->picture_width);
-    ASSERT(ctx->Height == pBuffer->picture_height);
+	/* Get the width and height of encode destination */
+    jpeg_ctx->ui32OutputWidth = (unsigned short)(~0x1 & (pBuffer->picture_width + 0x1));
+    jpeg_ctx->ui32OutputHeight = (unsigned short)(~0x1 & (pBuffer->picture_height + 0x1));
 
+    ASSERT(ctx->Width >= jpeg_ctx->ui32OutputWidth);
+    ASSERT(ctx->Height >= jpeg_ctx->ui32OutputHeight);
+
+    /*Overwrite the scan info if destination's sizes are different from source's */
+    if ((ctx->Width!=jpeg_ctx->ui32OutputWidth) || (ctx->Height!=jpeg_ctx->ui32OutputHeight)) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Overwriting the scan info...\n");
+
+        jpeg_ctx->ui8ScanNum = JPEG_SCANNING_COUNT(jpeg_ctx->ui32OutputWidth, jpeg_ctx->ui32OutputHeight, ctx->NumCores, jpeg_ctx->eFormat);
+
+        if (jpeg_ctx->ui8ScanNum < 2 || jpeg_ctx->ui8ScanNum > PNW_JPEG_MAX_SCAN_NUM) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "JPEG MCU scanning number(%d) is wrong!\n", jpeg_ctx->ui8ScanNum);
+            free(ctx->jpeg_ctx);
+            ctx->jpeg_ctx = NULL;
+            return VA_STATUS_ERROR_UNKNOWN;
+    	}
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG Scanning Number %d\n", jpeg_ctx->ui8ScanNum);
+        jpeg_ctx->sScan_Encode_Info.ui8NumberOfCodedBuffers = jpeg_ctx->ui8ScanNum;
+    }
+	
     ctx->coded_buf = BUFFER(pBuffer->coded_buf);
-
     free(pBuffer);
 
     if (NULL == ctx->coded_buf) {
@@ -313,8 +331,8 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
 
     jpeg_ctx->ui32SizePerCodedBuffer =
         JPEG_CODED_BUF_SEGMENT_SIZE(ctx->coded_buf->size,
-                                    ctx->Width, ctx->Height, ctx->NumCores, jpeg_ctx->eFormat);
-
+                                    jpeg_ctx->ui32OutputWidth, jpeg_ctx->ui32OutputHeight, 
+                                    ctx->NumCores, jpeg_ctx->eFormat);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Coded buffer total size is %d,"
                              "coded segment size per scan is %d\n",
                              ctx->coded_buf->size, jpeg_ctx->ui32SizePerCodedBuffer);

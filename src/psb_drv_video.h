@@ -70,8 +70,8 @@
 #endif
 
 //#define _TOPAZHP_VIRTUAL_
-#define _TOPAZHP_VIR_ADDR_
-#define _TOPAZHP_ALLOC_
+#define _TOPAZHP_VIR_ADDR
+#define _TOPAZHP_ALLOC__
 #define _TOPAZHP_SLICE_PARAM_
 //#define _TOPAZHP_PDUMP_
 //#define _TOPAZHP_PDUMP_ALL_
@@ -313,7 +313,7 @@ struct psb_driver_data_s {
 
 
 #ifdef _FOR_FPGA_
-#define IS_MFLD(driver_data) 1
+#define IS_MFLD(driver_data) 0
 #define IS_MRFL(driver_data) 1
 #define IS_MRST(driver_data) 0
 #else

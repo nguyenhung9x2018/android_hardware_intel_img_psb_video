@@ -579,7 +579,7 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
     IMG_UINT16 ui16_comp_width, ui16_comp_height;
     IMG_UINT8  uc_h_scale_max = 0, uc_v_scale_max = 0, uc_h_scale = 0;
     IMG_UINT8  uc_v_scale;
-    IMG_UINT16 ui16_height;
+    IMG_UINT16 ui16_height, ui16_width;
     context_ENC_p ctx = (context_ENC_p)pContext->ctx;
 
     /*************************************************************************/
@@ -590,20 +590,22 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
     /*FIXME: ONLY support NV12, YV12 here*/
     /*pTFrame->height isn't the real height of image, since vaCreateSurface
      * makes it aligned with 32*/
-    ui16_height = ctx->Height;
+    ui16_height = pContext->ui32OutputHeight;
+    ui16_width = pContext->ui32OutputWidth;
+	
     switch (pContext->eFormat) {
     case IMG_CODEC_YV16: /*422 format*/
         ui16_height_min = ui16_height;
         ui16_height_max = ui16_height;
-        ui16_width_min = pTFrame->width >> 1;
-        ui16_width_max = pTFrame->width;
+        ui16_width_min = ui16_width >> 1;
+        ui16_width_max = ui16_width;
         break;
     case IMG_CODEC_NV12:
     default:
         ui16_height_min = ui16_height >> 1;
         ui16_height_max = ui16_height;
-        ui16_width_min = pTFrame->width >> 1;
-        ui16_width_max = pTFrame->width;
+        ui16_width_min = ui16_width >> 1;
+        ui16_width_max = ui16_width;
         break;
     }
     /*ui16_height_min = ui16_width_min  = 65535;
@@ -641,17 +643,17 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
         /*Support NV12, YV12, YV16 here. uc_h/v_scale should be
          * 2x2(Y) or 1x1(U/V)*/
         if (0 == uc_i) {
-            ui16_comp_width  = pTFrame->width;
+            ui16_comp_width  = ui16_width;
             ui16_comp_height = ui16_height;
         } else {
             switch (pContext->eFormat) {
             case IMG_CODEC_YV16: /*422 format*/
-                ui16_comp_width  = pTFrame->width >> 1;
+                ui16_comp_width  = ui16_width >> 1;
                 ui16_comp_height = ui16_height;
                 break;
             case IMG_CODEC_NV12:
             default:
-                ui16_comp_width  = pTFrame->width >> 1;
+                ui16_comp_width  = ui16_width >> 1;
                 ui16_comp_height = ui16_height >> 1;
             }
         }
@@ -1475,7 +1477,7 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
     pContext->sScan_Encode_Info.ui32NumberMCUsToEncode = pContext->sScan_Encode_Info.ui32NumberMCUsX * pContext->sScan_Encode_Info.ui32NumberMCUsY;
 
     pContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan =
-        JPEG_MCU_PER_SCAN(ctx->Width, ctx->Height, ctx->NumCores, pContext->eFormat);
+        JPEG_MCU_PER_SCAN(pContext->ui32OutputWidth, pContext->ui32OutputHeight, ctx->NumCores, pContext->eFormat);
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "MCUs To Encode %dx%d\n",
                              pContext->sScan_Encode_Info.ui32NumberMCUsX,
@@ -1503,8 +1505,8 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
     switch (pContext->eFormat) {
     case IMG_CODEC_YV16:
         pContext->pMTXSetup->ComponentPlane[0].ui32Stride = pTFrame->psb_surface->stride;
-        pContext->pMTXSetup->ComponentPlane[1].ui32Stride = pTFrame->psb_surface->stride / 2;
-        pContext->pMTXSetup->ComponentPlane[2].ui32Stride = pTFrame->psb_surface->stride / 2;
+        pContext->pMTXSetup->ComponentPlane[1].ui32Stride = pContext->pMTXSetup->ComponentPlane[0].ui32Stride / 2;
+        pContext->pMTXSetup->ComponentPlane[2].ui32Stride = pContext->pMTXSetup->ComponentPlane[0].ui32Stride / 2;
 
         pContext->pMTXSetup->ComponentPlane[0].ui32Height = pTFrame->height;
         pContext->pMTXSetup->ComponentPlane[1].ui32Height = pTFrame->height;
@@ -1527,8 +1529,8 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
             SetupYUVPlaneDetails(&(pContext->pMTXSetup->ComponentPlane[1]),
                     &(pTFrame->aui32ComponentInfo[2]));*/
         pContext->pMTXSetup->ComponentPlane[0].ui32Stride = pTFrame->psb_surface->stride;
-        pContext->pMTXSetup->ComponentPlane[1].ui32Stride = pTFrame->psb_surface->stride / 2;
-        pContext->pMTXSetup->ComponentPlane[2].ui32Stride = pTFrame->psb_surface->stride / 2;
+        pContext->pMTXSetup->ComponentPlane[1].ui32Stride = pContext->pMTXSetup->ComponentPlane[0].ui32Stride / 2;
+        pContext->pMTXSetup->ComponentPlane[2].ui32Stride = pContext->pMTXSetup->ComponentPlane[0].ui32Stride / 2;
 
         pContext->pMTXSetup->ComponentPlane[0].ui32Height = pTFrame->height;
         pContext->pMTXSetup->ComponentPlane[1].ui32Height = pTFrame->height / 2;
@@ -1551,8 +1553,8 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
             &(pTFrame->aui32ComponentInfo[2]));*/
         /* It's for NV12*/
         pContext->pMTXSetup->ComponentPlane[0].ui32Stride = pTFrame->psb_surface->stride;
-        pContext->pMTXSetup->ComponentPlane[1].ui32Stride = pTFrame->psb_surface->stride;
-        pContext->pMTXSetup->ComponentPlane[2].ui32Stride = pTFrame->psb_surface->stride;
+        pContext->pMTXSetup->ComponentPlane[1].ui32Stride = pContext->pMTXSetup->ComponentPlane[0].ui32Stride;
+        pContext->pMTXSetup->ComponentPlane[2].ui32Stride = pContext->pMTXSetup->ComponentPlane[0].ui32Stride;
 
         pContext->pMTXSetup->ComponentPlane[0].ui32Height = pTFrame->height;
         pContext->pMTXSetup->ComponentPlane[1].ui32Height = pTFrame->height / 2;
