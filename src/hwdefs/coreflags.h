@@ -1,33 +1,27 @@
-/*!
-******************************************************************************
- @file   : coreflags.h
-
- @brief  Core specific flags to turn features on/off on different builds
-
- @Author PowerVR
-
- @date   1/07/2010
-
-         <b>Copyright 2008 by Imagination Technologies Limited.</b>\n
-         All rights reserved.  No part of this software, either
-         material or conceptual may be copied or distributed,
-         transmitted, transcribed, stored in a retrieval system
-         or translated into any human or computer language in any
-         form by any means, electronic, mechanical, manual or
-         other-wise, or disclosed to third parties without the
-         express written permission of Imagination Technologies
-         Limited, Unit 8, HomePark Industrial Estate,
-         King's Langley, Hertfordshire, WD4 8LZ, U.K.
-
- \n<b>Description:</b>\n
-         Core specific flags to turn features on/off on different builds
-     
- \n<b>Platform:</b>\n
-	     N/A
-
-
-
-******************************************************************************/
+/*
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #ifndef _COREFLAGS_H_
 #define _COREFLAGS_H_
