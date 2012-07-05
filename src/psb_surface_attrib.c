@@ -29,7 +29,6 @@
 #include "psb_drv_debug.h"
 #include "psb_surface.h"
 #include "psb_surface_attrib.h"
-#include "ci_va.h"
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 
@@ -222,120 +221,6 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
     return vaStatus;
 }
 
-
-VAStatus psb_CreateSurfaceFromCIFrame(
-    VADriverContextP ctx,
-    unsigned long frame_id,
-    VASurfaceID *surface        /* out */
-)
-{
-    INIT_DRIVER_DATA
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    int surfaceID;
-    object_surface_p obj_surface;
-    psb_surface_p psb_surface;
-    struct ci_frame_info frame_info;
-    int ret = 0, fd = -1;
-    char *camera_dev = NULL;
-
-    if (IS_MRST(driver_data) == 0)
-        return VA_STATUS_ERROR_UNKNOWN;
-
-    camera_dev = getenv("PSB_VIDEO_CAMERA_DEVNAME");
-
-    if (camera_dev)
-        fd = open_device(camera_dev);
-    else
-        fd = open_device("/dev/video0");
-    if (fd == -1)
-        return  VA_STATUS_ERROR_UNKNOWN;
-
-    frame_info.frame_id = frame_id;
-    ret = ci_get_frame_info(fd, &frame_info);
-    close_device(fd);
-
-    if (ret != 0)
-        return  VA_STATUS_ERROR_UNKNOWN;
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "CI Frame: id=0x%08x, %dx%d, stride=%d, offset=0x%08x, fourcc=0x%08x\n",
-                             frame_info.frame_id, frame_info.width, frame_info.height,
-                             frame_info.stride, frame_info.offset, frame_info.fourcc);
-
-    if (frame_info.stride & 0x3f) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "CI Frame must be 64byte aligned!\n");
-        /* return  VA_STATUS_ERROR_UNKNOWN; */
-    }
-
-    if (frame_info.fourcc != VA_FOURCC_NV12) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "CI Frame must be NV12 format!\n");
-        return  VA_STATUS_ERROR_UNKNOWN;
-    }
-    if (frame_info.offset & 0xfff) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "CI Frame offset must be page aligned!\n");
-        /* return  VA_STATUS_ERROR_UNKNOWN; */
-    }
-
-    /* all sanity check passed */
-    surfaceID = object_heap_allocate(&driver_data->surface_heap);
-    obj_surface = SURFACE(surfaceID);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    MEMSET_OBJECT(obj_surface, struct object_surface_s);
-
-    obj_surface->surface_id = surfaceID;
-    *surface = surfaceID;
-    obj_surface->context_id = -1;
-    obj_surface->width = frame_info.width;
-    obj_surface->height = frame_info.height;
-
-    psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
-    if (NULL == psb_surface) {
-        object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
-        obj_surface->surface_id = VA_INVALID_SURFACE;
-
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-
-        DEBUG_FAILURE;
-
-        object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
-        obj_surface->surface_id = VA_INVALID_SURFACE;
-
-        return vaStatus;
-    }
-
-    vaStatus = psb_surface_create_camera(driver_data, frame_info.width, frame_info.height,
-                                         frame_info.stride, frame_info.stride * frame_info.height,
-                                         psb_surface,
-                                         0, /* not V4L2 */
-                                         frame_info.offset);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        free(psb_surface);
-        object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
-        obj_surface->surface_id = VA_INVALID_SURFACE;
-
-        DEBUG_FAILURE;
-
-        return vaStatus;
-    }
-
-    memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
-    psb_surface->extra_info[4] = VA_FOURCC_NV12;
-
-    obj_surface->psb_surface = psb_surface;
-
-    /* Error recovery */
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        object_surface_p obj_surface = SURFACE(*surface);
-        psb__destroy_surface(driver_data, obj_surface);
-        *surface = VA_INVALID_SURFACE;
-    }
-
-    return vaStatus;
-}
 
 
 VAStatus psb_CreateSurfacesForUserPtr(
@@ -757,13 +642,6 @@ VAStatus psb_CreateSurfacesWithAttribute(
                                      attribute_tpi->luma_stride, attribute_tpi->chroma_u_stride,
                                      attribute_tpi->chroma_v_stride, attribute_tpi->luma_offset,
                                      attribute_tpi->chroma_u_offset, attribute_tpi->chroma_v_offset);
-        return vaStatus;
-    case VAExternalMemoryCIFrame:
-        for (i=0; i < num_surfaces; i++) {
-            vaStatus = psb_CreateSurfaceFromCIFrame(ctx, attribute_tpi->buffers[i], &surface_list[i]);
-            if (vaStatus != VA_STATUS_SUCCESS)
-                return vaStatus;
-        }
         return vaStatus;
     case VAExternalMemoryUserPointer:
         vaStatus = psb_CreateSurfaceFromUserspace(ctx, width, height,
