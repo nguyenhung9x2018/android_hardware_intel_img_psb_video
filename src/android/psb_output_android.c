@@ -113,7 +113,6 @@ unsigned char *psb_android_output_init(VADriverContextP ctx)
     close(fbfd);
     output->screen_width = vinfo.xres;
     output->screen_height = vinfo.yres;
-    output->mInitialized_mdclient = 0;
 
     /* TS by default */
     driver_data->output_method = PSB_PUTSURFACE_OVERLAY;
@@ -140,9 +139,8 @@ VAStatus psb_android_output_deinit(VADriverContextP ctx)
     INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
     //psb_android_output_p output = GET_OUTPUT_DATA(ctx);
-    if (output->mInitialized_mdclient) {
+    if (output->mMDClient) {
         deinitMDC(output);
-        output->mInitialized_mdclient = 0;
     }
 
     return VA_STATUS_SUCCESS;

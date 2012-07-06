@@ -439,9 +439,11 @@ struct psb_surface_share_info_s {
     unsigned int chroma_v_stride;
     unsigned int format;
     unsigned int khandle;
-    unsigned int khandles_count;   /* the number of khandle */
-    unsigned int khandles[MAX_SHARE_INFO_KHANDLES];      /* save all khandles */
     long long timestamp;
+
+    unsigned int rotate_luma_stride;
+    unsigned int rotate_chroma_u_stride;
+    unsigned int rotate_chroma_v_stride;
 };
 
 struct object_surface_s {

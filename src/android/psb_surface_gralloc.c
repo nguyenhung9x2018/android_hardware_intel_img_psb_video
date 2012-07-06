@@ -76,7 +76,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
     unsigned int *tmp_nativebuf_handle = NULL;
     int size = num_surfaces * sizeof(unsigned int);
     void *vaddr[2];
-    unsigned int *tmp_khandles = NULL;
 
 
     /* follow are gralloc-buffers */
@@ -113,16 +112,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     height_origin = height;
     height = (height + 0x1f) & ~0x1f;
 
-    if(external_buffers != NULL) {
-        int size = num_surfaces * sizeof(unsigned int);
-
-        tmp_khandles = calloc(1, size);
-        if (tmp_khandles == NULL) {
-            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
-    } else {
+    if(external_buffers == NULL) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
         DEBUG_FAILURE;
         return vaStatus;
@@ -133,8 +123,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
     tmp_nativebuf_handle = calloc(1, size);
     if (tmp_nativebuf_handle == NULL) {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        if (tmp_khandles)
-            free(tmp_khandles);
         DEBUG_FAILURE;
         return vaStatus;
     }
@@ -208,8 +196,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
             obj_surface->share_info->format = VA_FOURCC_NV12;
 
             obj_surface->share_info->khandle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
-            obj_surface->share_info->khandles_count = num_surfaces;
-            tmp_khandles[i] = obj_surface->share_info->khandle;
 
             obj_surface->share_info->renderStatus = 0;
             obj_surface->share_info->used_by_widi = 0;
@@ -247,29 +233,11 @@ VAStatus psb_CreateSurfacesFromGralloc(
         }
         drv_debug_msg(VIDEO_DEBUG_ERROR, "CreateSurfaces failed\n");
 
-        if (tmp_khandles)
-            free(tmp_khandles);
         if (tmp_nativebuf_handle)
             free(tmp_nativebuf_handle);
         
         return vaStatus;
     }
-
-    if (VA_STATUS_SUCCESS == vaStatus && external_buffers != NULL) {
-        int max_num_to_copy = num_surfaces;
-        if(max_num_to_copy >  MAX_SHARE_INFO_KHANDLES) {
-            max_num_to_copy = MAX_SHARE_INFO_KHANDLES;
-        }
-        for (i = 0; i < num_surfaces; i++) {
-            object_surface_p obj_surface = SURFACE(surface_list[i]);
-            if (obj_surface && obj_surface->share_info)
-                memcpy(obj_surface->share_info->khandles, tmp_khandles,
-                       sizeof(unsigned int) * max_num_to_copy);
-        }
-    }
-
-    if (tmp_khandles != NULL)
-        free(tmp_khandles);
 
     if (fourcc == VA_FOURCC_NV12)
         psb_add_video_bcd(ctx, width, height, buffer_stride,

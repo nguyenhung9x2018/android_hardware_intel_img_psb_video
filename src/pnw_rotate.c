@@ -119,8 +119,14 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
             driver_data->mipi0_rotation = 0;
             driver_data->hdmi_rotation = 0;
         }
-        if (mode == 2)
-            driver_data->disable_msvdx_rotate = 1;
+        if (mode == 2) {
+            if( driver_data->va_rotate == 0) {
+                driver_data->disable_msvdx_rotate = 1;
+            } else {
+                driver_data->mipi0_rotation = 0;
+                driver_data->hdmi_rotation = 0;
+            }
+        }
         else
             driver_data->disable_msvdx_rotate = driver_data->disable_msvdx_rotate_backup;
     } else {
@@ -353,6 +359,10 @@ exit:
             (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
         share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
         share_info->surface_rotate = VAROTATION2HAL(msvdx_rotate);
+
+        share_info->rotate_luma_stride = psb_surface->stride;
+        share_info->rotate_chroma_u_stride = psb_surface->stride;
+        share_info->rotate_chroma_v_stride = psb_surface->stride;
     }
 
     return vaStatus;
