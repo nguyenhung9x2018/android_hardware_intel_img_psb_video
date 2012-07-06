@@ -1070,8 +1070,8 @@ static void tng__CMDS_registers_write(context_VP8_p ctx) {
     /* DISPLAY_PICTURE_SIZE */
     //ctx->display_picture_size = 0;
     reg_value = 0;
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_WIDTH, (((ctx->pic_params->frame_width + 15 / 16) * 16) - 1));
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_HEIGHT, (((ctx->pic_params->frame_height + 15 / 16) * 16) - 1));
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_WIDTH, (((ctx->pic_params->frame_width + 15) / 16) * 16) - 1);
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_HEIGHT, (((ctx->pic_params->frame_height + 15) / 16) * 16) - 1);
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
    // psb_cmdbuf_rendec_end(cmdbuf);
 
@@ -1079,8 +1079,8 @@ static void tng__CMDS_registers_write(context_VP8_p ctx) {
     /* CODED_PICTURE_SIZE */
     //ctx->coded_picture_size = 0;
     reg_value = 0;
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_WIDTH, (((ctx->pic_params->frame_width + 15 / 16) * 16) - 1));
-    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_HEIGHT, (((ctx->pic_params->frame_height + 15 / 16) * 16) - 1));
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_WIDTH, (((ctx->pic_params->frame_width + 15) / 16) * 16) - 1);
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_HEIGHT, (((ctx->pic_params->frame_height + 15) / 16) * 16) - 1);
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 
     /* Set operating mode */

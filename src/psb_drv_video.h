@@ -313,7 +313,7 @@ struct psb_driver_data_s {
 
 
 #ifdef _FOR_FPGA_
-#define IS_MFLD(driver_data) 0
+#define IS_MFLD(driver_data) 1
 #define IS_MRFL(driver_data) 1
 #define IS_MRST(driver_data) 0
 #else

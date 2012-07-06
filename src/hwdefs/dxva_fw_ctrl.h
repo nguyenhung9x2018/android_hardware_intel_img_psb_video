@@ -87,7 +87,7 @@
 /*****************************************************************/
 #define CMD_DMA                                                                 (0xE0000000)
 #define CMD_DMA_DMA_TYPE_MASK                                   (0x0ff00000)
-#define CMD_DMA_DMA_TYPE_SHIFT                                  ( 20 )
+#define CMD_DMA_DMA_TYPE_SHIFT                                  ( 24 )
 #define CMD_DMA_DMA_SIZE_MASK                                   (0x0000ffff)
 #define CMD_DMA_OFFSET_FLAG                                             (1<<19)
 
