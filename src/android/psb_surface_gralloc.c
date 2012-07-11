@@ -80,8 +80,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
     /* follow are gralloc-buffers */
     format = format & (~VA_RT_FORMAT_PROTECTED);
-    driver_data->protected = protected;
-
     if (num_surfaces <= 0) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
         DEBUG_FAILURE;

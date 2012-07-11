@@ -1981,7 +1981,16 @@ VAStatus psb_BeginPicture(
     if ((obj_config->entrypoint != VAEntrypointEncSlice) &&
         (obj_config->entrypoint != VAEntrypointEncPicture) &&
         driver_data->native_window) {
-        psb_RecalcRotate(ctx, obj_context);
+        int display_rotate = 0;
+        psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
+
+        if (driver_data->mipi0_rotation != display_rotate) {
+            driver_data->mipi0_rotation = display_rotate;
+            psb_RecalcRotate(ctx, obj_context);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "obj_surface->surface_id(0x%x): New rotate degree(%d) from surface flinger.\n",
+                                     obj_surface->surface_id, driver_data->msvdx_rotate_want);
+        }
     }
 #endif
 
@@ -1996,7 +2005,7 @@ VAStatus psb_BeginPicture(
             if (obj_surface && obj_surface->share_info) {
                 obj_surface->share_info->surface_rotate = 0;
             }
-	    }
+	}
     }
     else
         obj_context->msvdx_rotate = driver_data->msvdx_rotate_want;
@@ -2013,6 +2022,26 @@ VAStatus psb_BeginPicture(
         if (force_texure_1080p_60fps && driver_data->render_mode == VA_RENDER_MODE_EXTERNAL_GPU &&
             obj_surface->share_info)
             obj_surface->share_info->force_output_method = 1;
+    
+#ifdef ANDROID
+        if (obj_surface->share_info) {
+            psb_surface_share_info_p share_info = obj_surface->share_info;
+
+            switch (obj_context->msvdx_rotate) {
+            case VA_ROTATION_90:
+                share_info->surface_rotate = HAL_TRANSFORM_ROT_90;
+                break;
+            case VA_ROTATION_180:
+                share_info->surface_rotate = HAL_TRANSFORM_ROT_180;
+                break;
+            case VA_ROTATION_270:
+                share_info->surface_rotate = HAL_TRANSFORM_ROT_270;
+                break;
+            default:
+                share_info->surface_rotate = 0;
+            }
+        }
+#endif        
     }
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {
@@ -2405,6 +2434,7 @@ VAStatus psb_QuerySurfaceError(
         ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                                   &arg, sizeof(arg));
 
+#ifndef _FOR_FPGA_
         if (decode_status->num_region > MAX_MB_ERRORS) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "too much mb errors are reported.\n");
             return VA_STATUS_ERROR_UNKNOWN;
@@ -2418,6 +2448,7 @@ VAStatus psb_QuerySurfaceError(
             driver_data->surface_mb_error[i].decode_error_type = decode_status->slice_missing_or_error[i];
 */
         }
+#endif
         driver_data->surface_mb_error[i].status = -1;
         *error_info = driver_data->surface_mb_error;
     } else {
