@@ -32,7 +32,7 @@
 #include <unistd.h>
 #include <math.h>
 
-#include <psb_drm.h>
+#include <linux/psb_drm.h>
 #include <va/va_backend.h>
 #include <va/va_dricommon.h>
 #include "psb_drv_debug.h"

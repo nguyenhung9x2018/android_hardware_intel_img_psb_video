@@ -39,7 +39,6 @@
 #include <math.h>
 #include <va/va_backend.h>
 #include <wsbm/wsbm_manager.h>
-#include <psb_drm.h>
 #include "psb_drv_video.h"
 #include "psb_output.h"
 #include "psb_overlay.h"

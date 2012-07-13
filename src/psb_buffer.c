@@ -35,7 +35,7 @@
 #include <unistd.h>
 #include <wsbm/wsbm_manager.h>
 
-#include "psb_drm.h"
+#include <linux/psb_drm.h>
 #include "psb_def.h"
 #include "psb_drv_debug.h"
 

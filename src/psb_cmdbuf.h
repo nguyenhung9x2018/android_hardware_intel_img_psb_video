@@ -33,7 +33,6 @@
 #include "psb_drv_video.h"
 #include "psb_buffer.h"
 //#include "xf86mm.h"
-#include "psb_drm.h"
 
 #include "hwdefs/lldma_defs.h"
 

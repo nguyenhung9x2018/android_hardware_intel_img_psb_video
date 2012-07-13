@@ -33,7 +33,7 @@
 #include <linux/types.h>
 #include <wsbm/wsbm_util.h>
 #include <wsbm/wsbm_driver.h>
-#include "psb_drm.h"
+#include <linux/psb_drm.h>
 
 struct _PsbDrmValidateNode {
     struct _ValidateNode base;

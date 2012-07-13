@@ -42,7 +42,6 @@
 #include "psb_drv_debug.h"
 #include "pnw_hostcode.h"
 #include "psb_ws_driver.h"
-#include "psb_drm.h"
 
 /*
  * Buffer layout:

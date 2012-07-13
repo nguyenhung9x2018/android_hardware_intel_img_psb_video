@@ -31,10 +31,9 @@
 #include <binder/IPCThreadState.h>
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
-#include <surfaceflinger/Surface.h>
-#include <surfaceflinger/ISurface.h>
-#include <surfaceflinger/SurfaceComposerClient.h>
-#include <surfaceflinger/ISurfaceComposer.h>
+#include <gui/Surface.h>
+#include <gui/SurfaceComposerClient.h>
+#include <gui/ISurfaceComposer.h>
 #include <binder/MemoryHeapBase.h>
 #include "psb_android_glue.h"
 #include "psb_texstreaming.h"

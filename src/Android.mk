@@ -77,15 +77,15 @@ LOCAL_C_INCLUDES :=			\
     $(TOPDIR)hardware/intel/linux-2.6/include/drm     \
     $(TARGET_OUT_HEADERS)/libttm	\
     $(TARGET_OUT_HEADERS)/libwsbm	\
-    $(TARGET_OUT_HEADERS)/libpsb_drm\
+    $(TARGET_OUT_HEADERS)/libdrm\
     $(TARGET_OUT_HEADERS)/opengles  \
-    $(LOCAL_PATH)/hwdefs
+    $(LOCAL_PATH)/hwdefs \
 
 LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := pvr_drv_video
 
 LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libpvr2d libcutils \
-                libui libutils libbinder libsurfaceflinger_client libhardware libmultidisplay
+                libui libutils libbinder libhardware libmultidisplay
 
 ifeq ($(strip $(PSBVIDEO_LOG_ENABLE)),true)
 LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE

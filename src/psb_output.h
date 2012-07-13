@@ -32,7 +32,6 @@
 #define _PSB_OUTPUT_H_
 #include <inttypes.h>
 #include "psb_drv_video.h"
-#include "psb_drm.h"
 #include "psb_surface.h"
 #include "hwdefs/img_types.h"
 #include <va/va.h>

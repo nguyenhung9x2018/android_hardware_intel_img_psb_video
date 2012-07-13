@@ -40,7 +40,7 @@
 #include "psb_def.h"
 //#include "psb_drv_debug.h"
 #include "xf86drm.h"
-#include "psb_drm.h"
+#include <linux/psb_drm.h>
 #include "psb_overlay.h"
 #include "psb_texture.h"
 #include <stdint.h>
