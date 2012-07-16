@@ -191,7 +191,8 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
                            unsigned int size,
                            psb_buffer_type_t type,
                            psb_buffer_p buf,
-                           void * vaddr
+                           void * vaddr,
+                           unsigned int flags
                           )
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -209,7 +210,14 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
 
     /* Xvideo will share surface buffer, set SHARED flag
     */
-    placement =  DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_UNCACHED | WSBM_PL_FLAG_SHARED ;
+    placement =  DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_SHARED ;
+
+    if (flags & PSB_USER_BUFFER_WC)
+	placement |= WSBM_PL_FLAG_WC;
+    else if (flags & PSB_USER_BUFFER_UNCACHED)
+	placement |= WSBM_PL_FLAG_UNCACHED;
+    else
+	placement |= WSBM_PL_FLAG_CACHED;
 
     ret = LOCK_HARDWARE(driver_data);
     if (ret) {

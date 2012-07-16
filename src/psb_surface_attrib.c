@@ -46,7 +46,8 @@ VAStatus psb_surface_create_from_ub(
     int width, int height, int fourcc,
     VASurfaceAttributeTPI *graphic_buffers,
     psb_surface_p psb_surface, /* out */
-    void *vaddr
+    void *vaddr,
+    unsigned flags
 )
 {
     int ret = 0;
@@ -91,10 +92,14 @@ VAStatus psb_surface_create_from_ub(
     }
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
     if (graphic_buffers->tiling)
-        ret = psb_buffer_create_from_ub(driver_data, psb_surface->size, psb_bt_mmu_tiling, &psb_surface->buf, vaddr);
+        ret = psb_buffer_create_from_ub(driver_data, psb_surface->size,
+                psb_bt_mmu_tiling, &psb_surface->buf,
+                vaddr, 0);
     else
 #endif
-        ret = psb_buffer_create_from_ub(driver_data, psb_surface->size, psb_bt_surface, &psb_surface->buf, vaddr);
+        ret = psb_buffer_create_from_ub(driver_data, psb_surface->size,
+                psb_bt_surface, &psb_surface->buf,
+                vaddr, flags);
 
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }
@@ -591,7 +596,8 @@ VAStatus  psb_CreateSurfaceFromUserspace(
             break;
         }
 
-        vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc, attribute_tpi, psb_surface, vaddr);
+        vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
+                attribute_tpi, psb_surface, vaddr, 0);
         obj_surface->psb_surface = psb_surface;
 
         if (VA_STATUS_SUCCESS != vaStatus) {

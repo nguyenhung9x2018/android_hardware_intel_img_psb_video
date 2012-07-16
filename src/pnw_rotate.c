@@ -185,6 +185,7 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
 void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_param_tmp)
 {
     int interaced_stream;
+    object_surface_p obj_surface = obj_context->current_render_target;
 
     switch (obj_context->profile) {
     case VAProfileMPEG2Simple:
@@ -226,13 +227,15 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_p
         break;
     }
 
-    if (obj_context->interlaced_stream) {
-        object_surface_p obj_surface = obj_context->current_render_target;
-
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Intelaced stream, no MSVDX rotate\n");
-
-        SET_SURFACE_INFO_rotate(obj_surface->psb_surface, 0);
-        obj_context->msvdx_rotate = 0;
+    if (obj_surface->share_info) {
+        psb_surface_share_info_p share_info = obj_surface->share_info;
+        if (obj_context->interlaced_stream) {
+            SET_SURFACE_INFO_rotate(obj_surface->psb_surface, 0);
+            obj_context->msvdx_rotate = 0;
+            share_info->bob_deinterlace = 1;
+        } else {
+           share_info->bob_deinterlace = 0;
+       }
     }
 }
 

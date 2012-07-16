@@ -53,6 +53,7 @@
 #define FW_ERROR_DETECTION_AND_RECOVERY                                         0x00000100
 #define FW_VA_RENDER_NO_RESPONCE_MSG                                            0x00002000  /* Cause no responce message to be sent, and no interupt generation on successfull completion */
 #define FW_VA_RENDER_HOST_INT                                                           0x00004000
+#define FW_DEVA_DEBLOCK_ENABLE                                              0x00000400
 #define FW_VA_RENDER_VC1_BITPLANE_PRESENT                                   0x00008000
 
 #endif /*_VA_FW_FLAGS_H_*/

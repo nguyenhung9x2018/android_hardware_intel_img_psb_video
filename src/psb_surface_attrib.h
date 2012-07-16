@@ -32,12 +32,14 @@
 
 /*
  * Create surface from virtual address
+ * flags: 0 indicates cache, PSB_USER_BUFFER_UNCACHED, PSB_USER_BUFFER_WC
  */
 VAStatus psb_surface_create_from_ub(
     psb_driver_data_p driver_data,
     int width, int height, int fourcc, VASurfaceAttributeTPI *graphic_buffers,
     psb_surface_p psb_surface, /* out */
-    void *vaddr
+    void *vaddr,
+    unsigned int flags
 );
 
 VAStatus psb_surface_create_for_userptr(

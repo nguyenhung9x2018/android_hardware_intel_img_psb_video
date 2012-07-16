@@ -89,7 +89,9 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
                            psb_buffer_type_t type,
                            psb_buffer_p buf
                           );
-
+/* flags: 0 indicates cache */
+#define PSB_USER_BUFFER_UNCACHED	(0x1)
+#define PSB_USER_BUFFER_WC		(0x1<<1)
 /*
  * Create buffer from user ptr
  */
@@ -97,7 +99,8 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
                            unsigned int size,
                            psb_buffer_type_t type,
                            psb_buffer_p buf,
-                           void * vaddr
+                           void * vaddr,
+                           unsigned int flags
                           );
 
 /*

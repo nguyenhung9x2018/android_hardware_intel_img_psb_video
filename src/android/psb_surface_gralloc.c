@@ -80,6 +80,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
     /* follow are gralloc-buffers */
     format = format & (~VA_RT_FORMAT_PROTECTED);
+    driver_data->protected = protected;
+
     if (num_surfaces <= 0) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
         DEBUG_FAILURE;
@@ -179,7 +181,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         } else {
             vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
-                                                  external_buffers, psb_surface, vaddr[0]);
+                    external_buffers, psb_surface, vaddr[0],
+                    PSB_USER_BUFFER_UNCACHED);
             psb_surface->buf.handle = handle;
             obj_surface->share_info = (psb_surface_share_info_t *)vaddr[1];
             memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));

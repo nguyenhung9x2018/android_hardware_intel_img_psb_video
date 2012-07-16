@@ -891,17 +891,16 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
     if (ctx->SyncSequencer)
         psPicParams->Flags |= SYNC_SEQUENCER;
 
-    if (ctx->sRCParams.bDisableFrameSkipping) {
-        psPicParams->Flags |= DISABLE_FRAME_SKIPPING;
-	drv_debug_msg(VIDEO_DEBUG_GENERAL, "Frame skip is disabled.\n");
-    }
-
-    if (ctx->sRCParams.bDisableBitStuffing) {
-        psPicParams->Flags |= DISABLE_BIT_STUFFING;
-	drv_debug_msg(VIDEO_DEBUG_GENERAL, "Bit stuffing is disabled.\n");
-    }
-
     if (ctx->sRCParams.RCEnable) {
+        if (ctx->sRCParams.bDisableFrameSkipping) {
+            psPicParams->Flags |= DISABLE_FRAME_SKIPPING;
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Frame skip is disabled.\n");
+        }
+
+        if (ctx->sRCParams.bDisableBitStuffing) {
+            psPicParams->Flags |= DISABLE_BIT_STUFFING;
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Bit stuffing is disabled.\n");
+        }
         /* for the first frame, will setup RC params in EndPicture */
         if (ctx->raw_frame_count > 0) { /* reuse in_params parameter */
             psPicParams->Flags &= ~FIRST_FRAME;
@@ -1274,10 +1273,9 @@ static void pnw__update_rcdata(
         L1 = 0.1;
         L2 = 0.15;
         L3 = 0.2;
-        if (psContext->eCodec != IMG_CODEC_H264_CBR)
-            psPicParams->sInParams.MaxQPVal = 51;
-        else
-            psPicParams->sInParams.MaxQPVal = 40; /* especially for WiDi */
+
+        /* Set MaxQP to avoid blocky image in low bitrate */
+        psPicParams->sInParams.MaxQPVal = 40;
 
         /* Setup MAX and MIN Quant Values */
         if (flBpp <= 0.3)
@@ -1887,6 +1885,7 @@ IMG_UINT32 pnw__send_encode_slice_params(
 
     psSliceParams->MaxSliceSize = ctx->max_slice_size;
     psSliceParams->FCode = ctx->FCode;/* Not clear yet, This field is not appare in firmware doc */
+    psSliceParams->eIntraMBMode = INTRA_MB_OFF;
 
     SearchHeight = min(MVEA_LRB_SEARCH_HEIGHT, ctx->Height);
     SearchTopOffset = (((SearchHeight / 2) / 16) * 16);
