@@ -62,7 +62,7 @@ do {                                                            \
     int old_rotate = GET_SURFACE_INFO_rotate(psb_surface);      \
     switch (msvdx_rotate) {                                     \
     case 2: /* 180 */                                           \
-        if (old_rotate == 180)                                  \
+        if (old_rotate == 2)                                    \
             need = 0;                                           \
         else                                                    \
             need = 1;                                           \
