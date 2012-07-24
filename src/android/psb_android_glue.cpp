@@ -36,7 +36,6 @@
 #include <gui/ISurfaceComposer.h>
 #include <binder/MemoryHeapBase.h>
 #include "psb_android_glue.h"
-#include "psb_texstreaming.h"
 #include "psb_output_android.h"
 #include <cutils/log.h>
 #include <ui/Rect.h>
@@ -75,54 +74,6 @@ void deinitMDC(void* output) {
 }
 
 unsigned int update_forced;
-
-int psb_android_register_isurface(void** android_isurface, int bcd_id, int srcw, int srch)
-{
-    return 0;
-}
-
-void psb_android_texture_streaming_set_texture_dim(unsigned short srcw,
-        unsigned short srch)
-{
-}
-
-void psb_android_texture_streaming_set_crop(short srcx,
-        short srcy,
-        unsigned short srcw,
-        unsigned short srch)
-{
-}
-
-
-void psb_android_texture_streaming_set_rotate(int rotate)
-{
-}
-
-void psb_android_texture_streaming_set_blend(short destx,
-        short desty,
-        unsigned short destw,
-        unsigned short desth,
-        unsigned int background_color,
-        unsigned int blend_color,
-        unsigned short blend_mode)
-{
-}
-
-void psb_android_texture_streaming_set_background_color(unsigned int background_color)
-{
-}
-
-void psb_android_texture_streaming_display(int buffer_index)
-{
-}
-
-void psb_android_texture_streaming_resetParams()
-{
-}
-
-void psb_android_texture_streaming_destroy()
-{
-}
 
 int psb_android_surfaceflinger_status(void** android_isurface, int *sf_compositioin, int *rotation, int *widi)
 {

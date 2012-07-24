@@ -39,7 +39,6 @@
 #include <string.h>
 #include <stdarg.h>
 #include "psb_android_glue.h"
-#include "psb_texstreaming.h"
 #include "psb_output_android.h"
 #include "psb_HDMIExtMode.h"
 #include "pnw_rotate.h"
@@ -527,8 +526,6 @@ VAStatus psb_PutSurface(
                                            flags);
         return vaStatus;
     }
-
-    driver_data->ts_source_created = 1;
 
     /* local video playback */
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "MIPI: Use overlay to display.\n");

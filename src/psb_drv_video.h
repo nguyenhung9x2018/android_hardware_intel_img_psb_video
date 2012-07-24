@@ -279,16 +279,6 @@ struct psb_driver_data_s {
 
     unsigned int outputmethod_checkinterval;
 
-    uint32_t bcd_id;
-    uint32_t bcd_ioctrl_num;
-    uint32_t bcd_registered;
-    uint32_t bcd_buffer_num;
-    int bcd_buffer_width;
-    int bcd_buffer_height;
-    int bcd_buffer_stride;
-    VASurfaceID *bcd_buffer_surfaces;
-    uint32_t ts_source_created;
-
     uint32_t xrandr_dirty;
     uint32_t xrandr_update;
     /*only VAProfileH264ConstrainedBaseline profile enable error concealment*/

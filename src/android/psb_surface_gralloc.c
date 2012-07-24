@@ -242,8 +242,5 @@ VAStatus psb_CreateSurfacesFromGralloc(
         return vaStatus;
     }
 
-    if (fourcc == VA_FOURCC_NV12)
-        psb_add_video_bcd(ctx, width, height, buffer_stride,
-                          num_surfaces, surface_list);
     return vaStatus;
 }

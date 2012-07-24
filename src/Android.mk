@@ -40,7 +40,6 @@ LOCAL_SRC_FILES :=		\
     psb_drv_debug.c         \
     psb_surface_attrib.c    \
     psb_output.c		\
-    psb_texstreaming.c            \
     psb_texture.c            \
     android/psb_output_android.c            \
     android/psb_HDMIExtMode.c               \

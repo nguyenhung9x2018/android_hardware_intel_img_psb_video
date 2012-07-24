@@ -77,7 +77,6 @@
 #include "vsp_VPP.h"
 #endif
 #include "psb_output.h"
-#include "psb_texstreaming.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -767,10 +766,6 @@ VAStatus psb_CreateSurfaces2(
         drv_debug_msg(VIDEO_DEBUG_ERROR, "CreateSurfaces failed\n");
         return vaStatus;
     }
-    if (!(IS_MRFL(driver_data)))
-    if (fourcc == VA_FOURCC_NV12)
-        psb_add_video_bcd(ctx, width, height, buffer_stride,
-                          num_surfaces, surface_list);
     DEBUG_FUNC_EXIT
     return vaStatus;
 }
@@ -788,25 +783,6 @@ VAStatus psb_DestroySurfaces(
     if (num_surfaces <= 0) {
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
-
-    if (NULL == surface_list) {
-        /* This is a workaround for bug 3419. If libva surfaces and context are pre-allocated,
-         * mix call the function with NULL & 0 parameters to notify video driver when decoder is destroyed.
-         */
-#ifdef ANDROID
-#include "android/psb_android_glue.h"
-        if (driver_data->ts_source_created) {
-            drv_debug_msg(VIDEO_DEBUG_INIT, "In psb_release_video_bcd, call psb_android_texture_streaming_destroy to destroy texture streaming source.\n");
-            psb_android_texture_streaming_destroy();
-            driver_data->ts_source_created = 0;
-        }
-#endif
-        return VA_STATUS_ERROR_INVALID_SURFACE;
-    }
-
-    if (driver_data->bcd_registered != 0)
-        if (VA_STATUS_SUCCESS != psb_release_video_bcd(ctx))
-            return VA_STATUS_ERROR_UNKNOWN;
 
     /* Free PVR2D buffer wrapped from the surfaces */
     psb_free_surface_pvr2dbuf(driver_data);
@@ -2760,10 +2736,6 @@ VAStatus psb_Terminate(VADriverContextP ctx)
 
     drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: begin to tear down\n");
 
-    if (driver_data->bcd_registered != 0)
-        if (VA_STATUS_SUCCESS != psb_release_video_bcd(ctx))
-            return VA_STATUS_ERROR_UNKNOWN;
-
     /* Clean up left over contexts */
     obj_context = (object_context_p) object_heap_first(&driver_data->context_heap, &iter);
     while (obj_context) {
@@ -2852,9 +2824,6 @@ VAStatus psb_Terminate(VADriverContextP ctx)
 
     if (driver_data->surface_mb_error)
         free(driver_data->surface_mb_error);
-
-    if (driver_data->bcd_buffer_surfaces)
-        free(driver_data->bcd_buffer_surfaces);
 
     free(ctx->pDriverData);
     free(ctx->vtable_egl);
