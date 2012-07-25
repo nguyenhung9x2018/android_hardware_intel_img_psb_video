@@ -1283,7 +1283,7 @@ static void pnw__update_rcdata(
         if (flBpp >= 0.50)
             i16TempQP = 4;
         else
-            i16TempQP = (unsigned int)(24 - (40 * flBpp));
+            i16TempQP = (unsigned int)(26 - (40 * flBpp));
 
         psPicParams->sInParams.MinQPVal = (max(min(psPicParams->sInParams.MaxQPVal, i16TempQP), 0));
 
@@ -1296,7 +1296,7 @@ static void pnw__update_rcdata(
             psPicParams->sInParams.SeInitQP = (IMG_UINT8)(47 - 78.10 * flBpp);
 
         else if (flBpp >= L1 && flBpp < L2)
-            psPicParams->sInParams.SeInitQP = (IMG_UINT8)(46 - 72.51 * flBpp);
+            psPicParams->sInParams.SeInitQP = (IMG_UINT8)(45 - 66.67 * flBpp);
 
         else if (flBpp >= L2 && flBpp < L3)
             psPicParams->sInParams.SeInitQP = (IMG_UINT8)(36 - 24.72 * flBpp);
