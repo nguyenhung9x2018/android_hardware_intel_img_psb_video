@@ -2320,8 +2320,11 @@ VAStatus psb_QuerySurfaceStatus(
         else
             pnw_surface_get_frameskip(driver_data, obj_surface->psb_surface, &frame_skip);
 
-        if (frame_skip == 1)
+        if (frame_skip == 1) {
             surface_status = surface_status | VASurfaceSkipped;
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s next frame of 0x%08x is skipped",
+                    __FUNCTION__, render_target);
+        }
     } else if (decode) {
         if (obj_surface->share_info) {
             if (obj_surface->share_info->renderStatus == 1) {

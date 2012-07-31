@@ -589,6 +589,8 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
     pnw_cmdbuf_p cmdbuf;
     int ret, i;
 
+    if (ctx->raw_frame_count != 0)
+        ctx->previous_src_surface = ctx->src_surface;
     ctx->src_surface = ctx->obj_context->current_render_target;
 
     /* clear frameskip flag to 0 */
@@ -1085,7 +1087,6 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.RCScaleFactor %d\n", psPicParams->sInParams.RCScaleFactor);
 #endif
     /* save current settings */
-    ctx->previous_src_surface = ctx->src_surface;
     ctx->previous_ref_surface = ctx->ref_surface;
     ctx->previous_dest_surface = ctx->dest_surface; /* reconstructed surface */
     SET_CODEDBUF_INFO(SLICE_NUM, ctx->coded_buf->codedbuf_aux_info,

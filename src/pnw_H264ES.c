@@ -1148,9 +1148,10 @@ VAStatus pnw_set_frame_skip_flag(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
 
-    if (ctx && ctx->src_surface) {
-        SET_SURFACE_INFO_skipped_flag(ctx->src_surface->psb_surface, 1);
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Detected a skipped frame for surface 0x%08x.\n", ctx->src_surface->psb_surface);
+    if (ctx && ctx->previous_src_surface) {
+        SET_SURFACE_INFO_skipped_flag(ctx->previous_src_surface->psb_surface, 1);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Detected a skipped frame for surface 0x%08x.\n",
+            ctx->previous_src_surface->psb_surface);
     }
 
     return vaStatus;
