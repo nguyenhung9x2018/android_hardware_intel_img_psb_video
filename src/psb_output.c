@@ -95,7 +95,6 @@ VAStatus psb_initOutput(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     unsigned char *ws_priv = NULL;
-    char *fps = NULL;
     char env_value[1024];
 
     pthread_mutex_init(&driver_data->output_mutex, NULL);
@@ -448,7 +447,6 @@ static int psb_CheckIEDStatus(VADriverContextP ctx)
     struct drm_lnc_video_getparam_arg arg;
     unsigned long temp;
     int ret = 0;
-    int ied_status = 0;
 
     /* not settled, we get it from current HW FRAMESKIP flag */
     arg.key = IMG_VIDEO_IED_STATE;
@@ -483,7 +481,6 @@ VAStatus psb_DeriveImage(
     object_surface_p obj_surface = SURFACE(surface);
     unsigned int fourcc, fourcc_index = ~0, i;
     uint32_t srf_buf_ofs = 0;
-    uint32_t ied_state;
 
     if (NULL == obj_surface) {
         vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;

@@ -75,7 +75,7 @@ inline int va2hw_rotation(int va_rotate)
         return HAL_TRANSFORM_ROT_180;
     case VA_ROTATION_270:
         return HAL_TRANSFORM_ROT_90;
-defaut:
+    defaut:
         return 0;
     }
 
@@ -86,11 +86,9 @@ unsigned char *psb_android_output_init(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA;
     char put_surface[1024];
-    struct drm_psb_register_rw_arg regs;
     psb_android_output_p output = calloc(1, sizeof(psb_android_output_s));
     struct fb_var_screeninfo vinfo;
     int fbfd = -1;
-    int ret;
 
     if (output == NULL) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't malloc memory\n");
@@ -468,7 +466,6 @@ VAStatus psb_PutSurface(
     object_surface_p obj_surface;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
-    int sf_composition = 0, i = 0;
     int ret = 0;
 
     obj_surface = SURFACE(surface);

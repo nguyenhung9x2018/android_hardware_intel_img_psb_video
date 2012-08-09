@@ -2831,7 +2831,6 @@ static void psb__VC1_Send_Parse_Header_Cmd(context_VC1_p ctx, IMG_BOOL new_pic)
 
     pParseHeaderCMD->ui32ICParamData[0] = 0x00010000;
     pParseHeaderCMD->ui32ICParamData[1] = 0x00010020;
-    PARSE_HEADER_CMD tmp = *pParseHeaderCMD;
 }
 
 static VAStatus psb__VC1_process_slice(context_VC1_p ctx,

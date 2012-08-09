@@ -66,7 +66,6 @@ VAStatus psb_HDMIExt_update(VADriverContextP ctx, psb_HDMIExt_info_p psb_HDMIExt
     drmModeCrtc *hdmi_crtc = NULL;
     drmModeConnector *hdmi_connector = NULL;
     drmModeEncoder *hdmi_encoder = NULL;
-    int width = 0, height = 0;
     char *strHeight = NULL;
     struct drm_lnc_video_getparam_arg arg;
     int hdmi_state = 0;
@@ -135,7 +134,6 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
     drmModeRes *resources;
     drmModeConnector *connector = NULL;
     drmModeEncoder *mipi_encoder = NULL;
-    drmModeCrtc *mipi_crtc = NULL;
     int mipi_connector_id = 0, mipi_encoder_id = 0, mipi_crtc_id = 0, i;
     psb_HDMIExt_info_p psb_HDMIExt_info = NULL;
 
@@ -149,6 +147,7 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
     psb_HDMIExt_info->hdmi_extvideo_prop = (psb_extvideo_prop_p)calloc(1, sizeof(psb_extvideo_prop_s));
     if (!psb_HDMIExt_info->hdmi_extvideo_prop) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Failed to create hdmi_extvideo_prop.\n", __FUNCTION__);
+        free(psb_HDMIExt_info);
         return NULL;
     }
     memset(psb_HDMIExt_info->hdmi_extvideo_prop, 0, sizeof(psb_extvideo_prop_s));

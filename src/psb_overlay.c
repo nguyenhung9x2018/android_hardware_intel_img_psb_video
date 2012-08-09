@@ -72,8 +72,6 @@ I830ResetVideo(VADriverContextP ctx, PsbPortPrivPtr pPriv)
     INIT_DRIVER_DATA;
     I830OverlayRegPtr overlayA = (I830OverlayRegPtr)(pPriv->regmap[0]);
     I830OverlayRegPtr overlayC = (I830OverlayRegPtr)(pPriv->regmap[1]);
-    long offsetA = wsbmBOOffsetHint(pPriv->wsbo[0]) & 0x0FFFFFFF;
-    long offsetC = wsbmBOOffsetHint(pPriv->wsbo[1]) & 0x0FFFFFFF;
 
     memset(overlayA, 0, sizeof(*overlayA));
     memset(overlayC, 0, sizeof(*overlayC));

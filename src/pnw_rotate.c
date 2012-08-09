@@ -184,7 +184,6 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
 
 void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_param_tmp)
 {
-    int interaced_stream;
     object_surface_p obj_surface = obj_context->current_render_target;
 
     switch (obj_context->profile) {

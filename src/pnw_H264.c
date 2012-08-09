@@ -610,7 +610,6 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
     uint32_t reg_value;
     VAStatus vaStatus;
-    psb_driver_data_p driver_data = ctx->obj_context->driver_data;
 
     ASSERT(obj_buffer->type == VAPictureParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);

@@ -1039,7 +1039,6 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     int i;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)cmdbuf->pic_params_p;
-    unsigned long t1, t2, t3;
 
     ctx->AccessUnitNum++;
 

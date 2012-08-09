@@ -472,7 +472,7 @@ int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
             {
             fprintf( pF , "%04X LLDMA \n", (idx-1)*4 );
 
-                unsigned int lldmaAddr = cmd<<4;
+                //unsigned int lldmaAddr = cmd<<4;
                 //unsigned int lldmaOffset = lldmaAddr - mpDevMemAlloc->GetDeviceVirtAddress();
                 //unsigned int *plldma = &buffer[ lldmaOffset/4 ];
 
@@ -905,7 +905,7 @@ void psb__hexdump(unsigned char *addr, int size)
 
 void psb__dump_va_buffers(object_buffer_p obj_buffer)
 {
-    int i, j,k;
+    int j,k;
     void *mapped_buffer;
     int print_num;
 
@@ -960,7 +960,7 @@ void psb__dump_va_buffers(object_buffer_p obj_buffer)
 
 void psb__dump_va_buffers_verbose(object_buffer_p obj_buffer)
 {
-    int i, j,k;
+    int j,k;
     void *mapped_buffer;
     if(psb_dump_vabuf_verbose_fp) {
         fprintf(psb_dump_vabuf_verbose_fp, "%s", buffer_type_to_string(obj_buffer->type));
@@ -1051,7 +1051,7 @@ void psb__dump_va_buffers_verbose(object_buffer_p obj_buffer)
                     fprintf(psb_dump_vabuf_verbose_fp,"\nScalingList4x4_%d:",( j-96)/64);
                     for(k=0; k<64;++k) {
                         if(k%8 == 0) fprintf(psb_dump_vabuf_verbose_fp, "\n");
-                        printf(psb_dump_vabuf_verbose_fp, "0x%02lx   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp, "0x%02lx   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                     }
                 }
                 break;
