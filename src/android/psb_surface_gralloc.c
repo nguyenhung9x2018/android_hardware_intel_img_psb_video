@@ -39,15 +39,22 @@
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &driver_data->buffer_heap, id ))
 
+/*FIXME: include hal_public.h instead of define it here*/
+enum {
+    GRALLOC_SUB_BUFFER0 = 0,
+    GRALLOC_SUB_BUFFER1,
+    GRALLOC_SUB_BUFFER2,
+    GRALLOC_SUB_BUFFER_MAX,
+};
 
 VAStatus psb_DestroySurfaceGralloc(object_surface_p obj_surface)
 {
-    void *vaddr[2];
+    void *vaddr[GRALLOC_SUB_BUFFER_MAX];
     int usage = GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
     buffer_handle_t handle = obj_surface->psb_surface->buf.handle;
     if (!gralloc_lock(handle, usage, 0, 0,
-                      obj_surface->width, obj_surface->height, (void **)&vaddr)){
-        if (vaddr[1] == obj_surface->share_info) {
+                      obj_surface->width, obj_surface->height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])){
+        if (vaddr[GRALLOC_SUB_BUFFER1] == obj_surface->share_info) {
             memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
         }
         gralloc_unlock(handle);
@@ -75,7 +82,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     unsigned int handle;
     unsigned int *tmp_nativebuf_handle = NULL;
     int size = num_surfaces * sizeof(unsigned int);
-    void *vaddr[2];
+    void *vaddr[GRALLOC_SUB_BUFFER_MAX];
 
 
     /* follow are gralloc-buffers */
@@ -173,18 +180,18 @@ VAStatus psb_CreateSurfacesFromGralloc(
             fourcc = VA_FOURCC_NV12;
             break;
         }
-        
+
         /*hard code the gralloc buffer usage*/
         usage = GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
         handle = (unsigned int)external_buffers->buffers[i];
-        if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr)) {
+        if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         } else {
             vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
-                    external_buffers, psb_surface, vaddr[0],
+                    external_buffers, psb_surface, vaddr[GRALLOC_SUB_BUFFER0],
                     PSB_USER_BUFFER_UNCACHED);
             psb_surface->buf.handle = handle;
-            obj_surface->share_info = (psb_surface_share_info_t *)vaddr[1];
+            obj_surface->share_info = (psb_surface_share_info_t *)vaddr[GRALLOC_SUB_BUFFER1];
             memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
             obj_surface->share_info->force_output_method = protected ? OUTPUT_FORCE_OVERLAY : 0;
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
@@ -205,7 +212,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : Create graphic buffer success"
                                      "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n",
-                                     __FUNCTION__, surfaceID, vaddr[0], vaddr[1]);
+                                     __FUNCTION__, surfaceID, vaddr[GRALLOC_SUB_BUFFER0], vaddr[GRALLOC_SUB_BUFFER1]);
             gralloc_unlock(handle);
         }
                 

@@ -52,6 +52,14 @@ int gralloc_lock(buffer_handle_t handle,
 {
     int err;
 
+    if (!mAllocMod) {
+        LOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
+        if (gralloc_init()) {
+            LOGE("%s: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
+            return -1;
+        }
+    }
+
     err = mAllocMod->lock(mAllocMod, handle, usage,
                           left, top, width, height,
                           vaddr);
@@ -70,6 +78,14 @@ int gralloc_lock(buffer_handle_t handle,
 int gralloc_unlock(buffer_handle_t handle)
 {
     int err;
+
+    if (!mAllocMod) {
+        LOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
+        if (gralloc_init()) {
+            LOGE("%s: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
+            return -1;
+        }
+    }
 
     err = mAllocMod->unlock(mAllocMod, handle);
     if (err) {
