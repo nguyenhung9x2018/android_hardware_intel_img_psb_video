@@ -118,7 +118,12 @@ extern int force_texure_1080p_60fps;
 #define EXPORT __attribute__ ((visibility("default")))
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
+
+#ifdef PSBVIDEO_MRFL_VPP
+#define INIT_FORMAT_VTABLE format_vtable_p format_vtable = ((profile < PSB_MAX_PROFILES) && (entrypoint < PSB_MAX_ENTRYPOINTS)) ? (profile == VAProfileNone? driver_data->vpp_profile : driver_data->profile2Format[profile][entrypoint]) : NULL;
+#else
 #define INIT_FORMAT_VTABLE format_vtable_p format_vtable = ((profile < PSB_MAX_PROFILES) && (entrypoint < PSB_MAX_ENTRYPOINTS)) ? driver_data->profile2Format[profile][entrypoint] : NULL;
+#endif
 
 #define CONFIG(id)  ((object_config_p) object_heap_lookup( &driver_data->config_heap, id ))
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
@@ -160,7 +165,9 @@ VAStatus psb_QueryConfigProfiles(
         DEBUG_FAILURE;
         return vaStatus;
     }
-
+#ifdef PSBVIDEO_MRFL_VPP
+    profile_list[i++] = VAProfileNone;
+#endif
 //    profile_list[i++] = VAProfileMPEG2Simple;
     profile_list[i++] = VAProfileMPEG2Main;
     profile_list[i++] = VAProfileMPEG4Simple;
@@ -216,10 +223,21 @@ VAStatus psb_QueryConfigEntrypoints(
     }
 
     for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
+#ifdef PSBVIDEO_MRFL_VPP
+        if (profile == VAProfileNone && driver_data->vpp_profile &&
+            i == VAEntrypointVideoProc) {
+                entrypoints++;
+                *entrypoint_list++ = i;
+	    } else if (profile != VAProfileNone && driver_data->profile2Format[profile][i]) {
+                entrypoints++;
+                *entrypoint_list++ = i;
+        }
+#else
         if (driver_data->profile2Format[profile][i]) {
             entrypoints++;
             *entrypoint_list++ = i;
         }
+#endif
     }
 
     /* If the assert fails then PSB_MAX_ENTRYPOINTS needs to be bigger */
@@ -243,6 +261,11 @@ static VAStatus psb__error_unsupported_profile_entrypoint(psb_driver_data_p driv
     /* Does the driver support _any_ entrypoint for this profile? */
     if (profile < PSB_MAX_PROFILES) {
         int i;
+
+#ifdef PSBVIDEO_MRFL_VPP
+	if (profile == VAProfileNone)
+		return VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
+#endif
 
         for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
             if (driver_data->profile2Format[profile][i]) {
@@ -3026,7 +3049,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
 #ifdef PSBVIDEO_MRFL_VPP
     if (IS_MRFL(driver_data)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "merrifield vsp vpp\n");
-        driver_data->profile2Format[VAProfileNone][VAEntrypointVideoProc] = &vsp_VPP_vtable;
+        driver_data->vpp_profile = &vsp_VPP_vtable;
     }
 #endif
 

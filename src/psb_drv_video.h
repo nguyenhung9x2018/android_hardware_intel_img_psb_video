@@ -178,6 +178,9 @@ struct psb_driver_data_s {
     int                         contended_lock;
     pthread_mutex_t             drm_mutex;
     format_vtable_p             profile2Format[PSB_MAX_PROFILES][PSB_MAX_ENTRYPOINTS];
+#ifdef PSBVIDEO_MRFL_VPP
+    format_vtable_p             vpp_profile;
+#endif
     uint32_t                    msvdx_context_base;
     int                         video_sd_disabled;
     int                         video_hd_disabled;
