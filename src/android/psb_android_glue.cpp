@@ -41,8 +41,11 @@
 #include <ui/Rect.h>
 #include <system/window.h>
 #include <system/graphics.h>
-#include "display/MultiDisplayClient.h"
-#include "display/MultiDisplayType.h"
+
+#ifdef TARGET_HAS_MULTIPLE_DISPLAY
+#include "MultiDisplayClient.h"
+#include "MultiDisplayType.h"
+#endif
 
 using namespace android;
 
@@ -54,6 +57,7 @@ using namespace android;
 
 sp<ISurface> isurface;
 
+#ifdef TARGET_HAS_MULTIPLE_DISPLAY
 void initMDC(void* output) {
     psb_android_output_p android_output = (psb_android_output_p)output;
 
@@ -72,6 +76,27 @@ void deinitMDC(void* output) {
         android_output->mMDClient = NULL;
     }
 }
+
+int psb_android_is_extvideo_mode(void* output) {
+    psb_android_output_p android_output = (psb_android_output_p)output;
+    MultiDisplayClient* mMDClient = (MultiDisplayClient *)android_output->mMDClient;
+
+    if (!android_output->mMDClient) {
+        initMDC(output);
+        mMDClient = (MultiDisplayClient *)android_output->mMDClient;
+    }
+
+    if (mMDClient != NULL) {
+        int mode;
+        if ((mode = mMDClient->getMode(false)) == MDS_ERROR)
+            return 0;
+        if (mode & MDS_HDMI_VIDEO_EXT) return 1;
+
+        if (mode & MDS_WIDI_ON) return 2;
+    }
+    return 0;
+}
+#endif
 
 unsigned int update_forced;
 
@@ -106,29 +131,9 @@ int psb_android_surfaceflinger_rotate(void* native_window, int *rotation)
             *rotation = 3;
             break;
         default:
-            *rotation = 0; 
+            *rotation = 0;
         }
     }
     return 0;
 }
 
-int psb_android_is_extvideo_mode(void* output) {
-    psb_android_output_p android_output = (psb_android_output_p)output;
-    MultiDisplayClient* mMDClient = (MultiDisplayClient *)android_output->mMDClient;
-
-    if (!android_output->mMDClient) {
-        initMDC(output);
-        mMDClient = (MultiDisplayClient *)android_output->mMDClient;
-    }
-
-    if (mMDClient != NULL) {
-        int mode;
-        if ((mode = mMDClient->getMode(false)) == MDS_ERROR)
-            return 0;
-
-        if (mode & MDS_HDMI_VIDEO_EXT) return 1;
-
-        if (mode & MDS_WIDI_ON) return 2;
-    }
-    return 0;
-}

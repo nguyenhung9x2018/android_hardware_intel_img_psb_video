@@ -112,7 +112,12 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
     INIT_OUTPUT_PRIV;
     int angle, new_rotate, i;
     int old_rotate = driver_data->msvdx_rotate_want;
+#ifdef TARGET_HAS_MULTIPLE_DISPLAY
     int mode = psb_android_is_extvideo_mode((void*)output);
+#else
+    int mode = 0;
+#endif
+
     if (mode || (driver_data->va_rotate != 0)) {
         if (driver_data->mipi0_rotation != 0) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Clear display rotate for extended video mode or meta data rotate");

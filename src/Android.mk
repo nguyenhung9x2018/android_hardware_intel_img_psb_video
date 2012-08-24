@@ -84,7 +84,13 @@ LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := pvr_drv_video
 
 LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libpvr2d libcutils \
-                libui libutils libbinder libhardware libmultidisplay
+                libui libutils libbinder libhardware
+
+ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
+LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/display
+LOCAL_SHARED_LIBRARIES += libmultidisplay
+endif
 
 ifeq ($(strip $(PSBVIDEO_LOG_ENABLE)),true)
 LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE
