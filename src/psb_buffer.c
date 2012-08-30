@@ -106,11 +106,14 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
             allignment = 2048 * 16; /* Tiled row aligned */
         break;
 #endif
+    case psb_bt_cpu_vpu_cached:
+        allignment = 1;
+        placement = DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_CACHED;
+        break;
     case psb_bt_vpu_only:
         allignment = 1;
         placement = DRM_PSB_FLAG_MEM_MMU;
         break;
-
     case psb_bt_cpu_only:
         allignment = 1;
         placement = WSBM_PL_FLAG_SYSTEM | WSBM_PL_FLAG_CACHED;

@@ -1339,7 +1339,10 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
             else if (obj_buffer->type == VAProtectedSliceDataBufferType) {
                 if (IS_MFLD(driver_data))
                     vaStatus = psb_buffer_reference_imr(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
-            } else
+            }
+            else if (obj_buffer->type == VAEncCodedBufferType)
+                vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_cached, obj_buffer->psb_buffer);
+            else
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
             if (VA_STATUS_SUCCESS != vaStatus) {
                 free(obj_buffer->psb_buffer);

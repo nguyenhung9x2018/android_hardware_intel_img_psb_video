@@ -54,7 +54,8 @@ typedef enum psb_buffer_type_e {
     psb_bt_rar,                         /* global RAR buffer */
     psb_bt_rar_surface,                 /* memory is RAR device memory for protected surface*/
     psb_bt_rar_slice,                   /* memory is RAR device memory for slice data */
-    psb_bt_user_buffer                  /* memory is from user buffers */
+    psb_bt_user_buffer,                 /* memory is from user buffers */
+    psb_bt_cpu_vpu_cached               /* Cached & CPU/VPU can access */
 } psb_buffer_type_t;
 
 typedef enum psb_buffer_status_e {
