@@ -37,12 +37,16 @@
  * Create surface
  */
 VAStatus psb_surface_create(psb_driver_data_p driver_data,
-                            int width, int height, int fourcc, int protected,
+                            int width, int height, int fourcc, unsigned int flags,
                             psb_surface_p psb_surface /* out */
                            )
 {
     int ret = 0;
     int buffer_type = psb_bt_surface;
+
+    if ((flags & IS_ROTATED) || (driver_data->render_mode & VA_RENDER_MODE_LOCAL_OVERLAY))
+        buffer_type = psb_bt_surface_tt;
+
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
     int tiling = GET_SURFACE_INFO_tiling(psb_surface);
     if (tiling)
@@ -111,14 +115,10 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
         psb_surface->extra_info[4] = VA_FOURCC_YV32;
     }
 
-    if (protected == 0)
-        ret = psb_buffer_create(driver_data, psb_surface->size, buffer_type, &psb_surface->buf);
-    else {
-        if (IS_MFLD(driver_data)) { /* as normal */
-            ret = psb_buffer_create(driver_data, psb_surface->size, buffer_type, &psb_surface->buf);
-            SET_SURFACE_INFO_protect(psb_surface, 1);
-        }
-    }
+    if (flags & IS_PROTECTED)
+        SET_SURFACE_INFO_protect(psb_surface, 1);
+
+    ret = psb_buffer_create(driver_data, psb_surface->size, buffer_type, &psb_surface->buf);
 
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }

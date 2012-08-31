@@ -44,6 +44,7 @@ typedef enum psb_buffer_type_e {
     psb_bt_cpu_vpu = 0,                 /* Shared between CPU & Video PU */
     psb_bt_cpu_vpu_shared,              /* CPU/VPU can access, and can shared by other process */
     psb_bt_surface,                     /* linear surface */
+    psb_bt_surface_tt,                  /* surface allocated in TT*/
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
     psb_bt_mmu_tiling,              /* Tiled surface */
     psb_bt_surface_tiling,              /* Tiled surface */

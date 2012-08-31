@@ -48,6 +48,11 @@ typedef enum {
     STRIDE_UNDEFINED,
 } psb_surface_stride_t;
 
+typedef enum {
+    IS_PROTECTED = 0x1,
+    IS_ROTATED   = 0x2,
+} psb_surface_flags_t;
+
 typedef struct psb_surface_s *psb_surface_p;
 
 struct psb_surface_s {
@@ -75,7 +80,7 @@ struct psb_surface_s {
  * Create surface
  */
 VAStatus psb_surface_create(psb_driver_data_p driver_data,
-                            int width, int height, int fourcc, int protected,
+                            int width, int height, int fourcc, unsigned int flags,
                             psb_surface_p psb_surface /* out */
                            );
 

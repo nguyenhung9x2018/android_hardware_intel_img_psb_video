@@ -282,7 +282,8 @@ VAStatus psb_CreateRotateSurface(
     int width, height;
     psb_surface_p psb_surface;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    int need_realloc = 0, protected = 0;
+    int need_realloc = 0;
+    unsigned int flags = 0;
     psb_surface_share_info_p share_info = obj_surface->share_info;
     INIT_DRIVER_DATA;
 
@@ -314,15 +315,16 @@ VAStatus psb_CreateRotateSurface(
 
     width = obj_surface->width;
     height = obj_surface->height;
+    flags = IS_ROTATED;
 
     if (msvdx_rotate == 2 /* VA_ROTATION_180 */) {
         vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
-                                      protected, psb_surface);
+                                      flags, psb_surface);
         obj_surface->width_r = width;
         obj_surface->height_r = height;
     } else {
         vaStatus = psb_surface_create(driver_data, obj_surface->height_origin, ((width + 0x1f) & ~0x1f), VA_FOURCC_NV12,
-                                      protected, psb_surface);
+                                      flags, psb_surface);
         obj_surface->width_r = obj_surface->height_origin;
         obj_surface->height_r = ((width + 0x1f) & ~0x1f);
     }

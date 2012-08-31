@@ -79,21 +79,11 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
         break;
     case psb_bt_surface:
         allignment = 0;
-        /* Xvideo will share surface buffer, set SHARED flag
-         */
-        int is_thumbnail = 0;
-        char *str;
-#ifdef ANDROID        
-        if((str = getenv("PSB_VIDEO_THUMBNAIL")))
-            is_thumbnail = (gettid() == atoi(str));
-#endif
-        if (getenv("PSB_VIDEO_SURFACE_MMU") || is_thumbnail) {
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate surface from MMU heap\n");
-            placement = DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_SHARED;
-        } else {
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate surface from TT heap\n");
-            placement = WSBM_PL_FLAG_TT | WSBM_PL_FLAG_SHARED;
-        }
+        placement = DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_SHARED;
+        break;
+    case psb_bt_surface_tt:
+        allignment = 0;
+        placement = WSBM_PL_FLAG_TT | WSBM_PL_FLAG_NO_EVICT | WSBM_PL_FLAG_SHARED;
         break;
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
     case psb_bt_surface_tiling:

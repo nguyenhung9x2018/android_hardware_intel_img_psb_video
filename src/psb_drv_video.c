@@ -672,6 +672,7 @@ VAStatus psb_CreateSurfaces2(
     int i, height_origin, buffer_stride = 0;
     driver_data->protected = (VA_RT_FORMAT_PROTECTED & format);
     unsigned long fourcc;
+    unsigned int flags = 0;
 
     format = format & (~VA_RT_FORMAT_PROTECTED);
     if (num_surfaces <= 0) {
@@ -762,8 +763,10 @@ VAStatus psb_CreateSurfaces2(
             fourcc = VA_FOURCC_NV12;
             break;
         }
+
+        flags |= driver_data->protected ? IS_PROTECTED : 0;
         vaStatus = psb_surface_create(driver_data, width, height, fourcc,
-                                      driver_data->protected, psb_surface);
+                                      flags, psb_surface);
 
         if (VA_STATUS_SUCCESS != vaStatus) {
             free(psb_surface);

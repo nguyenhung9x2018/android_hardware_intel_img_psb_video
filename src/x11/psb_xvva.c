@@ -594,6 +594,7 @@ VAStatus psb_check_rotatesurface(
     INIT_OUTPUT_PRIV;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_surface_p obj_rotate_surface;
+    unsigned int flags = protected? IS_PROTECTED : 0;
 
     if (output->rotate_surface) {
         obj_rotate_surface = SURFACE(output->rotate_surfaceID);
@@ -635,8 +636,9 @@ VAStatus psb_check_rotatesurface(
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
         }
 
+        flags |= IS_ROTATED;
         vaStatus = psb_surface_create(driver_data, rotate_width, rotate_height,
-                                      fourcc, protected, output->rotate_surface);
+                                      fourcc, flags, output->rotate_surface);
         if (VA_STATUS_SUCCESS != vaStatus) {
             free(obj_rotate_surface->psb_surface);
             object_heap_free(&driver_data->surface_heap, (object_base_p) obj_rotate_surface);
