@@ -582,14 +582,14 @@ VAStatus vsp_QueryVideoProcFilters(
 	obj_context = CONTEXT(context);
 	if (NULL == obj_context) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to find context\n");
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
 		goto err;
 	}
 
 	obj_config = CONFIG(obj_context->config_id);
 	if (NULL == obj_config) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to find config\n");
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
 		goto err;
 	}
 
@@ -604,7 +604,7 @@ VAStatus vsp_QueryVideoProcFilters(
 	/* check if num_filters is valid */
 	if (NULL == num_filters || NULL == filters) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "invalide input parameter num_filters %p, filters %p\n", num_filters, filters);
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 		goto err;
 	}
 
@@ -646,27 +646,27 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 	obj_context = CONTEXT(context);
 	if (NULL == obj_context) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to find context\n");
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
 		goto err;
 	}
 
 	obj_config = CONFIG(obj_context->config_id);
 	if (NULL == obj_config) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to find config\n");
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
 		goto err;
 	}
 
 	/* check if filter_caps and num_filter_caps is right */
 	if (NULL == num_filter_caps || NULL == filter_caps){
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "invalide input parameter num_filters %p, filters %p\n", num_filter_caps, filter_caps);
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 		goto err;
 	}
 
 	if (*num_filter_caps < 1) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "invalide input parameter num_filters == %d (> 1)\n", *num_filter_caps);
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 		goto err;
 	}
 
@@ -737,7 +737,7 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 
 		default:
 			drv_debug_msg(VIDEO_DEBUG_ERROR, "invalide filter type %d\n", type);
-			vaStatus = VA_STATUS_ERROR_UNKNOWN;
+			vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
 			*num_filter_caps = 0;
 			goto err;
 		}
@@ -776,30 +776,27 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 	obj_context = CONTEXT(context);
 	if (NULL == obj_context) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to find context\n");
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
 		goto err;
 	}
 
 	obj_config = CONFIG(obj_context->config_id);
 	if (NULL == obj_config) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to find config\n");
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
 		goto err;
 	}
 
 	/* check if filters and num_filters and pipeline-caps are right */
-#if 0
-	/* there's pass filter */
 	if (num_filters == 0) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid num_filters %d\n", num_filters);
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 		goto err;
 	}
-#endif
 
 	if (NULL == filters || pipeline_caps == NULL) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid filters %p or pipeline_caps %p\n", filters, pipeline_caps);
-		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 		goto err;
 	}
 
@@ -812,7 +809,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 
 		if (pipeline_caps->num_input_color_standards < 1) {
 			drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid num_input_color_standards %d\n", pipeline_caps->num_input_color_standards);
-			vaStatus = VA_STATUS_ERROR_UNKNOWN;
+			vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 			goto err;
 		}
 
@@ -822,7 +819,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 
 		if (pipeline_caps->num_output_color_standards < 1) {
 			drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid num_output_color_standards %d\n", pipeline_caps->num_output_color_standards);
-			vaStatus = VA_STATUS_ERROR_UNKNOWN;
+			vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 			goto err;
 		}
 			
