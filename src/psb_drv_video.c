@@ -262,10 +262,9 @@ static VAStatus psb__error_unsupported_profile_entrypoint(psb_driver_data_p driv
     if (profile < PSB_MAX_PROFILES) {
         int i;
 
-#ifdef PSBVIDEO_MRFL_VPP
-	if (profile == VAProfileNone)
-		return VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
-#endif
+        /* Do the parameter check for MFLD and MRFLD */
+        if (profile == VAProfileNone)
+            return VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT;
 
         for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
             if (driver_data->profile2Format[profile][i]) {
