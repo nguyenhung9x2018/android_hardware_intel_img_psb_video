@@ -63,6 +63,9 @@
 #define RC_STATUS_FLAG_BITRATE_OVERFLOW 0x400
 #define SKIP_NEXT_FRAME                 0x800   /* The next frame should be skipped */
 
+#define IS_H264_ENC(codec) \
+    (IMG_CODEC_H264_CBR == (codec) || IMG_CODEC_H264_VCM == (codec))
+
 /* commands for topaz,shared with user space driver */
 enum drm_pnw_topaz_cmd {
     /* Common Commands */
@@ -113,7 +116,6 @@ typedef struct _RC_PARAMS_ {
     IMG_UINT32  BUSize;
     IMG_UINT32  FrameRate;
     IMG_UINT32  BufferSize;
-    IMG_UINT32  BitsConsumed;
     IMG_UINT32  IntraFreq;
     IMG_UINT16  IDRFreq;
     IMG_UINT16   MinQP;
@@ -121,7 +123,6 @@ typedef struct _RC_PARAMS_ {
     IMG_BOOL    FrameSkip;
 
     IMG_UINT8   Slices;
-    IMG_UINT32  BitsTransmitted;
     IMG_UINT32   InitialLevel;
     IMG_INT32   InitialDelay;
     IMG_INT8    QCPOffset;
@@ -157,7 +158,7 @@ typedef struct {
 
     IMG_INT32   BitRate;                        /* Bit Rate (bps) */
     IMG_INT32   BufferSize;             /* Size of Buffer */
-    IMG_UINT32   InitialLevel;   /* Initial Level of Buffer */
+    IMG_INT32   InitialLevel;   /* Initial Level of Buffer */
     IMG_INT32   InitialDelay;   /* Initial Delay of Buffer */
 
     IMG_UINT8   ScaleFactor;            /* Scale Factor (H264 only) */
@@ -184,6 +185,7 @@ typedef struct {
 
     /* Only used in peak constrained VBR */
     IMG_INT32 TransferRate;
+    IMG_INT32 MaxFrameSize;
 } IN_RC_PARAMS;
 
 typedef enum _TH_SKIP_SCALE_ {
@@ -216,7 +218,6 @@ struct context_ENC_s {
     IMG_BOOL        SliceHeaderReady[MAX_SLICES_PER_PICTURE];
 
     IMG_UINT32      InBuffer; /* total coded data in Byte */
-    IMG_BOOL        Transmitting;
 
     IMG_INT16       HeightMinus16MinusLRBTopOffset;
     IMG_INT16       HeightMinus32MinusLRBTopOffset;
@@ -350,7 +351,7 @@ typedef struct context_ENC_s *context_ENC_p;
 #define ISCBR_FLAGS             0x40
 #define ISVCM_FLAGS             0x80
 #define ISVBR_FLAGS             0x100
-#define ISRC_I16BIAS            0x200
+#define ISCFS_FLAGS             0x200
 #define INTERLEAVE_TARGET       0x400
 #define FIRST_FRAME             0x800
 #define SYNC_SEQUENCER          0x1000
@@ -445,7 +446,7 @@ typedef struct _PIC_PARAMS_ {
 
     IMG_UINT16          Width;
     IMG_UINT16          Height;
-    IMG_UINT16          Flags;
+    IMG_UINT32          Flags;
 
     IN_RC_PARAMS        sInParams;
 
@@ -454,7 +455,7 @@ typedef struct _PIC_PARAMS_ {
 
     IMG_UINT16          NumSlices;                      //!< Number of slices in the picture
 
-    IMG_BOOL 		IsPerSliceOutput;
+    IMG_BOOL16 		IsPerSliceOutput;
     // SEI_INSERTION
     IMG_UINT64          ClockDivBitrate;
     IMG_UINT32          MaxBufferMultClockDivBitrate;
@@ -465,6 +466,25 @@ typedef enum {
     INTRA_MB_AIR = 1,
     INTRA_MB_SCANNING = 2
 } INTRA_MB_OPERATION_MODE;
+
+/* ScanningIntraParams */
+#define SCANNING_INTRA_MODE_MASK        (0x0000000f)
+#define SCANNING_INTRA_MODE_SHIFT       (0)
+#define SCANNING_INTRA_WIDTH_MASK       (0x000000f0)
+#define SCANNING_INTRA_WIDTH_SHIFT      (4)
+#define SCANNING_INTRA_WIDTH_MAX        (15)
+#define SCANNING_INTRA_STEP_MASK        (0x00000f00)
+#define SCANNING_INTRA_STEP_SHIFT       (8)
+#define SCANNING_INTRA_STEP_MAX         (15)
+
+#define MTX_FLAG_WB_SKIPFRAME   (0x00000002)
+#define MTX_FLAG_RC_MASK                (0xFFFF0000)
+#define MTX_FLAG_RC_PICPARAM    (0x00010000)
+#define MTX_FLAG_RC_SLICEPARAM  (0x00020000)
+#define MTX_FLAG_RC_BUPARAM             (0x00040000)
+#define MTX_FLAG_RC_GETBUPARAM  (0x00080000)
+#define MTX_FLAG_RC_FRM_LEN         (0x00100000)
+
 
 /* This holds the data that is needed at the start of a slice
  */
@@ -493,7 +513,7 @@ typedef struct _SLICE_PARAMS_ {
 
     /*Theshold value used in Adaptive intra refresh calculation.*/
     IMG_INT16   AirThreshold;
-    INTRA_MB_OPERATION_MODE eIntraMBMode;
+    IMG_UINT32  ScanningIntraParams;
 } SLICE_PARAMS;
 
 enum {
@@ -562,4 +582,3 @@ unsigned int pnw__get_ipe_control(enum drm_pnw_topaz_codec  eEncodingFormat);
 
 VAStatus pnw_set_bias(context_ENC_p ctx, int core);
 
-void pnw__UpdateRCBitsTransmitted(context_ENC_p ctx);

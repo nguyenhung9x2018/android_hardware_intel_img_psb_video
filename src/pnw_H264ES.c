@@ -204,6 +204,7 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     H264_VUI_PARAMS *pVUI_Params = &(ctx->VUI_Params);
     H264_CROP_PARAMS sCrop;
     int i;
+    unsigned int frame_size;
 
     ASSERT(obj_buffer->type == VAEncSequenceParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
@@ -213,9 +214,9 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
             (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH264))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
-    
-    if(ctx->sRCParams.FrameRate ==0)
-        ctx->sRCParams.FrameRate  =30;
+
+    if(ctx->sRCParams.FrameRate == 0)
+        ctx->sRCParams.FrameRate = 30;
     ctx->obj_context->frame_count = 0;
 
     pSequenceParams = (VAEncSequenceParameterBufferH264 *) obj_buffer->buffer_data;
@@ -240,19 +241,28 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     } else
         ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
 
+    /*if (ctx->sRCParams.IntraFreq != pSequenceParams->intra_period)
+        ctx->sRCParams.bBitrateChanged = IMG_TRUE;*/
+    ctx->sRCParams.IDRFreq = pSequenceParams->intra_idr_period;
 
     ctx->sRCParams.Slices = ctx->Slices;
-    ctx->sRCParams.QCPOffset = 0;/* FIXME */
-    if (ctx->sRCParams.IntraFreq != pSequenceParams->intra_period
-	    && ctx->raw_frame_count != 0)
-	ctx->sRCParams.bBitrateChanged = IMG_TRUE;
-    ctx->sRCParams.IntraFreq = pSequenceParams->intra_period;
+    ctx->sRCParams.QCPOffset = 0;
 
-    ctx->sRCParams.IDRFreq = pSequenceParams->intra_idr_period;
-    /*if (ctx->sRCParams.BitsPerSecond < 256000)
-      ctx->sRCParams.BufferSize = (9 * ctx->sRCParams.BitsPerSecond) >> 1;
-      else
-      ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
+    if (ctx->sRCParams.IntraFreq != pSequenceParams->intra_period
+            && ctx->raw_frame_count != 0
+            && ctx->sRCParams.IntraFreq != 0
+            && ((ctx->obj_context->frame_count + 1) % ctx->sRCParams.IntraFreq) != 0
+            && (!ctx->sRCParams.bDisableFrameSkipping)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,
+                "Changing intra period value in the middle of a GOP is\n"
+                "not allowed if frame skip isn't disabled.\n"
+                "it can cause I frame been skipped\n");
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+    else
+        ctx->sRCParams.IntraFreq = pSequenceParams->intra_period;
+
+    frame_size = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
 
     if (ctx->bInserHRDParams &&
             ctx->buffer_size != 0 && ctx->initial_buffer_fullness != 0) {
@@ -265,17 +275,16 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
         ctx->initial_buffer_fullness = ctx->sRCParams.BitsPerSecond;
         ctx->sRCParams.BufferSize = ctx->buffer_size;
         ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
-        ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
+        /* Aligned with target frame size */
+        ctx->sRCParams.InitialLevel += (frame_size / 2);
+        ctx->sRCParams.InitialLevel /= frame_size;
+        ctx->sRCParams.InitialLevel *= frame_size;
+        ctx->sRCParams.InitialDelay = ctx->buffer_size - ctx->sRCParams.InitialLevel;
     }
 
-    if (ctx->obj_context->frame_count == 0) { /* Add Register IO behind begin Picture */
-        pnw__UpdateRCBitsTransmitted(ctx);
-        for (i = (ctx->ParallelCores - 1); i >= 0; i--) {
+    if (ctx->raw_frame_count == 0) {
+        for (i = (ctx->ParallelCores - 1); i >= 0; i--)
             pnw_set_bias(ctx, i);
-        }
-        /* This is needed in old firmware, now is no needed any more */
-        //ctx->initial_qp_in_cmdbuf = cmdbuf->cmd_idx; /* remember the place */
-        //cmdbuf->cmd_idx++;
     }
 
     pVUI_Params->Time_Scale = ctx->sRCParams.FrameRate * 2;
@@ -764,17 +773,23 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
     unsigned int i, j, slice_per_core;
+    VAStatus vaStatus;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
+    ASSERT(obj_buffer->size == obj_buffer->num_elements * sizeof(VAEncSliceParameterBufferType));
 
+    if (obj_buffer->num_elements > (ctx->Height / 16)) {
+        free(obj_buffer->buffer_data);
+        obj_buffer->buffer_data = NULL;
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        return vaStatus;
+    }
     cmdbuf = ctx->obj_context->pnw_cmdbuf;
     psPicParams = (PIC_PARAMS *)cmdbuf->pic_params_p;
 
     /* Transfer ownership of VAEncPictureParameterBufferH264 data */
     pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
     obj_buffer->size = 0;
-
-    /* H264: Calculate number of Mskip to skip IF this was a skip frame */
 
     /*In case the slice number changes*/
     if ((ctx->slice_param_cache != NULL) && (obj_buffer->num_elements != ctx->slice_param_num)) {
@@ -796,6 +811,7 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
         }
     }
 
+    ctx->sRCParams.Slices = obj_buffer->num_elements;
     if (getenv("PSB_VIDEO_SIG_CORE") == NULL) {
         if ((ctx->ParallelCores == 2) && (obj_buffer->num_elements == 1)) {
             /*Need to replace unneccesary MTX_CMDID_STARTPICs with MTX_CMDID_PAD*/
@@ -964,7 +980,7 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
 
             /*The max slice size should not be bigger than 1920x1080x1.5x8 */
             if (max_slice_size_param->max_slice_size > 24883200) {
-                drv_debug_msg(VIDEO_DEBUG_ERROR,"Invalid max_slice_size. It should be 1~ 3110400.\n");
+                drv_debug_msg(VIDEO_DEBUG_ERROR,"Invalid max_slice_size. It should be 1~ 24883200.\n");
                 vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
                 break;
             }
@@ -1101,7 +1117,7 @@ static VAStatus pnw_H264ES_RenderPicture(
                 DEBUG_FAILURE;
                 break;
 #endif
-				
+
             default:
                 vaStatus = VA_STATUS_ERROR_UNKNOWN;
                 DEBUG_FAILURE;
@@ -1118,9 +1134,19 @@ static VAStatus pnw_H264ES_EndPicture(
         object_context_p obj_context)
 {
     INIT_CONTEXT_H264ES;
+    pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
+    PIC_PARAMS *psPicParams = (PIC_PARAMS *)cmdbuf->pic_params_p;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    unsigned char core = 0;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264ES_EndPicture\n");
+
+    /* Unlike MPEG4 and H263, slices number is defined by user */
+    for (core = 0; core < ctx->ParallelCores; core++) {
+        psPicParams = (PIC_PARAMS *)
+            (cmdbuf->pic_params_p +  ctx->pic_params_size * core);
+        psPicParams->NumSlices =  ctx->sRCParams.Slices;
+    }
 
     vaStatus = pnw_EndPicture(ctx);
 

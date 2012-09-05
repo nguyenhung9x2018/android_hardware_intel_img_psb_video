@@ -190,6 +190,7 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     MPEG4_PROFILE_TYPE profile;
     int i, vop_time_increment_resolution;
+    unsigned frame_size;
 
     ASSERT(obj_buffer->type == VAEncSequenceParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
@@ -228,23 +229,26 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     ctx->sRCParams.QCPOffset = 0;/* FIXME */
     ctx->sRCParams.IntraFreq = seq_params->intra_period;
 
-    /* if (ctx->sRCParams.BitsPerSecond < 256000)
-         ctx->sRCParams.BufferSize = (9 * ctx->sRCParams.BitsPerSecond) >> 1;
-     else
-         ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
+    frame_size = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
 
     ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond;
-    ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
-    ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
+    /* Header buffersize is specified in 16384 units, so ensure conformance
+       of parameters. InitialLevel in units of 64, assured by this */
 
-    if (ctx->obj_context->frame_count == 0) { /* Add Register IO behind begin Picture */
-        pnw__UpdateRCBitsTransmitted(ctx);
-        for (i = (ctx->ParallelCores - 1); i >= 0; i--) {
+    ctx->sRCParams.BufferSize /= 16384;
+    ctx->sRCParams.BufferSize *= 16384;
+
+    ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
+    /* Aligned with target frame size */
+    ctx->sRCParams.InitialLevel += (frame_size / 2);
+    ctx->sRCParams.InitialLevel /= frame_size;
+    ctx->sRCParams.InitialLevel *= frame_size;
+    ctx->sRCParams.InitialDelay = ctx->sRCParams.BufferSize - ctx->sRCParams.InitialLevel;
+    ctx->buffer_size = ctx->sRCParams.BufferSize;
+
+    if (ctx->raw_frame_count == 0) { /* Add Register IO behind begin Picture */
+        for (i = (ctx->ParallelCores - 1); i >= 0; i--)
             pnw_set_bias(ctx, i);
-        }
-        /* This is needed in old firmware, now is no needed any more */
-        //ctx->initial_qp_in_cmdbuf = cmdbuf->cmd_idx; /* remember the place */
-        //cmdbuf->cmd_idx++;
     }
 
     cmdbuf = ctx->obj_context->pnw_cmdbuf;

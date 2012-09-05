@@ -58,15 +58,6 @@ IMG_UINT32 MVEARegBase[4] = {0x13000, 0x23000, 0x33000, 0x43000}; /* From TopazS
 //#define ZERO_BIAS
 
 static const IMG_INT8 H263_QPLAMBDA_MAP[31] = {
-    /* For Quality Evaluation: Not using New H263 Table
-     1, 1, 1, 1, 1,
-     1, 1, 1, 1, 1,
-     1, 1, 1, 1, 1,
-     1, 1, 1, 1, 1,
-     1, 1, 1, 1, 1,
-     1, 1, 1, 1, 1, 1 };
-     */
-// Instead use old MPEG4 QPLambda Table
     0, 0, 1, 1, 2,
     2, 3, 3, 4, 4,
     4, 5, 5, 5, 6,
@@ -94,18 +85,34 @@ static const IMG_INT8 H264_QPLAMBDA_MAP[40] = {
     36, 41, 51, 62, 74, 79, 85, 91
 };
 
-static IMG_INT16 H264InterBias(IMG_INT8 i8QP)
+static const IMG_INT16 H264_InterIntraBias[27] =
 {
-    //IMG_INT16 aui16InterBiasValues[8] = {70,140,210,280,350,420,490,560};
+    20,20,20,20,20,20,50,
+    20,20,20,20,20,20,
+    20,25,30,45,80,140,
+    200,300,400,500,550,
+    600,650,700
+};
 
+/*static IMG_INT16 H264InterBias(IMG_INT8 i8QP)
+{
     if (i8QP >= 44)
         return 600;
-    if (i8QP <= 35)
+    else if (i8QP <= 35)
         return 20;
 
-    //return aui16InterBiasValues[i8QP-36];
     return (70 * (i8QP - 35));
+}*/
+static IMG_INT16 H264InterBias(IMG_INT8 i8QP)
+{
+    if (i8QP > 1)
+         i8QP = 1;
+    else if (i8QP > 51)
+        return 51;
+
+    return H264_InterIntraBias[(i8QP + 1)>>1];
 }
+
 
 static IMG_INT16 H264SkipBias(IMG_INT8 i8QP, TH_SKIP_SCALE eSkipScale)
 {
@@ -142,10 +149,7 @@ static IMG_INT16 H264Intra4x4Bias(IMG_INT8 i8QP)
     i16Lambda = (i16Lambda < 0) ? 0 : i16Lambda;
     i16Lambda = H264_QPLAMBDA_MAP[i16Lambda];
 
-    // now do the multiplication to avoid using the actual multiply we will do this with shifts and adds/subtractions it is possible that the compiler would
-    // pick up the multiply and optimise appropriatly but we aren't sure
-    //  iLambda * 60 = iLambda * (64 -4)  == iLambda*64 - iLambda*4 == iLamda<<6 - iLambda<<2
-    i16Lambda = (i16Lambda << 6) - (i16Lambda << 2);
+    i16Lambda *= 120;
     return i16Lambda;
 }
 
@@ -318,14 +322,11 @@ static void LoadH264Bias(
     };
 
     for (n = 51; n >= 0; n--) {
+
         iX = n - 12;
-        if (iX < 0) {
+        if (iX < 0)
             iX = 0;
-        }
-        iX = n - 12;
-        if (iX < 0) {
-            iX = 0;
-        }
+
         // Dont Write QP Values To ESB -- IPE will write these values
         // Update the quantization parameter which includes doing Lamda and the Chroma QP
         ui32RegVal = PVR_QP_SCALE_CR[n + 12 + i8QpOff ];
@@ -557,28 +558,6 @@ VAStatus pnw_CreateContext(
     return vaStatus;
 }
 
-void pnw__UpdateRCBitsTransmitted(context_ENC_p ctx)
-{
-    IMG_UINT32 BitsPerFrame;
-
-    ctx->sRCParams.BitsConsumed = 0;
-
-    BitsPerFrame = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
-
-    if (!ctx->Transmitting) {
-        if (BitsPerFrame *(ctx->raw_frame_count + 1) >= ctx->sRCParams.InitialLevel)
-            ctx->Transmitting = IMG_TRUE;
-        ctx->sRCParams.BitsTransmitted = 0;
-        if ((ctx->sRCParams.BitsPerSecond == 0) || (ctx->sRCParams.FrameRate == 0))
-            ctx->Transmitting = IMG_FALSE;
-    }
-
-    if (ctx->Transmitting) {
-        ctx->sRCParams.BitsTransmitted = BitsPerFrame;
-    }
-}
-
-
 VAStatus pnw_BeginPicture(context_ENC_p ctx)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -613,7 +592,6 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
     cmdbuf = ctx->obj_context->pnw_cmdbuf;
     memset(cmdbuf->cmd_idx_saved, 0, sizeof(cmdbuf->cmd_idx_saved));
 
-    /*    pnw__UpdateRCBitsTransmitted(ctx); shouln't be here*/
 
     /* map start_pic param */
     vaStatus = psb_buffer_map(&cmdbuf->pic_params, &cmdbuf->pic_params_p);
@@ -651,7 +629,6 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
 
     ctx->FrmIdx++;
     ctx->SliceToCore = ctx->ParallelCores - 1;
-    ctx->sRCParams.BitsConsumed = 0; /* Reset the bits consumed for this frame */
     /* ctx->AccessUnitNum++;    Move this back to pnw_EndPicture */
     ctx->sRCParams.bBitrateChanged = IMG_FALSE;
 
@@ -684,9 +661,6 @@ VAStatus pnw_BeginPicture(context_ENC_p ctx)
     }
 
     ctx->obj_context->slice_count = 0;
-    /*Need to wait until sRCParams initialised in pnw__XXXES_process_sequence_param*/
-    if (ctx->raw_frame_count != 0)
-        pnw__UpdateRCBitsTransmitted(ctx);
     return 0;
 }
 
@@ -874,8 +848,10 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
+#if 0
     if (ctx->SyncSequencer)
         psPicParams->Flags |= SYNC_SEQUENCER;
+#endif
 
     if (ctx->sRCParams.RCEnable) {
         if (ctx->sRCParams.bDisableFrameSkipping) {
@@ -883,20 +859,30 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Frame skip is disabled.\n");
         }
 
-        if (ctx->sRCParams.bDisableBitStuffing) {
+        if (ctx->sRCParams.bDisableBitStuffing && IS_H264_ENC(ctx->eCodec)) {
             psPicParams->Flags |= DISABLE_BIT_STUFFING;
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Bit stuffing is disabled.\n");
         }
+
+
         /* for the first frame, will setup RC params in EndPicture */
         if (ctx->raw_frame_count > 0) { /* reuse in_params parameter */
+            /* In case, it's changed in a new sequence */
+            if (ctx->obj_context->frame_count == 0
+               && ctx->in_params_cache.IntraPeriod != ctx->sRCParams.IntraFreq) {
+               drv_debug_msg(VIDEO_DEBUG_ERROR,
+               "On frame %d, Intra period is changed from %d to %d\n",
+               ctx->raw_frame_count, ctx->in_params_cache.IntraPeriod,
+               ctx->sRCParams.IntraFreq);
+               ctx->in_params_cache.IntraPeriod =  ctx->sRCParams.IntraFreq;
+               ctx->in_params_cache.BitsPerGOP =
+                    (ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate)
+                    * ctx->sRCParams.IntraFreq;
+            }
+
             psPicParams->Flags &= ~FIRST_FRAME;
             /* reload IN_RC_PARAMS from cache */
             memcpy(&psPicParams->sInParams, &ctx->in_params_cache, sizeof(IN_RC_PARAMS));
-
-            /* These two fileds are modified by pnw_SetupRCParams, need to patch them here */
-            psPicParams->Flags |= (ctx->pic_params_flags & ISRC_I16BIAS);
-            psPicParams->sInParams.BitsPerFrm = ctx->sRCParams.BitsConsumed;
-
         } else {
             psPicParams->Flags |= ISRC_FLAGS;
             psPicParams->Flags |= FIRST_FRAME;
@@ -951,37 +937,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
     RELOC_PIC_PARAMS_PNW(&psPicParams->CodedBase, ctx->coded_buf_per_slice * core, ctx->coded_buf->psb_buffer);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "For core %d, above_parmas_off %x\n", core, ctx->above_params_ofs + ctx->above_params_size *(core * 2 + ((ctx->AccessUnitNum) & 0x1)));
 
-#if TOPAZ_PIC_PARAMS_VERBOSE
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcYBase  0x%08x\n", psPicParams->SrcYBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcUBase 0x%08x\n", psPicParams->SrcUBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcVBase 0x%08x\n", psPicParams->SrcVBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstYBase 0x%08x\n", psPicParams->DstYBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstUVBase 0x%08x\n", psPicParams->DstUVBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcYStride 0x%08x\n", psPicParams->SrcYStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcUVStride 0x%08x\n", psPicParams->SrcUVStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcYRowStride 0x%08x\n", psPicParams->SrcYRowStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcUVRowStride 0x%08x\n", psPicParams->SrcUVRowStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstYStride 0x%08x\n", psPicParams->DstYStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstUVStride 0x%08x\n", psPicParams->DstUVStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstYRowStride 0x%08x\n", psPicParams->DstYRowStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstUVRowStride 0x%08x\n", psPicParams->DstUVRowStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->InParamsBase 0x%08x\n", psPicParams->InParamsBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->InParamsRowStride 0x%08x\n", psPicParams->InParamsRowStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->OutParamsBase 0x%08x\n", psPicParams->OutParamsBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->CodedBase 0x%08x\n", psPicParams->CodedBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->BelowParamsInBase 0x%08x\n", psPicParams->BelowParamsInBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->BelowParamsOutBase 0x%08x\n", psPicParams->BelowParamsOutBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->BelowParamRowStride 0x%08x\n", psPicParams->BelowParamRowStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->AboveParamsBase 0x%08x\n", psPicParams->AboveParamsBase);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->AboveParamRowStride 0x%08x\n", psPicParams->AboveParamRowStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->Width 0x%08x\n", psPicParams->Width);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->Height 0x%08x\n", psPicParams->Height);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->Flags 0x%08x\n", psPicParams->Flags);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SerachWidth 0x%08x\n", psPicParams->SearchWidth);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SearchHeight 0x%08x\n", psPicParams->SearchHeight);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->NumSlices 0x%08x\n", psPicParams->NumSlices);
-#endif
-    return VA_STATUS_SUCCESS;
+   return VA_STATUS_SUCCESS;
 }
 
 static VAStatus pnw_SetupRCParam(context_ENC_p ctx)
@@ -1012,8 +968,6 @@ static VAStatus pnw_SetupRCParam(context_ENC_p ctx)
 
     /* save IN_RC_PARAMS into the cache */
     memcpy(&ctx->in_params_cache, (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
-    ctx->pic_params_flags = psPicParams->Flags & ISRC_I16BIAS;
-
     return VA_STATUS_SUCCESS;
 }
 
@@ -1023,24 +977,51 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     int i;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)cmdbuf->pic_params_p;
+    PIC_PARAMS *psPicParamsSlave = NULL;
 
     ctx->AccessUnitNum++;
 
-    if (ctx->sRCParams.RCEnable == IMG_TRUE) {
+    if (ctx->sRCParams.RCEnable) {
         if (ctx->raw_frame_count == 0)
             pnw_SetupRCParam(ctx);
         else  if (ctx->sRCParams.bBitrateChanged) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "bitrate is changed to %d, "
-                                     "update the rc data accordingly\n", ctx->sRCParams.BitsPerSecond);
-	    pnw__update_rcdata(ctx, psPicParams, &ctx->sRCParams);
-	    memcpy(&ctx->in_params_cache, (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
+                    "update the rc data accordingly\n", ctx->sRCParams.BitsPerSecond);
+            pnw__update_rcdata(ctx, psPicParams, &ctx->sRCParams);
+            memcpy(&ctx->in_params_cache, (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
+            /* Save rate control info in slave core as well */
+            for (i = 1; i < ctx->ParallelCores; i++)
+                psPicParamsSlave = (PIC_PARAMS *)(cmdbuf->pic_params_p + ctx->pic_params_size * i);
+                memcpy((unsigned char *)&psPicParamsSlave->sInParams,
+                        (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
         }
     }
 
 #if TOPAZ_PIC_PARAMS_VERBOSE
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "End Picture for frame %d\n", ctx->raw_frame_count);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "sizeof PIC_PARAMS %d\n", sizeof(PIC_PARAMS));
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "sizeof in_params %d\n", sizeof(psPicParams->sInParams));
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "End Picture for frame %d\n", ctx->obj_context->frame_count);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcYBase  0x%08x\n", psPicParams->SrcYBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcUBase 0x%08x\n", psPicParams->SrcUBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcVBase 0x%08x\n", psPicParams->SrcVBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstYBase 0x%08x\n", psPicParams->DstYBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstUVBase 0x%08x\n", psPicParams->DstUVBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcYStride 0x%08x\n", psPicParams->SrcYStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcUVStride 0x%08x\n", psPicParams->SrcUVStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcYRowStride 0x%08x\n", psPicParams->SrcYRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SrcUVRowStride 0x%08x\n", psPicParams->SrcUVRowStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstYStride 0x%08x\n", psPicParams->DstYStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->DstUVStride 0x%08x\n", psPicParams->DstUVStride);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->CodedBase 0x%08x\n", psPicParams->CodedBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->BelowParamsInBase 0x%08x\n", psPicParams->BelowParamsInBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->BelowParamsOutBase 0x%08x\n", psPicParams->BelowParamsOutBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->AboveParamsBase 0x%08x\n", psPicParams->AboveParamsBase);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->Width 0x%08x\n", psPicParams->Width);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->Height 0x%08x\n", psPicParams->Height);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->Flags 0x%08x\n", psPicParams->Flags);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SerachWidth 0x%08x\n", psPicParams->SearchWidth);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->SearchHeight 0x%08x\n", psPicParams->SearchHeight);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "PicParams->NumSlices 0x%08x\n", psPicParams->NumSlices);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->ClockDivBitrate %lld\n", psPicParams->ClockDivBitrate);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->MaxBufferMultClockDivBitrate %d\n",
                              psPicParams->MaxBufferMultClockDivBitrate);
@@ -1068,6 +1049,8 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.MyInitQP %d\n", psPicParams->sInParams.MyInitQP);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.ForeceSkipMargin %d\n", psPicParams->sInParams.ForeceSkipMargin);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.RCScaleFactor %d\n", psPicParams->sInParams.RCScaleFactor);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.TransferRate %d\n", psPicParams->sInParams.TransferRate);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psPicParams->sInParams.MaxFrameSize %d\n", psPicParams->sInParams.MaxFrameSize);
 #endif
     /* save current settings */
     ctx->previous_ref_surface = ctx->ref_surface;
@@ -1211,10 +1194,10 @@ static void pnw__setup_busize(context_ENC_p ctx)
         }
 
         ctx->sRCParams.BUSize = BUSize;
-	/*
+    /*
         ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
         ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
-	*/
+    */
     }
 
     if (ctx->sRCParams.BUSize != old_busize)
@@ -1254,6 +1237,7 @@ static void pnw__update_rcdata(
     case IMG_CODEC_H264_CBR:
     case IMG_CODEC_H264_VCM:
     case IMG_CODEC_H264_VBR:
+        psPicParams->sInParams.RCScaleFactor = 30;
         L1 = 0.1;
         L2 = 0.15;
         L3 = 0.2;
@@ -1262,8 +1246,6 @@ static void pnw__update_rcdata(
         psPicParams->sInParams.MaxQPVal = 40;
 
         /* Setup MAX and MIN Quant Values */
-        if (flBpp <= 0.3)
-            psPicParams->Flags |= ISRC_I16BIAS;
         if (flBpp >= 0.50)
             i16TempQP = 4;
         else
@@ -1299,6 +1281,7 @@ static void pnw__update_rcdata(
     case IMG_CODEC_MPEG4_VBR:
     case IMG_CODEC_H263_CBR:
     case IMG_CODEC_H263_VBR:
+        psPicParams->sInParams.RCScaleFactor = 30;
         psPicParams->sInParams.MaxQPVal  = 31;
 
         if (psContext->Width <= 176) {
@@ -1473,15 +1456,17 @@ static void pnw__update_rcdata(
 
     psPicParams->sInParams.MyInitQP     = psPicParams->sInParams.SeInitQP;
 
+#if 0
     if (psContext->SyncSequencer)
         psPicParams->Flags |= SYNC_SEQUENCER;
+#endif
 
     psPicParams->sInParams.InitialDelay = psRCParams->InitialDelay;
     psPicParams->sInParams.InitialLevel = psRCParams->InitialLevel;
     psRCParams->InitialQp = psPicParams->sInParams.SeInitQP;
 
-    psPicParams->sInParams.RCScaleFactor = (psPicParams->sInParams.BitsPerGOP * 256) /
-                                           (psPicParams->sInParams.BufferSize - psPicParams->sInParams.InitialLevel);
+    /* The rate control uses this value to adjust the reaction rate
+       to larger than expected frames in long GOPS*/
 
     return;
 }
@@ -1523,6 +1508,7 @@ void pnw__setup_rcdata(
     psPicParams->sInParams.BUPerFrm     = (psPicParams->sInParams.MBPerFrm) / psRCParams->BUSize;
     psPicParams->sInParams.AvQPVal = psRCParams->InitialQp;
     psPicParams->sInParams.MyInitQP     = psRCParams->InitialQp;
+    psPicParams->sInParams.MaxFrameSize = psRCParams->BitsPerSecond / psRCParams->FrameRate;
 
     ui8InitialSeInitQP = psPicParams->sInParams.SeInitQP;
 
@@ -1850,6 +1836,8 @@ IMG_UINT32 pnw__send_encode_slice_params(
 
     psSliceParams->SliceHeight = SliceHeight;
     psSliceParams->SliceStartRowNum = CurrentRow / 16;
+    psSliceParams->ScanningIntraParams = (1 << SCANNING_INTRA_WIDTH_SHIFT) |
+        (1 << SCANNING_INTRA_STEP_SHIFT);
 
     /* We want multiple ones of these so we can submit multiple slices without having to wait for the next */
     psSliceParams->Flags = 0;
@@ -1869,9 +1857,11 @@ IMG_UINT32 pnw__send_encode_slice_params(
     psSliceParams->NumAirMBs = ctx->num_air_mbs;
     psSliceParams->AirThreshold = ctx->air_threshold;
 
-    psSliceParams->MaxSliceSize = ctx->max_slice_size;
+    if (ctx->eCodec == IMG_CODEC_H264_VCM && ctx->max_slice_size == 0)
+        psSliceParams->MaxSliceSize = ctx->Width * ctx->Height * 12 / 2;
+    else
+        psSliceParams->MaxSliceSize = ctx->max_slice_size;
     psSliceParams->FCode = ctx->FCode;/* Not clear yet, This field is not appare in firmware doc */
-    psSliceParams->eIntraMBMode = INTRA_MB_OFF;
 
     SearchHeight = min(MVEA_LRB_SEARCH_HEIGHT, ctx->Height);
     SearchTopOffset = (((SearchHeight / 2) / 16) * 16);
@@ -1952,13 +1942,14 @@ IMG_UINT32 pnw__send_encode_slice_params(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->RefUVStride %d\n", psSliceParams->RefUVStride);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->RefYRowStride %d\n", psSliceParams->RefYRowStride);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->RefUVRowStride %d\n", psSliceParams->RefUVRowStride);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->HostCtx %d\n", psSliceParams->HostCtx);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->HostCtx %x\n", psSliceParams->HostCtx);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->Flags %x\n", psSliceParams->Flags);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->MaxSliceSize %d\n",  psSliceParams->MaxSliceSize);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->FCode %x\n", psSliceParams->FCode);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->InParamsBase %x\n", psSliceParams->InParamsBase);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->NumAirMBs %d\n", psSliceParams->NumAirMBs);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->AirThreshold %x\n", psSliceParams->AirThreshold);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psSliceParams->ScanningIntraParams %x\n", psSliceParams->ScanningIntraParams);
 #endif
 
     pnw_cmdbuf_insert_command_package(ctx->obj_context,

@@ -181,6 +181,7 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
      */
     VAEncSequenceParameterBufferH263 *pSequenceParams;
     int i;
+    unsigned int frame_size;
 
     ASSERT(obj_buffer->type == VAEncSequenceParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
@@ -214,6 +215,7 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     ctx->sRCParams.MinQP = pSequenceParams->min_qp;
     ctx->sRCParams.BUSize = 0; /* default 0, and will be set in pnw__setup_busize */
 
+    frame_size = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
     /*
         IMG_UINT16 MBRows = 0;
         if(ctx->Height <= 400)
@@ -225,7 +227,12 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     ctx->sRCParams.QCPOffset = 0;/* FIXME */
     ctx->sRCParams.IntraFreq = pSequenceParams->intra_period;
     ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
-    ctx->sRCParams.InitialDelay = (13 * ctx->sRCParams.BufferSize) >> 4;
+    /* Aligned with target frame size */
+    ctx->sRCParams.InitialLevel += (frame_size / 2);
+    ctx->sRCParams.InitialLevel /= frame_size;
+    ctx->sRCParams.InitialLevel *= frame_size;
+    ctx->sRCParams.InitialDelay = ctx->sRCParams.BufferSize - ctx->sRCParams.InitialLevel;
+    ctx->buffer_size = ctx->sRCParams.BufferSize;
 
     /*if (ctx->sRCParams.BitsPerSecond < 256000)
         ctx->sRCParams.BufferSize = (9 * ctx->sRCParams.BitsPerSecond) >> 1;
@@ -233,11 +240,9 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
         ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
 
     ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond;
-    if (ctx->obj_context->frame_count == 0) { /* Add Register IO behind begin Picture */
-        pnw__UpdateRCBitsTransmitted(ctx);
-        for (i = (ctx->ParallelCores - 1); i >= 0; i--) {
+    if (ctx->raw_frame_count == 0) { /* Add Register IO behind begin Picture */
+        for (i = (ctx->ParallelCores - 1); i >= 0; i--)
             pnw_set_bias(ctx, i);
-        }
     }
 
     free(pSequenceParams);
