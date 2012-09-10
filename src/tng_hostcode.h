@@ -240,20 +240,19 @@ struct context_ENC_s {
     H264_CROP_PARAMS sCropParams;
     H264_VUI_PARAMS sVuiParams;
     FRAME_ORDER_INFO sFrameOrderInfo;
-    
-    IMG_UINT32  ui32MiscFlag;
+
     IMG_UINT32  ui32RawFrameCount;
     IMG_UINT32  ui32CoreRev;
     IMG_UINT32  ui32StreamID;
     IMG_UINT32  ui32FCode;
     IMG_UINT32  ui32BasicUnit;
-    IMG_INT     iFineYSearchSize;
     IMG_UINT8   ui8ProfileIdc;
     IMG_UINT8   ui8LevelIdc;
     IMG_UINT8   ui8FieldCount;
     IMG_UINT8   ui8VPWeightedImplicitBiPred;
     IMG_UINT8   ui8MaxNumRefFrames;
     IMG_UINT8   i8CQPOffset;
+    IMG_INT     iFineYSearchSize;
  
     IMG_UINT8   aui8CustomQuantParams4x4[6][16];
     IMG_UINT8   aui8CustomQuantParams8x8[2][64];

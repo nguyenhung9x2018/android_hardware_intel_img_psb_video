@@ -250,9 +250,11 @@ static VAStatus tng__H264ES_process_misc_framerate_param(context_ENC_p ctx, obje
     if (psMiscFrameRateParam == NULL)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
-    psRCParams->ui32FrameRate = psMiscFrameRateParam->framerate;
-    if (psRCParams->ui32FrameRate == 0)
-        psRCParams->ui32FrameRate = 30;
+    if ((psMiscFrameRateParam->framerate != psRCParams->ui32FrameRate) &&
+        (psMiscFrameRateParam->framerate > 0)) {
+        psRCParams->ui32FrameRate = psMiscFrameRateParam->framerate;
+        psRCParams->bBitrateChanged = IMG_TRUE;
+    }
 
     return VA_STATUS_SUCCESS;
 }
@@ -275,18 +277,19 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
         __FUNCTION__, psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
 #endif
 
+    if (psMiscRcParams->bits_per_second > TOPAZ_H264_MAX_BITRATE) {
+#ifdef _PDUMP_H264ES_FUNC_
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: bits_per_second(%d) exceeds \ the maximum bitrate, set it with %d\n",
+            __FUNCTION__, psMiscRcParams->bits_per_second, TOPAZ_H264_MAX_BITRATE);
+#endif
+        psMiscRcParams->bits_per_second = TOPAZ_H264_MAX_BITRATE;
+    }
 
     if ((psRCParams->ui32BitsPerSecond != psMiscRcParams->bits_per_second) && 
-        psMiscRcParams->bits_per_second != 0)
+        psMiscRcParams->bits_per_second != 0) {
         psRCParams->ui32BitsPerSecond = psMiscRcParams->bits_per_second;
-    
-    if (psRCParams->ui32BitsPerSecond > TOPAZ_H264_MAX_BITRATE) {
-        psRCParams->ui32BitsPerSecond = TOPAZ_H264_MAX_BITRATE;
-#ifdef _PDUMP_H264ES_FUNC_
-       drv_debug_msg(VIDEO_DEBUG_GENERAL,
-            "bits_per_second(%d) exceeds \ the maximum bitrate, set it with %d\n",
-            psRCParams->ui32BitsPerSecond, TOPAZ_H264_MAX_BITRATE);
-#endif
+        psRCParams->bBitrateChanged = IMG_TRUE;
     }
 
 #ifdef _PDUMP_H264ES_FUNC_
@@ -294,6 +297,9 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
         "%s: rate control changed from %d to %d\n", __FUNCTION__,
         psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
 #endif
+
+    if (psMiscRcParams->window_size != 0)
+        ctx->uiCbrBufferTenths = psMiscRcParams->window_size / 100;
 
     if (ctx->uiCbrBufferTenths) {
         psRCParams->ui32BufferSize = (IMG_UINT32)(psRCParams->ui32BitsPerSecond * ctx->uiCbrBufferTenths / 10.0);
@@ -313,12 +319,9 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
         __FUNCTION__, psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
 #endif
 
-    psRCParams->ui32BUSize = psMiscRcParams->basic_unit_size;
+    //psRCParams->ui32BUSize = psMiscRcParams->basic_unit_size;
     psRCParams->i32InitialDelay = (13 * psRCParams->ui32BufferSize) >> 4;
     psRCParams->i32InitialLevel = (3 * psRCParams->ui32BufferSize) >> 4;
-
-    psRCParams->ui32InitialQp = psMiscRcParams->initial_qp;
-    psRCParams->iMinQP = psMiscRcParams->min_qp;
 
     //free(psMiscRcParams);
     if (psRCParams->ui32InitialQp > 51 || psRCParams->iMinQP < 0) {
@@ -329,7 +332,8 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
-    ctx->ui32MiscFlag = 1;
+    psRCParams->ui32InitialQp = psMiscRcParams->initial_qp;
+    psRCParams->iMinQP = psMiscRcParams->min_qp;
 
     return VA_STATUS_SUCCESS;
 }
@@ -341,7 +345,7 @@ static VAStatus tng__H264ES_process_misc_hrd_param(context_ENC_p ctx, object_buf
     ASSERT(obj_buffer->type == VAEncMiscParameterTypeHRD);
     ASSERT(obj_buffer->size == sizeof(VAEncMiscParameterHRD));
     psMiscHrdParams = (VAEncMiscParameterHRD *)pBuffer->data;
-    //free(psMiscHrdParams);
+ 
     return VA_STATUS_SUCCESS;
 }
 
@@ -474,7 +478,6 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     }
     ctx->obj_context->frame_count = 0;
     psSeqParams = (VAEncSequenceParameterBufferH264 *) obj_buffer->buffer_data;
- 
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
@@ -490,11 +493,36 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
 	if (ui32_var_1 != 0)
         ctx->ui32IntraCnt = ctx->ui32IntraCnt + ui32_var_0 - ui32_var_1;
 
+    //bits per second
+    if (!psSeqParams->bits_per_second) {
+        psSeqParams->bits_per_second = ctx->ui16Width * ctx->ui16PictureHeight * 30 * 12;
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: bits_per_second is 0, set to %d\n",
+            __FUNCTION__, psSeqParams->bits_per_second);
+    }
+
+    if (psSeqParams->bits_per_second > TOPAZ_H264_MAX_BITRATE) {
+        psSeqParams->bits_per_second = TOPAZ_H264_MAX_BITRATE;
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: bits_per_second(%d) exceeds the maximum bitrate, set it with %d\n",
+            __FUNCTION__, psSeqParams->bits_per_second,
+            TOPAZ_H264_MAX_BITRATE);
+    }
+
+    if (psRCParams->ui32BitsPerSecond == 0)
+        psRCParams->ui32BitsPerSecond = psSeqParams->bits_per_second;
+
+    if (psSeqParams->bits_per_second != psRCParams->ui32BitsPerSecond) {
+        psRCParams->ui32BitsPerSecond = psSeqParams->bits_per_second;
+        psRCParams->bBitrateChanged = IMG_TRUE;
+    }
+
     psRCParams->ui32IntraFreq = psSeqParams->intra_period;
-    psRCParams->ui32BitsPerSecond = psSeqParams->bits_per_second;
     psRCParams->ui32TransferBitsPerSecond = psRCParams->ui32BitsPerSecond;
     psRCParams->ui16BFrames = (IMG_UINT16)(psSeqParams->ip_period - 1);
-    psRCParams->ui32FrameRate = 30;
+
+    if (psRCParams->ui32FrameRate == 0)
+        psRCParams->ui32FrameRate = 30;
 
     //set the B frames
     if (psRCParams->eRCMode == IMG_RCMODE_VCM)

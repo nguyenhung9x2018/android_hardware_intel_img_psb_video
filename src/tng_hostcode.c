@@ -3427,28 +3427,24 @@ static VAStatus tng__cmdbuf_send_picmgmt(context_ENC_p ctx, IMG_UINT32 ui32Strea
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
-//    H264_PICMGMT_UP_PARAMS *psPicmgmtUpParams = ctx->sPicmgmtUpParams;
 
-    if (ctx->ui32FrameCount[ui32StreamIndex] == 0) {
-        ctx->ui32MiscFlag = 0;
+    if (psRCParams->bBitrateChanged == IMG_FALSE) {
         return vaStatus;
     }
 
-    if (ctx->ui32MiscFlag != 0) {
-#ifdef _PDUMP_FUNC_
-        drv_debug_msg(VIDEO_DEBUG_GENERAL,
-            "%s: ui32BitsPerSecond = %d, ui32FrameRate = %d, ui32InitialQp\n",
-            __FUNCTION__, psRCParams->ui32BitsPerSecond,
-            psRCParams->ui32FrameRate, psRCParams->ui32InitialQp);
-        drv_debug_msg(VIDEO_DEBUG_GENERAL,
-		    "%s: frame_count[%d] = %d\n", __FUNCTION__,
-			ui32StreamIndex, ctx->ui32FrameCount[ui32StreamIndex]);
-#endif
-        tng_picmgmt_update(ctx, IMG_PICMGMT_RC_UPDATE,
-            (psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate), psRCParams->ui32InitialQp);
-    }
+    tng__setup_rcdata(ctx);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: ui32BitsPerSecond = %d, ui32FrameRate = %d, ui32InitialQp = %d\n",
+        __FUNCTION__, psRCParams->ui32BitsPerSecond,
+        psRCParams->ui32FrameRate, psRCParams->ui32InitialQp);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: frame_count[%d] = %d\n", __FUNCTION__,
+        ui32StreamIndex, ctx->ui32FrameCount[ui32StreamIndex]);
 
-    ctx->ui32MiscFlag = 0;
+    tng_picmgmt_update(ctx, IMG_PICMGMT_RC_UPDATE,
+        (psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate), psRCParams->ui32InitialQp);
+
+    psRCParams->bBitrateChanged = IMG_FALSE;
     return vaStatus;
 }
 
@@ -3481,7 +3477,9 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
     unsigned char is_JPEG;
 
 #ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ctx->ui8SlicesPerPicture = %d, ctx->ui32StreamID = %d\n", __FUNCTION__, ctx->ui8SlicesPerPicture, ctx->ui32StreamID);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: ctx->ui8SlicesPerPicture = %d, ctx->ui32StreamID = %d\n",
+         __FUNCTION__, ctx->ui8SlicesPerPicture, ctx->ui32StreamID);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ctx->ui32FrameCount[0] = %d, ctx->ui32FrameCount[1] = %d\n", __FUNCTION__, ctx->ui32FrameCount[0], ctx->ui32FrameCount[1]);
 #endif
 

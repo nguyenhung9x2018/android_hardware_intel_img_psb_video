@@ -365,6 +365,8 @@ typedef struct _RC_PARAMS_ {
     IMG_RCMODE  eRCMode;
     IMG_UINT8   u8Slices;
     IMG_INT8    i8QCPOffset;
+
+    IMG_BOOL    bBitrateChanged;
 } IMG_RC_PARAMS;
 
 /*!
