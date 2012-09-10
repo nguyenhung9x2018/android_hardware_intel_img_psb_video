@@ -208,11 +208,18 @@ typedef struct tag_IMG_BUFFER_PARAMS {
     IMG_BUFFER_DATA sData;                          //!< Supplementary data (depends on the type of the buffer)
 } IMG_BUFFER_PARAMS;
 
-IMG_UINT32 tng_skip_frame(context_ENC_p ctx, IMG_UINT8 ui32SlotIndex, IMG_BOOL bProcess);
-IMG_UINT32 tng_end_of_stream(context_ENC_p ctx, IMG_UINT8 ui32SlotIndex, IMG_UINT32 ui32FrameCount);
+/***********************************************************************************
+@PICMGMT - functions
+************************************************************************************/
+VAStatus tng_picmgmt_update(context_ENC_p ctx, int type, unsigned int ref0, unsigned int ref1);
+
+/***********************************************************************************
+@PROVIDE_BUFFER - functions
+************************************************************************************/
+
 IMG_UINT32 tng_send_codedbuf(context_ENC_p ctx, IMG_UINT32 ui32SlotIndex);
 IMG_UINT32 tng_send_source_frame(context_ENC_p ctx, IMG_UINT32 ui32SlotIndex, IMG_UINT32 ui32DisplayOrder);
-IMG_UINT32 tng_send_rec_frames(context_ENC_p ctx, IMG_BOOL bLongTerm, IMG_INT8 i8HeaderSlotNum);
+IMG_UINT32 tng_send_rec_frames(context_ENC_p ctx, IMG_INT8 i8HeaderSlotNum, IMG_BOOL bLongTerm);
 IMG_UINT32 tng_send_ref_frames(context_ENC_p ctx, IMG_UINT32 ui32RefIndex, IMG_BOOL bLongTerm);
 
 #endif //_TNG_PICMGMT_H_

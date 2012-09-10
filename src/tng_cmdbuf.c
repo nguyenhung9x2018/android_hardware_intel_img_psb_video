@@ -29,7 +29,6 @@
  *
  */
 
-
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -189,6 +188,7 @@ VAStatus tng_cmdbuf_create(
     } else {
         memset(cmdbuf->picmgmt_mem_p, 0, COMM_CMD_PICMGMT_BUF_NUM * cmdbuf->mem_size);
     }
+    psb_buffer_unmap(&cmdbuf->picmgmt_mem);
 
     /* all cmdbuf share one MTX_CURRENT_IN_PARAMS since every MB has a MTX_CURRENT_IN_PARAMS structure
      * and filling this structure for all MB is very time-consuming

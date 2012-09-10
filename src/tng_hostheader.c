@@ -85,7 +85,7 @@ static void Show_Bits(
 
 static void Show_Elements(
     MTX_HEADER_PARAMS *mtx_hdr,
-    MTX_HEADER_ELEMENT **elt_p)
+    MTX_HEADER_ELEMENT **aui32ElementPointers)
 {
     IMG_UINT8 f;
     IMG_UINT32 TotalByteSize;
@@ -94,14 +94,14 @@ static void Show_Elements(
     RTotalByteSize = TotalByteSize = 0;
     for (f = 0; f < mtx_hdr->ui32Elements; f++) {
 #if HEADERS_VERBOSE_OUTPUT
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, ("Encoding Element [%i] - Type:%i\n", f, elt_p[f]->Element_Type);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, ("Encoding Element [%i] - Type:%i\n", f, aui32ElementPointers[f]->Element_Type);
 #endif
-        if (elt_p[f]->Element_Type == ELEMENT_STARTCODE_RAWDATA ||
-            elt_p[f]->Element_Type == ELEMENT_RAWDATA) {
-            TotalByteSize = elt_p[f]->ui8Size;
+        if (aui32ElementPointers[f]->Element_Type == ELEMENT_STARTCODE_RAWDATA ||
+            aui32ElementPointers[f]->Element_Type == ELEMENT_RAWDATA) {
+            TotalByteSize = aui32ElementPointers[f]->ui8Size;
 #if HEADERS_VERBOSE_OUTPUT
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, ("Writing %i RAW bits to element.\n", elt_p[f]->ui8Size);
-            Show_Bits((IMG_UINT8 *)(&elt_p[f]->ui8Size) + 1, 0, TotalByteSize);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, ("Writing %i RAW bits to element.\n", aui32ElementPointers[f]->ui8Size);
+            Show_Bits((IMG_UINT8 *)(&aui32ElementPointers[f]->ui8Size) + 1, 0, TotalByteSize);
 #endif
             TotalByteSize += 8;
 
@@ -109,7 +109,7 @@ static void Show_Elements(
             RTotalByteSize += 32;
         } else {
             TotalByteSize = 0;
-            switch (elt_p[f]->Element_Type) {
+            switch (aui32ElementPointers[f]->Element_Type) {
             case ELEMENT_QP:
 #if HEADERS_VERBOSE_OUTPUT
                 drv_debug_msg(VIDEO_DEBUG_GENERAL, ("Insert token ELEMENT_QP (H264)- for MTX to generate and insert this value\n");
@@ -151,7 +151,7 @@ static void Show_Elements(
         }
     }
 
-    /* TotalByteSize=TotalByteSize+32+(&elt_p[f-1]->Element_Type-&elt_p[0]->Element_Type)*8; */
+    /* TotalByteSize=TotalByteSize+32+(&aui32ElementPointers[f-1]->Element_Type-&aui32ElementPointers[0]->Element_Type)*8; */
 
 #if HEADERS_VERBOSE_OUTPUT
     drv_debug_msg(VIDEO_DEBUG_GENERAL, ("\nCombined ELEMENTS Stream:\n");
@@ -201,6 +201,12 @@ static void tng__write_upto8bits_elements(
 #ifdef _TOPAZHP_PDUMP_BITS_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "WBS(8) bits %x, cnt = %d\n", ui8WriteBits, ui16BitCnt);
 #endif
+
+    /* WA for klockwork */
+    if (pMTX_Header->ui32Elements >= MAXNUMBERELEMENTS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "mtx_hdr->ui32Elments overflow\n");
+        return;
+    }
     // First ensure that unused bits  in ui8WriteBits are zeroed
     ui8WriteBits &= (0x00ff >> (8 - ui16BitCnt));
     InputVal.UI16Input=0;
@@ -331,6 +337,14 @@ static void tng__insert_element_token(
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
     "%s: in element = %d, Token = %d\n", __FUNCTION__, pMTX_Header->ui32Elements, ui32Token);
 #endif
+
+    /* WA for klockwork */
+    if ((pMTX_Header->ui32Elements != ELEMENTS_EMPTY) &&
+        (pMTX_Header->ui32Elements >= MAXNUMBERELEMENTS)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "mtx_hdr->ui32Elments overflow\n");
+        return;
+    }
+
 
     if (pMTX_Header->ui32Elements!=ELEMENTS_EMPTY) {
         if (aui32ElementPointers[pMTX_Header->ui32Elements]->Element_Type==ELEMENT_STARTCODE_RAWDATA ||
@@ -1016,18 +1030,18 @@ static void tng__H264_getelements_skip_P_slice(
      * Essential we initialise our header structures before building
      */
     MTX_HEADER_ELEMENT *This_Element;
-    MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+    MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
     mtx_hdr->ui32Elements = ELEMENTS_EMPTY;
     This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0] = This_Element;
+    aui32ElementPointers[0] = This_Element;
 
     /* tng__insert_element_token(mtx_hdr, ELEMENT_STARTCOUNTER); */
     /* Not sure if this will be required in the final spec */
-    tng__H264ES_writebits_slice_header(mtx_hdr, elt_p, pSlHParams, bCabacEnabled);
-    tng__generate_ue(mtx_hdr, elt_p, MB_No_In_Slice); /* mb_skip_run = mb_no_in_slice */
+    tng__H264ES_writebits_slice_header(mtx_hdr, aui32ElementPointers, pSlHParams, bCabacEnabled);
+    tng__generate_ue(mtx_hdr, aui32ElementPointers, MB_No_In_Slice); /* mb_skip_run = mb_no_in_slice */
 
     /* Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point) */
-    tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_H264);
+    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_INSERTBYTEALIGN_H264);
     mtx_hdr->ui32Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 
@@ -1042,12 +1056,12 @@ static void tng__H264_getelements_sequence_header(
      * Essential we initialise our header structures before building
      */
     MTX_HEADER_ELEMENT *This_Element;
-    MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+    MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
     mtx_hdr->ui32Elements = ELEMENTS_EMPTY;
     This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0] = This_Element;
+    aui32ElementPointers[0] = This_Element;
 
-    tng__H264ES_writebits_sequence_header(mtx_hdr, elt_p, pSHParams, psCropParams, NULL);
+    tng__H264ES_writebits_sequence_header(mtx_hdr, aui32ElementPointers, pSHParams, psCropParams, NULL);
     mtx_hdr->ui32Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 #endif
@@ -1058,12 +1072,12 @@ static void tng__H264_getelements_sequence_header(
 //* Essential we initialise our header structures before building
 //*/
 //MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
 //mtx_hdr->Elements=ELEMENTS_EMPTY;
 //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
+//aui32ElementPointers[0]=This_Element;
 //
-//tng__H264ES_writebits_picture_header(mtx_hdr, elt_p);
+//tng__H264ES_writebits_picture_header(mtx_hdr, aui32ElementPointers);
 //mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
 //}
 
@@ -1430,38 +1444,6 @@ void H263_NOTFORSIMS_WriteBits_GOBSliceHeader(MTX_HEADER_PARAMS *pMTX_Header, MT
 }
 
 
-//static void tng__H264_getelements_endofsequence_header(
-//MTX_HEADER_PARAMS *mtx_hdr)
-//{
-///* Builds a single endofsequence header from the given parameters (mid frame) */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//tng__H264_writebits_endofsequence_header(mtx_hdr, elt_p);
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
-
-
-//static void tng__H264_getelements_endofstream_header(MTX_HEADER_PARAMS *mtx_hdr)
-//{
-///* Builds a single endofstream header from the given parameters (mid frame) */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//tng__H264_writebits_endofstream_header(mtx_hdr, elt_p);
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
 
 static IMG_UINT8 Bits2Code(IMG_UINT32 CodeVal)
 {
@@ -1675,7 +1657,7 @@ static void tng__MPEG4_writebits_sequence_header(
 /* MPEG 4 VOP (Picture) Header */
 static void tng__MPEG4_writebits_VOP_header(
     MTX_HEADER_PARAMS *mtx_hdr,
-    MTX_HEADER_ELEMENT **elt_p,
+    MTX_HEADER_ELEMENT **aui32ElementPointers,
     IMG_BOOL    bIsVOP_coded,
     IMG_UINT8   VOP_time_increment,
     SEARCH_RANGE_TYPE sSearch_range,
@@ -1684,77 +1666,77 @@ static void tng__MPEG4_writebits_VOP_header(
 {
     IMG_BOOL bIsSyncPoint;
     /* Essential we insert the element before we try to fill it! */
-    tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
+    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
 
     /* visual_object_sequence_start_code        = 32 Bits       = 0x1B6 */
-    tng__write_upto32bits_elements(mtx_hdr, elt_p, 438, 32);
+    tng__write_upto32bits_elements(mtx_hdr, aui32ElementPointers, 438, 32);
 
     /* vop_coding_type  = 2 Bits = 0 for I-frame and 1 for P-frame */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, sVopCodingType, 2);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, sVopCodingType, 2);
     bIsSyncPoint = (VOP_time_increment > 1) && ((VOP_time_increment) % VopTimeResolution == 0);
 
 #ifndef MATCH_TO_ENC
     /* modulo_time_base = 1 Bit = 0 As at least  1 synchronization point (I-frame) per second in Topaz */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
 #else
 
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, bIsSyncPoint  ? 2 : 0 , bIsSyncPoint ? 2 : 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, bIsSyncPoint  ? 2 : 0 , bIsSyncPoint ? 2 : 1);
 
 #endif
 
     /* marker_bit = 1   Bits    = 1      */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 1);
 
 #ifndef MATCH_TO_ENC
     /* vop_time_increment = Variable bits based on resolution
      *  = x Reset to 0 at I-frame and plus fixed_vop_time_increment each frame
      */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, VOP_time_increment, 5);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, VOP_time_increment, 5);
 #else
     /* will chrash here... */
     tng__write_upto8bits_elements(
-        mtx_hdr, elt_p,
+        mtx_hdr, aui32ElementPointers,
         (VOP_time_increment) % VopTimeResolution,
         Bits2Code(VopTimeResolution - 1));
 
 #endif
     /* marker_bit = 1 Bit               = 1      */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 1);
 
     if (!bIsVOP_coded) {
         /* vop_coded    = 1 Bit         = 0 for skipped frame */
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
 
         /* byte_aligned_bits (skipped pictures are byte aligned) */
         /* Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point)
          * End of VOP - skipped picture
          */
-        tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_MPG4);
+        tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_INSERTBYTEALIGN_MPG4);
     } else {
         /* vop_coded = 1 Bit            = 1 for normal coded frame */
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 1);
 
         if (sVopCodingType == P_FRAME) {
             /* vop_rounding_type = 1 Bit = 0 vop_rounding_type is 0 in Topaz */
-            tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
         }
 
         /* intra_dc_vlc_thr = 3 Bits = 0 Use intra DC VLC in Topaz */
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 3);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 3);
 
         /* vop_quant = 5 Bits   = x     5-bit frame Q_scale from rate control - GENERATED BY MTX */
-        /* tng__write_upto8bits_elements(mtx_hdr, elt_p, Frame_Q_scale, 5); */
-        tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_FRAMEQSCALE);
+        /* tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, Frame_Q_scale, 5); */
+        tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_FRAMEQSCALE);
 
         if (sVopCodingType == P_FRAME) {
             /* vop_fcode_forward = 3 bits       = 2 for +/-32 and 3 for +/-64 search range  */
-            tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
-            tng__write_upto8bits_elements(mtx_hdr, elt_p, sSearch_range, 3);
+            tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_RAWDATA);
+            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, sSearch_range, 3);
         }
 
         /*
         **** THE FINAL PART OF VOP STRUCTURE CAN'T BE GENERATED HERE
-        tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
+        tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_RAWDATA);
         video_packet_data ( )                   = 1st  VP that doesn’t have the VP header
 
         while (nextbits_bytealigned ( ) == resync_marker)
@@ -1766,222 +1748,49 @@ static void tng__MPEG4_writebits_VOP_header(
     }
 }
 
-
-/* MPEG 4 Video Packet (Slice) Header */
-//static void tng__MPEG4_writebits_videopacket_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//MTX_HEADER_ELEMENT **elt_p,
-//VOP_CODING_TYPE eVop_Coding_Type,
-//IMG_UINT8 Fcode,
-//IMG_UINT32 MBNumber,
-//IMG_UINT32 MBNumberlength,
-//IMG_BOOL bHeader_Extension_Code,
-//IMG_UINT8 VOP_Time_Increment,
-//SEARCH_RANGE_TYPE sSearch_range)
-//{
-///* Essential we insert the element before we try to fill it! */
-//tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
-//
-//if (eVop_Coding_Type == I_FRAME)
-//{
-///* resync_marker      = 17 bit        =0x1    17-bit for I-frame */
-//tng__write_upto32bits_elements(mtx_hdr, elt_p, 1, 17);
-//}
-//else
-//{
-///* resync_marker = 17 bit     =0x1    (16+fcode) bits for P-frame */
-//tng__write_upto32bits_elements(mtx_hdr, elt_p, 1, 16+Fcode);
-//}
-//
-///* macroblock_number = 1-14 bits      = ?????? */
-//tng__write_upto32bits_elements(mtx_hdr, elt_p, MBNumber, MBNumberlength);
-//
-///* quant_scale = 5 bits       =1-32   VP (Slice) Q_scale
-//* tng__write_upto8bits_elements(mtx_hdr, elt_p, VP_Slice_Q_Scale, 5);
-//*/
-//tng__insert_element_token(
-//mtx_hdr, elt_p,
-//ELEMENT_SLICEQSCALE); /* Insert token to tell MTX to insert rate-control value */
-//
-//tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA); /* Begin writing rawdata again */
-//
-//if (bHeader_Extension_Code)
-//{
-///* header_extension_code = 1bit = 1   picture header parameters are repeated */
-//tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-//
-///* modulo_time_base = 1 bit = 0       The same as it is in the current picture header */
-//tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-//
-///* marker_bit = 1 bit         = 1 */
-//tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-//
-///* vop_time_increment = 5 bits        = 0-30  The same as it is in the current picture header */
-//tng__write_upto8bits_elements(mtx_hdr, elt_p, VOP_Time_Increment, 5);
-//
-///* marker_bit = 1 bit         = 1      */
-//tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-//
-///* vop_coding_type= 2 bits    = 0/1 The same as it is in the current picture header */
-//tng__write_upto8bits_elements(mtx_hdr, elt_p, eVop_Coding_Type, 2);
-//
-///* intra_dc_vlc_thr = 3 bits  = 0 The same as it is in the current picture header */
-//tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 3);
-//
-//if (eVop_Coding_Type == P_FRAME)
-//{
-///* vop_fcode_forward = 3 bits = 2/3 The same as it is in the current picture header */
-//tng__write_upto8bits_elements(mtx_hdr, elt_p, sSearch_range, 3);
-//}
-//}
-//else
-//{
-///* header_extension_code = 1 bits =0  picture header parameters are NOT repeated */
-//tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-//}
-//}
-
-/*
- * High level functions to call when a MPEG4 header is required - HOST ROUTINES
- */
-//static void tng__MPEG4_getelements_sequence_header (
-//MTX_HEADER_PARAMS *mtx_hdr,
-//IMG_BOOL bBFrame,
-//MPEG4_PROFILE_TYPE sProfile,
-//IMG_UINT8 Profile_and_level_indication,
-//FIXED_VOP_TIME_TYPE sFixed_vop_time_increment,
-//IMG_UINT32 Picture_Width_Pixels,
-//IMG_UINT32 Picture_Height_Pixels,
-//VBVPARAMS *sVBVParams,
-//IMG_UINT32 VopTimeResolution) /* NULL pointer if there are no VBVParams */
-//{
-///* Builds a single MPEG4 video sequence header from the given parameters */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//tng__MPEG4_writebits_sequence_header(
-//mtx_hdr,
-//elt_p,
-//bBFrame, sProfile,
-//Profile_and_level_indication,
-//sFixed_vop_time_increment,
-//Picture_Width_Pixels,
-//Picture_Height_Pixels,
-//sVBVParams,VopTimeResolution);
-//
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
-
-/* MPEG 4 VOP (Picture) Header */
-//static void tng__MPEG4_getelements_VOP_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//IMG_BOOL      bIsVOP_coded,
-//IMG_UINT8     VOP_time_increment,
-//SEARCH_RANGE_TYPE sSearch_range,
-//VOP_CODING_TYPE sVopCodingType,
-//IMG_UINT32 VopTimeResolution)
-//{
-///* Builds a single MPEG4 VOP (picture) header from the given parameters */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-///* Frame QScale no longer written here as it is inserted by MTX later
-//* (add as parameter to MTX_Send_Elements_To_VLC)
-//*/
-//tng__MPEG4_writebits_VOP_header(
-//mtx_hdr, elt_p, bIsVOP_coded,
-//VOP_time_increment,
-//sSearch_range,
-//sVopCodingType,VopTimeResolution);
-//
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
-
-//static void tng_MPEG4_getelements_video_packet_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//VOP_CODING_TYPE eVop_Coding_Type,
-//IMG_UINT8 Fcode,
-//IMG_UINT32 MBNumber,
-//IMG_UINT32 MBNumberlength,
-//IMG_BOOL bHeader_Extension_Code,
-//IMG_UINT8 VOP_Time_Increment,
-//SEARCH_RANGE_TYPE sSearch_range)
-//{
-///* Builds a single MPEG4 video packet (slice) header from the given parameters */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-///* Slice QScale no longer written here as it is inserted by MTX later
-//* (add as parameter when sending to VLC)
-//*/
-//tng__MPEG4_writebits_videopacket_header(
-//mtx_hdr, elt_p, eVop_Coding_Type,
-//Fcode, MBNumber, MBNumberlength,
-//bHeader_Extension_Code, VOP_Time_Increment, sSearch_range);
-//
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
 /*
  * Intermediary functions to build H263 headers
  */
 static void H263_writebits_VideoSequenceHeader(
     MTX_HEADER_PARAMS *mtx_hdr,
-    MTX_HEADER_ELEMENT **elt_p,
+    MTX_HEADER_ELEMENT **aui32ElementPointers,
     IMG_UINT8 Profile_and_level_indication)
 {
     /* Essential we insert the element before we try to fill it! */
-    tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
+    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
 
     /* visual_object_sequence_start_code        = 32 Bits       = 0x1B0 */
-    tng__write_upto32bits_elements(mtx_hdr, elt_p, 432, 32);
+    tng__write_upto32bits_elements(mtx_hdr, aui32ElementPointers, 432, 32);
 
     /* profile_and_level_indication = 8 Bits =  x SP L0-L3 and SP L4-L5 are supported */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, Profile_and_level_indication, 8);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, Profile_and_level_indication, 8);
 
     /* visual_object_start_code = 32 Bits       = 0x1B5 */
 
     /* 437 too large for the   tng__write_upto32bits_elements function */
-    tng__write_upto32bits_elements(mtx_hdr, elt_p, 437, 32);
+    tng__write_upto32bits_elements(mtx_hdr, aui32ElementPointers, 437, 32);
 
     /* is_visual_object_identifier = 1 Bit              = 0 */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
 
     /* is_visual_object_type    = 4 Bits        = 1 Video ID */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 4);
 
     /* video_signal_type = 1 Bit                = 0      */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
 
     /* byte_aligned_bits = 2 Bits = 01b byte_aligned_bits is 2-bit stuffing bit field 01 */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 2);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 2);
 
     /* video_object_start_code  =32 Bits        = 0x100 One VO only in a Topaz video stream */
-    tng__write_upto32bits_elements(mtx_hdr, elt_p, 256, 32);
+    tng__write_upto32bits_elements(mtx_hdr, aui32ElementPointers, 256, 32);
 
     return;
 }
 
 static void H263_writebits_VideoPictureHeader(
     MTX_HEADER_PARAMS *mtx_hdr,
-    MTX_HEADER_ELEMENT **elt_p,
+    MTX_HEADER_ELEMENT **aui32ElementPointers,
     IMG_UINT8 Temporal_Ref,
     H263_PICTURE_CODING_TYPE PictureCodingType,
     //IMG_UINT8 Q_Scale,
@@ -1994,31 +1803,31 @@ static void H263_writebits_VideoPictureHeader(
     IMG_UINT8 OCPCF = 0;
 
     /* Essential we insert the element before we try to fill it! */
-    tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
+    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
 
     /* short_video_start_marker = 22 Bits       = 0x20 Picture start code */
-    tng__write_upto32bits_elements(mtx_hdr, elt_p, 32, 22);
+    tng__write_upto32bits_elements(mtx_hdr, aui32ElementPointers, 32, 22);
 
     /* temporal_reference = 8 Bits      = 0-255 Each picture increased by 1 */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, Temporal_Ref, 8);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, Temporal_Ref, 8);
 
     /* marker_bit = 1 Bit = 1    */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 1);
 
     /* zero_bit = 1 Bits        = 0      */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
 
     /* split_screen_indicator   = 1     Bits    = 0     No direct effect on encoding of picture */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
 
     /* document_camera_indicator= 1     Bits    = 0     No direct effect on encoding of picture */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
 
     /* full_picture_freeze_release=1 Bits       = 0     No direct effect on encoding of picture */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
 
     /* source_format                            = 3     Bits    = 1-4   See note */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, SourceFormatType, 3);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, SourceFormatType, 3);
 
     /*Write optional Custom Picture Clock Frequency(OCPCF)*/
     if (FrameRate == 30 || FrameRate == 0/* unspecified */) {
@@ -2029,9 +1838,9 @@ static void H263_writebits_VideoPictureHeader(
 
     if (SourceFormatType != 7) {
         // picture_coding_type          = 1 Bit         = 0/1   0 for I-frame and 1 for P-frame
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 1);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, PictureCodingType, 1);
         // four_reserved_zero_bits      = 4 Bits        = 0
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 4);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 4);
     } else {
         static unsigned char  RTYPE = 0;
 
@@ -2041,10 +1850,10 @@ static void H263_writebits_VideoPictureHeader(
         } else {
             UFEP = 0;
         }
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, UFEP, 3);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, UFEP, 3);
         if (UFEP == 1) {
-            tng__write_upto8bits_elements(mtx_hdr, elt_p, 6, 3);
-            tng__write_upto8bits_elements(mtx_hdr, elt_p, OCPCF , 1);
+            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 6, 3);
+            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, OCPCF , 1);
 
             /* 10 reserve bits ( Optional support for the encoding). All are OFF(0).
              *  - Optional Unrestricted Motion Vector (UMV)
@@ -2058,46 +1867,46 @@ static void H263_writebits_VideoPictureHeader(
              *  - Optional Alternative INTER VLC (AIV) mode
              *  - Optional Modified Quantization (MQ) mode */
 
-            tng__write_upto32bits_elements(mtx_hdr, elt_p, 0, 10);
+            tng__write_upto32bits_elements(mtx_hdr, aui32ElementPointers, 0, 10);
             // 10 reserve bits
-            tng__write_upto8bits_elements(mtx_hdr, elt_p, 8, 4);
+            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 8, 4);
             // 4 reserve bits
         }
         // picture_coding_type          = 1 Bit         = 0/1   0 for I-frame and 1 for P-frame
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, PictureCodingType, 3);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, PictureCodingType, 3);
 
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 2);
         // two_reserve_bits,      rounding_type,       two_reserve_bits       marker_bit       CPM
         // Rounding Type (RTYPE) (1 for P Picture, 0 for all other Picture frames.
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, RTYPE, 1);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, RTYPE, 1);
         //2 reserve bits
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 2);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 2);
         //   - 1 (ON) to prevent start code emulation.
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, 1 , 1);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1 , 1);
         // CPM immediately follows the PPTYPE part of the header.
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, 0 , 1);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0 , 1);
 
 
         if (UFEP == 1) {
             IMG_UINT16 ui16PWI, ui16PHI;
-            tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 4);
+            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 4);
             // aspect ratio
             //PictureWidth--;
-            //tng__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth >> 8), 1);
-            //tng__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureWidth & 0xFF), 8);
+            //tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, (IMG_UINT8)(PictureWidth >> 8), 1);
+            //tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, (IMG_UINT8)(PictureWidth & 0xFF), 8);
             //Width = (PWI-1)*4, Height = PHI*4, see H263 spec 5.1.5
             ui16PWI = (PictureWidth >> 2) - 1;
-            tng__write_upto32bits_elements(mtx_hdr, elt_p, (IMG_UINT8)ui16PWI, 9);
+            tng__write_upto32bits_elements(mtx_hdr, aui32ElementPointers, (IMG_UINT8)ui16PWI, 9);
 
-            tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 1);
             // marker_bit                               = 1 Bit         = 1
-            //tng__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight >> 8), 1);
-            //tng__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)(PictureHeight & 0xFF), 8);
+            //tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, (IMG_UINT8)(PictureHeight >> 8), 1);
+            //tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, (IMG_UINT8)(PictureHeight & 0xFF), 8);
 
             ui16PHI = PictureHeight >> 2;
-            tng__write_upto32bits_elements(mtx_hdr, elt_p, (IMG_UINT8)ui16PHI, 9);
+            tng__write_upto32bits_elements(mtx_hdr, aui32ElementPointers, (IMG_UINT8)ui16PHI, 9);
             // good up to that point
-            //  tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+            //  tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 1);
             // marker_bit                               = 1 Bit         = 1
             // just checking
             if (OCPCF == 1) {
@@ -2105,9 +1914,9 @@ static void H263_writebits_VideoPictureHeader(
                 //CPCFC = (IMG_UINT8)(1800/(IMG_UINT16)FrameRate);
                 /* you can use the table for division */
                 //CPCFC <<= 1; /* for Clock Conversion Code */
-                tng__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
+                tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 1);
                 // Clock Divisor : 7 bits The natural binary representation of the value of the clock divisor.
-                tng__write_upto8bits_elements(mtx_hdr, elt_p, 1800000 / (FrameRate * 1000), 7);
+                tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1800000 / (FrameRate * 1000), 7);
             }
         }
         if (OCPCF == 1) {
@@ -2115,21 +1924,21 @@ static void H263_writebits_VideoPictureHeader(
             // Two MSBs of 10 bit temporal_reference : value 0
             ui8ETR = Temporal_Ref >> 8;
 
-            tng__write_upto8bits_elements(mtx_hdr, elt_p, ui8ETR, 2);
+            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, ui8ETR, 2);
             /* Two MSBs of temporal_reference */
         }
     }
     // vop_quant                                = 5 Bits        = x     5-bit frame Q_scale from rate control - GENERATED BY MTX
-    //tng__write_upto8bits_elements(mtx_hdr, elt_p, ui8Q_Scale, 5);
-    tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_FRAMEQSCALE); // Insert token to tell MTX to insert rate-control value (QScale is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, FrameQScale))
-    tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
+    //tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, ui8Q_Scale, 5);
+    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_FRAMEQSCALE); // Insert token to tell MTX to insert rate-control value (QScale is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, FrameQScale))
+    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_RAWDATA);
     // zero_bit                                 = 1 Bit         = 0
     // pei                                              = 1 Bit         = 0     No direct effect on encoding of picture
     if (SourceFormatType != 7) {
-        tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+        tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
     }
 
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
     // FOLLOWING SECTION CAN'T BE GENERATED HERE
     //gob_data( )
     //for(i=1; i<num_gob_in_picture; i++) {
@@ -2141,29 +1950,29 @@ static void H263_writebits_VideoPictureHeader(
 
 static void H263_writebits_GOBSliceHeader(
     MTX_HEADER_PARAMS *mtx_hdr,
-    MTX_HEADER_ELEMENT **elt_p,
+    MTX_HEADER_ELEMENT **aui32ElementPointers,
     IMG_UINT8 GOBNumber,
     IMG_UINT8 GOBFrameId)
 {
     /* Essential we insert the element before we try to fill it! */
-    tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
+    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
 
     /* gob_resync_marker                = 17            = 0x1 */
-    tng__write_upto32bits_elements(mtx_hdr, elt_p, 1, 17);
+    tng__write_upto32bits_elements(mtx_hdr, aui32ElementPointers, 1, 17);
 
     /* gob_number = 5   = 0-17  It is gob number in a picture */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, GOBNumber, 5);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, GOBNumber, 5);
 
     /* gob_frame_id     = 2 = 0-3       See note */
-    tng__write_upto8bits_elements(mtx_hdr, elt_p, GOBFrameId, 2);
+    tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, GOBFrameId, 2);
 
     /* quant_scale      = 5     = 1-32  gob (Slice) Q_scale  */
-    /* tng__write_upto8bits_elements(mtx_hdr, elt_p, GOB_Q_Scale, 5); */
+    /* tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, GOB_Q_Scale, 5); */
 
     /* Insert token to tell MTX to insert rate-control value
      *  (QScale is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, SliceQScale))
      */
-    tng__insert_element_token(mtx_hdr, elt_p, ELEMENT_SLICEQSCALE);
+    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_SLICEQSCALE);
     return;
 }
 
@@ -2178,12 +1987,12 @@ static void H263_writebits_GOBSliceHeader(
 //
 ///* Essential we initialise our header structures before building */
 //MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
 //mtx_hdr->Elements=ELEMENTS_EMPTY;
 //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
+//aui32ElementPointers[0]=This_Element;
 //
-//H263_writebits_VideoSequenceHeader(mtx_hdr, elt_p, Profile_and_level_indication);
+//H263_writebits_VideoSequenceHeader(mtx_hdr, aui32ElementPointers, Profile_and_level_indication);
 //
 //mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 //}
@@ -2199,13 +2008,13 @@ static void H263_writebits_GOBSliceHeader(
 //{
 ///* Essential we initialise our header structures before building */
 //MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
 //mtx_hdr->Elements=ELEMENTS_EMPTY;
 //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
+//aui32ElementPointers[0]=This_Element;
 //
 //H263_writebits_VideoPictureHeader(
-//mtx_hdr, elt_p,
+//mtx_hdr, aui32ElementPointers,
 //Temporal_Ref,
 //PictureCodingType,
 //SourceFormatType,
@@ -2223,12 +2032,12 @@ static void H263_writebits_GOBSliceHeader(
 //{
 ///* Essential we initialise our header structures before building */
 //MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+//MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
 //mtx_hdr->Elements=ELEMENTS_EMPTY;
 //This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
+//aui32ElementPointers[0]=This_Element;
 //
-//H263_writebits_GOBSliceHeader(mtx_hdr, elt_p, GOBNumber, GOBFrameId);
+//H263_writebits_GOBSliceHeader(mtx_hdr, aui32ElementPointers, GOBNumber, GOBFrameId);
 //
 //mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
 //}
@@ -2847,10 +2656,10 @@ void tng__H264ES_prepare_sequence_header(
     /* Route output elements to memory provided */
     MTX_HEADER_PARAMS  *mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
     MTX_HEADER_ELEMENT *This_Element;
-    MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+    MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
     mtx_hdr->ui32Elements = ELEMENTS_EMPTY;
     This_Element = mtx_hdr->asElementStream;
-    elt_p[0] = This_Element;
+    aui32ElementPointers[0] = This_Element;
 
     memset(&SHParams, 0, sizeof(H264_SEQUENCE_HEADER_PARAMS));
 
@@ -2874,7 +2683,7 @@ void tng__H264ES_prepare_sequence_header(
 #ifdef _PDUMP_SEQ_HEADER
     tng_trace_seq_header_params(&SHParams);
 #endif
-    tng__H264ES_writebits_sequence_header(mtx_hdr, elt_p, &SHParams, psCropParams, NULL, bASO);
+    tng__H264ES_writebits_sequence_header(mtx_hdr, aui32ElementPointers, &SHParams, psCropParams, NULL, bASO);
     mtx_hdr->ui32Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 
@@ -3337,16 +3146,16 @@ void tng__MPEG4_prepare_vop_header(
     /* Builds a single MPEG4 VOP (picture) header from the given parameters */
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
-    MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+    MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
     mtx_hdr->ui32Elements = ELEMENTS_EMPTY;
     This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0] = This_Element;
+    aui32ElementPointers[0] = This_Element;
 
     /* Frame QScale no longer written here as it is inserted by MTX later
      * (add as parameter to MTX_Send_Elements_To_VLC)
      */
     tng__MPEG4_writebits_VOP_header(
-        mtx_hdr, elt_p, bIsVOP_coded,
+        mtx_hdr, aui32ElementPointers, bIsVOP_coded,
         VOP_time_increment,
         sSearch_range,
         eVop_Coding_Type,
@@ -3368,12 +3177,12 @@ void tng__H263_prepare_sequence_header(
 
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
-    MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+    MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
     mtx_hdr->ui32Elements = ELEMENTS_EMPTY;
     This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0] = This_Element;
+    aui32ElementPointers[0] = This_Element;
 
-    H263_writebits_VideoSequenceHeader(mtx_hdr, elt_p, Profile_and_level_indication);
+    H263_writebits_VideoSequenceHeader(mtx_hdr, aui32ElementPointers, Profile_and_level_indication);
 
     mtx_hdr->ui32Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 
@@ -3394,13 +3203,13 @@ void tng__H263_prepare_picture_header(
 
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
-    MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+    MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
     mtx_hdr->ui32Elements = ELEMENTS_EMPTY;
     This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0] = This_Element;
+    aui32ElementPointers[0] = This_Element;
 
     H263_writebits_VideoPictureHeader(
-        mtx_hdr, elt_p,
+        mtx_hdr, aui32ElementPointers,
         Temporal_Ref,
         PictureCodingType,
         SourceFormatType,
@@ -3422,12 +3231,12 @@ void tng__H263_prepare_GOBslice_header(
 
     /* Essential we initialise our header structures before building */
     MTX_HEADER_ELEMENT *This_Element;
-    MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
+    MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
     mtx_hdr->ui32Elements = ELEMENTS_EMPTY;
     This_Element = (MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-    elt_p[0] = This_Element;
+    aui32ElementPointers[0] = This_Element;
 
-    H263_writebits_GOBSliceHeader(mtx_hdr, elt_p, GOBNumber, GOBFrameId);
+    H263_writebits_GOBSliceHeader(mtx_hdr, aui32ElementPointers, GOBNumber, GOBFrameId);
 
     mtx_hdr->ui32Elements++; //Has been used as an index, so need to add 1 for a valid element count
 

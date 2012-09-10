@@ -460,6 +460,11 @@ typedef enum {
     ENC_PROFILE_HIGHCOMPLEXITY  //!< Sets features for low delay video encode
 } IMG_VIDEO_ENC_PROFILE;
 
+typedef enum {
+    H264ES_PROFILE_BASELINE = 5,
+    H264ES_PROFILE_MAIN,
+    H264ES_PROFILE_HIGH
+} IMG_VIDEO_H264ES_PROFILE;
 
 #define MAX_SLICESPERPIC                (68)
 

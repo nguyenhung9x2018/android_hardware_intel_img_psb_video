@@ -602,7 +602,7 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 	object_context_p obj_context;
 	object_config_p obj_config;
 	VAEntrypoint tmp;
-	VAProcFilterCap *denoise_cap;
+	VAProcFilterCap *denoise_cap, *deblock_cap;
 	VAProcFilterCap *sharpen_cap;
 	VAProcFilterCap *color_enhancement_cap;
 	VAProcFilterCap *frc_cap;
@@ -645,6 +645,13 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 			denoise_cap->range.max_value = 100;
 			denoise_cap->range.default_value = 50;
 			denoise_cap->range.step = 1;
+			break;
+		case VAProcFilterDeblocking:
+			deblock_cap = filter_caps;
+			deblock_cap->range.min_value = 0;
+			deblock_cap->range.max_value = 100;
+			deblock_cap->range.default_value = 50;
+			deblock_cap->range.step = 1;
 			break;
 
 		case VAProcFilterSharpening:
@@ -783,7 +790,7 @@ static VAStatus vsp_set_pipeline(context_VPP_p ctx)
 	VAStatus vaStatus = VA_STATUS_SUCCESS;
 	vsp_cmdbuf_p cmdbuf = ctx->obj_context->vsp_cmdbuf;
 	struct VssProcPipelineParameterBuffer *cell_pipeline_param = (struct VssProcPipelineParameterBuffer *)cmdbuf->pipeline_param_p;
-	unsigned int i, j, filter_count;
+	unsigned int i, j, filter_count, check_filter = 0;
 	VAProcFilterParameterBufferBase *cur_param;
 	enum VssProcFilterType tmp;
 	psb_driver_data_p driver_data = ctx->obj_context->driver_data;
@@ -811,7 +818,9 @@ static VAStatus vsp_set_pipeline(context_VPP_p ctx)
 			goto finished;
 			break;
 		case VAProcFilterNoiseReduction:
+		case VAProcFilterDeblocking:
 			cell_pipeline_param->filter_pipeline[filter_count++] = VssProcFilterDenoise;
+			check_filter++;
 			break;
 		case VAProcFilterSharpening:
 			cell_pipeline_param->filter_pipeline[filter_count++] = VssProcFilterSharpening;
@@ -827,6 +836,14 @@ static VAStatus vsp_set_pipeline(context_VPP_p ctx)
 			vaStatus = VA_STATUS_ERROR_UNKNOWN;
 			goto out;
 		}
+	}
+
+	/* Denoise and Deblock is alternative */
+	if (check_filter >= 2) {
+		drv_debug_msg(VIDEO_DEBUG_ERROR, "Denoise and Deblock is alternative!\n");
+		cell_pipeline_param->filter_pipeline[filter_count++] = -1;
+		vaStatus = VA_STATUS_ERROR_UNKNOWN;
+		goto out;
 	}
 
 finished:

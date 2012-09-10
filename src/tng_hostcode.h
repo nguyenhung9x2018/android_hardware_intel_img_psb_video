@@ -211,6 +211,18 @@ typedef  struct _LOWPOWER_PARAMS {
     IMG_UINT32 reg_saving_buf_size;
 } LOWPOWER_PARAMS;
 
+typedef struct _H264_PICMGMT_UP_PARAMS {
+    IMG_INT8 updated;
+    IMG_INT8 ref_type;
+    IMG_INT8 gop_struct;
+    IMG_INT8 skip_frame;
+
+    IMG_INT8 eos;
+    IMG_INT8 rc_updated;
+    IMG_INT8 flush;
+    IMG_INT8 quant;
+} H264_PICMGMT_UP_PARAMS;
+
 struct context_ENC_s {
     object_context_p obj_context; /* back reference */
     context_ENC_mem_size ctx_mem_size;
@@ -221,7 +233,6 @@ struct context_ENC_s {
 
     struct psb_buffer_s bufs_writeback;
 
-
     IMG_CODEC eCodec;
     CARC_PARAMS  sCARCParams;
     IMG_ENC_CAPS sCapsParams;
@@ -230,6 +241,7 @@ struct context_ENC_s {
     H264_VUI_PARAMS sVuiParams;
     FRAME_ORDER_INFO sFrameOrderInfo;
     
+    IMG_UINT32  ui32MiscFlag;
     IMG_UINT32  ui32RawFrameCount;
     IMG_UINT32  ui32CoreRev;
     IMG_UINT32  ui32StreamID;
@@ -250,6 +262,9 @@ struct context_ENC_s {
     IMG_BOOL    bInsertPicHeader;
     IMG_UINT32  ui32PpsScalingCnt;
     IMG_UINT32  ui32SourceSlotBuff;
+    IMG_UINT32  ui32SlotBuf;
+    IMG_UINT32  ui32SlotNum;
+    IMG_INT32   iFrameType;
     /**************** FIXME: unknown ****************/
     IMG_UINT    uiCbrBufferTenths;           //TOPAZHP_DEFAULT_uiCbrBufferTenths
 

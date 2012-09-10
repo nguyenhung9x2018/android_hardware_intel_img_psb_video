@@ -168,14 +168,13 @@ static VAStatus tng_MPEG4ES_CreateContext(
 
     ctx->bVPAdaptiveRoundingDisable = IMG_TRUE;
 
+    /* TopazHP only support Simple Profile */
     switch (obj_config->profile) {
         case VAProfileMPEG4Simple:
-            ctx->ui8ProfileIdc = 2;
+            ctx->ui8ProfileIdc = SP;
             break;
-        case VAProfileMPEG4AdvancedSimple:
-            ctx->ui8ProfileIdc = 3;
         default:
-            ctx->ui8ProfileIdc = 2;
+            ctx->ui8ProfileIdc = SP;
         break;
     }
 
@@ -260,6 +259,8 @@ static VAStatus tng__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     //set MV limit infor
     ctx->ui32VertMVLimit = 255 ;//(63.75 in qpel increments)
     ctx->bLimitNumVectors = IMG_TRUE;
+
+    ctx->ui8LevelIdc = psSeqParams->profile_and_level_indication;
 
     /**************set rc params ****************/
     if (psSeqParams->bits_per_second > TOPAZ_MPEG4_MAX_BITRATE) {

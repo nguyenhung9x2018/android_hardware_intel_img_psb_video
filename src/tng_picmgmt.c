@@ -27,7 +27,6 @@
  *
  */
 
-
 #include <unistd.h>
 #include <stdio.h>
 #include <memory.h>
@@ -37,145 +36,59 @@
 //#define _TOPAZHP_PDUMP_PICMGMT_
 
 /************************* MTX_CMDID_PICMGMT *************************/
-
-static VAStatus tng__update_bitrate(
-    context_ENC_p ctx,
-    IMG_UINT8     ui32SlotIndex,
-    IMG_UINT32    ui32NewBitrate,
-    IMG_UINT8     ui8NewVCMIFrameQP
-)
+VAStatus tng_picmgmt_update(context_ENC_p ctx, int type, unsigned int ref0, unsigned int ref1)
 {
-    object_context_p obj_context_p = NULL;
-    tng_cmdbuf_p   cmdbuf = NULL;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+    IMG_UINT32 picmgmt_mem_index = 0;
     IMG_PICMGMT_PARAMS  * psPicMgmtParams = NULL;
-    IMG_UINT32 uiSlotLen = 0;
 
-    if (!ctx)
-        return VA_STATUS_ERROR_UNKNOWN;
+    if (cmdbuf->picmgmt_mem_index >= COMM_CMD_FRAME_BUF_NUM) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Error: picmgmt_mem buffer index overflow\n", __FUNCTION__);
+        cmdbuf->picmgmt_mem_index = 0;
+    }
 
-    obj_context_p = ctx->obj_context;
-    cmdbuf = obj_context_p->tng_cmdbuf;
-    uiSlotLen = ui32SlotIndex * cmdbuf->mem_size;
-    psPicMgmtParams = (IMG_PICMGMT_PARAMS *)(cmdbuf->picmgmt_mem_p + uiSlotLen);
+    vaStatus = psb_buffer_map(&cmdbuf->picmgmt_mem, &(cmdbuf->picmgmt_mem_p));
+    if (vaStatus) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: map picmgmt buf\n", __FUNCTION__);
+        return vaStatus;
+    }
 
-    psPicMgmtParams->eSubtype = IMG_PICMGMT_RC_UPDATE;
-    psPicMgmtParams->sRCUpdateData.ui32BitsPerFrame = ui32NewBitrate;
-    psPicMgmtParams->sRCUpdateData.ui8VCMIFrameQP = ui8NewVCMIFrameQP;
+    picmgmt_mem_index = cmdbuf->picmgmt_mem_index * cmdbuf->mem_size;
+    psPicMgmtParams = (IMG_PICMGMT_PARAMS *)(cmdbuf->picmgmt_mem_p + picmgmt_mem_index);
+    psPicMgmtParams->eSubtype = (IMG_PICMGMT_TYPE) type;
+
+    switch (psPicMgmtParams->eSubtype) {
+        //IMG_V_UpdateBitrate
+        case IMG_PICMGMT_RC_UPDATE:
+            psPicMgmtParams->sRCUpdateData.ui32BitsPerFrame = ref0;    //ui32NewBitrate;
+            psPicMgmtParams->sRCUpdateData.ui8VCMIFrameQP = ref1;   //ui8NewVCMIFrameQP;
+            break;
+        //IMG_V_SkipFrame
+        case IMG_PICMGMT_SKIP_FRAME:
+             psPicMgmtParams->sSkipParams.b8Process = ref0; //bProcess;
+            break;
+        //IMG_V_SetNextRefType
+        case IMG_PICMGMT_REF_TYPE:
+            psPicMgmtParams->sRefType.eFrameType = ref0;    //eFrameType;
+            break;
+        //IMG_V_EndOfStream
+        case IMG_PICMGMT_EOS:
+            psPicMgmtParams->sEosParams.ui32FrameCount = ref0;  //ui32FrameCount;
+            break;
+        default:
+            break;
+    }
 
     /* Send PicMgmt Command */
-    tng_cmdbuf_insert_command_package(obj_context_p, ctx->ui32StreamID,
-                                      MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
-                                      &cmdbuf->picmgmt_mem, uiSlotLen);
+    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+        MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
+        &cmdbuf->picmgmt_mem, picmgmt_mem_index);
+
+    ++(cmdbuf->picmgmt_mem_index);
+    psb_buffer_unmap(&cmdbuf->picmgmt_mem);
 
     return VA_STATUS_SUCCESS;
-}
-
-
-/**************************************************************************************************
-* Function:     IMG_V_SkipFrame
-* Description:  Skip the next frame
-*
-***************************************************************************************************/
-IMG_UINT32 tng_skip_frame(
-    context_ENC_p ctx,
-    IMG_UINT8     ui32SlotIndex,
-    IMG_BOOL      bProcess)
-{
-    object_context_p obj_context_p = NULL;
-    tng_cmdbuf_p  cmdbuf = NULL;
-    IMG_PICMGMT_PARAMS  * psPicMgmtParams = NULL;
-    IMG_UINT32 uiSlotLen = 0;
-
-    if (!ctx)
-        return VA_STATUS_ERROR_UNKNOWN;
-
-    obj_context_p = ctx->obj_context;
-    cmdbuf = obj_context_p->tng_cmdbuf;
-    uiSlotLen = ui32SlotIndex * cmdbuf->mem_size;
-    psPicMgmtParams = (IMG_PICMGMT_PARAMS *)(cmdbuf->picmgmt_mem_p + uiSlotLen);
-
-    /* Prepare SkipFrame data */
-    psPicMgmtParams->eSubtype = IMG_PICMGMT_SKIP_FRAME;
-    psPicMgmtParams->sSkipParams.b8Process = bProcess;
-
-    /* Send PicMgmt Command */
-    tng_cmdbuf_insert_command_package(obj_context_p, ctx->ui32StreamID,
-                                      MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
-                                      &cmdbuf->picmgmt_mem, uiSlotLen);
-
-    return 0;
-}
-
-
-/**************************************************************************************************
-* Function:     IMG_V_SetNextRefType
-* Description:  Set the type of the next reference frame
-*
-***************************************************************************************************/
-IMG_UINT32 tng_set_next_ref_type(
-    context_ENC_p  ctx,
-    IMG_UINT8      ui32SlotIndex,
-    IMG_FRAME_TYPE eFrameType)
-{
-    object_context_p obj_context_p = NULL;
-    tng_cmdbuf_p  cmdbuf = NULL;
-    IMG_PICMGMT_PARAMS  * psPicMgmtParams = NULL;
-    IMG_UINT32 uiSlotLen = 0;
-
-    if (!ctx)
-        return VA_STATUS_ERROR_UNKNOWN;
-
-    obj_context_p = ctx->obj_context;
-    cmdbuf = obj_context_p->tng_cmdbuf;
-    uiSlotLen = ui32SlotIndex * cmdbuf->mem_size;
-    psPicMgmtParams = (IMG_PICMGMT_PARAMS *)(cmdbuf->picmgmt_mem_p + uiSlotLen);
-
-    /* Prepare SkipFrame data */
-    psPicMgmtParams->eSubtype = IMG_PICMGMT_REF_TYPE;
-    psPicMgmtParams->sRefType.eFrameType = eFrameType;
-
-    /* Send PicMgmt Command */
-    tng_cmdbuf_insert_command_package(obj_context_p, ctx->ui32StreamID,
-                                      MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
-                                      &cmdbuf->picmgmt_mem, uiSlotLen);
-
-    return 0;
-}
-
-
-/**************************************************************************************************
-* Function:     IMG_V_EndOfStream
-* Description:  End Of Video stream
-*
-***************************************************************************************************/
-IMG_UINT32 tng_end_of_stream(
-    context_ENC_p ctx,
-    IMG_UINT8     ui32SlotIndex,
-    IMG_UINT32    ui32FrameCount)
-{
-    object_context_p obj_context_p = NULL;
-    tng_cmdbuf_p  cmdbuf = NULL;
-    IMG_PICMGMT_PARAMS  * psPicMgmtParams = NULL;
-    IMG_UINT32 uiSlotLen = 0;
-
-    if (!ctx)
-        return VA_STATUS_ERROR_UNKNOWN;
-
-    obj_context_p = ctx->obj_context;
-    cmdbuf = obj_context_p->tng_cmdbuf;
-    uiSlotLen = ui32SlotIndex * cmdbuf->mem_size;
-    psPicMgmtParams = (IMG_PICMGMT_PARAMS *)(cmdbuf->picmgmt_mem_p + uiSlotLen);
-
-    /* Prepare SkipFrame data */
-    psPicMgmtParams->eSubtype = IMG_PICMGMT_EOS;
-    psPicMgmtParams->sEosParams.ui32FrameCount = ui32FrameCount;
-
-    /* Send PicMgmt Command */
-    tng_cmdbuf_insert_command_package(obj_context_p, ctx->ui32StreamID,
-                                      MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
-                                      &cmdbuf->picmgmt_mem, uiSlotLen);
-
-    return 0;
 }
 
 /*!
@@ -460,10 +373,6 @@ IMG_UINT32 tng_send_codedbuf(
 #ifdef _TOPAZHP_PDUMP_PICMGMT_
     char *ptmp = NULL;
     void *pxxx = NULL;
-#endif
-
-    int i;
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s slot 0 = %x\n", __FUNCTION__, ui32SlotIndex);
 #endif
 
@@ -842,8 +751,8 @@ IMG_UINT32 tng_send_source_frame(
 
 IMG_UINT32 tng_send_rec_frames(
     context_ENC_p ctx,
-    IMG_BOOL   bLongTerm,
-    IMG_INT8   i8HeaderSlotNum)
+    IMG_INT8 i8HeaderSlotNum,
+    IMG_BOOL bLongTerm)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int srf_buf_offset;
@@ -954,10 +863,12 @@ IMG_UINT32 tng_send_ref_frames(
     return VA_STATUS_SUCCESS;
 }
 
+#if 0
 void tng__picmgmt_general(context_ENC_p ctx, IMG_UINT32 ui32FrameNum)
 {
     tng_set_next_ref_type(ctx, 0, IMG_INTRA_IDR);
     tng_send_ref_frames(ctx, 0, 0);
     return ;
 }
+#endif
 

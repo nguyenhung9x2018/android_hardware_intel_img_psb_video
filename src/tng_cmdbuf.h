@@ -83,9 +83,7 @@ struct tng_cmdbuf_s {
     IMG_UINT32 *cmd_idx;
     IMG_UINT32 *cmd_idx_saved[3]; /* idx saved for dual-core adjustion */
 
-
     unsigned int mem_size;
-
 
     /* JPEG quantization tables buffer*/
     struct psb_buffer_s jpeg_pic_params;
@@ -103,11 +101,12 @@ struct tng_cmdbuf_s {
     /*buffer information g_apsCmdDataInfo */
     struct psb_buffer_s frame_mem;
     unsigned char *frame_mem_p;
+    unsigned int frame_mem_index;
 
     /*picuture management g_apsCmdDataInfo */
     struct psb_buffer_s picmgmt_mem;
     unsigned char *picmgmt_mem_p;
-
+    unsigned int picmgmt_mem_index;
 
     void *writeback_mem_p;
 
@@ -141,7 +140,6 @@ struct tng_cmdbuf_s {
     psb_buffer_p *buffer_refs;
     int buffer_refs_count;
     int buffer_refs_allocated;
-    int frame_mem_index;
 };
 
 typedef struct tng_cmdbuf_s *tng_cmdbuf_p;
