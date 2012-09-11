@@ -1358,7 +1358,7 @@ int psb_coverlay_init(VADriverContextP ctx)
     int ret;
 
     memset(pPriv, 0, sizeof(PsbPortPrivRec));
-    pPriv->is_mfld = IS_MFLD(driver_data);
+    pPriv->is_mfld = (IS_MFLD(driver_data) || IS_MRFL(driver_data));
 
     ret = psbSetupImageVideoOverlay(ctx, pPriv);
     if (ret != 0) {

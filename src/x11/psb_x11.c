@@ -417,11 +417,7 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
         return 0;
     }
 
-    /* Assign default value for MRST */
-    if (IS_MRST(driver_data))
-        driver_data->output_method = PSB_PUTSURFACE_OVERLAY;
-    else if (IS_MFLD(driver_data))
-        driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
+    driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
 
     if (driver_data->overlay_auto_paint_color_key)
         driver_data->output_method = PSB_PUTSURFACE_COVERLAY;
@@ -438,7 +434,7 @@ static int pnw_check_output_method(VADriverContextP ctx, object_surface_p obj_su
     /*FIXME: overlay path can't handle subpicture scaling. when surface size > dest box, fallback to texblit.*/
     if ((output->is_pixmap == 1)
         || (IS_MRST(driver_data) && obj_surface->subpic_count > 0)
-        || (IS_MFLD(driver_data) && obj_surface->subpic_count && ((width > destw) || (height > desth)))
+        || (obj_surface->subpic_count && ((width > destw) || (height > desth)))
         || (width >= 2048)
         || (height >= 2048)
        ) {

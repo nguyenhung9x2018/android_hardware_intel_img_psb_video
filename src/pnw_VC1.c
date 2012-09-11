@@ -24,15 +24,13 @@
  *
  * Authors:
  *    Waldo Bastian <waldo.bastian@intel.com>
- *    Zeng Li <zeng.li@intel.com>
+ *    Li Zeng <li.zeng@intel.com>
  *
  */
 
 #include "pnw_VC1.h"
 #include "psb_def.h"
 #include "psb_drv_debug.h"
-#include "psb_surface.h"
-#include "psb_cmdbuf.h"
 #include "pnw_rotate.h"
 
 #include "vc1_header.h"
@@ -58,8 +56,6 @@ static int VC1_Header_Parser_HW = 1;
 #define SET_SURFACE_INFO_picture_structure(psb_surface, val) psb_surface->extra_info[1] = val;
 #define GET_SURFACE_INFO_picture_coding_type(psb_surface) ((int) (psb_surface->extra_info[2]))
 #define SET_SURFACE_INFO_picture_coding_type(psb_surface, val) psb_surface->extra_info[2] = (uint32_t) val;
-#define GET_SURFACE_INFO_colocated_index(psb_surface) ((int) (psb_surface->extra_info[3]))
-#define SET_SURFACE_INFO_colocated_index(psb_surface, val) psb_surface->extra_info[3] = (uint32_t) val;
 
 #define SLICEDATA_BUFFER_TYPE(type) ((type==VASliceDataBufferType)?"VASliceDataBufferType":"VAProtectedSliceDataBufferType")
 
@@ -417,6 +413,10 @@ static VAStatus psb__VC1_check_legal_picture(object_context_p obj_context, objec
 }
 
 static void pnw_VC1_DestroyContext(object_context_p obj_context);
+static void psb__VC1_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static void psb__VC1_end_slice(context_DEC_p dec_ctx);
+static void psb__VC1_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static VAStatus pnw_VC1_process_buffer(context_DEC_p dec_ctx, object_buffer_p buffer);
 
 static VAStatus pnw_VC1_CreateContext(
     object_context_p obj_context,
@@ -445,24 +445,10 @@ static VAStatus pnw_VC1_CreateContext(
     ctx->obj_context = obj_context;
     ctx->pic_params = NULL;
 
-    ctx->split_buffer_pending = FALSE;
-
-    ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p*) malloc(sizeof(object_buffer_p) * ctx->slice_param_list_size);
-    ctx->slice_param_list_idx = 0;
-
-    if (NULL == ctx->slice_param_list) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-    }
-
-    ctx->colocated_buffers_size = obj_context->num_render_targets;
-    ctx->colocated_buffers_idx = 0;
-    ctx->colocated_buffers = (psb_buffer_p) malloc(sizeof(struct psb_buffer_s) * ctx->colocated_buffers_size);
-    if (NULL == ctx->colocated_buffers) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-    }
+    ctx->dec_ctx.begin_slice = psb__VC1_begin_slice;
+    ctx->dec_ctx.process_slice = psb__VC1_process_slice_data;
+    ctx->dec_ctx.end_slice = psb__VC1_end_slice;
+    ctx->dec_ctx.process_buffer = pnw_VC1_process_buffer;
 
     switch (obj_config->profile) {
     case VAProfileVC1Simple:
@@ -491,6 +477,7 @@ static VAStatus pnw_VC1_CreateContext(
                                      &ctx->preload_buffer);
         DEBUG_FAILURE;
     }
+    ctx->dec_ctx.preload_buffer = &ctx->preload_buffer;
 
     if (vaStatus == VA_STATUS_SUCCESS) {
         unsigned char *preload;
@@ -555,6 +542,11 @@ static VAStatus pnw_VC1_CreateContext(
         }
     }
 
+    if (vaStatus == VA_STATUS_SUCCESS) {
+        vaStatus = vld_dec_CreateContext(&ctx->dec_ctx, obj_context);
+        DEBUG_FAILURE;
+    }
+
     if (vaStatus != VA_STATUS_SUCCESS) {
         pnw_VC1_DestroyContext(obj_context);
     }
@@ -568,6 +560,8 @@ static void pnw_VC1_DestroyContext(
     INIT_CONTEXT_VC1
     int i;
 
+    vld_dec_DestroyContext(&ctx->dec_ctx);
+
     psb_buffer_destroy(&ctx->vlc_packed_table);
     psb_buffer_destroy(&ctx->aux_msb_buffer);
     psb_buffer_destroy(&ctx->aux_line_buffer);
@@ -579,55 +573,8 @@ static void pnw_VC1_DestroyContext(
         ctx->pic_params = NULL;
     }
 
-    if (ctx->slice_param_list) {
-        free(ctx->slice_param_list);
-        ctx->slice_param_list = NULL;
-    }
-
-    if (ctx->colocated_buffers) {
-        for (i = 0; i < ctx->colocated_buffers_idx; ++i)
-            psb_buffer_destroy(&(ctx->colocated_buffers[i]));
-
-        free(ctx->colocated_buffers);
-        ctx->colocated_buffers = NULL;
-    }
-
     free(obj_context->format_data);
     obj_context->format_data = NULL;
-}
-
-static VAStatus psb__VC1_allocate_colocated_buffer(context_VC1_p ctx, object_surface_p obj_surface, uint32_t size)
-{
-    psb_surface_p surface = obj_surface->psb_surface;
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_VC1: Allocationg colocated buffer for surface %08x\n", surface);
-
-    if (!GET_SURFACE_INFO_colocated_index(surface)) {
-        VAStatus vaStatus;
-        psb_buffer_p buf;
-        int index = ctx->colocated_buffers_idx;
-        if (index >= ctx->colocated_buffers_size) {
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
-        buf = &(ctx->colocated_buffers[index]);
-        vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, buf);
-        if (VA_STATUS_SUCCESS != vaStatus) {
-            return vaStatus;
-        }
-        ctx->colocated_buffers_idx++;
-        SET_SURFACE_INFO_colocated_index(surface, index + 1); /* 0 means unset, index is offset by 1 */
-    }
-    return VA_STATUS_SUCCESS;
-}
-
-static psb_buffer_p psb__VC1_lookup_colocated_buffer(context_VC1_p ctx, psb_surface_p surface)
-{
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_VC1: Looking up colocated buffer for surface %08x\n", surface);
-    int index = GET_SURFACE_INFO_colocated_index(surface);
-    if (!index) {
-        return NULL;
-    }
-    return &(ctx->colocated_buffers[index-1]); /* 0 means unset, index is offset by 1 */
 }
 
 static uint32_t psb__vc1_get_izz_scan_index(context_VC1_p ctx)
@@ -859,8 +806,8 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     uint32_t colocated_size = ((ctx->size_mb + 1) * 2 + 128) * VC1_MB_PARAM_STRIDE;
     //uint32_t colocated_size = (ctx->size_mb + 1) * 2 * VC1_MB_PARAM_STRIDE + 0x2000;
 
-    vaStatus = psb__VC1_allocate_colocated_buffer(ctx, ctx->decoded_surface, colocated_size);
-    vaStatus = psb__VC1_allocate_colocated_buffer(ctx, ctx->obj_context->current_render_target, colocated_size);
+    vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->decoded_surface, colocated_size);
+    vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->obj_context->current_render_target, colocated_size);
 
     if (VA_STATUS_SUCCESS != vaStatus) {
         DEBUG_FAILURE;
@@ -1347,28 +1294,6 @@ static VAStatus psb__VC1_process_bitplane(context_VC1_p ctx, object_buffer_p obj
 }
 
 /*
- * Adds a VASliceParameterBuffer to the list of slice params
- */
-static VAStatus psb__VC1_add_slice_param(context_VC1_p ctx, object_buffer_p obj_buffer)
-{
-    ASSERT(obj_buffer->type == VASliceParameterBufferType);
-    if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        unsigned char *new_list;
-        ctx->slice_param_list_size += 8;
-        new_list = realloc(ctx->slice_param_list,
-                           sizeof(object_buffer_p) * ctx->slice_param_list_size);
-        if (NULL == new_list) {
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        }
-        ctx->slice_param_list = (object_buffer_p*) new_list;
-    }
-    ctx->slice_param_list[ctx->slice_param_list_idx] = obj_buffer;
-    ctx->slice_param_list_idx++;
-    return VA_STATUS_SUCCESS;
-}
-
-
-/*
  * This function extracts the information about a given table from the index of VLC tables.
  */
 static void psb__VC1_extract_table_info(context_VC1_p ctx, sTableData *psInfo, int idx)
@@ -1780,19 +1705,11 @@ static void psb__VC1_build_VLC_tables(context_VC1_p ctx)
 
         /* VLC Table */
         /* Write a LLDMA Cmd to transfer VLD Table data */
-#ifndef DE3_FIRMWARE
-        psb_cmdbuf_lldma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table,
-                                      ctx->sTableInfo[i].aui16StartLocation * sizeof(IMG_UINT16), /* origin */
-                                      ctx->sTableInfo[i].aui16VLCTableLength * sizeof(IMG_UINT16), /* size */
-                                      RAM_location * sizeof(IMG_UINT32), /* destination */
-                                      LLDMA_TYPE_VLC_TABLE);
-#else
         psb_cmdbuf_dma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table,
                                       ctx->sTableInfo[i].aui16StartLocation * sizeof(IMG_UINT16), /* origin */
                                       ctx->sTableInfo[i].aui16VLCTableLength * sizeof(IMG_UINT16), /* size */
                                       RAM_location * sizeof(IMG_UINT32), /* destination */
                                       DMA_TYPE_VLC_TABLE);
-#endif
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "table[%02d] start_loc = %08x RAM_location = %08x | %08x\n", i, ctx->sTableInfo[i].aui16StartLocation * sizeof(IMG_UINT16), RAM_location, RAM_location * sizeof(IMG_UINT32));
         RAM_location += ctx->sTableInfo[i].aui16VLCTableLength;
     }
@@ -1864,89 +1781,6 @@ static void psb__VC1_build_VLC_tables(context_VC1_p ctx)
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_VLC_TABLE_INITIAL_OPCODE0), reg_value);
 
     psb_cmdbuf_reg_end_block(cmdbuf);
-}
-
-
-static void psb__VC1_write_kick(context_VC1_p ctx, VASliceParameterBufferVC1 *slice_param)
-{
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-
-    (void) slice_param; /* Unused for now */
-
-    *cmdbuf->cmd_idx++ = CMD_COMPLETION;
-}
-
-/* Programme the Alt output if there is a rotation*/
-static void psb__VC1_setup_alternative_frame(context_VC1_p ctx)
-{
-    uint32_t cmd;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
-    object_context_p obj_context = ctx->obj_context;
-
-    if (rotate_surface == NULL) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "rotate surface is NULL, abort msvdx rotation\n");
-        return;
-    }
-
-    if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "Display rotate mode does not match surface rotate mode!\n");
-
-
-    /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
-
-    psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
-    psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
-
-    psb_cmdbuf_rendec_end(cmdbuf);
-
-    /* Set the rotation registers */
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION));
-    cmd = 0;
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
-
-    psb_cmdbuf_rendec_write(cmdbuf, cmd);
-
-    psb_cmdbuf_rendec_end(cmdbuf);
-}
-
-static void psb__VC1_program_output_register(context_VC1_p ctx, IMG_BOOL first_two_pass)
-{
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
-    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
-    object_context_p obj_context = ctx->obj_context;
-    uint32_t alt_output_flags = 0;
-    uint32_t cmd;
-    *ctx->p_range_mapping_base = 0;
-    *ctx->p_range_mapping_base1 = 0;
-    //rotate_surface = ctx->decoded_surface->psb_surface_rotate;
-
-    if ((first_two_pass == 0) && CONTEXT_ROTATE(obj_context)) {
-        psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
-        psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
-        psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->chroma_offset + rotate_surface->buf.buffer_ofs);
-        psb_cmdbuf_rendec_end(cmdbuf);
-
-        //target_surface = rotate_surface;
-
-        REGIO_WRITE_FIELD_LITE(alt_output_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
-        REGIO_WRITE_FIELD_LITE(alt_output_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
-        REGIO_WRITE_FIELD_LITE(alt_output_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
-        REGIO_WRITE_FIELD_LITE(alt_output_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
-    }
-
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION));
-    psb_cmdbuf_rendec_write(cmdbuf, alt_output_flags);
-    cmd = 0;
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64);
-    psb_cmdbuf_rendec_write(cmdbuf, cmd);
-    psb_cmdbuf_rendec_end(cmdbuf);
-    *ctx->alt_output_flags = alt_output_flags;
 }
 
 static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBufferVC1 *slice_param)
@@ -2062,11 +1896,6 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     }
     /************************************************************************************/
 
-    /* psb_cmdbuf_rendec_start_block( cmdbuf ); */
-
-//    if(CONTEXT_ROTATE(ctx->obj_context)) /* FIXME field coded should not issue */
-//        psb__VC1_setup_alternative_frame(ctx);
-
     /* CHUNK: 1 - VC1SEQUENCE00 */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE));
     *cmdbuf->rendec_chunk_start |= CMD_RENDEC_BLOCK_FLAG_VC1_CMD_PATCH;
@@ -2103,11 +1932,9 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     /* LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                    */
     psb_cmdbuf_rendec_write_address(cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
-    //psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs);
 
     /* CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES                                  */
     psb_cmdbuf_rendec_write_address(cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
-    //psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset);
 
     /* Aux MSB buffer */
     psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->aux_msb_buffer, 0);
@@ -2133,21 +1960,18 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    psb__VC1_program_output_register(ctx, ctx->pic_params->picture_fields.bits.frame_coding_mode != VC1_FCM_P);
+    vld_dec_setup_alternative_frame(ctx->obj_context);
 
     if (ctx->pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_P && CONTEXT_ROTATE(ctx->obj_context))
-        //deblock_surface = ctx->decoded_surface->psb_surface_rotate;
         deblock_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
 
     /* CHUNK: 3 */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
 
     /* VC1 Luma Range Mapping Base Address */
-    //psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
     psb_cmdbuf_rendec_write_address(cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs);
 
     /* VC1 Chroma Range Mapping Base Address */
-    //psb_cmdbuf_rendec_write_address( cmdbuf, &target_surface->buf, target_surface->chroma_offset + target_surface->buf.buffer_ofs);
     psb_cmdbuf_rendec_write_address(cmdbuf, &deblock_surface->buf, deblock_surface->chroma_offset + deblock_surface->buf.buffer_ofs);
 
     /* VC1SLICE03       Range Map Control (current picture) */
@@ -2160,11 +1984,9 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
 
     /* Store VC1SLICE03 bits in lower bits of Range Mapping Base Address */
     /* VC1 Luma Range Mapping Base Address */
-    RELOC(*ctx->p_range_mapping_base, /*cmd + */deblock_surface->buf.buffer_ofs, &deblock_surface->buf);
-    RELOC(*ctx->p_range_mapping_base1, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset, &deblock_surface->buf);
-    //RELOC(*ctx->p_range_mapping_base, /*cmd + */target_surface->buf.buffer_ofs, &target_surface->buf);
-    //RELOC(*ctx->p_range_mapping_base1, target_surface->buf.buffer_ofs + target_surface->chroma_offset, &target_surface->buf);
-    *ctx->p_range_mapping_base = (*ctx->p_range_mapping_base) | cmd; /* FIXME If kernel apply reloc, this value may be override */
+    RELOC(*ctx->dec_ctx.p_range_mapping_base0, /*cmd + */deblock_surface->buf.buffer_ofs, &deblock_surface->buf);
+    RELOC(*ctx->dec_ctx.p_range_mapping_base1, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset, &deblock_surface->buf);
+    *ctx->dec_ctx.p_range_mapping_base0 = (*ctx->dec_ctx.p_range_mapping_base0) | cmd; /* FIXME If kernel apply reloc, this value may be override */
 
     /* VC1 Intensity Compensation Backward/Previous     */
     /*
@@ -2221,8 +2043,6 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
         /********************** CURRENT PICTURE **********************/
         psb_cmdbuf_rendec_write_address(cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
         psb_cmdbuf_rendec_write_address(cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
-        //psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs);
-        //psb_cmdbuf_rendec_write_address( cmdbuf, &deblock_surface->buf, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset);
 
         /*************** FORWARD REFERENCE *****************/
         if (ctx->forward_ref_surface) {
@@ -2272,7 +2092,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     if (VC1_Header_Parser_HW)
         REGIO_WRITE_FIELD(cmd, VC1_RENDEC_CMD, VC1SLICE02, SLICE_CODE_TYPE, (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_BI) ? 0 : (pic_params->picture_fields.bits.picture_type & 0x3));
 
-    *ctx->p_slice_params = cmd;
+    *ctx->dec_ctx.p_slice_params = cmd;
 
     /* ------------------------------- Back-End Registers --------------------------------- */
 
@@ -2397,7 +2217,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_VC1: picture_type = %d\n", pic_params->picture_fields.bits.picture_type);
 
     if (PIC_TYPE_IS_INTRA(pic_params->picture_fields.bits.picture_type) || (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P)) {
-        psb_buffer_p colocated_target_buffer = psb__VC1_lookup_colocated_buffer(ctx, target_surface);
+        psb_buffer_p colocated_target_buffer = vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, target_surface);
         ASSERT(colocated_target_buffer);
         if (colocated_target_buffer) {
             psb_cmdbuf_rendec_write_address(cmdbuf, colocated_target_buffer, ui32MBParamMemOffset);
@@ -2407,7 +2227,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
         }
     } else if (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_B) {
         ASSERT(ctx->forward_ref_surface);
-        psb_buffer_p colocated_forward_ref_buffer = ctx->forward_ref_surface ? psb__VC1_lookup_colocated_buffer(ctx, ctx->forward_ref_surface->psb_surface) : 0;
+        psb_buffer_p colocated_forward_ref_buffer = ctx->forward_ref_surface ? vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, ctx->forward_ref_surface->psb_surface) : 0;
         ASSERT(colocated_forward_ref_buffer);
         if (colocated_forward_ref_buffer) {
             psb_cmdbuf_rendec_write_address(cmdbuf, colocated_forward_ref_buffer, ui32MBParamMemOffset);
@@ -2425,7 +2245,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
         if (pic_params->picture_fields.bits.picture_type == WMF_PTYPE_P) {
             /* CR_VEC_VC1_BE_COLPARAM_BASE_ADDR */
             ASSERT(ctx->forward_ref_surface);
-            psb_buffer_p colocated_forward_ref_buffer = ctx->forward_ref_surface ? psb__VC1_lookup_colocated_buffer(ctx, ctx->forward_ref_surface->psb_surface) : NULL;
+            psb_buffer_p colocated_forward_ref_buffer = ctx->forward_ref_surface ? vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, ctx->forward_ref_surface->psb_surface) : NULL;
             ASSERT(colocated_forward_ref_buffer);
             if (colocated_forward_ref_buffer) {
                 psb_cmdbuf_rendec_write_address(cmdbuf, colocated_forward_ref_buffer, ui32MBParamMemOffset);
@@ -2443,7 +2263,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
                 return;
             }
 
-            colocated_backward_ref_buffer = ctx->backward_ref_surface->psb_surface ? psb__VC1_lookup_colocated_buffer(ctx, ctx->backward_ref_surface->psb_surface) : NULL;
+            colocated_backward_ref_buffer = ctx->backward_ref_surface->psb_surface ? vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, ctx->backward_ref_surface->psb_surface) : NULL;
             ASSERT(colocated_backward_ref_buffer);
             if (colocated_backward_ref_buffer) {
                 psb_cmdbuf_rendec_write_address(cmdbuf, colocated_backward_ref_buffer, ui32MBParamMemOffset);
@@ -2617,95 +2437,6 @@ static void psb__VC1_setup_bitplane(context_VC1_p ctx)
     psb_cmdbuf_reg_end_block(cmdbuf);
 }
 
-//static void psb__VC1_FE_state(context_VC1_p ctx)
-//{
-//    uint32_t lldma_record_offset;
-//    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-//    psb_surface_p deblock_surface = ctx->decoded_surface->psb_surface;
-
-/* See RENDER_BUFFER_HEADER */
-//    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
-
-//    ctx->p_range_mapping_base = cmdbuf->cmd_idx++; /* Fill Luma Range Mapping Base later */
-
-/* VC1 Chroma Range Mapping Base Address */
-//    RELOC(*cmdbuf->cmd_idx++, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset, &deblock_surface->buf);
-
-//    ctx->p_slice_params = cmdbuf->cmd_idx;
-//    *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
-
-//    lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &ctx->preload_buffer, 0,
-//                                sizeof( VC1PRELOAD ), 0, LLDMA_TYPE_VC1_PRELOAD_SAVE );
-//    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-//    cmdbuf->cmd_idx++;
-
-//    lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &ctx->preload_buffer, 0,
-//                                sizeof( VC1PRELOAD ), 0, LLDMA_TYPE_VC1_PRELOAD_RESTORE );
-//    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-//    cmdbuf->cmd_idx++;
-
-//    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
-//}
-#ifndef DE3_FIRMWARE
-static void psb__VC1_FE_state(context_VC1_p ctx)
-{
-    uint32_t lldma_record_offset;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    uint32_t preload_size;
-
-    if (VC1_Header_Parser_HW)
-        preload_size = FWPARSER_VC1PRELOAD_SIZE;
-    else
-        preload_size =  sizeof(VC1PRELOAD);
-    //psb_surface_p deblock_surface = ctx->decoded_surface->psb_surface;
-
-    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
-    ctx->p_slice_params = cmdbuf->cmd_idx;
-    *cmdbuf->cmd_idx++ = 0;
-
-    lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, &ctx->preload_buffer, 0,
-                          preload_size, 0, LLDMA_TYPE_VC1_PRELOAD_SAVE);
-    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-    cmdbuf->cmd_idx++;
-
-    lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, &ctx->preload_buffer, 0,
-                          preload_size, 0, LLDMA_TYPE_VC1_PRELOAD_RESTORE);
-    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-    cmdbuf->cmd_idx++;
-
-    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
-
-    ctx->p_range_mapping_base = cmdbuf->cmd_idx++;
-    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
-    //RELOC(*cmdbuf->cmd_idx++, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset, &deblock_surface->buf);
-
-    ctx->alt_output_flags = cmdbuf->cmd_idx++;
-    *ctx->alt_output_flags = 0;
-}
-#else
-static void psb__VC1_FE_state(context_VC1_p ctx)
-{
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    CTRL_ALLOC_HEADER *cmd_header = (CTRL_ALLOC_HEADER *)psb_cmdbuf_alloc_space(cmdbuf, sizeof(CTRL_ALLOC_HEADER));
-
-    memset(cmd_header, 0, sizeof(CTRL_ALLOC_HEADER));
-    cmd_header->ui32Cmd_AdditionalParams = CMD_CTRL_ALLOC_HEADER;
-    RELOC(cmd_header->ui32ExternStateBuffAddr, 0, &ctx->preload_buffer);
-    cmd_header->ui32MacroblockParamAddr = 0; /* Only EC needs to set this */
-
-    ctx->p_slice_params = &cmd_header->ui32SliceParams;
-    cmd_header->ui32SliceParams = 0;
-
-    ctx->slice_first_pic_last = &cmd_header->uiSliceFirstMbYX_uiPicLastMbYX;
-
-    ctx->p_range_mapping_base = &cmd_header->ui32AltOutputAddr[0];
-    ctx->p_range_mapping_base1 = &cmd_header->ui32AltOutputAddr[1];
-
-    ctx->alt_output_flags = &cmd_header->ui32AltOutputFlags;
-    cmd_header->ui32AltOutputFlags = 0;
-}
-#endif
-
 static void psb__VC1_Send_Parse_Header_Cmd(context_VC1_p ctx, IMG_BOOL new_pic)
 {
     PARSE_HEADER_CMD*       pParseHeaderCMD;
@@ -2833,171 +2564,56 @@ static void psb__VC1_Send_Parse_Header_Cmd(context_VC1_p ctx, IMG_BOOL new_pic)
     pParseHeaderCMD->ui32ICParamData[1] = 0x00010020;
 }
 
-static VAStatus psb__VC1_process_slice(context_VC1_p ctx,
-                                       VASliceParameterBufferVC1 *slice_param,
-                                       object_buffer_p obj_buffer)
+static void psb__VC1_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    VASliceParameterBufferVC1 *slice_param = (VASliceParameterBufferVC1 *) vld_slice_param;
+    context_VC1_p ctx = (context_VC1_p)dec_ctx;
 
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "VC1 process slice\n");
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    vertical pos = %d offset = %d\n", slice_param->slice_vertical_position, slice_param->macroblock_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    slice_data_flag = %d\n", slice_param->slice_data_flag);
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
-        if (0 == slice_param->slice_data_size) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
-        ASSERT(!ctx->split_buffer_pending);
-
-        /* Initialise the command buffer */
-        /* TODO: Reuse current command buffer until full */
-        psb_context_get_next_cmdbuf(ctx->obj_context);
-
-        psb__VC1_FE_state(ctx);
-//            psb__VC1_write_VLC_tables(ctx);
-//            psb__VC1_build_VLC_tables(ctx);
-
-#ifndef DE3_FIRMWARE
-        psb_cmdbuf_lldma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         (slice_param->slice_data_size),
-                                         slice_param->macroblock_offset,
-                                         (ctx->profile == WMF_PROFILE_ADVANCED) ? CMD_ENABLE_RBDU_EXTRACTION : 0);
-#else
-        psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         (slice_param->slice_data_size),
-                                         slice_param->macroblock_offset,
-                                         (ctx->profile == WMF_PROFILE_ADVANCED) ? (CMD_ENABLE_RBDU_EXTRACTION | CMD_SR_VERIFY_STARTCODE) : 0);
-#endif
-
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) {
-            ctx->split_buffer_pending = TRUE;
-        }
-    } else {
-        ASSERT(ctx->split_buffer_pending);
-        ASSERT(0 == slice_param->slice_data_offset);
-        /* Create LLDMA chain to continue buffer */
-        if (slice_param->slice_data_size) {
-#ifndef DE3_FIRMWARE
-            psb_cmdbuf_lldma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-#else
-            psb_cmdbuf_dma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-#endif
-        }
-    }
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
-            ASSERT(ctx->split_buffer_pending);
-        }
-
-        psb__VC1_load_sequence_registers(ctx);
-
-        if (!VC1_Header_Parser_HW) {
-            psb__VC1_write_VLC_tables(ctx);
-            psb__VC1_build_VLC_tables(ctx);
-        } else {
-            psb__VC1_Send_Parse_Header_Cmd(ctx, ctx->is_first_slice);
-        }
-
-        psb__VC1_load_picture_registers(ctx, slice_param);
-
-        psb__VC1_setup_bitplane(ctx);
-
-        psb__VC1_send_rendec_params(ctx, slice_param);
-
-        psb__VC1_write_kick(ctx, slice_param);
-
-        ctx->split_buffer_pending = FALSE;
-        ctx->obj_context->video_op = psb_video_vld;
-        ctx->obj_context->first_mb = 0;
-        ctx->obj_context->flags = 0;
-        if (ctx->is_first_slice) {
-            ctx->obj_context->flags |= FW_VA_RENDER_IS_FIRST_SLICE;
-        }
-        //if (ctx->bitplane_present)
-        {
-            ctx->obj_context->flags |= FW_VA_RENDER_VC1_BITPLANE_PRESENT;
-        }
-        ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
-
-        *ctx->slice_first_pic_last = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
-        if (psb_video_trace_fp && (psb_video_trace_level & AUXBUF_TRACE)) {
-            psb__debug_schedule_hexdump("Preload buffer", &ctx->preload_buffer, 0, PRELOAD_BUFFER_SIZE);
-            psb__debug_schedule_hexdump("AUXMSB buffer", &ctx->aux_msb_buffer, 0, 0x8000 /* AUXMSB_BUFFER_SIZE */);
-            psb__debug_schedule_hexdump("VLC Table", &ctx->vlc_packed_table, 0, gui16vc1VlcTableSize * sizeof(IMG_UINT16));
-        }
-
-        if (psb_context_submit_cmdbuf(ctx->obj_context)) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        }
-
-        ctx->is_first_slice = FALSE; /* Reset */
-    }
-    return vaStatus;
+    dec_ctx->bits_offset = slice_param->macroblock_offset;
+    dec_ctx->SR_flags = (ctx->profile == WMF_PROFILE_ADVANCED) ? (CMD_ENABLE_RBDU_EXTRACTION | CMD_SR_VERIFY_STARTCODE) : 0;
 }
 
-static VAStatus psb__VC1_process_slice_data(context_VC1_p ctx, object_buffer_p obj_buffer)
+static void psb__VC1_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    VASliceParameterBufferVC1 *slice_param;
-    int buffer_idx = 0;
-    unsigned int element_idx = 0;
+    VASliceParameterBufferVC1 *slice_param = (VASliceParameterBufferVC1 *) vld_slice_param;
+    context_VC1_p ctx = (context_VC1_p)dec_ctx;
 
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
+    psb__VC1_load_sequence_registers(ctx);
 
-    ASSERT(ctx->pic_params);
-    ASSERT(ctx->slice_param_list_idx);
-
-    if (!ctx->pic_params) {
-        /* Picture params missing */
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if ((NULL == obj_buffer->psb_buffer) ||
-        (0 == obj_buffer->size)) {
-        /* We need to have data in the bitstream buffer */
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        DEBUG_FAILURE;
-        return vaStatus;
+    if (!VC1_Header_Parser_HW) {
+        psb__VC1_write_VLC_tables(ctx);
+        psb__VC1_build_VLC_tables(ctx);
+    } else {
+        psb__VC1_Send_Parse_Header_Cmd(ctx, ctx->is_first_slice);
     }
 
-    while (buffer_idx < ctx->slice_param_list_idx) {
-        object_buffer_p slice_buf = ctx->slice_param_list[buffer_idx];
-        if (element_idx >= slice_buf->num_elements) {
-            /* Move to next buffer */
-            element_idx = 0;
-            buffer_idx++;
-            continue;
-        }
+    psb__VC1_load_picture_registers(ctx, slice_param);
+    psb__VC1_setup_bitplane(ctx);
+    psb__VC1_send_rendec_params(ctx, slice_param);
+}
 
-        slice_param = (VASliceParameterBufferVC1 *) slice_buf->buffer_data;
-        slice_param += element_idx;
-        element_idx++;
-        vaStatus = psb__VC1_process_slice(ctx, slice_param, obj_buffer);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            DEBUG_FAILURE;
-            break;
-        }
+static void psb__VC1_end_slice(context_DEC_p dec_ctx)
+{
+    context_VC1_p ctx = (context_VC1_p)dec_ctx;
+
+    ctx->obj_context->first_mb = 0;
+    if (ctx->is_first_slice) {
+        ctx->obj_context->flags |= FW_VA_RENDER_IS_FIRST_SLICE;
     }
-    ctx->slice_param_list_idx = 0;
+    //if (ctx->bitplane_present)
+    {
+        ctx->obj_context->flags |= FW_VA_RENDER_VC1_BITPLANE_PRESENT;
+    }
+    ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
 
-    return vaStatus;
+    *(ctx->dec_ctx.slice_first_pic_last) = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
+    if (psb_video_trace_fp && (psb_video_trace_level & AUXBUF_TRACE)) {
+        psb__debug_schedule_hexdump("Preload buffer", &ctx->preload_buffer, 0, PRELOAD_BUFFER_SIZE);
+        psb__debug_schedule_hexdump("AUXMSB buffer", &ctx->aux_msb_buffer, 0, 0x8000 /* AUXMSB_BUFFER_SIZE */);
+        psb__debug_schedule_hexdump("VLC Table", &ctx->vlc_packed_table, 0, gui16vc1VlcTableSize * sizeof(IMG_UINT16));
+    }
+
+    ctx->is_first_slice = FALSE; /* Reset */
 }
 
 static VAStatus pnw_VC1_BeginPicture(
@@ -3014,53 +2630,30 @@ static VAStatus pnw_VC1_BeginPicture(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus pnw_VC1_RenderPicture(
-    object_context_p obj_context,
-    object_buffer_p *buffers,
-    int num_buffers)
+static VAStatus pnw_VC1_process_buffer(
+    context_DEC_p dec_ctx,
+    object_buffer_p buffer)
 {
-    int i;
-    INIT_CONTEXT_VC1
+    context_VC1_p ctx = (context_VC1_p)dec_ctx;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    object_buffer_p obj_buffer = buffer;
 
-    for (i = 0; i < num_buffers; i++) {
-        object_buffer_p obj_buffer = buffers[i];
-        psb__dump_va_buffers(obj_buffer);
+    switch (obj_buffer->type) {
+    case VAPictureParameterBufferType:
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_VC1_RenderPicture got VAPictureParameterBuffer\n");
+        vaStatus = psb__VC1_process_picture_param(ctx, obj_buffer);
+        DEBUG_FAILURE;
+        break;
 
-        switch (obj_buffer->type) {
-        case VAPictureParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_VC1_RenderPicture got VAPictureParameterBuffer\n");
-            vaStatus = psb__VC1_process_picture_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
+    case VABitPlaneBufferType:
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_VC1_RenderPicture got VABitPlaneBuffer\n");
+        vaStatus = psb__VC1_process_bitplane(ctx, obj_buffer);
+        DEBUG_FAILURE;
+        break;
 
-        case VABitPlaneBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_VC1_RenderPicture got VABitPlaneBuffer\n");
-            vaStatus = psb__VC1_process_bitplane(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_VC1_RenderPicture got VASliceParameterBufferType\n");
-            vaStatus = psb__VC1_add_slice_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceDataBufferType:
-        case VAProtectedSliceDataBufferType:
-
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_VC1_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
-            vaStatus = psb__VC1_process_slice_data(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        default:
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-        }
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            break;
-        }
+    default:
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        DEBUG_FAILURE;
     }
 
     return vaStatus;
@@ -3117,7 +2710,7 @@ destroyContext:
 beginPicture:
     pnw_VC1_BeginPicture,
 renderPicture:
-    pnw_VC1_RenderPicture,
+    vld_dec_RenderPicture,
 endPicture:
     pnw_VC1_EndPicture
 };

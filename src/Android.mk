@@ -63,7 +63,8 @@ LOCAL_SRC_FILES :=		\
     pnw_hostheader.c	\
     pnw_hostjpeg.c		\
     pnw_jpeg.c		\
-    pnw_rotate.c
+    pnw_rotate.c	\
+    tng_vld_dec.c
 
 LOCAL_CFLAGS := -DLINUX -DANDROID -g -Wall -Wno-unused
 

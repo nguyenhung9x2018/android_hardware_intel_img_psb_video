@@ -24,15 +24,14 @@
  *
  * Authors:
  *    Waldo Bastian <waldo.bastian@intel.com>
- *    Zeng Li <zeng.li@intel.com>
+ *    Li Zeng <li.zeng@intel.com>
  *
  */
 
 #include "pnw_H264.h"
+#include "tng_vld_dec.h"
 #include "psb_def.h"
 #include "psb_drv_debug.h"
-#include "psb_surface.h"
-#include "psb_cmdbuf.h"
 #include "pnw_rotate.h"
 
 #include "hwdefs/reg_io2.h"
@@ -54,8 +53,6 @@
 #define SET_SURFACE_INFO_col_pic_params(psb_surface, val) psb_surface->extra_info[1] = val;
 #define GET_SURFACE_INFO_dpb_idx(psb_surface) (psb_surface->extra_info[2])
 #define SET_SURFACE_INFO_dpb_idx(psb_surface, val) psb_surface->extra_info[2] = val;
-#define GET_SURFACE_INFO_colocated_index(psb_surface) ((int) (psb_surface->extra_info[3]))
-#define SET_SURFACE_INFO_colocated_index(psb_surface, val) psb_surface->extra_info[3] = (uint32_t) val;
 
 #define IS_USED_AS_REFERENCE(pic_flags)         ( pic_flags & (VA_PICTURE_H264_SHORT_TERM_REFERENCE | VA_PICTURE_H264_LONG_TERM_REFERENCE) )
 
@@ -113,6 +110,7 @@ typedef enum {
 } DEBLOCK_MODE_2NDPASS;
 
 struct context_H264_s {
+    struct context_DEC_s dec_ctx;
     object_context_p obj_context; /* back reference */
 
     uint32_t profile; // ENTDEC BE_PROFILE & FE_PROFILE
@@ -167,14 +165,6 @@ struct context_H264_s {
     uint32_t slice0_params;
     uint32_t slice1_params;
 
-    /* Split buffers */
-    int split_buffer_pending;
-
-    /* List of VASliceParameterBuffers */
-    object_buffer_p *slice_param_list;
-    int slice_param_list_size;
-    int slice_param_list_idx;
-
     /* VLC packed data */
     struct psb_buffer_s vlc_packed_table;
 
@@ -190,17 +180,6 @@ struct context_H264_s {
 
     /* Reference Cache */
     struct psb_buffer_s reference_cache;
-
-    uint32_t *p_range_mapping_base0;
-    uint32_t *p_range_mapping_base1;
-    uint32_t *p_slice_params; /* pointer to ui32SliceParams in CMD_HEADER */
-    uint32_t *slice_first_pic_last;
-    uint32_t *alt_output_flags;
-
-    /* CoLocated buffers - aka ParamMemInfo */
-    struct psb_buffer_s *colocated_buffers;
-    int colocated_buffers_size;
-    int colocated_buffers_idx;
 };
 
 typedef struct context_H264_s *context_H264_p;
@@ -390,6 +369,10 @@ static VAStatus psb__H264_check_legal_picture(object_context_p obj_context, obje
 }
 
 static void pnw_H264_DestroyContext(object_context_p obj_context);
+static void psb__H264_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static void psb__H264_end_slice(context_DEC_p dec_ctx);
+static void psb__H264_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static VAStatus pnw_H264_process_buffer(context_DEC_p dec_ctx, object_buffer_p buffer);
 
 static VAStatus pnw_H264_CreateContext(
     object_context_p obj_context,
@@ -415,29 +398,10 @@ static VAStatus pnw_H264_CreateContext(
     ctx->obj_context = obj_context;
     ctx->pic_params = NULL;
 
-    ctx->split_buffer_pending = FALSE;
-
-    ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p*) calloc(1, sizeof(object_buffer_p) * ctx->slice_param_list_size);
-    ctx->slice_param_list_idx = 0;
-
-    if (NULL == ctx->slice_param_list) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        free(ctx);
-        return vaStatus;
-    }
-
-    ctx->colocated_buffers_size = obj_context->num_render_targets;
-    ctx->colocated_buffers_idx = 0;
-    ctx->colocated_buffers = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s) * ctx->colocated_buffers_size);
-    if (NULL == ctx->colocated_buffers) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        free(ctx->slice_param_list);
-        free(ctx);
-        return vaStatus;
-    }
+    ctx->dec_ctx.begin_slice = psb__H264_begin_slice;
+    ctx->dec_ctx.process_slice = psb__H264_process_slice_data;
+    ctx->dec_ctx.end_slice = psb__H264_end_slice;
+    ctx->dec_ctx.process_buffer = pnw_H264_process_buffer;
 
     switch (obj_config->profile) {
     case VAProfileH264Baseline:
@@ -470,6 +434,7 @@ static VAStatus pnw_H264_CreateContext(
                                      &ctx->preload_buffer);
         DEBUG_FAILURE;
     }
+    ctx->dec_ctx.preload_buffer = &ctx->preload_buffer;
 
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = psb_buffer_create(obj_context->driver_data,
@@ -497,6 +462,11 @@ static VAStatus pnw_H264_CreateContext(
         }
     }
 
+    if (vaStatus == VA_STATUS_SUCCESS) {
+        vaStatus = vld_dec_CreateContext(&ctx->dec_ctx, obj_context);
+        DEBUG_FAILURE;
+    }
+
     if (vaStatus != VA_STATUS_SUCCESS) {
         pnw_H264_DestroyContext(obj_context);
     }
@@ -509,6 +479,8 @@ static void pnw_H264_DestroyContext(
 {
     INIT_CONTEXT_H264
     int i;
+
+    vld_dec_DestroyContext(&ctx->dec_ctx);
 
     psb_buffer_destroy(&ctx->reference_cache);
     psb_buffer_destroy(&ctx->preload_buffer);
@@ -523,67 +495,8 @@ static void pnw_H264_DestroyContext(
         ctx->iq_matrix = NULL;
     }
 
-    if (ctx->slice_param_list) {
-        free(ctx->slice_param_list);
-        ctx->slice_param_list = NULL;
-    }
-
-    if (ctx->colocated_buffers) {
-        for (i = 0; i < ctx->colocated_buffers_idx; ++i)
-            psb_buffer_destroy(&(ctx->colocated_buffers[i]));
-
-        free(ctx->colocated_buffers);
-        ctx->colocated_buffers = NULL;
-    }
-
     free(obj_context->format_data);
     obj_context->format_data = NULL;
-}
-
-static VAStatus psb__H264_allocate_colocated_buffer(context_H264_p ctx, object_surface_p obj_surface, uint32_t size)
-{
-    psb_buffer_p buf;
-    VAStatus vaStatus;
-    psb_surface_p surface = obj_surface->psb_surface;
-    int index = GET_SURFACE_INFO_colocated_index(surface);
-
-    if (!index) {
-        index = ctx->colocated_buffers_idx;
-        if (index >= ctx->colocated_buffers_size) {
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
-
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264: Allocating colocated buffer for surface %08x size = %08x\n", surface, size);
-
-        buf = &(ctx->colocated_buffers[index]);
-        vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, buf);
-        if (VA_STATUS_SUCCESS != vaStatus) {
-            return vaStatus;
-        }
-        ctx->colocated_buffers_idx++;
-        SET_SURFACE_INFO_colocated_index(surface, index + 1); /* 0 means unset, index is offset by 1 */
-    } else {
-        buf = &(ctx->colocated_buffers[index - 1]);
-        if (buf->size < size) {
-            psb_buffer_destroy(buf);
-            vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, buf);
-            if (VA_STATUS_SUCCESS != vaStatus) {
-                return vaStatus;
-            }
-            SET_SURFACE_INFO_colocated_index(surface, index); /* replace the original buffer */
-        }
-	}
-    return VA_STATUS_SUCCESS;
-}
-
-static psb_buffer_p psb__H264_lookup_colocated_buffer(context_H264_p ctx, psb_surface_p surface)
-{
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264: Looking up colocated buffer for surface %08x\n", surface);
-    int index = GET_SURFACE_INFO_colocated_index(surface);
-    if (!index) {
-        return NULL;
-    }
-    return &(ctx->colocated_buffers[index-1]); /* 0 means unset, index is offset by 1 */
 }
 
 #define P(x)    psb__trace_message("PARAMS: " #x "\t= %08x (%d)\n", p->x, p->x)
@@ -660,7 +573,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     //uint32_t colocated_size = (ctx->picture_width_mb + extra_size) * (ctx->picture_height_mb + extra_size) * 192;
     uint32_t colocated_size = ((ctx->size_mb + 100) * 128 + 0xfff) & ~0xfff;
 
-    vaStatus = psb__H264_allocate_colocated_buffer(ctx, ctx->obj_context->current_render_target, colocated_size);
+    vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->obj_context->current_render_target, colocated_size);
     if (VA_STATUS_SUCCESS != vaStatus) {
         DEBUG_FAILURE;
         return vaStatus;
@@ -938,7 +851,7 @@ static void psb__H264_build_B_slice_chunk(context_H264_p ctx, VASliceParameterBu
         REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_H264, CR_VEC_H264_BE_COL_PIC0, COL_BOTTOM_FIELD_FLAG, bottom_field_flag);
         psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 
-        psb_buffer_p colocated_target_buffer = psb__H264_lookup_colocated_buffer(ctx, colocated_surface->psb_surface);
+        psb_buffer_p colocated_target_buffer = vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, colocated_surface->psb_surface);
         ASSERT(colocated_target_buffer);
         if (colocated_target_buffer) {
             psb_cmdbuf_rendec_write_address(cmdbuf, colocated_target_buffer, 0);
@@ -1037,53 +950,6 @@ static void psb__H264_build_register(context_H264_p ctx, VASliceParameterBufferH
     psb_cmdbuf_reg_end_block(cmdbuf);
 }
 
-/* Programme the Alt output if there is a rotation*/
-static void psb__H264_setup_alternative_frame(context_H264_p ctx)
-{
-    uint32_t cmd;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
-    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
-    object_context_p obj_context = ctx->obj_context;
-
-    if (rotate_surface == NULL) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "rotate surface is NULL, abort msvdx rotation\n");
-        return;
-    }
-
-    if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "Display rotate mode does not match surface rotate mode!\n");
-
-
-    /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
-
-    psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
-    psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
-
-    psb_cmdbuf_rendec_end(cmdbuf);
-
-    /* Set the rotation registers */
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION));
-    cmd = 0;
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
-    psb_cmdbuf_rendec_write(cmdbuf, cmd);
-    *ctx->alt_output_flags = cmd;
-
-    cmd = 0;
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64);
-    psb_cmdbuf_rendec_write(cmdbuf, cmd);
-
-    psb_cmdbuf_rendec_end(cmdbuf);
-
-    RELOC(*ctx->p_range_mapping_base0, rotate_surface->buf.buffer_ofs, &rotate_surface->buf);
-    RELOC(*ctx->p_range_mapping_base1, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset, &rotate_surface->buf);
-}
-
-
 static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBufferH264 *slice_param)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
@@ -1118,7 +984,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     psb_cmdbuf_rendec_write(cmdbuf, ctx->slice1_params);
 
     /* 5.5.75. VEC_H264_BE_BASE_ADDR_CUR_PIC */
-    psb_buffer_p colocated_target_buffer = psb__H264_lookup_colocated_buffer(ctx, target_surface);
+    psb_buffer_p colocated_target_buffer = vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, target_surface);
     ASSERT(colocated_target_buffer);
     if (colocated_target_buffer) {
         psb_cmdbuf_rendec_write_address(cmdbuf, colocated_target_buffer, colocated_target_buffer->buffer_ofs);
@@ -1419,7 +1285,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
         psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 
         /* Store slice parameters in header */
-        *(ctx->p_slice_params) = reg_value;
+        *(ctx->dec_ctx.p_slice_params) = reg_value;
 
         psb_cmdbuf_rendec_end(cmdbuf);
     }
@@ -1427,99 +1293,12 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /*          If this a two pass mode deblock, then we will perform the rotation as part of the
      *          2nd pass deblock procedure
      */
-    if (!ctx->two_pass_mode && CONTEXT_ROTATE(ctx->obj_context)) {/* FIXME field coded should not issue */
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Setup rotate surface (%d) into command stream\n",
-                                 ctx->obj_context->msvdx_rotate);
-
-        psb__H264_setup_alternative_frame(ctx);
-    }
+    if (!ctx->two_pass_mode) /* FIXME field coded should not issue */
+        vld_dec_setup_alternative_frame(ctx->obj_context);
 
 
     /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
 }
-
-/*
- * Adds a VASliceParameterBuffer to the list of slice params
- */
-static VAStatus psb__H264_add_slice_param(context_H264_p ctx, object_buffer_p obj_buffer)
-{
-    ASSERT(obj_buffer->type == VASliceParameterBufferType);
-    if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        unsigned char *new_list;
-        ctx->slice_param_list_size += 8;
-        new_list = realloc(ctx->slice_param_list,
-                           sizeof(object_buffer_p) * ctx->slice_param_list_size);
-        if (NULL == new_list) {
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        }
-        ctx->slice_param_list = (object_buffer_p*) new_list;
-    }
-    ctx->slice_param_list[ctx->slice_param_list_idx] = obj_buffer;
-    ctx->slice_param_list_idx++;
-    return VA_STATUS_SUCCESS;
-}
-
-static void psb__H264_write_kick(context_H264_p ctx, VASliceParameterBufferH264 *slice_param)
-{
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-
-    (void) slice_param; /* Unused for now */
-
-    *cmdbuf->cmd_idx++ = CMD_COMPLETION;
-}
-
-#ifndef DE3_FIRMWARE
-static void psb__H264_FE_state(context_H264_p ctx)
-{
-    uint32_t lldma_record_offset;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-
-    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
-    ctx->p_slice_params = cmdbuf->cmd_idx;
-    *cmdbuf->cmd_idx++ = 0;
-
-
-    lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, &(ctx->preload_buffer), 0,
-                          sizeof(PRELOAD), 0, LLDMA_TYPE_H264_PRELOAD_SAVE);
-    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-    cmdbuf->cmd_idx++;
-
-    lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, &(ctx->preload_buffer), 0,
-                          sizeof(PRELOAD), 0, LLDMA_TYPE_H264_PRELOAD_RESTORE);
-    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-    cmdbuf->cmd_idx++;
-
-    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
-
-    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
-    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
-
-    ctx->alt_output_flags = cmdbuf->cmd_idx++;
-    *ctx->alt_output_flags = 0;
-}
-#else
-static void psb__H264_FE_state(context_H264_p ctx)
-{
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    CTRL_ALLOC_HEADER *cmd_header = (CTRL_ALLOC_HEADER *)psb_cmdbuf_alloc_space(cmdbuf, sizeof(CTRL_ALLOC_HEADER));
-
-    memset(cmd_header, 0, sizeof(CTRL_ALLOC_HEADER));
-    cmd_header->ui32Cmd_AdditionalParams = CMD_CTRL_ALLOC_HEADER;
-    RELOC(cmd_header->ui32ExternStateBuffAddr, 0, &ctx->preload_buffer);
-    cmd_header->ui32MacroblockParamAddr = 0; /* Only EC needs to set this */
-
-    ctx->p_slice_params = &cmd_header->ui32SliceParams;
-    cmd_header->ui32SliceParams = 0;
-
-    ctx->slice_first_pic_last = &cmd_header->uiSliceFirstMbYX_uiPicLastMbYX;
-
-    ctx->p_range_mapping_base0 = &cmd_header->ui32AltOutputAddr[0];
-    ctx->p_range_mapping_base1 = &cmd_header->ui32AltOutputAddr[1];
-
-    ctx->alt_output_flags = &cmd_header->ui32AltOutputFlags;
-    cmd_header->ui32AltOutputFlags = 0;
-}
-#endif
 
 static void psb__H264_preprocess_slice(context_H264_p ctx,
                                        VASliceParameterBufferH264 *slice_param)
@@ -1612,15 +1391,9 @@ static void psb__H264_write_VLC_tables(context_H264_p ctx)
 
     /* VLC Table */
     /* Write a LLDMA Cmd to transfer VLD Table data */
-#ifndef DE3_FIRMWARE
-    psb_cmdbuf_lldma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table, 0,
-                                  sizeof(ui16H264VLCTableData),
-                                  0, LLDMA_TYPE_VLC_TABLE);
-#else
     psb_cmdbuf_dma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table, 0,
                                   sizeof(ui16H264VLCTableData), 0,
                                   DMA_TYPE_VLC_TABLE);
-#endif
 
     /* Writes the VLD offsets.  mtx need only do this on context switch*/
     psb_cmdbuf_reg_start_block(cmdbuf, 0);
@@ -1634,170 +1407,54 @@ static void psb__H264_write_VLC_tables(context_H264_p ctx)
     psb_cmdbuf_skip_end_block(cmdbuf);
 }
 
-static VAStatus psb__H264_process_slice(context_H264_p ctx,
-                                        VASliceParameterBufferH264 *slice_param,
-                                        object_buffer_p obj_buffer)
+static void psb__H264_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    VASliceParameterBufferH264 *slice_param = (VASliceParameterBufferH264 *) vld_slice_param;
+    context_H264_p ctx = (context_H264_p)dec_ctx;
 
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
+    psb__H264_preprocess_slice(ctx, slice_param);
+    psb__H264_write_VLC_tables(ctx);
 
-#if 0
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "H264 process slice %d\n", ctx->slice_count);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    profile = %s\n", profile2str[ctx->profile]);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    first mb = %d macroblock offset = %d\n", slice_param->first_mb_in_slice, slice_param->slice_data_bit_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    slice_data_flag = %d\n", slice_param->slice_data_flag);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    slice type = %s\n", slice2str[(slice_param->slice_type % 5)]);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    weighted_pred_flag = %d weighted_bipred_idc = %d\n", ctx->pic_params->pic_fields.bits.weighted_pred_flag, ctx->pic_params->pic_fields.bits.weighted_bipred_idc);
-#endif
+    dec_ctx->bits_offset = slice_param->slice_data_bit_offset;
 
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
-        if (0 == slice_param->slice_data_size) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
-        ASSERT(!ctx->split_buffer_pending);
-
-        psb__H264_preprocess_slice(ctx, slice_param);
-
-        /* Initialise the command buffer */
-        /* TODO: Reuse current command buffer until full */
-        psb_context_get_next_cmdbuf(ctx->obj_context);
-
-        psb__H264_FE_state(ctx);
-
-        psb__H264_write_VLC_tables(ctx);
-
-#ifndef DE3_FIRMWARE
-        psb_cmdbuf_lldma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
-                                         slice_param->slice_data_bit_offset,
-                                         CMD_ENABLE_RBDU_EXTRACTION);
-#else
-
-        psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
-                                         slice_param->slice_data_bit_offset,
-                                         CMD_ENABLE_RBDU_EXTRACTION /*| CMD_SR_VERIFY_STARTCODE*/);
-                                         /* CMD_SR_VERIFY_STARTCODE, clean this flag to work when no start code in slice data */
-#endif
-
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) {
-            ctx->split_buffer_pending = TRUE;
-        }
-    } else {
-        ASSERT(ctx->split_buffer_pending);
-        ASSERT(0 == slice_param->slice_data_offset);
-        /* Create LLDMA chain to continue buffer */
-        if (slice_param->slice_data_size) {
-#ifndef DE3_FIRMWARE
-            psb_cmdbuf_lldma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-#else
-            psb_cmdbuf_dma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-#endif
-        }
-    }
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
-            ASSERT(ctx->split_buffer_pending);
-        }
-
-        psb__H264_build_register(ctx, slice_param);
-
-        psb__H264_build_rendec_params(ctx, slice_param);
-
-        psb__H264_write_kick(ctx, slice_param);
-
-        ctx->split_buffer_pending = FALSE;
-        ctx->obj_context->video_op = psb_video_vld;
-        ctx->obj_context->flags = 0;
-        if (ctx->slice_count == 0) {
-            ctx->obj_context->flags |= FW_VA_RENDER_IS_FIRST_SLICE;
-        }
-        if (ctx->pic_params->seq_fields.bits.mb_adaptive_frame_field_flag) {
-            ctx->obj_context->flags |= FW_VA_RENDER_IS_H264_MBAFF;
-        }
-        if (ctx->two_pass_mode) {
-            ctx->obj_context->flags |= FW_VA_RENDER_IS_TWO_PASS_DEBLOCK;
-        }
-        ctx->obj_context->flags |= FW_VA_RENDER_IS_VLD_NOT_MC; /* FW_ERROR_DETECTION_AND_RECOVERY */
-
-#ifdef PSBVIDEO_MSVDX_EC
-	if (ctx->obj_context->driver_data->ec_enabled)
-            ctx->obj_context->flags |= (FW_ERROR_DETECTION_AND_RECOVERY); /* FW_ERROR_DETECTION_AND_RECOVERY */
-#endif
-
-        ctx->obj_context->first_mb = (ctx->first_mb_y << 8) | ctx->first_mb_x;
-        ctx->obj_context->last_mb = (((ctx->picture_height_mb >> ctx->pic_params->pic_fields.bits.field_pic_flag) - 1) << 8) | (ctx->picture_width_mb - 1);
-        *ctx->slice_first_pic_last = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
-
-        if (psb_context_submit_cmdbuf(ctx->obj_context)) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        }
-
-        ctx->slice_count++;
-        ctx->slice_param = slice_param;
-    }
-    return vaStatus;
+    /* CMD_SR_VERIFY_STARTCODE, clean this flag to work when no start code in slice data */
+    dec_ctx->SR_flags = CMD_ENABLE_RBDU_EXTRACTION;
+    ctx->slice_param = slice_param;
 }
 
-static VAStatus psb__H264_process_slice_data(context_H264_p ctx, object_buffer_p obj_buffer)
+static void psb__H264_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    VASliceParameterBufferH264 *slice_param;
-    int buffer_idx = 0;
-    unsigned int element_idx = 0;
+    VASliceParameterBufferH264 *slice_param = (VASliceParameterBufferH264 *) vld_slice_param;
+    context_H264_p ctx = (context_H264_p)dec_ctx;
 
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
+    psb__H264_build_register(ctx, slice_param);
+    psb__H264_build_rendec_params(ctx, slice_param);
+}
 
-    ASSERT(ctx->pic_params);
-    ASSERT(ctx->slice_param_list_idx);
-
-    if (!ctx->pic_params) {
-        /* Picture params missing */
-        return VA_STATUS_ERROR_UNKNOWN;
+static void psb__H264_end_slice(context_DEC_p dec_ctx)
+{
+    context_H264_p ctx = (context_H264_p)dec_ctx;
+    if (ctx->slice_count == 0) {
+        ctx->obj_context->flags |= FW_VA_RENDER_IS_FIRST_SLICE;
     }
-    if ((NULL == obj_buffer->psb_buffer) ||
-        (0 == obj_buffer->size)) {
-        /* We need to have data in the bitstream buffer */
-        return VA_STATUS_ERROR_UNKNOWN;
+    if (ctx->pic_params->seq_fields.bits.mb_adaptive_frame_field_flag) {
+        ctx->obj_context->flags |= FW_VA_RENDER_IS_H264_MBAFF;
     }
-
-    while (buffer_idx < ctx->slice_param_list_idx) {
-        object_buffer_p slice_buf = ctx->slice_param_list[buffer_idx];
-        if (element_idx >= slice_buf->num_elements) {
-            /* Move to next buffer */
-            element_idx = 0;
-            buffer_idx++;
-            continue;
-        }
-
-        slice_param = (VASliceParameterBufferH264 *) slice_buf->buffer_data;
-        slice_param += element_idx;
-        element_idx++;
-        vaStatus = psb__H264_process_slice(ctx, slice_param, obj_buffer);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            DEBUG_FAILURE;
-            break;
-        }
+    if (ctx->two_pass_mode) {
+        ctx->obj_context->flags |= FW_VA_RENDER_IS_TWO_PASS_DEBLOCK;
     }
-    ctx->slice_param_list_idx = 0;
+    ctx->obj_context->flags |= FW_VA_RENDER_IS_VLD_NOT_MC; /* FW_ERROR_DETECTION_AND_RECOVERY */
 
-    return vaStatus;
+#ifdef PSBVIDEO_MSVDX_EC
+    if (ctx->obj_context->driver_data->ec_enabled)
+        ctx->obj_context->flags |= (FW_ERROR_DETECTION_AND_RECOVERY); /* FW_ERROR_DETECTION_AND_RECOVERY */
+#endif
+
+    ctx->obj_context->first_mb = (ctx->first_mb_y << 8) | ctx->first_mb_x;
+    ctx->obj_context->last_mb = (((ctx->picture_height_mb >> ctx->pic_params->pic_fields.bits.field_pic_flag) - 1) << 8) | (ctx->picture_width_mb - 1);
+    *(dec_ctx->slice_first_pic_last) = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
+
+    ctx->slice_count++;
 }
 
 #ifdef PSBVIDEO_MSVDX_EC
@@ -1845,57 +1502,34 @@ static VAStatus pnw_H264_BeginPicture(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus pnw_H264_RenderPicture(
-    object_context_p obj_context,
-    object_buffer_p *buffers,
-    int num_buffers)
+static VAStatus pnw_H264_process_buffer(
+    context_DEC_p dec_ctx,
+    object_buffer_p buffer)
 {
-    int i;
-    INIT_CONTEXT_H264
+    context_H264_p ctx = (context_H264_p)dec_ctx;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    object_buffer_p obj_buffer = buffer;
 
-    for (i = 0; i < num_buffers; i++) {
-        object_buffer_p obj_buffer = buffers[i];
-        psb__dump_va_buffers_verbose(obj_buffer);
-
+    {
         switch (obj_buffer->type) {
         case VAPictureParameterBufferType:
-            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264_RenderPicture got VAPictureParameterBuffer\n"); */
             vaStatus = psb__H264_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAIQMatrixBufferType:
-            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264_RenderPicture got VAIQMatrixBufferType\n"); */
             vaStatus = psb__H264_process_iq_matrix(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VASliceGroupMapBufferType:
-            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264_RenderPicture got VASliceGroupMapBufferType\n"); */
             vaStatus = psb__H264_process_slice_group_map(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceParameterBufferType:
-            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264_RenderPicture got VASliceParameterBufferType\n"); */
-            vaStatus = psb__H264_add_slice_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceDataBufferType:
-        case VAProtectedSliceDataBufferType:
-            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type)); */
-            vaStatus = psb__H264_process_slice_data(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         default:
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
-        }
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            break;
         }
     }
 
@@ -1910,7 +1544,7 @@ static VAStatus pnw_H264_EndPicture(
     psb_driver_data_p driver_data = obj_context->driver_data;
 
     if (ctx->two_pass_mode) {
-        psb_buffer_p colocated_target_buffer = psb__H264_lookup_colocated_buffer(ctx, target_surface);
+        psb_buffer_p colocated_target_buffer = vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, target_surface);
         psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
         uint32_t rotation_flags = 0;
         uint32_t ext_stride_a = 0;
@@ -2033,7 +1667,7 @@ destroyContext:
 beginPicture:
     pnw_H264_BeginPicture,
 renderPicture:
-    pnw_H264_RenderPicture,
+    vld_dec_RenderPicture,
 endPicture:
     pnw_H264_EndPicture
 };

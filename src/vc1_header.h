@@ -32,8 +32,7 @@
 
 #include "psb_VC1.h"
 #include "psb_def.h"
-#include "psb_surface.h"
-#include "psb_cmdbuf.h"
+#include "tng_vld_dec.h"
 
 #include <img_types.h>
 
@@ -197,6 +196,7 @@ typedef struct {        //              Information about the intensity compensa
 #define VLC_INDEX_TABLE_SIZE    83
 
 struct context_VC1_s {
+    struct context_DEC_s dec_ctx;
     object_context_p obj_context; /* back reference */
 
     uint32_t profile;

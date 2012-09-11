@@ -594,26 +594,6 @@ uint32_t pic_width_mb   :
 #define FW_VA_HW_PANIC_IRQSTATUS_OFFSET         (0x0008)
 #define FW_VA_HW_PANIC_IRQSTATUS_SHIFT          (0)
 
-#ifndef DE3_FIRMWARE
-#define FW_VA_HOST_BE_OPP_SIZE 16
-
-// FW_VA_HOST_BE_OPP     CONTEXT
-#define FW_VA_HOST_BE_OPP_CONTEXT_ALIGNMENT             (4)
-#define FW_VA_HOST_BE_OPP_CONTEXT_TYPE          IMG_UINT32
-#define FW_VA_HOST_BE_OPP_CONTEXT_MASK          (0xFFFFFFFF)
-#define FW_VA_HOST_BE_OPP_CONTEXT_LSBMASK               (0xFFFFFFFF)
-#define FW_VA_HOST_BE_OPP_CONTEXT_OFFSET                (0x0004)
-#define FW_VA_HOST_BE_OPP_CONTEXT_SHIFT         (0)
-
-// FW_VA_HOST_BE_OPP    FLAGS
-#define FW_VA_HOST_BE_OPP_FLAGS_ALIGNMENT               (2)
-#define FW_VA_HOST_BE_OPP_FLAGS_TYPE            IMG_UINT16
-#define FW_VA_HOST_BE_OPP_FLAGS_MASK            (0xFFFF)
-#define FW_VA_HOST_BE_OPP_FLAGS_LSBMASK         (0xFFFF)
-#define FW_VA_HOST_BE_OPP_FLAGS_OFFSET          (0x0002)
-#define FW_VA_HOST_BE_OPP_FLAGS_SHIFT           (0)
-
-#else
 #define FW_VA_HOST_BE_OPP_SIZE 48
 // FW_VA_HOST_BE_OPP     CONTEXT
 #define FW_VA_HOST_BE_OPP_CONTEXT_ALIGNMENT             (1)
@@ -630,7 +610,6 @@ uint32_t pic_width_mb   :
 #define FW_VA_HOST_BE_OPP_FLAGS_LSBMASK         (0xFFFF)
 #define FW_VA_HOST_BE_OPP_FLAGS_OFFSET          (0x0004)
 #define FW_VA_HOST_BE_OPP_FLAGS_SHIFT           (0)
-#endif
 
 #define FW_VA_FRAME_INFO_SIZE 24 /* 20 bytes for FRAME_INFO_PARAMS */
 

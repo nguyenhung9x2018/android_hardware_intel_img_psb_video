@@ -32,7 +32,11 @@
 #include <unistd.h>
 #include <math.h>
 
+#ifdef ANDROID
 #include <linux/psb_drm.h>
+#else
+#include <psb_drm.h>
+#endif
 #include <va/va_backend.h>
 #include <va/va_dricommon.h>
 #include "psb_drv_debug.h"

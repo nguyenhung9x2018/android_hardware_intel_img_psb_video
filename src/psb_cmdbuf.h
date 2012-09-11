@@ -43,7 +43,6 @@
 #define Bool int
 #endif
 
-#define DE3_FIRMWARE
 
 typedef struct psb_cmdbuf_s *psb_cmdbuf_p;
 
@@ -174,12 +173,6 @@ int psb_context_submit_oold(object_context_p obj_context,
                             uint32_t field_type,
                             uint32_t chroma_offset);
 
-#ifndef DE3_FIRMWARE
-int psb_context_submit_host_be_opp(object_context_p obj_context, psb_buffer_p dst_buf,
-                                   uint32_t stride, uint32_t size,
-                                   uint32_t picture_width_mb,
-                                   uint32_t size_mb);
-#else
 int psb_context_submit_host_be_opp(object_context_p obj_context,
                                   psb_buffer_p buf_a,
                                   psb_buffer_p buf_b,
@@ -192,7 +185,6 @@ int psb_context_submit_host_be_opp(object_context_p obj_context,
                                   uint32_t chroma_offset_a,
                                   uint32_t chroma_offset_b);
 
-#endif
 int psb_context_submit_hw_deblock(object_context_p obj_context,
                                   psb_buffer_p buf_a,
                                   psb_buffer_p buf_b,
@@ -287,12 +279,7 @@ uint32_t psb_cmdbuf_lldma_create(psb_cmdbuf_p cmdbuf,
  */
 void psb_cmdbuf_reg_start_block(psb_cmdbuf_p cmdbuf, uint32_t flags);
 
-#ifndef DE3_FIRMWARE
-#define psb_cmdbuf_reg_set( cmdbuf, reg, val ) \
-    do { *cmdbuf->cmd_idx++ = reg; *cmdbuf->cmd_idx++ = val; } while (0)
-#else
 void psb_cmdbuf_reg_set(psb_cmdbuf_p cmdbuf, uint32_t reg, uint32_t val);
-#endif
 
 #define psb_cmdbuf_reg_set_RELOC( cmdbuf, reg, buffer,buffer_offset)             \
     do { *cmdbuf->cmd_idx++ = reg; RELOC(*cmdbuf->cmd_idx++, buffer_offset, buffer); } while (0)

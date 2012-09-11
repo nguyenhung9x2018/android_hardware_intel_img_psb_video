@@ -125,8 +125,7 @@ unsigned char *psb_android_output_init(VADriverContextP ctx)
         driver_data->output_method = PSB_PUTSURFACE_FORCE_COVERLAY;
     }
 
-    if (IS_MFLD(driver_data))
-        driver_data->coverlay = 1;
+    driver_data->coverlay = 1;
 
     return (unsigned char *)output;
 }

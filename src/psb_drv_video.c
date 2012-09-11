@@ -522,22 +522,17 @@ VAStatus psb_CreateConfig(
         *config_id = configID;
     }
 
-    /* only VAProfileH264ConstrainedBaseline profile enable error concealment*/
-    if (IS_MRST(driver_data) &&
-        (getenv("PSB_VIDEO_NOEC") == NULL)
-        && (profile == VAProfileH264ConstrainedBaseline)) {
-        drv_debug_msg(VIDEO_DEBUG_INIT, "profile is VAProfileH264ConstrainedBaseline, error concealment is enabled. \n");
-        driver_data->ec_enabled = 1;
 #ifdef PSBVIDEO_MSVDX_EC
-    } else if(IS_MFLD(driver_data) &&
-        (getenv("PSB_VIDEO_NOEC") == NULL)
+    if((getenv("PSB_VIDEO_NOEC") == NULL)
         && (profile == VAProfileH264ConstrainedBaseline)) {
         drv_debug_msg(VIDEO_DEBUG_INIT, "profile is VAProfileH264ConstrainedBaseline, error concealment is enabled. \n");
         driver_data->ec_enabled = 1;
-#endif
     } else {
         driver_data->ec_enabled = 0;
     }
+#else
+    driver_data->ec_enabled = 0;
+#endif
     DEBUG_FUNC_EXIT
     return vaStatus;
 }
@@ -1200,10 +1195,8 @@ VAStatus psb_CreateContext(
     obj_context->msvdx_context = ((driver_data->msvdx_context_base & 0xff0000) >> 16) |
                                  ((contextID & 0xff000000) >> 16);
 #ifdef ANDROID
-    if(IS_MFLD(driver_data)) {
-        obj_context->msvdx_context = ((driver_data->drm_fd & 0xf) << 4) |
-                                     ((unsigned int)gettid() & 0xf);
-    }
+    obj_context->msvdx_context = ((driver_data->drm_fd & 0xf) << 4) |
+                                 ((unsigned int)gettid() & 0xf);
 #endif
     obj_context->profile = obj_config->profile;
     obj_context->entry_point = obj_config->entrypoint;
@@ -1339,8 +1332,7 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
                                                         */
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_shared, obj_buffer->psb_buffer);
             else if (obj_buffer->type == VAProtectedSliceDataBufferType) {
-                if (IS_MFLD(driver_data))
-                    vaStatus = psb_buffer_reference_imr(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
+                vaStatus = psb_buffer_reference_imr(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
             }
             else if (obj_buffer->type == VAEncCodedBufferType)
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_cached, obj_buffer->psb_buffer);
@@ -2011,7 +2003,7 @@ VAStatus psb_BeginPicture(
      */
 
     SET_SURFACE_INFO_rotate(obj_surface->psb_surface, obj_context->msvdx_rotate);
-    if (IS_MFLD(driver_data) && CONTEXT_ROTATE(obj_context)) {
+    if (CONTEXT_ROTATE(obj_context)) {
         psb_CreateRotateSurface(ctx, obj_surface, obj_context->msvdx_rotate);
         /* for 1080p 60fps clip, need force to use surface texture to display video */
         if (force_texure_1080p_60fps && driver_data->render_mode == VA_RENDER_MODE_EXTERNAL_GPU &&
@@ -3180,7 +3172,9 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     drv_debug_msg(VIDEO_DEBUG_INIT, "vaInitilize: succeeded!\n\n");
 
 #ifdef ANDROID
+#ifndef PSBVIDEO_MRFL
     gralloc_init();
+#endif
 #endif
     return VA_STATUS_SUCCESS;
 }
@@ -3217,7 +3211,7 @@ static int psb_get_device_info(VADriverContextP ctx)
     video_capability = device_info & 0xffff;
 
     driver_data->dev_id = pci_device;
-    drv_debug_msg(VIDEO_DEBUG_INIT, "Retrieve Device ID 0x%04x\n", driver_data->dev_id);
+    drv_debug_msg(VIDEO_DEBUG_INIT, "Retrieve Device ID 0x%08x\n", driver_data->dev_id);
 
     if ((IS_MRST(driver_data) && (pci_device != 0x4101)) ||
         IS_MFLD(driver_data) || IS_MRFL(driver_data))

@@ -318,7 +318,7 @@ void drv_debug_msg(DEBUG_LEVEL debug_level, const char *msg, ...)
     }
 #endif
 
-    if (!psb_video_debug_fp && (psb_video_debug_level == VIDEO_DEBUG_ERROR))
+    if (!psb_video_debug_fp && (psb_video_debug_level & VIDEO_DEBUG_ERROR))
         psb_video_debug_fp = stderr;
     if (psb_video_debug_fp && (psb_video_debug_option & PRINT_TO_FILE) &&
             (debug_level & psb_video_debug_level)) {
@@ -380,151 +380,6 @@ void psb__dump_NV_buffers(
     }
 }
 
-#ifndef DE3_FIRMWARE
-int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
-{
-    static int c=0;
-    static char pFileName[50];
-    if (psb_video_dump_cmdbuf == FALSE)
-        return 0;
-
-    sprintf( pFileName , "/data/ctrlAlloc%i.txt", c++);
-    FILE* pF = fopen(pFileName,"w");
-    if(pF == NULL) {
-        return 1;
-    }
-
-    int idx=0;
-    int x;
-    while( idx <  byte_size / 4 )
-    {
-        unsigned int cmd = buffer[idx++];
-        fprintf( pF , "Command Word: %08X\n" , cmd  );
-        switch( cmd&0xf0000000  )
-        {
-            case 0x70000000:
-            {
-                fprintf( pF , "%04X 2NDPASSDEBLOCK\n" , (idx-1)*4  );
-                for(  x=0;x< 5 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-
-                break;
-            }
-            case 0x90000000:
-            {
-                fprintf( pF , "%04X HEADER\n" , (idx-1)*4  );
-                for(  x=0;x< 7 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-
-                break;
-            }
-
-            case 0x10000000:
-            {
-                fprintf( pF , "%04X CMD_REGVALPAIR_WRITE\n", (idx-1)*4);
-                unsigned int count = cmd&0xffff;
-                for(  x=0;x< count ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X %08X\n",
-                        buffer[idx] ,
-                        buffer[idx+1]    );
-                    idx+=2;
-
-                }
-                break;
-            }
-
-            case 0x50000000:
-            {
-                fprintf( pF , "%04X CMD_RENDEC_BLOCK\n", (idx-1)*4);
-                unsigned int  count    = (cmd>>16)&0x00ff;
-                unsigned int  uiAddr = ((cmd>>4) &0x0fff ) << 2;            /* to do,  limit this */
-
-                for(  x=0;x< count ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X %08X\n",
-                        uiAddr ,
-                        buffer[idx++]    );
-                    uiAddr+= 4;
-
-                }
-                break;
-            }
-            case 0xd0000000:
-            {
-                fprintf( pF , "%04X CMD_NEXT_SEG\n", (idx-1)*4 );
-                fprintf( pF , "should not see it here\n" );
-
-
-                break;
-            }
-            case 0xa0000000:
-            {
-            fprintf( pF , "%04X LLDMA \n", (idx-1)*4 );
-
-                //unsigned int lldmaAddr = cmd<<4;
-                //unsigned int lldmaOffset = lldmaAddr - mpDevMemAlloc->GetDeviceVirtAddress();
-                //unsigned int *plldma = &buffer[ lldmaOffset/4 ];
-
-                //unsigned int Size = plldma[ 1 ]&0xffff ;
-
-                //fprintf( pF , "size 0x%04x\n",Size);
-                break;
-            }
-
-            case 0xb0000000:
-            {
-                fprintf( pF , "%04X SR SETUP %08x\n" , (idx-1)*4  , cmd );
-                for(  x=0;x< 2 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-                break;
-            }
-
-            case 0xf0000000:
-            {
-                fprintf( pF , "%04X CMD_PARSE_HEADER %08x\n" , (idx-1)*4  , cmd );
-                for(  x=0;x< 8 ;x++)
-                {
-                    fprintf( pF ,"\t\t%08X\n",
-                        buffer[idx]        );
-                    idx++;
-
-                }
-                break;
-            }
-
-        case 0x60000000:
-            goto done;
-
-            default:
-                fprintf( pF , "unknow cmd! %04X %08x\n" ,(idx-1)*4 , cmd);
-
-
-            }
-
-
-
-        }
-done:
-        fclose( pF );
-	return 0;
-}
-#else
 int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
 {
     static int c=0;
@@ -657,7 +512,6 @@ done:
     return 0;
 
 }
-#endif
 
 /********************* trace debug start *************************/
 

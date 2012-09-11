@@ -24,15 +24,14 @@
  *
  * Authors:
  *    Waldo Bastian <waldo.bastian@intel.com>
- *    Zeng Li <zeng.li@intel.com>
+ *    Li Zeng <li.zeng@intel.com>
  *
  */
 
 #include "pnw_MPEG4.h"
+#include "tng_vld_dec.h"
 #include "psb_def.h"
 #include "psb_drv_debug.h"
-#include "psb_surface.h"
-#include "psb_cmdbuf.h"
 
 #include "hwdefs/reg_io2.h"
 #include "hwdefs/msvdx_offsets.h"
@@ -51,8 +50,6 @@
 #define SET_SURFACE_INFO_picture_structure(psb_surface, val) psb_surface->extra_info[1] = val;
 #define GET_SURFACE_INFO_picture_coding_type(psb_surface) ((int) (psb_surface->extra_info[2]))
 #define SET_SURFACE_INFO_picture_coding_type(psb_surface, val) psb_surface->extra_info[2] = (uint32_t) val;
-#define GET_SURFACE_INFO_colocated_index(psb_surface) ((int) (psb_surface->extra_info[3]))
-#define SET_SURFACE_INFO_colocated_index(psb_surface, val) psb_surface->extra_info[3] = (uint32_t) val;
 
 #define SLICEDATA_BUFFER_TYPE(type) ((type==VASliceDataBufferType)?"VASliceDataBufferType":"VAProtectedSliceDataBufferType")
 
@@ -1095,6 +1092,7 @@ const static IMG_UINT16 gaui16mpeg4VlcTableDataPacked[] =
 
 
 struct context_MPEG4_s {
+    struct context_DEC_s dec_ctx;
     object_context_p obj_context; /* back reference */
 
     uint32_t profile;
@@ -1132,33 +1130,14 @@ struct context_MPEG4_s {
     int load_non_intra_quant_mat;
     int load_intra_quant_mat;
 
-    /* Split buffers */
-    int split_buffer_pending;
-
-    /* List of VASliceParameterBuffers */
-    object_buffer_p *slice_param_list;
-    int slice_param_list_size;
-    int slice_param_list_idx;
-
     /* VLC packed data */
     struct psb_buffer_s vlc_packed_table;
 
     /* FE state buffer */
-    struct psb_buffer_s FE_state_buffer;
-
-    /* CoLocated buffers */
-    struct psb_buffer_s *colocated_buffers;
-    int colocated_buffers_size;
-    int colocated_buffers_idx;
+    struct psb_buffer_s preload_buffer;
 
     struct psb_buffer_s *data_partition_buffer0;
     struct psb_buffer_s *data_partition_buffer1;
-
-    uint32_t *p_range_mapping_base0;
-    uint32_t *p_range_mapping_base1;
-    uint32_t *p_slice_params; /* pointer to ui32SliceParams in CMD_HEADER */
-    uint32_t *slice_first_pic_last;
-    uint32_t *alt_output_flags;
 };
 
 typedef struct context_MPEG4_s *context_MPEG4_p;
@@ -1250,6 +1229,10 @@ static VAStatus psb__MPEG4_check_legal_picture(object_context_p obj_context, obj
 }
 
 static void pnw_MPEG4_DestroyContext(object_context_p obj_context);
+static void psb__MPEG4_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static void psb__MPEG4_end_slice(context_DEC_p dec_ctx);
+static void psb__MPEG4_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static VAStatus pnw_MPEG4_process_buffer(context_DEC_p dec_ctx, object_buffer_p buffer);
 
 static VAStatus pnw_MPEG4_CreateContext(
     object_context_p obj_context,
@@ -1277,29 +1260,10 @@ static VAStatus pnw_MPEG4_CreateContext(
     ctx->load_non_intra_quant_mat = FALSE;
     ctx->load_intra_quant_mat = FALSE;
 
-    ctx->split_buffer_pending = FALSE;
-
-    ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p*) calloc(1, sizeof(object_buffer_p) * ctx->slice_param_list_size);
-    ctx->slice_param_list_idx = 0;
-
-    if (NULL == ctx->slice_param_list) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        free(ctx);
-        return vaStatus;
-    }
-
-    ctx->colocated_buffers_size = obj_context->num_render_targets;
-    ctx->colocated_buffers_idx = 0;
-    ctx->colocated_buffers = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s) * ctx->colocated_buffers_size);
-    if (NULL == ctx->colocated_buffers) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        free(ctx->slice_param_list);
-        free(ctx);
-        return vaStatus;
-    }
+    ctx->dec_ctx.begin_slice = psb__MPEG4_begin_slice;
+    ctx->dec_ctx.process_slice = psb__MPEG4_process_slice_data;
+    ctx->dec_ctx.end_slice = psb__MPEG4_end_slice;
+    ctx->dec_ctx.process_buffer = pnw_MPEG4_process_buffer;
 
     ctx->data_partition_buffer0 = NULL;
     ctx->data_partition_buffer1 = NULL;
@@ -1326,9 +1290,10 @@ static VAStatus pnw_MPEG4_CreateContext(
         vaStatus = psb_buffer_create(obj_context->driver_data,
                                      FE_STATE_BUFFER_SIZE,
                                      psb_bt_vpu_only,
-                                     &ctx->FE_state_buffer);
+                                     &ctx->preload_buffer);
         DEBUG_FAILURE;
     }
+    ctx->dec_ctx.preload_buffer = &ctx->preload_buffer;
 
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = psb_buffer_create(obj_context->driver_data,
@@ -1348,6 +1313,11 @@ static VAStatus pnw_MPEG4_CreateContext(
         }
     }
 
+    if (vaStatus == VA_STATUS_SUCCESS) {
+        vaStatus = vld_dec_CreateContext(&ctx->dec_ctx, obj_context);
+        DEBUG_FAILURE;
+    }
+
     if (vaStatus != VA_STATUS_SUCCESS) {
         pnw_MPEG4_DestroyContext(obj_context);
     }
@@ -1361,8 +1331,10 @@ static void pnw_MPEG4_DestroyContext(
     INIT_CONTEXT_MPEG4
     int i;
 
+    vld_dec_DestroyContext(&ctx->dec_ctx);
+
     psb_buffer_destroy(&ctx->vlc_packed_table);
-    psb_buffer_destroy(&ctx->FE_state_buffer);
+    psb_buffer_destroy(&ctx->preload_buffer);
 
     if(ctx->data_partition_buffer0)
         psb_buffer_destroy(ctx->data_partition_buffer0);
@@ -1378,51 +1350,8 @@ static void pnw_MPEG4_DestroyContext(
         ctx->pic_params = NULL;
     }
 
-    if (ctx->colocated_buffers) {
-        for (i = 0; i < ctx->colocated_buffers_idx; ++i)
-            psb_buffer_destroy(&(ctx->colocated_buffers[i]));
-
-        free(ctx->colocated_buffers);
-        ctx->colocated_buffers = NULL;
-    }
-    if (ctx->slice_param_list) {
-        free(ctx->slice_param_list);
-        ctx->slice_param_list = NULL;
-    }
-
     free(obj_context->format_data);
     obj_context->format_data = NULL;
-}
-
-static VAStatus psb__MPEG4_allocate_colocated_buffer(context_MPEG4_p ctx, object_surface_p obj_surface, uint32_t size)
-{
-    psb_surface_p surface = obj_surface->psb_surface;
-
-    if (!GET_SURFACE_INFO_colocated_index(surface)) {
-        VAStatus vaStatus;
-        psb_buffer_p buf;
-        int index = ctx->colocated_buffers_idx;
-        if (index >= ctx->colocated_buffers_size) {
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
-        buf = &(ctx->colocated_buffers[index]);
-        vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, buf);
-        if (VA_STATUS_SUCCESS != vaStatus) {
-            return vaStatus;
-        }
-        ctx->colocated_buffers_idx++;
-        SET_SURFACE_INFO_colocated_index(surface, index + 1); /* 0 means unset, index is offset by 1 */
-    }
-    return VA_STATUS_SUCCESS;
-}
-
-static psb_buffer_p psb__MPEG4_lookup_colocated_buffer(context_MPEG4_p ctx, psb_surface_p surface)
-{
-    int index = GET_SURFACE_INFO_colocated_index(surface);
-    if (!index) {
-        return NULL;
-    }
-    return &(ctx->colocated_buffers[index-1]); /* 0 means unset, index is offset by 1 */
 }
 
 static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buffer_p obj_buffer)
@@ -1519,12 +1448,12 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
 
     uint32_t colocated_size = ((mbInPic * 200) + 0xfff) & ~0xfff;
 
-    vaStatus = psb__MPEG4_allocate_colocated_buffer(ctx, ctx->obj_context->current_render_target, colocated_size);
+    vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->obj_context->current_render_target, colocated_size);
     if (VA_STATUS_SUCCESS != vaStatus) {
         DEBUG_FAILURE;
         return vaStatus;
     }
-    vaStatus = psb__MPEG4_allocate_colocated_buffer(ctx, ctx->forward_ref_surface, colocated_size);
+    vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->forward_ref_surface, colocated_size);
     if (VA_STATUS_SUCCESS != vaStatus) {
         DEBUG_FAILURE;
         return vaStatus;
@@ -1728,28 +1657,6 @@ static void psb__MPEG4_write_qmatrices(context_MPEG4_p ctx)
     /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
 }
 
-
-/*
- * Adds a VASliceParameterBuffer to the list of slice params
- */
-static VAStatus psb__MPEG4_add_slice_param(context_MPEG4_p ctx, object_buffer_p obj_buffer)
-{
-    ASSERT(obj_buffer->type == VASliceParameterBufferType);
-    if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        unsigned char *new_list;
-        ctx->slice_param_list_size += 8;
-        new_list = realloc(ctx->slice_param_list,
-                           sizeof(object_buffer_p) * ctx->slice_param_list_size);
-        if (NULL == new_list) {
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        }
-        ctx->slice_param_list = (object_buffer_p*) new_list;
-    }
-    ctx->slice_param_list[ctx->slice_param_list_idx] = obj_buffer;
-    ctx->slice_param_list_idx++;
-    return VA_STATUS_SUCCESS;
-}
-
 /* Precalculated values */
 #define ADDR0        (0x00005800)
 #define ADDR1        (0x0001f828)
@@ -1772,15 +1679,9 @@ static void psb__MPEG4_write_VLC_tables(context_MPEG4_p ctx)
     psb_cmdbuf_skip_start_block(cmdbuf, SKIP_ON_CONTEXT_SWITCH);
     /* VLC Table */
     /* Write a LLDMA Cmd to transfer VLD Table data */
-#ifndef DE3_FIRMWARE
-    psb_cmdbuf_lldma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table, 0,
-                                  sizeof(gaui16mpeg4VlcTableDataPacked),
-                                  0, LLDMA_TYPE_VLC_TABLE);
-#else
     psb_cmdbuf_dma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table, 0,
                                   sizeof(gaui16mpeg4VlcTableDataPacked), 0,
                                   DMA_TYPE_VLC_TABLE);
-#endif
 
     /* Write the vec registers with the index data for each of the tables and then write    */
     /* the actual table data.                                                                */
@@ -1803,67 +1704,14 @@ static void psb__MPEG4_write_VLC_tables(context_MPEG4_p ctx)
     psb_cmdbuf_skip_end_block(cmdbuf);
 }
 
-
-static void psb__MPEG4_write_kick(context_MPEG4_p ctx, VASliceParameterBufferMPEG4 *slice_param)
-{
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-
-    (void) slice_param; /* Unused for now */
-
-    *cmdbuf->cmd_idx++ = CMD_COMPLETION;
-}
-
-/* Programme the Alt output if there is a rotation*/
-static void psb__MPEG4_setup_alternative_frame(context_MPEG4_p ctx)
-{
-    uint32_t cmd;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
-    object_context_p obj_context = ctx->obj_context;
-
-    if (rotate_surface == NULL) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "rotate surface is NULL, abort msvdx rotation\n");
-        return;
-    }
-
-    if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "Display rotate mode does not match surface rotate mode!\n");
-
-
-    /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
-
-    psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
-    psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
-
-    psb_cmdbuf_rendec_end(cmdbuf);
-
-    /* Set the rotation registers */
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION));
-    cmd = 0;
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
-
-    psb_cmdbuf_rendec_write(cmdbuf, cmd);
-
-    psb_cmdbuf_rendec_end(cmdbuf);
-
-    *ctx->alt_output_flags = cmd;
-    RELOC(*ctx->p_range_mapping_base0, rotate_surface->buf.buffer_ofs, &rotate_surface->buf);
-    RELOC(*ctx->p_range_mapping_base1, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset, &rotate_surface->buf);
-}
-
-
 static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterBufferMPEG4 *slice_param)
 {
     uint32_t cmd;
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
 
-    psb_buffer_p colocated_target_buffer = psb__MPEG4_lookup_colocated_buffer(ctx, target_surface);
-    psb_buffer_p colocated_ref_buffer = psb__MPEG4_lookup_colocated_buffer(ctx, ctx->forward_ref_surface->psb_surface); /* FIXME DE2.0 use backward ref surface */
+    psb_buffer_p colocated_target_buffer = vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, target_surface);
+    psb_buffer_p colocated_ref_buffer = vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, ctx->forward_ref_surface->psb_surface); /* FIXME DE2.0 use backward ref surface */
     ASSERT(colocated_target_buffer);
     ASSERT(colocated_ref_buffer);
 
@@ -1889,8 +1737,7 @@ static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterB
     }
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    if (CONTEXT_ROTATE(ctx->obj_context))
-        psb__MPEG4_setup_alternative_frame(ctx);
+    vld_dec_setup_alternative_frame(ctx->obj_context);
 
     /* Send VDMC and VDEB commands                                                    */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE));
@@ -2059,7 +1906,7 @@ static void psb__MPEG4_set_backend_registers(context_MPEG4_p ctx, VASliceParamet
 
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    *ctx->p_slice_params = cmd;
+    *ctx->dec_ctx.p_slice_params = cmd;
 
     /* CHUNK: Entdec back-end profile and level                                        */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC, CR_VEC_ENTDEC_BE_CONTROL));
@@ -2138,226 +1985,32 @@ static void psb__MPEG4_set_frontend_registers(context_MPEG4_p ctx, VASliceParame
    }
 }
 
-/*
-static void psb__MPEG4_FE_state(context_MPEG4_p ctx)
+static void psb__MPEG4_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
 {
-    uint32_t lldma_record_offset;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    VASliceParameterBufferMPEG4 *slice_param = (VASliceParameterBufferMPEG4 *) vld_slice_param;
 
-    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
-
-    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
-    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
-    ctx->p_slice_params = cmdbuf->cmd_idx;
-    *cmdbuf->cmd_idx++ = 0;
-
-    lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &(ctx->FE_state_buffer), 0,
-                                FE_STATE_SAVE_SIZE, 0, LLDMA_TYPE_MPEG4_FESTATE_SAVE );
-    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-    cmdbuf->cmd_idx++;
-
-    lldma_record_offset = psb_cmdbuf_lldma_create( cmdbuf, &(ctx->FE_state_buffer), 0,
-                                FE_STATE_SAVE_SIZE, 0, LLDMA_TYPE_MPEG4_FESTATE_RESTORE );
-    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-    cmdbuf->cmd_idx++;
-
-    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
-}
-*/
-#ifndef DE3_FIRMWARE
-static void psb__MPEG4_FE_state(context_MPEG4_p ctx)
-{
-    uint32_t lldma_record_offset;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-
-    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
-    ctx->p_slice_params = cmdbuf->cmd_idx;
-    *cmdbuf->cmd_idx++ = 0;
-
-
-    lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, &(ctx->FE_state_buffer), 0,
-                          FE_STATE_SAVE_SIZE, 0, LLDMA_TYPE_MPEG4_FESTATE_SAVE);
-    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-    cmdbuf->cmd_idx++;
-
-    lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, &(ctx->FE_state_buffer), 0,
-                          FE_STATE_SAVE_SIZE, 0, LLDMA_TYPE_MPEG4_FESTATE_RESTORE);
-    RELOC(*cmdbuf->cmd_idx, lldma_record_offset, &(cmdbuf->buf));
-    cmdbuf->cmd_idx++;
-
-    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
-
-    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
-    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
-
-    ctx->alt_output_flags = cmdbuf->cmd_idx++;
-    *ctx->alt_output_flags = 0;
-}
-#else
-static void psb__MPEG4_FE_state(context_MPEG4_p ctx)
-{
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    CTRL_ALLOC_HEADER *cmd_header = (CTRL_ALLOC_HEADER *)psb_cmdbuf_alloc_space(cmdbuf, sizeof(CTRL_ALLOC_HEADER));
-
-    memset(cmd_header, 0, sizeof(CTRL_ALLOC_HEADER));
-    cmd_header->ui32Cmd_AdditionalParams = CMD_CTRL_ALLOC_HEADER;
-    RELOC(cmd_header->ui32ExternStateBuffAddr, 0, &ctx->FE_state_buffer);
-    cmd_header->ui32MacroblockParamAddr = 0; /* Only EC needs to set this */
-
-    ctx->p_slice_params = &cmd_header->ui32SliceParams;
-    cmd_header->ui32SliceParams = 0;
-
-    ctx->slice_first_pic_last = &cmd_header->uiSliceFirstMbYX_uiPicLastMbYX;
-
-    ctx->p_range_mapping_base0 = &cmd_header->ui32AltOutputAddr[0];
-    ctx->p_range_mapping_base1 = &cmd_header->ui32AltOutputAddr[1];
-
-    ctx->alt_output_flags = &cmd_header->ui32AltOutputFlags;
-    cmd_header->ui32AltOutputFlags = 0;
-}
-#endif
-static VAStatus psb__MPEG4_process_slice(context_MPEG4_p ctx,
-        VASliceParameterBufferMPEG4 *slice_param,
-        object_buffer_p obj_buffer)
-{
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "MPEG4 process slice\n");
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    macroblock nr = %d offset = %d\n", slice_param->macroblock_number, slice_param->macroblock_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    slice_data_flag = %d\n", slice_param->slice_data_flag);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    interlaced = %d\n", ctx->pic_params->vol_fields.bits.interlaced);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
-        if (0 == slice_param->slice_data_size) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
-        ASSERT(!ctx->split_buffer_pending);
-
-        /* Initialise the command buffer */
-        /* TODO: Reuse current command buffer until full */
-        psb_context_get_next_cmdbuf(ctx->obj_context);
-
-        psb__MPEG4_FE_state(ctx);
-
-#ifndef DE3_FIRMWARE
-        psb_cmdbuf_lldma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
-                                         slice_param->macroblock_offset,
-                                         0);
-#else
-
-        psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
-                                         slice_param->macroblock_offset,
-                                         0);
-#endif
-
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) {
-            ctx->split_buffer_pending = TRUE;
-        }
-    } else {
-        ASSERT(ctx->split_buffer_pending);
-        ASSERT(0 == slice_param->slice_data_offset);
-        /* Create LLDMA chain to continue buffer */
-        if (slice_param->slice_data_size) {
-#ifndef DE3_FIRMWARE
-            psb_cmdbuf_lldma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-#else
-            psb_cmdbuf_dma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-#endif
-        }
-    }
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
-            ASSERT(ctx->split_buffer_pending);
-        }
-
-        psb__MPEG4_write_VLC_tables(ctx);
-
-        psb__MPEG4_set_picture_params(ctx, slice_param);
-
-        psb__MPEG4_set_frontend_registers(ctx, slice_param);
-
-        psb__MPEG4_set_backend_registers(ctx, slice_param);
-
-        psb__MPEG4_write_kick(ctx, slice_param);
-
-        ctx->split_buffer_pending = FALSE;
-        ctx->obj_context->video_op = psb_video_vld;
-        ctx->obj_context->flags = 0;
-        ctx->obj_context->first_mb = 0;
-        ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
-
-        *ctx->slice_first_pic_last = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
-
-        if (psb_context_submit_cmdbuf(ctx->obj_context)) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        }
-    }
-    return vaStatus;
+    dec_ctx->bits_offset = slice_param->macroblock_offset;
+    /* dec_ctx->SR_flags = 0; */
 }
 
-static VAStatus psb__MPEG4_process_slice_data(context_MPEG4_p ctx, object_buffer_p obj_buffer)
+static void psb__MPEG4_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    VASliceParameterBufferMPEG4 *slice_param;
-    int buffer_idx = 0;
-    unsigned int element_idx = 0;
+    VASliceParameterBufferMPEG4 *slice_param = (VASliceParameterBufferMPEG4 *) vld_slice_param;
+    context_MPEG4_p ctx = (context_MPEG4_p)dec_ctx;
 
+    psb__MPEG4_write_VLC_tables(ctx);
+    psb__MPEG4_set_picture_params(ctx, slice_param);
+    psb__MPEG4_set_frontend_registers(ctx, slice_param);
+    psb__MPEG4_set_backend_registers(ctx, slice_param);
+}
 
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
+static void psb__MPEG4_end_slice(context_DEC_p dec_ctx)
+{
+    context_MPEG4_p ctx = (context_MPEG4_p)dec_ctx;
 
-    ASSERT(ctx->pic_params);
-    ASSERT(ctx->slice_param_list_idx);
-
-    if (!ctx->pic_params) {
-        /* Picture params missing */
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-    if ((NULL == obj_buffer->psb_buffer) ||
-        (0 == obj_buffer->size)) {
-        /* We need to have data in the bitstream buffer */
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    while (buffer_idx < ctx->slice_param_list_idx) {
-        object_buffer_p slice_buf = ctx->slice_param_list[buffer_idx];
-        if (element_idx >= slice_buf->num_elements) {
-            /* Move to next buffer */
-            element_idx = 0;
-            buffer_idx++;
-            continue;
-        }
-
-        slice_param = (VASliceParameterBufferMPEG4 *) slice_buf->buffer_data;
-        slice_param += element_idx;
-        element_idx++;
-        vaStatus = psb__MPEG4_process_slice(ctx, slice_param, obj_buffer);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            DEBUG_FAILURE;
-            break;
-        }
-    }
-    ctx->slice_param_list_idx = 0;
-
-    return vaStatus;
+    ctx->obj_context->first_mb = 0;
+    ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
+    *(ctx->dec_ctx.slice_first_pic_last) = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
 }
 
 static VAStatus pnw_MPEG4_BeginPicture(
@@ -2375,53 +2028,30 @@ static VAStatus pnw_MPEG4_BeginPicture(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus pnw_MPEG4_RenderPicture(
-    object_context_p obj_context,
-    object_buffer_p *buffers,
-    int num_buffers)
+static VAStatus pnw_MPEG4_process_buffer(
+    context_DEC_p dec_ctx,
+    object_buffer_p buffer)
 {
-    int i;
-    INIT_CONTEXT_MPEG4
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    for (i = 0; i < num_buffers; i++) {
-        object_buffer_p obj_buffer = buffers[i];
-        psb__dump_va_buffers(obj_buffer);
+    context_MPEG4_p ctx = (context_MPEG4_p)dec_ctx;
+    object_buffer_p obj_buffer = buffer;
 
-        switch (obj_buffer->type) {
-        case VAPictureParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG4_RenderPicture got VAPictureParameterBuffer\n");
-            vaStatus = psb__MPEG4_process_picture_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
+    switch (obj_buffer->type) {
+    case VAPictureParameterBufferType:
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG4_RenderPicture got VAPictureParameterBuffer\n");
+        vaStatus = psb__MPEG4_process_picture_param(ctx, obj_buffer);
+        DEBUG_FAILURE;
+        break;
 
+    case VAIQMatrixBufferType:
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG4_RenderPicture got VAIQMatrixBufferType\n");
+        vaStatus = psb__MPEG4_process_iq_matrix(ctx, obj_buffer);
+        DEBUG_FAILURE;
+        break;
 
-        case VAIQMatrixBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG4_RenderPicture got VAIQMatrixBufferType\n");
-            vaStatus = psb__MPEG4_process_iq_matrix(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG4_RenderPicture got VASliceParameterBufferType\n");
-            vaStatus = psb__MPEG4_add_slice_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceDataBufferType:
-        case VAProtectedSliceDataBufferType:
-
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG4_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
-            vaStatus = psb__MPEG4_process_slice_data(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        default:
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-        }
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            break;
-        }
+    default:
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        DEBUG_FAILURE;
     }
 
     return vaStatus;
@@ -2456,7 +2086,7 @@ destroyContext:
 beginPicture:
     pnw_MPEG4_BeginPicture,
 renderPicture:
-    pnw_MPEG4_RenderPicture,
+    vld_dec_RenderPicture,
 endPicture:
     pnw_MPEG4_EndPicture
 };

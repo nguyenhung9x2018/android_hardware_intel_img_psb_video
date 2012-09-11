@@ -27,7 +27,7 @@ LOCAL_PATH := $(call my-dir)
 # For msvdx_bin
 # =====================================================
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES := msvdx_bin.c thread0_ss_bin.c thread0_bin.c thread1_bin.c thread2_bin.c thread3_bin.c
+LOCAL_SRC_FILES := msvdx_bin.c thread1_bin.c
 
 LOCAL_CFLAGS += -DFRAME_SWITCHING_VARIANT=1 -DSLICE_SWITCHING_VARIANT=1
 

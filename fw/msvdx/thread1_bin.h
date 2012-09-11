@@ -38,19 +38,12 @@ typedef struct {
 } FIRMWARE;
 
 //extern const FIRMWARE sSliceSwitchingFirmware;
-extern const FIRMWARE sFrameSwitchingFirmware;
-extern const FIRMWARE sSliceSwitchingFirmware;
-extern const FIRMWARE sFirmware1100_SS;
-extern const FIRMWARE sFirmware1133_SS;
-extern const FIRMWARE sFirmware1133_FS;
-extern const FIRMWARE sFirmware1163_SS;
-extern const FIRMWARE sFirmware1163_FS;
-extern const FIRMWARE sFirmware1300_SS;
-extern const FIRMWARE sFirmware1311_SS;
-extern const FIRMWARE sFirmware1313_SS;
-extern const FIRMWARE sFirmware1341_FS;
 extern const FIRMWARE sFirmware1366_FS;
 extern const FIRMWARE sFirmware1366_SS;
+extern const FIRMWARE sFirmware1419_FS;
+extern const FIRMWARE sFirmware_FS;
+extern const FIRMWARE sFirmware_SS;
+extern const FIRMWARE sFirmware0000_SS;
 #define FIRMWARE_VERSION_DEFINED
 #define FIRMWARE_BUILDDATE_DEFINED
 //#endif /* SLICE_SWITCHING_VARIANT */

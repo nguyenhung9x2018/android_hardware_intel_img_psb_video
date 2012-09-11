@@ -24,15 +24,14 @@
  *
  * Authors:
  *    Waldo Bastian <waldo.bastian@intel.com>
- *    Zeng Li <zeng.li@intel.com>
+ *    Li Zeng <li.zeng@intel.com>
  *
  */
 
 #include "pnw_MPEG2.h"
+#include "tng_vld_dec.h"
 #include "psb_def.h"
 #include "psb_drv_debug.h"
-#include "psb_surface.h"
-#include "psb_cmdbuf.h"
 
 #include "hwdefs/reg_io2.h"
 #include "hwdefs/msvdx_offsets.h"
@@ -476,6 +475,7 @@ typedef enum {
 } QUANT_IDX;
 
 struct context_MPEG2_s {
+    struct context_DEC_s dec_ctx;
     object_context_p obj_context; /* back reference */
 
     /* Picture parameters */
@@ -505,25 +505,11 @@ struct context_MPEG2_s {
     uint32_t qmatrix_data[MAX_QUANT_TABLES][16];
     int got_iq_matrix;
 
-    /* Split buffers */
-    int split_buffer_pending;
-
-    /* List of VASliceParameterBuffers */
-    object_buffer_p *slice_param_list;
-    int slice_param_list_size;
-    int slice_param_list_idx;
-
     /* VLC packed data */
     struct psb_buffer_s vlc_packed_table;
 
     /* Misc */
     unsigned int previous_slice_vertical_position;
-
-    uint32_t *p_range_mapping_base0;
-    uint32_t *p_range_mapping_base1;
-    uint32_t *p_slice_params; /* pointer to ui32SliceParams in CMD_HEADER */
-    uint32_t *slice_first_pic_last;
-    uint32_t *alt_output_flags;
 };
 
 typedef struct context_MPEG2_s *context_MPEG2_p;
@@ -608,6 +594,10 @@ static VAStatus psb__MPEG2_check_legal_picture(object_context_p obj_context, obj
 }
 
 static void pnw_MPEG2_DestroyContext(object_context_p obj_context);
+static void psb__MPEG2_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static void psb__MPEG2_end_slice(context_DEC_p dec_ctx);
+static void psb__MPEG2_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static VAStatus pnw_MPEG2_process_buffer(context_DEC_p dec_ctx, object_buffer_p buffer);
 
 static VAStatus pnw_MPEG2_CreateContext(
     object_context_p obj_context,
@@ -641,16 +631,11 @@ static VAStatus pnw_MPEG2_CreateContext(
     ctx->got_iq_matrix = FALSE;
     ctx->previous_slice_vertical_position = ~1;
 
-    ctx->split_buffer_pending = FALSE;
-
-    ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p*) calloc(1, sizeof(object_buffer_p) * ctx->slice_param_list_size);
-    ctx->slice_param_list_idx = 0;
-
-    if (NULL == ctx->slice_param_list) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-    }
+    ctx->dec_ctx.begin_slice = psb__MPEG2_begin_slice;
+    ctx->dec_ctx.process_slice = psb__MPEG2_process_slice_data;
+    ctx->dec_ctx.end_slice = psb__MPEG2_end_slice;
+    ctx->dec_ctx.process_buffer =  pnw_MPEG2_process_buffer;
+    ctx->dec_ctx.preload_buffer = NULL;
 
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = psb_buffer_create(obj_context->driver_data,
@@ -670,6 +655,11 @@ static VAStatus pnw_MPEG2_CreateContext(
         }
     }
 
+    if (vaStatus == VA_STATUS_SUCCESS) {
+        vaStatus = vld_dec_CreateContext(&ctx->dec_ctx, obj_context);
+        DEBUG_FAILURE;
+    }
+
     if (vaStatus != VA_STATUS_SUCCESS) {
         pnw_MPEG2_DestroyContext(obj_context);
     }
@@ -682,16 +672,13 @@ static void pnw_MPEG2_DestroyContext(
 {
     INIT_CONTEXT_MPEG2
 
+    vld_dec_DestroyContext(&ctx->dec_ctx);
+
     psb_buffer_destroy(&ctx->vlc_packed_table);
 
     if (ctx->pic_params) {
         free(ctx->pic_params);
         ctx->pic_params = NULL;
-    }
-
-    if (ctx->slice_param_list) {
-        free(ctx->slice_param_list);
-        ctx->slice_param_list = NULL;
     }
 
     free(obj_context->format_data);
@@ -868,27 +855,6 @@ static VAStatus psb__MPEG2_process_iq_matrix(context_MPEG2_p ctx, object_buffer_
     return VA_STATUS_SUCCESS;
 }
 
-/*
- * Adds a VASliceParameterBuffer to the list of slice params
- */
-static VAStatus psb__MPEG2_add_slice_param(context_MPEG2_p ctx, object_buffer_p obj_buffer)
-{
-    ASSERT(obj_buffer->type == VASliceParameterBufferType);
-    if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        unsigned char *new_list;
-        ctx->slice_param_list_size += 8;
-        new_list = realloc(ctx->slice_param_list,
-                           sizeof(object_buffer_p) * ctx->slice_param_list_size);
-        if (NULL == new_list) {
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        }
-        ctx->slice_param_list = (object_buffer_p*) new_list;
-    }
-    ctx->slice_param_list[ctx->slice_param_list_idx] = obj_buffer;
-    ctx->slice_param_list_idx++;
-    return VA_STATUS_SUCCESS;
-}
-
 /* Precalculated values */
 #define ADDR0       (0x00006000)
 #define ADDR1       (0x0003f017)
@@ -904,15 +870,9 @@ static void psb__MPEG2_write_VLC_tables(context_MPEG2_p ctx)
     psb_cmdbuf_skip_start_block(cmdbuf, SKIP_ON_CONTEXT_SWITCH);
     /* VLC Table */
     /* Write a LLDMA Cmd to transfer VLD Table data */
-#ifndef DE3_FIRMWARE
-    psb_cmdbuf_lldma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table, 0,
-                                  sizeof(gaui16mpeg2VlcTableDataPacked),
-                                  0, LLDMA_TYPE_VLC_TABLE);
-#else
     psb_cmdbuf_dma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table, 0,
                                   sizeof(gaui16mpeg2VlcTableDataPacked),
                                   DMA_TYPE_VLC_TABLE);
-#endif
 
     /* Write the vec registers with the index data for each of the tables and then write    */
     /* the actual table data.                                                                */
@@ -928,56 +888,12 @@ static void psb__MPEG2_write_VLC_tables(context_MPEG2_p ctx)
     psb_cmdbuf_skip_end_block(cmdbuf);
 }
 
-/* Programme the Alt output if there is a rotation*/
-static void psb__MPEG2_setup_alternative_frame(context_MPEG2_p ctx, IMG_BOOL write_reg)
-{
-    uint32_t cmd;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
-    object_context_p obj_context = ctx->obj_context;
-
-    if (rotate_surface == NULL) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "rotate surface is NULL, abort msvdx rotation\n");
-        return;
-    }
-
-    if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "Display rotate mode does not match surface rotate mode!\n");
-
-
-    /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
-
-    psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
-    psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
-
-    RELOC(*ctx->p_range_mapping_base0, rotate_surface->buf.buffer_ofs, &rotate_surface->buf);
-    RELOC(*ctx->p_range_mapping_base1, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset, &rotate_surface->buf);
-
-    psb_cmdbuf_rendec_end(cmdbuf);
-
-    if (write_reg) {
-        /* Set the rotation registers */
-        psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION));
-        cmd = 0;
-        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
-        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
-        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0); /* FIXME Always has Rec */
-        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
-
-        psb_cmdbuf_rendec_write(cmdbuf, cmd);
-
-        psb_cmdbuf_rendec_end(cmdbuf);
-    }
-}
-
 static void psb__MPEG2_set_operating_mode(context_MPEG2_p ctx)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
 
-    if (CONTEXT_ROTATE(ctx->obj_context))
-        psb__MPEG2_setup_alternative_frame(ctx, ctx->pic_params->picture_coding_extension.bits.progressive_frame);
+    vld_dec_setup_alternative_frame(ctx->obj_context);
 
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE));
     psb_cmdbuf_rendec_write(cmdbuf, ctx->display_picture_size);
@@ -1201,7 +1117,7 @@ static void psb__MPEG2_set_slice_params(context_MPEG2_p ctx)
 
     psb_cmdbuf_rendec_write(cmdbuf, cmd_data);
 
-    *ctx->p_slice_params = cmd_data;
+    *ctx->dec_ctx.p_slice_params = cmd_data;
 
     psb_cmdbuf_rendec_end(cmdbuf);
 }
@@ -1268,212 +1184,38 @@ static void psb__MPEG2_set_ent_dec(context_MPEG2_p ctx)
     psb_cmdbuf_rendec_end(cmdbuf);
 }
 
-static void psb__MPEG2_write_kick(context_MPEG2_p ctx, VASliceParameterBufferMPEG2 *slice_param)
+static void psb__MPEG2_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
 {
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    VASliceParameterBufferMPEG2 *slice_param = (VASliceParameterBufferMPEG2 *) vld_slice_param;
+    context_MPEG2_p ctx = (context_MPEG2_p)dec_ctx;
 
-    (void) slice_param; /* Unused for now */
+    dec_ctx->bits_offset = slice_param->macroblock_offset;
+    /* dec_ctx->SR_flags = 0; */
+}
+static void psb__MPEG2_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
+{
+    VASliceParameterBufferMPEG2 *slice_param = (VASliceParameterBufferMPEG2 *) vld_slice_param;
+    context_MPEG2_p ctx = (context_MPEG2_p)dec_ctx;
 
-    *cmdbuf->cmd_idx++ = CMD_COMPLETION;
+    psb__MPEG2_set_operating_mode(ctx);
+    psb__MPEG2_set_reference_pictures(ctx);
+    psb__MPEG2_set_picture_header(ctx, slice_param);
+    psb__MPEG2_set_slice_params(ctx);
+    psb__MPEG2_write_qmatrices(ctx);
+    psb__MPEG2_set_ent_dec(ctx);
 }
 
-#ifndef DE3_FIRMWARE
-static void psb__MPEG2_FE_state(context_MPEG2_p ctx)
+static void psb__MPEG2_end_slice(context_DEC_p dec_ctx)
 {
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    context_MPEG2_p ctx = (context_MPEG2_p)dec_ctx;
+    ctx->obj_context->flags = FW_VA_RENDER_IS_VLD_NOT_MC;
 
-    /* See RENDER_BUFFER_HEADER */
-    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
+    if (ctx->pic_params->picture_coding_extension.bits.progressive_frame)
+        ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
+    else
+        ctx->obj_context->last_mb = ((ctx->picture_height_mb / 2 - 1) << 8) | (ctx->picture_width_mb - 1);
 
-    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
-    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
-
-    *ctx->p_range_mapping_base0 = 0;
-    *ctx->p_range_mapping_base1 = 0;
-
-    ctx->p_slice_params = cmdbuf->cmd_idx;
-    *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
-
-    *cmdbuf->cmd_idx++ = 0; /* skip two lldma addr field */
-
-    *cmdbuf->cmd_idx++  = 0;
-    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
-}
-#else
-static void psb__MPEG2_FE_state(context_MPEG2_p ctx)
-{
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    CTRL_ALLOC_HEADER *cmd_header = (CTRL_ALLOC_HEADER *)psb_cmdbuf_alloc_space(cmdbuf, sizeof(CTRL_ALLOC_HEADER));
-
-    memset(cmd_header, 0, sizeof(CTRL_ALLOC_HEADER));
-    cmd_header->ui32Cmd_AdditionalParams = CMD_CTRL_ALLOC_HEADER;
-    //RELOC(cmd_header->ui32ExternStateBuffAddr, 0, &ctx->preload_buffer);
-    cmd_header->ui32ExternStateBuffAddr = 0;
-    cmd_header->ui32MacroblockParamAddr = 0; /* Only EC needs to set this */
-
-    ctx->p_slice_params = &cmd_header->ui32SliceParams;
-    cmd_header->ui32SliceParams = 0;
-
-    ctx->slice_first_pic_last = &cmd_header->uiSliceFirstMbYX_uiPicLastMbYX;
-
-    ctx->p_range_mapping_base0 = &cmd_header->ui32AltOutputAddr[0];
-    ctx->p_range_mapping_base1 = &cmd_header->ui32AltOutputAddr[1];
-
-    ctx->alt_output_flags = &cmd_header->ui32AltOutputFlags;
-    cmd_header->ui32AltOutputFlags = 0;
-}
-#endif
-
-static VAStatus psb__MPEG2_process_slice(context_MPEG2_p ctx,
-        VASliceParameterBufferMPEG2 *slice_param,
-        object_buffer_p obj_buffer)
-{
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "MPEG2 process slice\n");
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    size = %08x offset = %08x\n", slice_param->slice_data_size, slice_param->slice_data_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    vertical pos = %d\n", slice_param->slice_vertical_position);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    slice_data_flag = %d\n", slice_param->slice_data_flag);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "    coded size = %dx%d\n", ctx->picture_width_mb, ctx->picture_height_mb);
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
-        if (0 == slice_param->slice_data_size) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
-
-        ASSERT(!ctx->split_buffer_pending);
-
-        /* Initialise the command buffer */
-        psb_context_get_next_cmdbuf(ctx->obj_context);
-
-        psb__MPEG2_FE_state(ctx);
-        psb__MPEG2_write_VLC_tables(ctx);
-
-#ifndef DE3_FIRMWARE
-        psb_cmdbuf_lldma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
-                                         slice_param->macroblock_offset,
-                                         0);
-#else
-        psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
-                                         slice_param->macroblock_offset,
-                                         0);
-
-#endif
-
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) {
-            ctx->split_buffer_pending = TRUE;
-        }
-    } else {
-        ASSERT(ctx->split_buffer_pending);
-        ASSERT(0 == slice_param->slice_data_offset);
-        /* Create LLDMA chain to continue buffer */
-        if (slice_param->slice_data_size) {
-#ifndef DE3_FIRMWARE
-            psb_cmdbuf_lldma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-#else
-            psb_cmdbuf_dma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-#endif
-        }
-    }
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
-            ASSERT(ctx->split_buffer_pending);
-        }
-
-        psb__MPEG2_set_operating_mode(ctx);
-
-        psb__MPEG2_set_reference_pictures(ctx);
-
-        psb__MPEG2_set_picture_header(ctx, slice_param);
-
-        psb__MPEG2_set_slice_params(ctx);
-
-        psb__MPEG2_write_qmatrices(ctx);
-
-        psb__MPEG2_set_ent_dec(ctx);
-
-        psb__MPEG2_write_kick(ctx, slice_param);
-
-        ctx->split_buffer_pending = FALSE;
-        ctx->obj_context->video_op = psb_video_vld;
-        ctx->obj_context->flags = FW_VA_RENDER_IS_VLD_NOT_MC;
-        ctx->obj_context->first_mb = 0;
-
-        if (ctx->pic_params->picture_coding_extension.bits.progressive_frame)
-            ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
-        else
-            ctx->obj_context->last_mb = ((ctx->picture_height_mb / 2 - 1) << 8) | (ctx->picture_width_mb - 1);
-
-        *ctx->slice_first_pic_last = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
-
-        if (psb_context_submit_cmdbuf(ctx->obj_context)) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        }
-    }
-    return vaStatus;
-}
-
-static VAStatus psb__MPEG2_process_slice_data(context_MPEG2_p ctx, object_buffer_p obj_buffer)
-{
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    VASliceParameterBufferMPEG2 *slice_param;
-    int buffer_idx = 0;
-    unsigned int element_idx = 0;
-
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
-
-    ASSERT(ctx->got_iq_matrix);
-    ASSERT(ctx->pic_params);
-    ASSERT(ctx->slice_param_list_idx);
-
-    if (!ctx->got_iq_matrix || !ctx->pic_params) {
-        /* IQ matrix or Picture params missing */
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-    if ((NULL == obj_buffer->psb_buffer) ||
-        (0 == obj_buffer->size)) {
-        /* We need to have data in the bitstream buffer */
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    while (buffer_idx < ctx->slice_param_list_idx) {
-        object_buffer_p slice_buf = ctx->slice_param_list[buffer_idx];
-        if (element_idx >= slice_buf->num_elements) {
-            /* Move to next buffer */
-            element_idx = 0;
-            buffer_idx++;
-            continue;
-        }
-
-        slice_param = (VASliceParameterBufferMPEG2 *) slice_buf->buffer_data;
-        slice_param += element_idx;
-        element_idx++;
-        vaStatus = psb__MPEG2_process_slice(ctx, slice_param, obj_buffer);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            DEBUG_FAILURE;
-            break;
-        }
-    }
-    ctx->slice_param_list_idx = 0;
-
-    return vaStatus;
+    *(ctx->dec_ctx.slice_first_pic_last) = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb);
 }
 
 static void psb__MEPG2_send_highlevel_cmd(context_MPEG2_p ctx)
@@ -1517,7 +1259,7 @@ static void psb__MEPG2_send_highlevel_cmd(context_MPEG2_p ctx)
     REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, SLICE_PARAMS, SLICE_FIELD_TYPE,   2); /* FRAME PICTURE -- ui8SliceFldType */
     REGIO_WRITE_FIELD(cmd, MSVDX_CMDS, SLICE_PARAMS, SLICE_CODE_TYPE,    1); /* P PICTURE -- (ui8PicType == WMF_PTYPE_BI) ? WMF_PTYPE_I : (ui8PicType & 0x3) */
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS), cmd);
-    *ctx->p_slice_params = cmd;
+    *ctx->dec_ctx.p_slice_params = cmd;
     psb_cmdbuf_reg_end_block(cmdbuf);
 
 
@@ -1529,8 +1271,8 @@ static void psb__MEPG2_send_highlevel_cmd(context_MPEG2_p ctx)
                              &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
     psb_cmdbuf_reg_end_block(cmdbuf);
 
-    RELOC(*ctx->p_range_mapping_base0, rotate_surface->buf.buffer_ofs, &rotate_surface->buf);
-    RELOC(*ctx->p_range_mapping_base1, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset, &rotate_surface->buf);
+    RELOC(*ctx->dec_ctx.p_range_mapping_base0, rotate_surface->buf.buffer_ofs, &rotate_surface->buf);
+    RELOC(*ctx->dec_ctx.p_range_mapping_base1, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset, &rotate_surface->buf);
 }
 
 static void psb__MEPG2_send_blit_cmd(context_MPEG2_p ctx)
@@ -1561,20 +1303,20 @@ static void psb__MPEG2_insert_blit_cmd_to_rotate(context_MPEG2_p ctx)
     /* See RENDER_BUFFER_HEADER */
     *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
 
-    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
-    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
+    ctx->dec_ctx.p_range_mapping_base0 = cmdbuf->cmd_idx++;
+    ctx->dec_ctx.p_range_mapping_base1 = cmdbuf->cmd_idx++;
 
-    *ctx->p_range_mapping_base0 = 0;
-    *ctx->p_range_mapping_base1 = 0;
+    *ctx->dec_ctx.p_range_mapping_base0 = 0;
+    *ctx->dec_ctx.p_range_mapping_base1 = 0;
 
-    ctx->p_slice_params = cmdbuf->cmd_idx;
+    ctx->dec_ctx.p_slice_params = cmdbuf->cmd_idx;
     *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
 
     *cmdbuf->cmd_idx++ = 0; /* skip two lldma addr field */
     *cmdbuf->cmd_idx++ = 0;
 
-    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
-    *ctx->slice_first_pic_last = 0;
+    ctx->dec_ctx.slice_first_pic_last = cmdbuf->cmd_idx++;
+    *ctx->dec_ctx.slice_first_pic_last = 0;
 
     psb__MEPG2_send_highlevel_cmd(ctx);
     psb__MEPG2_send_blit_cmd(ctx);
@@ -1602,53 +1344,30 @@ static VAStatus pnw_MPEG2_BeginPicture(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus pnw_MPEG2_RenderPicture(
-    object_context_p obj_context,
-    object_buffer_p *buffers,
-    int num_buffers)
+static VAStatus pnw_MPEG2_process_buffer(
+    context_DEC_p dec_ctx,
+    object_buffer_p buffer)
 {
-    int i;
-    INIT_CONTEXT_MPEG2
+    context_MPEG2_p ctx = (context_MPEG2_p)dec_ctx;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    object_buffer_p obj_buffer = buffer;
 
-    for (i = 0; i < num_buffers; i++) {
-        object_buffer_p obj_buffer = buffers[i];
-        psb__dump_va_buffers(obj_buffer);
+    switch (obj_buffer->type) {
+    case VAPictureParameterBufferType:
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_RenderPicture got VAPictureParameterBuffer\n");
+        vaStatus = psb__MPEG2_process_picture_param(ctx, obj_buffer);
+        DEBUG_FAILURE;
+        break;
 
-        switch (obj_buffer->type) {
-        case VAPictureParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_RenderPicture got VAPictureParameterBuffer\n");
-            vaStatus = psb__MPEG2_process_picture_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
+    case VAIQMatrixBufferType:
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,"pnw_MPEG2_RenderPicture got VAIQMatrixBufferType\n");
+        vaStatus = psb__MPEG2_process_iq_matrix(ctx, obj_buffer);
+        DEBUG_FAILURE;
+        break;
 
-        case VAIQMatrixBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL,"pnw_MPEG2_RenderPicture got VAIQMatrixBufferType\n");
-            vaStatus = psb__MPEG2_process_iq_matrix(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL,"pnw_MPEG2_RenderPicture got VASliceParameterBufferType\n");
-            vaStatus = psb__MPEG2_add_slice_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceDataBufferType:
-        case VAProtectedSliceDataBufferType:
-
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG2_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type));
-            vaStatus = psb__MPEG2_process_slice_data(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        default:
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-        }
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            break;
-        }
+    default:
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        DEBUG_FAILURE;
     }
 
     return vaStatus;
@@ -1692,7 +1411,7 @@ destroyContext:
 beginPicture:
     pnw_MPEG2_BeginPicture,
 renderPicture:
-    pnw_MPEG2_RenderPicture,
+    vld_dec_RenderPicture,
 endPicture:
     pnw_MPEG2_EndPicture
 };
