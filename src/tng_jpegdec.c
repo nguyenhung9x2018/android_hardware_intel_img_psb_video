@@ -30,9 +30,8 @@
 
 #include "va/va_dec_jpeg.h"
 #include "tng_jpegdec.h"
+#include "tng_vld_dec.h"
 #include "psb_def.h"
-#include "psb_surface.h"
-#include "psb_cmdbuf.h"
 #include "psb_drv_debug.h"
 
 #include "hwdefs/reg_io2.h"
@@ -53,8 +52,6 @@
 #define SET_SURFACE_INFO_picture_structure(psb_surface, val) psb_surface->extra_info[1] = val;
 #define GET_SURFACE_INFO_picture_coding_type(psb_surface) ((int) (psb_surface->extra_info[2]))
 #define SET_SURFACE_INFO_picture_coding_type(psb_surface, val) psb_surface->extra_info[2] = (uint32_t) val;
-#define GET_SURFACE_INFO_colocated_index(psb_surface) ((int) (psb_surface->extra_info[3]))
-#define SET_SURFACE_INFO_colocated_index(psb_surface, val) psb_surface->extra_info[3] = (uint32_t) val;
 
 #define JPEG_MAX_SETS_HUFFMAN_TABLES 2
 #define JPEG_MAX_QUANT_TABLES 4
@@ -62,8 +59,6 @@
 #define TABLE_CLASS_DC  0
 #define TABLE_CLASS_AC  1
 #define TABLE_CLASS_NUM 2
-
-#define FE_STATE_BUFFER_SIZE    4096
 
 #define JPEG_PROFILE_BASELINE 0
 
@@ -168,6 +163,7 @@ typedef enum {
 /**************************************/
 
 struct context_JPEG_s {
+    struct context_DEC_s dec_ctx;
     object_context_p obj_context; /* back reference */
 
     uint32_t profile;
@@ -190,26 +186,8 @@ struct context_JPEG_s {
     uint8_t max_scalingH;
     uint8_t max_scalingV;
 
-    /* List of VASliceParameterBuffers */
-    object_buffer_p *slice_param_list;
-    int slice_param_list_size;
-    int slice_param_list_idx;
-
     /* VLC packed data */
     struct psb_buffer_s vlc_packed_table;
-
-    /* FE state buffer */
-    struct psb_buffer_s FE_state_buffer;
-    struct psb_buffer_s aux_line_buffer;
-
-    /* Split buffers */
-    int split_buffer_pending;
-
-    uint32_t *p_range_mapping_base0;
-    uint32_t *p_range_mapping_base1;
-    uint32_t *p_slice_params; /* pointer to ui32SliceParams in CMD_HEADER */
-    uint32_t *slice_first_pic_last;
-    uint32_t *alt_output_flags;
 
     uint32_t vlctable_buffer_size;
     uint32_t rendec_qmatrix[JPEG_MAX_QUANT_TABLES][16];
@@ -288,6 +266,11 @@ static VAStatus tng__JPEG_check_legal_picture(object_context_p obj_context, obje
 
 static void tng_JPEG_DestroyContext(object_context_p obj_context);
 
+static void tng__JPEG_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static void tng__JPEG_end_slice(context_DEC_p dec_ctx);
+static void tng__JPEG_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static VAStatus tng_JPEG_process_buffer(context_DEC_p dec_ctx, object_buffer_p buffer);
+
 static VAStatus tng_JPEG_CreateContext(
     object_context_p obj_context,
     object_config_p obj_config) {
@@ -312,16 +295,11 @@ static VAStatus tng_JPEG_CreateContext(
     ctx->obj_context = obj_context;
     ctx->pic_params = NULL;
 
-    ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p*) calloc(1, sizeof(object_buffer_p) * ctx->slice_param_list_size);
-    ctx->slice_param_list_idx = 0;
-
-    if (NULL == ctx->slice_param_list) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        free(ctx);
-        return vaStatus;
-    }
+    ctx->dec_ctx.begin_slice = tng__JPEG_begin_slice;
+    ctx->dec_ctx.process_slice = tng__JPEG_process_slice_data;
+    ctx->dec_ctx.end_slice = tng__JPEG_end_slice;
+    ctx->dec_ctx.process_buffer = tng_JPEG_process_buffer;
+    ctx->dec_ctx.preload_buffer = NULL;
 
     switch (obj_config->profile) {
     case VAProfileJPEGBaseline:
@@ -332,14 +310,6 @@ static VAStatus tng_JPEG_CreateContext(
     default:
         ASSERT(0 == 1);
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    if (vaStatus == VA_STATUS_SUCCESS) {
-        vaStatus = psb_buffer_create(obj_context->driver_data,
-                                     FE_STATE_BUFFER_SIZE,
-                                     psb_bt_vpu_only,
-                                     &ctx->FE_state_buffer);
-        DEBUG_FAILURE;
     }
 
     ctx->vlctable_buffer_size = 1984 * 2;
@@ -353,12 +323,16 @@ static VAStatus tng_JPEG_CreateContext(
 
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = psb_buffer_create(obj_context->driver_data,
-                                     152 * 1024,
+                                     AUX_LINE_BUFFER_VLD_SIZE,
                                      psb_bt_cpu_vpu,
-                                     &ctx->aux_line_buffer);
+                                     &ctx->dec_ctx.aux_line_buffer_vld);
         DEBUG_FAILURE;
     }
 
+    if (vaStatus == VA_STATUS_SUCCESS) {
+        vaStatus = vld_dec_CreateContext(&ctx->dec_ctx, obj_context);
+        DEBUG_FAILURE;
+    }
 
     if (vaStatus != VA_STATUS_SUCCESS) {
         tng_JPEG_DestroyContext(obj_context);
@@ -372,19 +346,16 @@ static void tng_JPEG_DestroyContext(
     INIT_CONTEXT_JPEG
     int i;
 
+    vld_dec_DestroyContext(&ctx->dec_ctx);
+
     psb_buffer_destroy(&ctx->vlc_packed_table);
-    psb_buffer_destroy(&ctx->FE_state_buffer);
-    psb_buffer_destroy(&ctx->aux_line_buffer);
+    psb_buffer_destroy(&ctx->dec_ctx.aux_line_buffer_vld);
 
     if (ctx->pic_params) {
         free(ctx->pic_params);
         ctx->pic_params = NULL;
     }
 
-    if (ctx->slice_param_list) {
-        free(ctx->slice_param_list);
-        ctx->slice_param_list = NULL;
-    }
     if (ctx->symbol_codes[0][0]) {
         free(ctx->symbol_codes[0][0]);
         ctx->symbol_codes[0][0] = NULL;
@@ -601,30 +572,6 @@ void JPG_VLC_CompileTable(
     IMG_ASSERT( ptable_stats->size <= ram_size );
 }
 
-
-static void tng__JPEG_FE_state(context_JPEG_p ctx) {
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    CTRL_ALLOC_HEADER *cmd_header = (CTRL_ALLOC_HEADER *)psb_cmdbuf_alloc_space(cmdbuf, sizeof(CTRL_ALLOC_HEADER));
-
-    memset(cmd_header, 0, sizeof(CTRL_ALLOC_HEADER));
-    cmd_header->ui32Cmd_AdditionalParams = CMD_CTRL_ALLOC_HEADER | (ctx->MCU_width * ctx->MCU_height);
-    //RELOC(cmd_header->ui32ExternStateBuffAddr, 0, &ctx->preload_buffer);
-    cmd_header->ui32ExternStateBuffAddr = 0;
-    cmd_header->ui32MacroblockParamAddr = 0; /* Only EC needs to set this */
-
-    ctx->p_slice_params = &cmd_header->ui32SliceParams;
-    cmd_header->ui32SliceParams = 0;
-
-    cmd_header->uiSliceFirstMbYX_uiPicLastMbYX &= 0xfefe;
-    ctx->slice_first_pic_last = &cmd_header->uiSliceFirstMbYX_uiPicLastMbYX;
-
-    ctx->p_range_mapping_base0 = &cmd_header->ui32AltOutputAddr[0];
-    ctx->p_range_mapping_base1 = &cmd_header->ui32AltOutputAddr[1];
-
-    ctx->alt_output_flags = &cmd_header->ui32AltOutputFlags;
-    cmd_header->ui32AltOutputFlags = 0;
-}
-
 static VAStatus tng__JPEG_process_picture_param(context_JPEG_p ctx, object_buffer_p obj_buffer) {
     VAStatus vaStatus;
     ASSERT(obj_buffer->type == VAPictureParameterBufferType);
@@ -669,23 +616,6 @@ static VAStatus tng__JPEG_process_picture_param(context_JPEG_p ctx, object_buffe
     obj_buffer->size = 0;
 
 
-    return VA_STATUS_SUCCESS;
-}
-
-static VAStatus tng__JPEG_add_slice_param(context_JPEG_p ctx, object_buffer_p obj_buffer) {
-    ASSERT(obj_buffer->type == VASliceParameterBufferType);
-    if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-        unsigned char *new_list;
-        ctx->slice_param_list_size += 8;
-        new_list = realloc(ctx->slice_param_list,
-                           sizeof(object_buffer_p) * ctx->slice_param_list_size);
-        if (NULL == new_list) {
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        }
-        ctx->slice_param_list = (object_buffer_p*) new_list;
-    }
-    ctx->slice_param_list[ctx->slice_param_list_idx] = obj_buffer;
-    ctx->slice_param_list_idx++;
     return VA_STATUS_SUCCESS;
 }
 
@@ -933,29 +863,6 @@ static void tng__JPEG_set_reference_pictures(context_JPEG_p ctx)
     psb_cmdbuf_rendec_end(cmdbuf);
 }
 
-static void tng__JPEG_set_output_mode(context_JPEG_p ctx) {
-    uint32_t cmd;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
-
-    psb_cmdbuf_rendec_start(cmdbuf, REG_MSVDX_CMD_OFFSET + MSVDX_CMDS_AUX_LINE_BUFFER_BASE_ADDRESS_OFFSET);
-    psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->aux_line_buffer, ctx->aux_line_buffer.buffer_ofs);
-    psb_cmdbuf_rendec_end(cmdbuf);
-
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION));
-    cmd = 0;
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION, USE_AUX_LINE_BUF, 1);
-    psb_cmdbuf_rendec_write(cmdbuf, cmd);
-    *ctx->alt_output_flags = cmd;
-
-    cmd = 0;
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64);
-    psb_cmdbuf_rendec_write(cmdbuf, cmd);
-
-    psb_cmdbuf_rendec_end(cmdbuf);
-
-}
-
 static void tng__JPEG_set_ent_dec(context_JPEG_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
@@ -1082,137 +989,31 @@ static void tng__JPEG_set_register(context_JPEG_p ctx, VASliceParameterBufferJPE
     psb_cmdbuf_rendec_end(cmdbuf);
 }
 
-static void tng__JPEG_write_kick(context_JPEG_p ctx, VASliceParameterBufferJPEG *slice_param) {
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-
-    (void) slice_param; /* Unused for now */
-
-    *cmdbuf->cmd_idx++ = CMD_COMPLETION;
+static void tng__JPEG_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
+{
+    dec_ctx->bits_offset = 0;
+    dec_ctx->SR_flags = CMD_ENABLE_RBDU_EXTRACTION;
 }
 
-static VAStatus tng__JPEG_process_slice(context_JPEG_p ctx,
-    VASliceParameterBufferJPEG *slice_param,
-    object_buffer_p obj_buffer) {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
+static void tng__JPEG_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
+{
+    VASliceParameterBufferJPEG *slice_param = (VASliceParameterBufferJPEG *) vld_slice_param;
+    context_JPEG_p ctx = (context_JPEG_p)dec_ctx;
 
-    ASSERT(obj_buffer->type == VASliceDataBufferType);
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
-        if (0 == slice_param->slice_data_size) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
-        ASSERT(!ctx->split_buffer_pending);
-
-        /* Initialise the command buffer */
-        /* TODO: Reuse current command buffer until full */
-        psb_context_get_next_cmdbuf(ctx->obj_context);
-
-        tng__JPEG_FE_state(ctx);
-
-        tng__JPEG_write_huffman_tables(ctx);
-
-        tng__JPEG_write_qmatrices(ctx);
-
-
-        psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
-                                         0,
-                                         CMD_ENABLE_RBDU_EXTRACTION);
-
-
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) {
-            ctx->split_buffer_pending = TRUE;
-        }
-    } else {
-        ASSERT(ctx->split_buffer_pending);
-        ASSERT(0 == slice_param->slice_data_offset);
-        /* Create LLDMA chain to continue buffer */
-        if (slice_param->slice_data_size) {
-            psb_cmdbuf_dma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-        }
-    }
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
-            ASSERT(ctx->split_buffer_pending);
-        }
-
-        tng__JPEG_set_operating_mode(ctx);
-
-        tng__JPEG_set_reference_pictures(ctx);
-
-        tng__JPEG_set_output_mode(ctx);
-
-        tng__JPEG_set_ent_dec(ctx);
-
-        tng__JPEG_set_register(ctx, slice_param);
-
-        tng__JPEG_write_kick(ctx, slice_param);
-
-        ctx->split_buffer_pending = FALSE;
-        ctx->obj_context->video_op = psb_video_vld;
-        ctx->obj_context->flags = 0;
-        ctx->obj_context->first_mb = 0;
-        ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
-
-        *ctx->slice_first_pic_last = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb) & 0xfefe;
-        if (psb_context_submit_cmdbuf(ctx->obj_context)) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        }
-    }
-    return vaStatus;
+    tng__JPEG_set_operating_mode(ctx);
+    tng__JPEG_set_reference_pictures(ctx);
+    vld_dec_setup_alternative_frame(ctx->obj_context);
+    tng__JPEG_set_ent_dec(ctx);
+    tng__JPEG_set_register(ctx, slice_param);
 }
 
-static VAStatus tng__JPEG_process_slice_data(context_JPEG_p ctx, object_buffer_p obj_buffer) {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    VASliceParameterBufferJPEG *slice_param;
-    int buffer_idx = 0;
-    unsigned int element_idx = 0;
+static void tng__JPEG_end_slice(context_DEC_p dec_ctx)
+{
+    context_JPEG_p ctx = (context_JPEG_p)dec_ctx;
 
-    ASSERT(obj_buffer->type == VASliceDataBufferType);
-
-    ASSERT(ctx->pic_params);
-    ASSERT(ctx->slice_param_list_idx);
-
-    if (!ctx->pic_params) {
-        /* Picture params missing */
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-    if ((NULL == obj_buffer->psb_buffer) ||
-        (0 == obj_buffer->size)) {
-        /* We need to have data in the bitstream buffer */
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    while (buffer_idx < ctx->slice_param_list_idx) {
-        object_buffer_p slice_buf = ctx->slice_param_list[buffer_idx];
-        if (element_idx >= slice_buf->num_elements) {
-            /* Move to next buffer */
-            element_idx = 0;
-            buffer_idx++;
-            continue;
-        }
-
-        slice_param = (VASliceParameterBufferJPEG *) slice_buf->buffer_data;
-        slice_param += element_idx;
-        element_idx++;
-        vaStatus = tng__JPEG_process_slice(ctx, slice_param, obj_buffer);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            DEBUG_FAILURE;
-            break;
-        }
-    }
-    ctx->slice_param_list_idx = 0;
-
-    return vaStatus;
+    ctx->obj_context->first_mb = 0;
+    ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
+    *(dec_ctx->slice_first_pic_last) = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb) & 0xfefe;
 }
 
 static VAStatus tng_JPEG_BeginPicture(
@@ -1227,56 +1028,35 @@ static VAStatus tng_JPEG_BeginPicture(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus tng_JPEG_RenderPicture(
-    object_context_p obj_context,
-    object_buffer_p *buffers,
-    int num_buffers) {
-    int i;
-    INIT_CONTEXT_JPEG
+static VAStatus tng_JPEG_process_buffer(
+    context_DEC_p dec_ctx,
+    object_buffer_p buffer) {
+    context_JPEG_p ctx = (context_JPEG_p)dec_ctx;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    object_buffer_p obj_buffer = buffer;
 
-    for (i = 0; i < num_buffers; i++) {
-        object_buffer_p obj_buffer = buffers[i];
+    switch (obj_buffer->type) {
+    case VAPictureParameterBufferType:
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_JPEG_RenderPicture got VAPictureParameterBuffer\n");
+        vaStatus = tng__JPEG_process_picture_param(ctx, obj_buffer);
+        DEBUG_FAILURE;
+        break;
 
-        switch (obj_buffer->type) {
-        case VAPictureParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_JPEG_RenderPicture got VAPictureParameterBuffer\n");
-            vaStatus = tng__JPEG_process_picture_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
+    case VAIQMatrixBufferType:
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_JPEG_RenderPicture got VAIQMatrixBufferType\n");
+        vaStatus = tng__JPEG_process_iq_matrix(ctx, obj_buffer);
+        DEBUG_FAILURE;
+        break;
 
-        case VAIQMatrixBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_JPEG_RenderPicture got VAIQMatrixBufferType\n");
-            vaStatus = tng__JPEG_process_iq_matrix(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
+    case VAHuffmanTableBufferType:
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_JPEG_RenderPicture got VAIQMatrixBufferType\n");
+        vaStatus = tng__JPEG_process_huffman_tables(ctx, obj_buffer);
+        DEBUG_FAILURE;
+        break;
 
-        case VAHuffmanTableBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_JPEG_RenderPicture got VAIQMatrixBufferType\n");
-            vaStatus = tng__JPEG_process_huffman_tables(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_JPEG_RenderPicture got VASliceParameterBufferType\n");
-            vaStatus = tng__JPEG_add_slice_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceDataBufferType:
-
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_JPEG_RenderPicture\n");
-            vaStatus = tng__JPEG_process_slice_data(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        default:
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-        }
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            break;
-        }
+    default:
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        DEBUG_FAILURE;
     }
 
     return vaStatus;
@@ -1310,7 +1090,7 @@ destroyContext:
 beginPicture:
     tng_JPEG_BeginPicture,
 renderPicture:
-    tng_JPEG_RenderPicture,
+    vld_dec_RenderPicture,
 endPicture:
     tng_JPEG_EndPicture
 };

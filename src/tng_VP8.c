@@ -28,9 +28,8 @@
  *
  */
 #include "tng_VP8.h"
+#include "tng_vld_dec.h"
 #include "psb_def.h"
-#include "psb_surface.h"
-#include "psb_cmdbuf.h"
 #include "psb_drv_debug.h"
 
 #include "hwdefs/reg_io2.h"
@@ -182,8 +181,6 @@ static const uint32_t RegEntdecFeControl = ( (VEC_MODE_VP8 & 0x7) << MSVDX_VEC_C
 
 #define GET_SURFACE_INFO_picture_coding_type(psb_surface)	((int) (psb_surface->extra_info[2]))
 #define SET_SURFACE_INFO_picture_coding_type(psb_surface, val) psb_surface->extra_info[2] = (uint32_t) val;
-#define GET_SURFACE_INFO_colocated_index(psb_surface)		((int) (psb_surface->extra_info[3]))
-#define SET_SURFACE_INFO_colocated_index(psb_surface, val) psb_surface->extra_info[3]	  = (uint32_t) val;
 #define SET_SURFACE_INFO_rotate(psb_surface, rotate) psb_surface->extra_info[5]		  = (uint32_t) rotate;
 #define GET_SURFACE_INFO_rotate(psb_surface)			((int) psb_surface->extra_info[5])
 
@@ -203,8 +200,6 @@ static const uint32_t RegEntdecFeControl = ( (VEC_MODE_VP8 & 0x7) << MSVDX_VEC_C
 #define DECODECONTROL_BUFFER_LLDMA_OFFSET       (1024*8)
 // AuxLineBuffer is 256k
 #define AUX_LINE_BUFFER_SIZE                    (1024*256)
-
-#define AUX_LINE_BUFFER_VLD_SIZE        (1024*152)
 
 #define VP8_BUFFOFFSET_MASK		(0x00ffffff)
 #define VP8_PARTITIONSCOUNT_MASK	(0x0f000000)
@@ -256,6 +251,7 @@ typedef enum
 } LevelFeatures;
 
 struct context_VP8_s {
+    struct context_DEC_s dec_ctx;
     object_context_p	obj_context;	/* back reference */
 
     uint32_t	display_picture_size;
@@ -307,15 +303,7 @@ struct context_VP8_s {
     uint32_t	reg_BE_BaseAdr1stPartPic;
    */
 
-    /* Split buffers */
-    uint32_t split_buffer_pending;
-
     uint32_t cmd_slice_params;
-
-    /* List of VASliceParameterBuffers */
-    object_buffer_p	*slice_param_list;
-    uint32_t	        slice_param_list_size;
-    uint32_t	        slice_param_list_idx;
 
 /*      VP8 features        */
     /* MB Flags Buffer */
@@ -328,8 +316,6 @@ struct context_VP8_s {
     struct psb_buffer_s buffer_1st_part;
 
     struct psb_buffer_s segID_buffer;
-
-    psb_buffer_p	slice_data_buffer;
 
     /* Probability tables */                                                                                                                                               
     uint32_t		probability_data_buffer_size;                                                                                                                                 
@@ -344,21 +330,6 @@ struct context_VP8_s {
     struct psb_buffer_s intra_buffer;
 
     struct psb_buffer_s aux_line_buffer;
-
-    struct psb_buffer_s aux_line_buffer_vld;
-//end
-
-    uint32_t		*p_slice_params;	/* pointer to ui32SliceParams in CMD_HEADER */
-    uint32_t		*slice_first_pic_last;
-    uint32_t		*p_range_mapping_base0;
-    uint32_t		*p_range_mapping_base1;
-    uint32_t		*alt_output_flags;
-    CTRL_ALLOC_HEADER	*cmd_header;
-
-    /* CoLocated buffers - aka ParamMemInfo */
-    struct psb_buffer_s *colocated_buffers;
-    uint32_t		colocated_buffers_size;
-    uint32_t	        colocated_buffers_idx;
 };
 
 typedef struct context_VP8_s	*context_VP8_p;
@@ -445,6 +416,11 @@ static VAStatus tng_VP8_ValidateConfig(
 
 static void tng_VP8_DestroyContext(object_context_p obj_context);
 
+static void tng__VP8_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static void tng__VP8_end_slice(context_DEC_p dec_ctx);
+static void tng__VP8_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param);
+static VAStatus tng_VP8_process_buffer(context_DEC_p dec_ctx, object_buffer_p buffer);
+
 static VAStatus tng_VP8_CreateContext(
     object_context_p obj_context,
     object_config_p obj_config) {
@@ -463,30 +439,10 @@ static VAStatus tng_VP8_CreateContext(
     ctx->obj_context = obj_context;
     ctx->pic_params  = NULL;
 
-    ctx->split_buffer_pending = FALSE;
-
-    ctx->slice_param_list_size = 8;
-    ctx->slice_param_list = (object_buffer_p *) calloc(1, sizeof(object_buffer_p) * ctx->slice_param_list_size);
-    ctx->slice_param_list_idx = 0;
-
-    if (NULL == ctx->slice_param_list) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        free(ctx);
-        return vaStatus;
-    }
-
-    ctx->colocated_buffers_size = obj_context->num_render_targets;
-    ctx->colocated_buffers_idx = 0;
-    ctx->colocated_buffers = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s) * ctx->colocated_buffers_size);
-
-    if (NULL == ctx->colocated_buffers) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        free(ctx->slice_param_list);
-        free(ctx);
-        return vaStatus;
-    }
+    ctx->dec_ctx.begin_slice = tng__VP8_begin_slice;
+    ctx->dec_ctx.process_slice = tng__VP8_process_slice_data;
+    ctx->dec_ctx.end_slice = tng__VP8_end_slice;
+    ctx->dec_ctx.process_buffer = tng_VP8_process_buffer;
 
     /* ctx->cache_ref_offset = 72; */
     /* ctx->cache_row_offset = 4; */
@@ -557,6 +513,7 @@ static VAStatus tng_VP8_CreateContext(
                                      &ctx->probability_data_2nd_part);
         DEBUG_FAILURE;
     }
+    ctx->dec_ctx.preload_buffer = &ctx->probability_data_2nd_part;
 
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = psb_buffer_create(obj_context->driver_data,
@@ -579,7 +536,12 @@ static VAStatus tng_VP8_CreateContext(
         vaStatus = psb_buffer_create(obj_context->driver_data,
                                      AUX_LINE_BUFFER_VLD_SIZE,
                                      psb_bt_cpu_vpu,
-                                     &ctx->aux_line_buffer_vld);
+                                     &ctx->dec_ctx.aux_line_buffer_vld);
+        DEBUG_FAILURE;
+    }
+
+    if (vaStatus == VA_STATUS_SUCCESS) {
+        vaStatus = vld_dec_CreateContext(&ctx->dec_ctx, obj_context);
         DEBUG_FAILURE;
     }
 
@@ -595,6 +557,8 @@ static void tng_VP8_DestroyContext(
     INIT_CONTEXT_VP8
     uint32_t i;
 
+    vld_dec_DestroyContext(&ctx->dec_ctx);
+
     psb_buffer_destroy(&ctx->cur_pic_buffer);
     psb_buffer_destroy(&ctx->buffer_1st_part);
     psb_buffer_destroy(&ctx->segID_buffer);
@@ -603,7 +567,7 @@ static void tng_VP8_DestroyContext(
     psb_buffer_destroy(&ctx->probability_data_2nd_part);
     psb_buffer_destroy(&ctx->intra_buffer);
     psb_buffer_destroy(&ctx->aux_line_buffer);
-    psb_buffer_destroy(&ctx->aux_line_buffer_vld);
+    psb_buffer_destroy(&ctx->dec_ctx.aux_line_buffer_vld);
 
     if (ctx->pic_params) {
         free(ctx->pic_params);
@@ -615,45 +579,8 @@ static void tng_VP8_DestroyContext(
         ctx->probs_params = NULL;
     }
 
-    if (ctx->slice_param_list) {
-        free(ctx->slice_param_list);
-        ctx->slice_param_list = NULL;
-    }
-
-    if (ctx->colocated_buffers) {
-        for (i = 0; i < ctx->colocated_buffers_idx; ++i)
-            psb_buffer_destroy(&(ctx->colocated_buffers[i]));
-
-        free(ctx->colocated_buffers);
-        ctx->colocated_buffers = NULL;
-    }
-
     free(obj_context->format_data);
     obj_context->format_data = NULL;
-}
-
-static VAStatus tng__VP8_allocate_colocated_buffer(context_VP8_p ctx, object_surface_p obj_surface, uint32_t size) {
-    psb_surface_p surface = obj_surface->psb_surface;
-
-    if (!GET_SURFACE_INFO_colocated_index(surface)) {
-        VAStatus vaStatus;
-        psb_buffer_p buf;
-        int index = ctx->colocated_buffers_idx;
-        if (index >= ctx->colocated_buffers_size) {
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
-
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_VP8: Allocating colocated buffer for surface %08x size = %08x\n", surface, size);
-
-        buf = &(ctx->colocated_buffers[index]);
-        vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, buf);
-        if (VA_STATUS_SUCCESS != vaStatus) {
-            return vaStatus;
-        }
-        ctx->colocated_buffers_idx++;
-        SET_SURFACE_INFO_colocated_index(surface, index + 1); /* 0 means unset, index is offset by 1 */
-    }
-    return VA_STATUS_SUCCESS;
 }
 
 #ifdef DEBUG_TRACE
@@ -713,16 +640,6 @@ static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_
 		return VA_STATUS_ERROR_INVALID_SURFACE;
     }
 */
-
-    /* If this is the first sighting of this frame we must allocate some storage for colocated parameters */
-    uint32_t colocated_size = VP8_BYTES_PER_MB * (ctx->size_mb);
-
-    /* Create co-located buffer */
-    vaStatus = tng__VP8_allocate_colocated_buffer(ctx, ctx->obj_context->current_render_target, colocated_size);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
 
     /*ASYN_MODE would depend upon certain condition, VDEB module would be activated on the condition basis*/
     // uint32_t bdeblock = IMG_FALSE;
@@ -789,7 +706,7 @@ static VAStatus tng__VP8_process_probility_param(context_VP8_p ctx, object_buffe
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus psb__VP8_process_iq_matrix(context_VP8_p ctx, object_buffer_p obj_buffer) {
+static VAStatus tng__VP8_process_iq_matrix(context_VP8_p ctx, object_buffer_p obj_buffer) {
      ASSERT(obj_buffer->type == VAIQMatrixBufferType);
      ASSERT(obj_buffer->num_elements == 1);
      ASSERT(obj_buffer->size == sizeof(VAIQMatrixBufferVP8));
@@ -809,117 +726,6 @@ static VAStatus psb__VP8_process_iq_matrix(context_VP8_p ctx, object_buffer_p ob
 
     return VA_STATUS_SUCCESS;
 
-}
-
-/*
-* Adds a VASliceParameterBuffer to the list of slice params
-*/
-static VAStatus tng__VP8_add_slice_param(context_VP8_p ctx, object_buffer_p obj_buffer) {
-     ASSERT(obj_buffer->type == VASliceParameterBufferType);
-     if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
-         void *new_list;
-         ctx->slice_param_list_size +=8;
-         new_list = realloc(ctx->slice_param_list,
-                            sizeof(object_buffer_p) * ctx->slice_param_list_size);
-         if (NULL == new_list) {
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-         }
-         ctx->slice_param_list = (object_buffer_p *) new_list;
-     }
-     ctx->slice_param_list[ctx->slice_param_list_idx] = obj_buffer;
-     ctx->slice_param_list_idx++;
-
-     return VA_STATUS_SUCCESS;
-}
-
-static void tng__VP8_write_kick(context_VP8_p ctx, VASliceParameterBufferBase *slice_param) {
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-
-    (void) slice_param; /* Unused for now */
-
-    *cmdbuf->cmd_idx++ = CMD_COMPLETION;
-}
-
-/* Set MSVDX Front end register */
-static void tng__VP8_FE_state(context_VP8_p ctx) {
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    CTRL_ALLOC_HEADER *cmd_header = (CTRL_ALLOC_HEADER *)psb_cmdbuf_alloc_space(cmdbuf, sizeof(CTRL_ALLOC_HEADER));
-
-    memset(cmd_header, 0, sizeof(CTRL_ALLOC_HEADER));
-    cmd_header->ui32Cmd_AdditionalParams = CMD_CTRL_ALLOC_HEADER;
-    RELOC(cmd_header->ui32ExternStateBuffAddr, 0, &ctx->probability_data_2nd_part);
-    cmd_header->ui32MacroblockParamAddr = 0; /* Only EC needs to set this */
-
-    ctx->p_slice_params = &cmd_header->ui32SliceParams;
-    cmd_header->ui32SliceParams = 0;
-
-    ctx->slice_first_pic_last = &cmd_header->uiSliceFirstMbYX_uiPicLastMbYX;
-
-    ctx->p_range_mapping_base0 = &cmd_header->ui32AltOutputAddr[0];
-    ctx->p_range_mapping_base1 = &cmd_header->ui32AltOutputAddr[1];
-
-    ctx->alt_output_flags = &cmd_header->ui32AltOutputFlags;
-    //uint32_t alt_output_flag = 0;
-    //psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
-    //REGIO_WRITE_FIELD_LITE(alt_output_flag, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
-    //REGIO_WRITE_FIELD_LITE(alt_output_flag, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
-    //REGIO_WRITE_FIELD_LITE(alt_output_flag, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0);
-    //REGIO_WRITE_FIELD_LITE(alt_output_flag, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
-    //ctx->alt_output_flags = alt_output_flag;
-    cmd_header->ui32AltOutputFlags = 0;
-    ctx->cmd_header = cmd_header;
-}
-
-/* Programme the Alt output if there is a rotation */
-static void tng__VP8_setup_alternative_frame(context_VP8_p ctx) {
-    uint32_t cmd;
-    uint32_t alt_output_flag = 0;
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
-    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
-    object_context_p obj_context = ctx->obj_context;
-
-#if 0
-    if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate){
-	    drv_debug_msg(VIDEO_DEBUG_ERROR, "Display rotate mode does not match surface rotate mode!\n");
-    }
-#endif
-
-    if (CONTEXT_ROTATE(ctx->obj_context)) {
-        psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
-
-        psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
-        psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset);
-
-        psb_cmdbuf_rendec_end(cmdbuf);
-
-        RELOC(*ctx->p_range_mapping_base0, rotate_surface->buf.buffer_ofs, &rotate_surface->buf);
-        RELOC(*ctx->p_range_mapping_base1, rotate_surface->buf.buffer_ofs + rotate_surface->chroma_offset, &rotate_surface->buf);
-
-        REGIO_WRITE_FIELD_LITE(alt_output_flag, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
-        REGIO_WRITE_FIELD_LITE(alt_output_flag, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_ROW_STRIDE, rotate_surface->stride_mode);
-        REGIO_WRITE_FIELD_LITE(alt_output_flag, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0);
-        REGIO_WRITE_FIELD_LITE(alt_output_flag, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(rotate_surface));
-    }
-
-    /* Aux Line Buffer Base Address (port from CVldDecoder::ProgramOutputAddresses)*/ 
-    psb_cmdbuf_rendec_start(cmdbuf, (REG_MSVDX_CMD_OFFSET + MSVDX_CMDS_AUX_LINE_BUFFER_BASE_ADDRESS_OFFSET));
-    psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->aux_line_buffer_vld, ctx->aux_line_buffer_vld.buffer_ofs);
-    psb_cmdbuf_rendec_end(cmdbuf); 
-
-    /* Use auxillary line buffer for partially deblocked data */
-    REGIO_WRITE_FIELD_LITE(alt_output_flag, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION, USE_AUX_LINE_BUF, 1);
-
-    /* Set the rotation registers */
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION));
-    psb_cmdbuf_rendec_write(cmdbuf, alt_output_flag);
-    *ctx->alt_output_flags = alt_output_flag;
-
-    cmd = 0;
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64);
-    psb_cmdbuf_rendec_write(cmdbuf, cmd);
-
-    psb_cmdbuf_rendec_end(cmdbuf);
 }
 
 /*
@@ -951,8 +757,6 @@ static void tng__VP8_set_target_picture(context_VP8_p ctx) {
     psb_cmdbuf_rendec_write_address(cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    if (CONTEXT_ROTATE(ctx->obj_context))
-        tng__VP8_setup_alternative_frame(ctx);
 }
 
 /* Set Reference pictures address */
@@ -1150,7 +954,7 @@ static void tng__CMDS_registers_write(context_VP8_p ctx) {
     // psb_cmdbuf_rendec_write_address(cmdbuf, &golden_ref_surface->buf, golden_ref_surface->buf.buffer_ofs + golden_ref_surface->chroma_offset);
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    tng__VP8_setup_alternative_frame(ctx);  /* port from CVldDecoder::ProgramOutputModeRegisters */
+    vld_dec_setup_alternative_frame(ctx->obj_context);  /* port from CVldDecoder::ProgramOutputModeRegisters */
 }
 
 static void tng__VP8_set_slice_param(context_VP8_p ctx) {
@@ -1167,19 +971,22 @@ static void tng__VP8_set_slice_param(context_VP8_p ctx) {
         psb_cmdbuf_rendec_end(cmdbuf);
     }
 
-    *ctx->p_slice_params = ctx->cmd_slice_params;
+    *ctx->dec_ctx.p_slice_params = ctx->cmd_slice_params;
 
     {
         uint32_t last_mb_row = ((ctx->pic_params->frame_height + 15) / 16) - 1;
         unsigned int pic_last_mb_xy = (last_mb_row << 8) | ((ctx->pic_params->frame_width + 15) / 16) - 1;
 	unsigned int slice_first_mb_xy = 0; /* NA */
-       // *ctx->slice_first_pic_last = (slice_first_mb_xy << 16) | pic_last_mb_xy;
-	ctx->cmd_header->uiSliceFirstMbYX_uiPicLastMbYX = (slice_first_mb_xy << 16) | pic_last_mb_xy;
+        *ctx->dec_ctx.slice_first_pic_last = (slice_first_mb_xy << 16) | pic_last_mb_xy;
+	//ctx->cmd_header->uiSliceFirstMbYX_uiPicLastMbYX = (slice_first_mb_xy << 16) | pic_last_mb_xy;
     }
 
     /* if VP8 bitstream is multi-partitioned then convey all the info including buffer offest information for 2nd partition to the firmware  */
-    ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->partition_size[0] + ((ctx->pic_params->pic_fields.bits.key_frame == 0) ? 10 : 3)) & VP8_BUFFOFFSET_MASK) ;
-    ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->num_of_partitions << VP8_PARTITIONSCOUNT_SHIFT) & VP8_PARTITIONSCOUNT_MASK) ; /* if the bistream is multistream */
+    //ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->partition_size[0] + ((ctx->pic_params->pic_fields.bits.key_frame == 0) ? 10 : 3)) & VP8_BUFFOFFSET_MASK) ;
+    //ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->num_of_partitions << VP8_PARTITIONSCOUNT_SHIFT) & VP8_PARTITIONSCOUNT_MASK) ; /* if the bistream is multistream */
+
+    (*ctx->dec_ctx.cmd_params) |= ((ctx->pic_params->partition_size[0] + ((ctx->pic_params->pic_fields.bits.key_frame == 0) ? 10 : 3)) & VP8_BUFFOFFSET_MASK) ;
+    (*ctx->dec_ctx.cmd_params) |= ((ctx->pic_params->num_of_partitions << VP8_PARTITIONSCOUNT_SHIFT) & VP8_PARTITIONSCOUNT_MASK) ; /* if the bistream is multistream */
     // not used in fw ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->frame_type << VP8_FRAMETYPE_SHIFT) & VP8_BUFFOFFSET_MASK) ;
 }
 
@@ -1275,7 +1082,7 @@ static void tng__VP8_FE_Registers_Write(context_VP8_p ctx) {
        ctx->DCT_Base_Address_Offset = (ctx->pic_params->partition_size[0]) + ((ctx->pic_params->pic_fields.bits.key_frame == 0) ? 10 : 3) + 3 * (ctx->pic_params->num_of_partitions - 1) ;
        /* REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_DCT_BASE_ADDRESS, VP8_FE_DCT_BASE_ADDRESS, ctx->DCT_Base_Address); */
        psb_cmdbuf_reg_set_address(cmdbuf, REGISTER_OFFSET (MSVDX_VEC_VP8, CR_VEC_VP8_FE_DCT_BASE_ADDRESS),
-				  ctx->slice_data_buffer, ctx->DCT_Base_Address_Offset);
+				  ctx->dec_ctx.slice_data_buffer, ctx->DCT_Base_Address_Offset);
 
        psb_cmdbuf_reg_end_block(cmdbuf);
    }
@@ -1585,150 +1392,39 @@ static void tng__VP8_set_probility_reg(context_VP8_p ctx) {
         tng_DCT_Coefficient_ProbsDataCompile(ctx->probs_params->dct_coeff_probs, probs_buffer_2ndPart);
 
         psb_buffer_unmap(&ctx->probability_data_2nd_part);
-	/* Set ui32ExternStateBuffAddr to addr of probability_data_2nd_part in tng__VP8_FE_state() */
 
     }
 }
 
-/* TODO port CVldDecoder::ProcessVLDSlice */
-static VAStatus tng__VP8_process_slice(context_VP8_p ctx,
-                                      VASliceParameterBufferBase *slice_param,
-                                      object_buffer_p obj_buffer) {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
+static void tng__VP8_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
+{
+    context_VP8_p ctx = (context_VP8_p)dec_ctx;
 
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
-        if (0 == slice_param->slice_data_size) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
-        ASSERT(!ctx->split_buffer_pending);
-
-
-        /* Initialise the command buffer */
-        /* TODO: Reuse current command buffer until full */
-        psb_context_get_next_cmdbuf(ctx->obj_context);
-
-        tng__VP8_FE_state(ctx);
-
-        psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
-                                       obj_buffer->psb_buffer,
-                                       obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                       slice_param->slice_data_size,
-                                       ctx->pic_params->macroblock_offset,
-                                       0);
-
-        ctx->slice_data_buffer = obj_buffer->psb_buffer;
-
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) {
-            ctx->split_buffer_pending = TRUE;
-        }
-    } else {
-        ASSERT(ctx->split_buffer_pending);
-        ASSERT(0 == slice_param->slice_data_offset);
-        /* Create LLDMA chain to continue buffer */
-        if (slice_param->slice_data_size) {
-		psb_cmdbuf_dma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-        }
-    }
-
-    if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL) ||
-        (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END)) {
-        if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_END) {
-            ASSERT(ctx->split_buffer_pending);
-        }
-
-        /* TODO port DDK CVP8VldDecoder::ProcessSlice here */
-        tng__CMDS_registers_write(ctx);
-
-        /* Fill VP8 specific MSVDX FE registers (note: the behavior changes between partitions) */
-        tng__VP8_FE_Registers_Write(ctx);
-
-        /* Fill VP8 BE registers */
-        tng__VP8_BE_Registers_Write(ctx);
-
-        tng__VP8_set_slice_param(ctx);
-
-        /* Write  Probability registers */
-        tng__VP8_set_probility_reg(ctx);
-
-        tng__VP8_set_target_picture(ctx);
-
-        tng__VP8_set_reference_picture(ctx);
-
-        tng__VP8_set_bool_coder_context(ctx);
-
-        /* tng__VP8_set_decode_slice_reg(ctx);*/
-
-        tng__VP8_write_kick(ctx, slice_param);
-
-        ctx->split_buffer_pending = FALSE;
-        ctx->obj_context->video_op = psb_video_vld;
-        ctx->obj_context->flags = 0;
-
-        ctx->obj_context->first_mb = (*ctx->slice_first_pic_last >> 16);
-        ctx->obj_context->last_mb = (*ctx->slice_first_pic_last & 0xffff);
-
-        if (psb_context_submit_cmdbuf(ctx->obj_context)) {
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        }
-
-        ctx->slice_count++;
-    }
-
-    return vaStatus;
+    dec_ctx->bits_offset = ctx->pic_params->macroblock_offset;
+    /* dec_ctx->SR_flags = 0; */
 }
 
-static VAStatus tng__VP8_process_slice_data(context_VP8_p ctx, object_buffer_p obj_buffer) {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    VASliceParameterBufferBase *slice_param;
-    uint32_t buffer_idx = 0;
-    uint32_t element_idx = 0;
+static void tng__VP8_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
+{
+    context_VP8_p ctx = (context_VP8_p)dec_ctx;
 
-    ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
-
-    ASSERT(ctx->pic_params);
-    ASSERT(ctx->slice_param_list_idx);
-
-    if (!ctx->pic_params) {
-        /* Picture params missing */
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-    if ((NULL == obj_buffer->psb_buffer) ||
-        (0 == obj_buffer->size)) {
-        /* We need to have data in the bitstream buffer */
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    while (buffer_idx < ctx->slice_param_list_idx) {
-        object_buffer_p slice_buf = ctx->slice_param_list[buffer_idx];
-        if (element_idx >= slice_buf->num_elements) {
-            /* Move to next buffer */
-            element_idx = 0;
-            buffer_idx++;
-            continue;
-        }
-
-        slice_param = (VASliceParameterBufferBase *) slice_buf->buffer_data;
-        slice_param += element_idx;
-        element_idx++;
-        vaStatus = tng__VP8_process_slice(ctx, slice_param, obj_buffer);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            DEBUG_FAILURE;
-            break;
-        }
-    }
-
-    ctx->slice_param_list_idx = 0;
-
-    return vaStatus;
+    tng__CMDS_registers_write(ctx);
+    tng__VP8_FE_Registers_Write(ctx);
+    tng__VP8_BE_Registers_Write(ctx);
+    tng__VP8_set_slice_param(ctx);
+    tng__VP8_set_probility_reg(ctx);
+    tng__VP8_set_target_picture(ctx);
+    tng__VP8_set_reference_picture(ctx);
+    tng__VP8_set_bool_coder_context(ctx);
 }
 
+static void tng__VP8_end_slice(context_DEC_p dec_ctx)
+{
+    context_VP8_p ctx = (context_VP8_p)dec_ctx;
+
+    ctx->obj_context->first_mb = (*(ctx->dec_ctx.slice_first_pic_last) >> 16);
+    ctx->obj_context->last_mb = (*(ctx->dec_ctx.slice_first_pic_last) & 0xffff);
+}
 
 static VAStatus tng_VP8_BeginPicture(
     object_context_p obj_context) {
@@ -1754,57 +1450,33 @@ static VAStatus tng_VP8_BeginPicture(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus tng_VP8_RenderPicture(
-    object_context_p obj_context,
-    object_buffer_p *buffers,
-    int num_buffers) {
-    int i;
-    INIT_CONTEXT_VP8
+static VAStatus tng_VP8_process_buffer(
+    context_DEC_p dec_ctx,
+    object_buffer_p buffer) {
+    context_VP8_p ctx = (context_VP8_p)dec_ctx;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-
-    for (i = 0; i < num_buffers; i++) {
-        object_buffer_p obj_buffer = buffers[i];
+    object_buffer_p obj_buffer = buffer;
 
         switch (obj_buffer->type) {
         case VAPictureParameterBufferType:
-            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_VP8_RenderPicture got VAPictureParameterBuffer\n"); */
             vaStatus = tng__VP8_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAProbabilityBufferType:
-            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_VP8_RenderPicture got VAPictureParameterBuffer\n"); */
             vaStatus = tng__VP8_process_probility_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
 	case VAIQMatrixBufferType:
-	    /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_VP8_RenderPicture got VAIQMatrixBufferType\n"); */
-	    vaStatus = psb__VP8_process_iq_matrix(ctx, obj_buffer);
+	    vaStatus = tng__VP8_process_iq_matrix(ctx, obj_buffer);
 	    DEBUG_FAILURE;
 	    break;
-
-        case VASliceParameterBufferType:
-            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_VP8_RenderPicture got VASliceParameterBufferType\n"); */
-            vaStatus = tng__VP8_add_slice_param(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
-
-        case VASliceDataBufferType:
-        case VAProtectedSliceDataBufferType:
-            /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_VP8_RenderPicture got %s\n", SLICEDATA_BUFFER_TYPE(obj_buffer->type)); */
-            vaStatus = tng__VP8_process_slice_data(ctx, obj_buffer);
-            DEBUG_FAILURE;
-            break;
 
         default:
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
         }
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            break;
-        }
-    }
 
     return vaStatus;
 }
@@ -1847,7 +1519,7 @@ destroyContext:
 beginPicture:
     tng_VP8_BeginPicture,
 renderPicture:
-    tng_VP8_RenderPicture,
+    vld_dec_RenderPicture,
 endPicture:
     tng_VP8_EndPicture
 };
