@@ -35,7 +35,6 @@
 #include "psb_drv_video.h"
 #include "psb_surface.h"
 #include "psb_buffer.h"
-#include "psb_drm.h"
 
 #include <stdint.h>
 
