@@ -44,6 +44,7 @@
 #include "pnw_jpeg.h"
 #include "pnw_H264ES.h"
 #include "lnc_H264ES.h"
+#include "ptg_jpeg.h"
 
 /*
  * Create buffer

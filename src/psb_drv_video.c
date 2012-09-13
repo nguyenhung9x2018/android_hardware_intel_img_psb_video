@@ -40,6 +40,7 @@
 #include "psb_cmdbuf.h"
 #include "lnc_cmdbuf.h"
 #include "pnw_cmdbuf.h"
+#include "ptg_cmdbuf.h"
 #ifdef PSBVIDEO_MRFL_VPP
 #include "vsp_cmdbuf.h"
 #endif
@@ -58,6 +59,8 @@
 #include "pnw_MPEG4.h"
 #include "pnw_H264.h"
 #include "pnw_VC1.h"
+#include "tng_jpegdec.h"
+#include "pnw_VP8.h"
 #ifdef PSBVIDEO_MFLD
 #include "pnw_MPEG4ES.h"
 #include "pnw_H264ES.h"

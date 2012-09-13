@@ -44,4 +44,4 @@ PKG_CHECK_MODULES([XV], [xv])
 pkgconfigdir=${libdir}/pkgconfig
 AC_SUBST(pkgconfigdir)
 
-AC_OUTPUT([Makefile src/Makefile fw/Makefile fw/topazsc/Makefile fw/msvdx/Makefile])
+AC_OUTPUT([Makefile src/Makefile fw/Makefile fw/topazsc/Makefile fw/topazhp/Makefile fw/msvdx/Makefile])

@@ -21,5 +21,5 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 AUTOMAKE_OPTIONS = foreign
-SUBDIRS = topazsc msvdx
+SUBDIRS = topazsc topazhp msvdx
 

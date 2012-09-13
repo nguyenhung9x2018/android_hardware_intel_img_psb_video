@@ -103,7 +103,7 @@
 #define LNC_MAX_CMDBUFS_ENCODE                  4
 #define PNW_MAX_CMDBUFS_ENCODE                  4
 #define PTG_MAX_CMDBUFS_ENCODE                  4
-#define VSP_MAX_CMDBUFS                         10
+#define VSP_MAX_CMDBUFS				10
 
 #define PSB_SURFACE_DISPLAYING_F (0x1U<<0)
 #define PSB_SURFACE_IS_FLAG_SET(flags, mask) (((flags)& PSB_SURFACE_DISPLAYING_F) != 0)

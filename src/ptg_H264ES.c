@@ -1,0 +1,1017 @@
+/*
+ * INTEL CONFIDENTIAL
+ * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
+ *
+ * The source code contained or described herein and all documents related to
+ * the source code ("Material") are owned by Intel Corporation or its suppliers
+ * or licensors. Title to the Material remains with Intel Corporation or its
+ * suppliers and licensors. The Material may contain trade secrets and
+ * proprietary and confidential information of Intel Corporation and its
+ * suppliers and licensors, and is protected by worldwide copyright and trade
+ * secret laws and treaty provisions. No part of the Material may be used,
+ * copied, reproduced, modified, published, uploaded, posted, transmitted,
+ * distributed, or disclosed in any way without Intel's prior express written
+ * permission.
+ *
+ * No license under any patent, copyright, trade secret or other intellectual
+ * property right is granted to or conferred upon you by disclosure or delivery
+ * of the Materials, either expressly, by implication, inducement, estoppel or
+ * otherwise. Any license under such intellectual property rights must be
+ * express and approved by Intel in writing.
+ */
+
+/*
+ * Authors:
+ *    Elaine Wang <elaine.wang@intel.com>
+ *    Zeng Li <zeng.li@intel.com>
+ *    Edward Lin <edward.lin@intel.com>
+ *
+ */
+
+
+#include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "hwdefs/coreflags.h"
+#include "hwdefs/topazhp_core_regs.h"
+#include "hwdefs/topaz_vlc_regs.h"
+#include "hwdefs/topaz_db_regs.h"
+
+#include "va/va_enc_h264.h"
+
+#include "psb_def.h"
+#include "psb_drv_debug.h"
+#include "psb_surface.h"
+#include "ptg_cmdbuf.h"
+#include "ptg_hostcode.h"
+#include "ptg_hostheader.h"
+#include "ptg_picmgmt.h"
+#include "ptg_slotorder.h"
+#include "ptg_H264ES.h"
+
+#define TOPAZ_H264_MAX_BITRATE 135000000
+#define ptg__max(a, b) ((a)> (b)) ? (a) : (b)
+
+#define INIT_CONTEXT_H264ES     context_ENC_p ctx = (context_ENC_p) obj_context->format_data
+#define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
+#define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
+
+
+
+static void ptg_H264ES_QueryConfigAttributes(
+    VAProfile profile,
+    VAEntrypoint entrypoint,
+    VAConfigAttrib *attrib_list,
+    int num_attribs)
+{
+    int i;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
+
+    /* RateControl attributes */
+    for (i = 0; i < num_attribs; i++) {
+        switch (attrib_list[i].type) {
+        case VAConfigAttribRTFormat:
+            break;
+
+        case VAConfigAttribRateControl:
+            attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR | VA_RC_VCM;
+            break;
+
+        default:
+            attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
+            break;
+        }
+    }
+}
+
+
+static VAStatus ptg_H264ES_ValidateConfig(
+    object_config_p obj_config)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
+
+    return vaStatus;
+}
+
+static VAStatus ptg_H264ES_CreateContext(
+    object_context_p obj_context,
+    object_config_p obj_config)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    context_ENC_p ctx;
+    unsigned int eRCMode = 0;
+    int i;
+#ifndef _TOPAZHP_OLD_LIBVA_
+    unsigned int eFormatMode;
+#endif
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
+
+    vaStatus = ptg_CreateContext(obj_context, obj_config, 0);
+
+    if (VA_STATUS_SUCCESS != vaStatus)
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+    ctx = (context_ENC_p) obj_context->format_data;
+    ctx->eStandard = IMG_STANDARD_H264;
+    ctx->eFormat = IMG_CODEC_PL12;                          // use default
+
+#ifdef _TOPAZHP_OLD_LIBVA_
+    ctx->bIsInterlaced = IMG_FALSE;
+    ctx->bIsInterleaved = IMG_FALSE;
+    ctx->ui16PictureHeight = ctx->ui16FrameHeight;
+    ctx->eCodec = IMG_CODEC_H264_NO_RC;
+#else
+    for (i = 0; i < obj_config->attrib_count; i++) {
+        if (obj_config->attrib_list[i].type == VAConfigAttribEncInterlaced)
+            break;
+    }
+
+    if (i >= obj_config->attrib_count)
+        eFormatMode = VA_ENC_INTERLACED_NONE;
+    else
+        eFormatMode = obj_config->attrib_list[i].value;
+
+    if (eFormatMode == VA_ENC_INTERLACED_NONE) {
+        ctx->bIsInterlaced = IMG_FALSE;
+        ctx->bIsInterleaved = IMG_FALSE;
+        ctx->ui16PictureHeight = ctx->ui16FrameHeight;
+        ctx->eCodec = IMG_CODEC_H264_NO_RC;
+    } else {
+        if (eFormatMode == VA_ENC_INTERLACED_FRAME) {
+            ctx->bIsInterlaced = IMG_TRUE;
+            ctx->bIsInterleaved = IMG_FALSE;
+        } else if (eFormatMode == VA_ENC_INTERLACED_FIELD) {
+            ctx->bIsInterlaced = IMG_TRUE;
+            ctx->bIsInterleaved = IMG_TRUE;
+        } else {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "not support this RT Format\n");
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+        ctx->ui16PictureHeight = ctx->ui16FrameHeight >> 1;
+    }
+#endif
+    ctx->bVPAdaptiveRoundingDisable = IMG_FALSE;
+
+    for (i = 0; i < obj_config->attrib_count; i++) {
+        if (obj_config->attrib_list[i].type == VAConfigAttribRateControl)
+            eRCMode = obj_config->attrib_list[i].value;
+    }
+
+    if (ctx->bEnableMVC) {
+        switch (eRCMode) {
+            case VA_RC_NONE: 
+                ctx->eCodec = IMG_CODEC_H264MVC_NO_RC;
+                break;
+            case VA_RC_CBR: 
+                ctx->eCodec = IMG_CODEC_H264MVC_CBR;
+                break;
+            case VA_RC_VBR:
+                ctx->eCodec = IMG_CODEC_H264MVC_VBR;
+                break;
+            default:
+                break;
+        }
+    } else {
+        switch (eRCMode) {
+            case VA_RC_NONE: 
+                ctx->eCodec = IMG_CODEC_H264_NO_RC;
+                break;
+            case VA_RC_CBR: 
+                ctx->eCodec = IMG_CODEC_H264_CBR;
+                break;
+            case VA_RC_VBR:
+                ctx->eCodec = IMG_CODEC_H264_VBR;
+                break;
+            case VA_RC_VCM:
+                ctx->eCodec = IMG_CODEC_H264_VCM;
+        }
+    }
+
+    //This parameter need not be exposed
+    ctx->ui8InterIntraIndex = 3;
+    ctx->ui8CodedSkippedIndex = 3;
+    ctx->bEnableHostQP = IMG_FALSE;
+    ctx->uMaxChunks = 0xA0;
+    ctx->uChunksPerMb = 0x40;
+    ctx->uPriorityChunks = (0xA0 - 0x60);
+    ctx->ui32FCode = 4;
+    ctx->iFineYSearchSize = 2;
+
+    //This parameter need not be exposed
+    //host to control the encoding process
+    ctx->bEnableInpCtrl = IMG_FALSE;
+    ctx->bEnableHostBias = IMG_FALSE;
+    //By default false Newly Added
+    ctx->bEnableCumulativeBiases = IMG_FALSE;
+
+    //Weighted Prediction is not supported in TopazHP Version 3.0
+    ctx->bWeightedPrediction = IMG_FALSE;
+    ctx->ui8VPWeightedImplicitBiPred = 0;
+    ctx->bInsertHRDParams = 0;
+    ctx->bArbitrarySO = IMG_FALSE;
+
+    if ((obj_config->profile != VAProfileH264Main) &&
+        (obj_config->profile != VAProfileH264High) &&
+        (obj_config->profile != VAProfileH264StereoHigh))
+        ctx->bArbitrarySO = IMG_FALSE;
+    ctx->ui32BasicUnit = 0;
+
+    ptg__setup_enc_profile_features(ctx, ENC_PROFILE_DEFAULT);
+
+    vaStatus = ptg__patch_hw_profile(ctx);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: ptg__patch_hw_profile\n", __FUNCTION__);
+    }
+
+    return vaStatus;
+}
+
+static void ptg_H264ES_DestroyContext(
+    object_context_p obj_context)
+{
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
+    ptg_DestroyContext(obj_context, 0);
+}
+
+static VAStatus ptg_H264ES_BeginPicture(
+    object_context_p obj_context)
+{
+    INIT_CONTEXT_H264ES;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+#ifdef _PDUMP_H264ES_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
+#endif
+    vaStatus = ptg_BeginPicture(ctx);
+#ifdef _PDUMP_H264ES_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
+#endif
+    return vaStatus;
+}
+
+static VAStatus ptg__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAEncMiscParameterRateControl *psMiscRcParams;
+    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
+    VAEncMiscParameterBuffer *pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
+    psMiscRcParams = (VAEncMiscParameterRateControl *)pBuffer->data;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start \n", __FUNCTION__);
+
+#ifdef _PDUMP_H264ES_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start \n", __FUNCTION__);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psRCParams->ui32BitsPerSecond = %d, psMiscRcParams->bits_per_second = %d \n", __FUNCTION__, psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
+#endif
+
+    if ((psRCParams->ui32BitsPerSecond != psMiscRcParams->bits_per_second) && 
+        psMiscRcParams->bits_per_second != 0)
+        psRCParams->ui32BitsPerSecond = psMiscRcParams->bits_per_second;
+    
+    if (psRCParams->ui32BitsPerSecond > TOPAZ_H264_MAX_BITRATE) {
+        psRCParams->ui32BitsPerSecond = TOPAZ_H264_MAX_BITRATE;
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, " bits_per_second(%d) exceeds \ the maximum bitrate, set it with %d\n",
+            psRCParams->ui32BitsPerSecond, TOPAZ_H264_MAX_BITRATE);
+    }
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "rate control changed from %d to %d\n",
+                             psRCParams->ui32BitsPerSecond,
+                             psMiscRcParams->bits_per_second);
+
+    if (ctx->uiCbrBufferTenths) {
+        psRCParams->ui32BufferSize = (IMG_UINT32)(psRCParams->ui32BitsPerSecond * ctx->uiCbrBufferTenths / 10.0);
+    } else {
+        if (psRCParams->ui32BitsPerSecond < 256000)
+            psRCParams->ui32BufferSize = ((9 * psRCParams->ui32BitsPerSecond) >> 1);
+        else
+            psRCParams->ui32BufferSize = ((5 * psRCParams->ui32BitsPerSecond) >> 1);
+    }
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ctx->uiCbrBufferTenths = %d, psRCParams->ui32BufferSize = %d\n",
+        __FUNCTION__, ctx->uiCbrBufferTenths, psRCParams->ui32BufferSize);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psRCParams->ui32BitsPerSecond = %d, psMiscRcParams->bits_per_second = %d\n",
+        __FUNCTION__, psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
+
+    psRCParams->ui32BUSize = psMiscRcParams->basic_unit_size;
+    psRCParams->i32InitialDelay = (13 * psRCParams->ui32BufferSize) >> 4;
+    psRCParams->i32InitialLevel = (3 * psRCParams->ui32BufferSize) >> 4;
+
+    psRCParams->ui32InitialQp = psMiscRcParams->initial_qp;
+    psRCParams->iMinQP = psMiscRcParams->min_qp;
+
+    //free(psMiscRcParams);
+    if (psRCParams->ui32InitialQp > 51 || psRCParams->iMinQP < 0) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp(%d) and min_qpinitial_qp(%d) "
+                           "are invalid.\nQP shouldn't be larger than 51 for H264\n",
+                           psRCParams->ui32InitialQp, psRCParams->iMinQP);
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    return VA_STATUS_SUCCESS;
+}
+
+
+static VAStatus ptg__H264ES_process_misc_hrd_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAEncMiscParameterBuffer *pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
+    VAEncMiscParameterHRD *psMiscHrdParams = NULL;
+    ASSERT(obj_buffer->type == VAEncMiscParameterTypeHRD);
+    ASSERT(obj_buffer->size == sizeof(VAEncMiscParameterHRD));
+    psMiscHrdParams = (VAEncMiscParameterHRD *)pBuffer->data;
+    //free(psMiscHrdParams);
+    return VA_STATUS_SUCCESS;
+}
+
+static VAStatus ptg__H264ES_process_sequence_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAEncSequenceParameterBufferH264 *psSeqParams;
+    H264_CROP_PARAMS* psCropParams = &(ctx->sCropParams);
+    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
+    FRAME_ORDER_INFO *psFrameOrderInfo = &(ctx->sFrameOrderInfo);
+    IMG_UINT32 ui32_var_0, ui32_var_1;
+
+    ASSERT(obj_buffer->type == VAEncSequenceParameterBufferType);
+    ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH264));
+
+    if (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH264)) {
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+    ctx->obj_context->frame_count = 0;
+    psSeqParams = (VAEncSequenceParameterBufferH264 *) obj_buffer->buffer_data;
+ 
+    obj_buffer->buffer_data = NULL;
+    obj_buffer->size = 0;
+
+    ctx->ui32IdrPeriod = psSeqParams->intra_idr_period;
+    ctx->ui32IntraCnt = psSeqParams->intra_period;
+    ctx->ui8LevelIdc = psSeqParams->level_idc;
+    ctx->ui8SlotsRequired = ctx->ui8SlotsInUse = (IMG_UINT8)(psSeqParams->ip_period + 1);
+    ctx->ui8MaxNumRefFrames = psSeqParams->max_num_ref_frames;
+
+    //be sure intral period is the cycle of ip_period
+    ui32_var_0 = (IMG_UINT32)(psSeqParams->ip_period);
+    ui32_var_1 = ctx->ui32IntraCnt % ui32_var_0;
+    ctx->ui32IntraCnt = ctx->ui32IntraCnt + ui32_var_0 - ui32_var_1;
+
+    psRCParams->ui32IntraFreq = psSeqParams->intra_period;
+    psRCParams->ui32BitsPerSecond = psSeqParams->bits_per_second;
+    psRCParams->ui32TransferBitsPerSecond = psRCParams->ui32BitsPerSecond;
+    psRCParams->ui16BFrames = (IMG_UINT16)(psSeqParams->ip_period - 1);
+    psRCParams->ui32FrameRate = 30;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ctx->ui32IdrPeriod = %d, ctx->ui32IntraCnt = %d\n", __FUNCTION__, ctx->ui32IdrPeriod, ctx->ui32IntraCnt);
+
+#ifdef _PDUMP_H264ES_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ctx->ui8MaxNumRefFrames = %d, psRCParams->ui16BFrames = %d\n", __FUNCTION__, ctx->ui8MaxNumRefFrames, psRCParams->ui16BFrames);
+#endif
+
+    psCropParams->bClip = psSeqParams->frame_cropping_flag;
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bClip = %d\n", __FUNCTION__, psCropParams->bClip);
+
+    psCropParams->bClip = 0;
+    psCropParams->ui16LeftCropOffset = psSeqParams->frame_crop_left_offset;
+    psCropParams->ui16RightCropOffset = psSeqParams->frame_crop_right_offset;
+    psCropParams->ui16TopCropOffset = psSeqParams->frame_crop_top_offset;
+    psCropParams->ui16BottomCropOffset = psSeqParams->frame_crop_bottom_offset;
+
+    //set level idc
+    ctx->ui32VertMVLimit = 255 ;//(63.75 in qpel increments)
+    ctx->bLimitNumVectors = IMG_FALSE;
+
+    /*Setting VertMVLimit and LimitNumVectors only for H264*/
+    if (ctx->ui8LevelIdc >= SH_LEVEL_30)
+        ctx->bLimitNumVectors = IMG_TRUE;
+    else
+        ctx->bLimitNumVectors = IMG_FALSE;
+
+    if (ctx->ui8LevelIdc >= SH_LEVEL_31)
+        ctx->ui32VertMVLimit = 2047 ;//(511.75 in qpel increments)
+    else if (ctx->ui8LevelIdc >= SH_LEVEL_21)
+        ctx->ui32VertMVLimit = 1023 ;//(255.75 in qpel increments)
+    else if (ctx->ui8LevelIdc >= SH_LEVEL_11)
+        ctx->ui32VertMVLimit = 511 ;//(127.75 in qpel increments)
+
+    if (psFrameOrderInfo->slot_consume_dpy_order != NULL)
+        free(psFrameOrderInfo->slot_consume_dpy_order);
+    if (psFrameOrderInfo->slot_consume_enc_order != NULL)
+        free(psFrameOrderInfo->slot_consume_enc_order);
+
+    if (psRCParams->ui16BFrames != 0) {
+        memset(psFrameOrderInfo, 0, sizeof(FRAME_ORDER_INFO));
+        psFrameOrderInfo->slot_consume_dpy_order = (int *)malloc(ctx->ui8SlotsInUse * sizeof(int));
+        psFrameOrderInfo->slot_consume_enc_order = (int *)malloc(ctx->ui8SlotsInUse * sizeof(int));
+
+        if ((psFrameOrderInfo->slot_consume_dpy_order == NULL) || 
+            (psFrameOrderInfo->slot_consume_enc_order == NULL)) {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: error malloc slot order array\n", __FUNCTION__);
+        }
+    }
+#ifdef _PDUMP_H264ES_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
+#endif
+
+    free(psSeqParams);
+
+    return VA_STATUS_SUCCESS;
+}
+
+#if 0
+static VAStatus ptg__H264ES_process_picture_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
+    context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf[ctx->ui32StreamID]);
+    IMG_RC_PARAMS * psRCParams = &(ctx->sRCParams);
+    VAEncPictureParameterBufferH264 *psPicParams;
+    IMG_BOOL bDepViewPPS = IMG_FALSE;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
+    ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
+    if (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid coded buffer handle\n", __FUNCTION__, __LINE__);
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    /* Transfer ownership of VAEncPictureParameterBufferH264 data */
+    psPicParams = (VAEncPictureParameterBufferH264 *) obj_buffer->buffer_data;
+
+    obj_buffer->buffer_data = NULL;
+    obj_buffer->size = 0;
+
+    ASSERT(ctx->ui16Width == psPicParams->picture_width);
+    ASSERT(ctx->ui16PictureHeight == psPicParams->picture_height);
+
+#ifdef _TOPAZHP_OLD_LIBVA_
+    ps_buf->ref_surface = SURFACE(psPicParams->ReferenceFrames[0].picture_id);
+    ps_buf->coded_buf = BUFFER(psPicParams->coded_buf);
+#else
+    {
+        IMG_INT32 i;
+        ps_buf->rec_surface = SURFACE(psPicParams->CurrPic.picture_id);
+        for (i = 0; i < 16; i++)
+            ps_buf->ref_surface[i] = SURFACE(psPicParams->ReferenceFrames[i].picture_id);
+        ps_buf->coded_buf = BUFFER(psPicParams->coded_buf);
+    }
+#endif
+
+    if (NULL == ps_buf->coded_buf) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid coded buffer handle\n", __FUNCTION__, __LINE__);
+        free(psPicParams);
+        return VA_STATUS_ERROR_INVALID_BUFFER;
+    }
+
+    if ((ctx->bEnableMvc) && (ctx->ui16MVCViewIdx != 0) &&
+        (ctx->ui16MVCViewIdx != (IMG_UINT16)(NON_MVC_VIEW))) {
+        bDepViewPPS = IMG_TRUE;
+    }
+
+    /************* init ****************
+    ctx->bCabacEnabled = psPicParams->pic_fields.bits.entropy_coding_mode_flag;
+    ctx->bH2648x8Transform = psPicParams->pic_fields.bits.transform_8x8_mode_flag;
+    ctx->bH264IntraConstrained = psPicParams->pic_fields.bits.constrained_intra_pred_flag;
+    ctx->bWeightedPrediction = psPicParams->pic_fields.bits.weighted_pred_flag;
+    ctx->ui8VPWeightedImplicitBiPred = psPicParams->pic_fields.bits.weighted_bipred_idc;
+    ctx->bCustomScaling = psPicParams->pic_fields.bits.pic_scaling_matrix_present_flag;
+    /************* set rc params *************/
+//    ctx->sRCParams.ui32InitialQp = psPicParams->pic_init_qp;
+//    ctx->sRCParams.i8QCPOffset = psPicParams->chroma_qp_index_offset;
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psRCParams->ui32InitialQp = %d, psRCParams->iMinQP = %d\n", __FUNCTION__, psPicParams->pic_init_qp, psPicParams->chroma_qp_index_offset);
+    ptg__H264ES_prepare_picture_header(
+        ps_mem->bufs_pic_template.virtual_addr,
+        0, //IMG_BOOL    bCabacEnabled,
+        ctx->bH2648x8Transform, //IMG_BOOL    b_8x8transform,
+        0, //IMG_BOOL    bIntraConstrained,
+        0, //IMG_INT8    i8CQPOffset,
+        0, //IMG_BOOL    bWeightedPrediction,
+        0, //IMG_UINT8   ui8WeightedBiPred,
+        0, //IMG_BOOL    bMvcPPS,
+        0, //IMG_BOOL    bScalingMatrix,
+        0  //IMG_BOOL    bScalingLists
+    );
+    free(psPicParams);
+/*
+    if (psRCParams->ui16BFrames == 0) {
+        ptg_send_codedbuf(ctx, (ctx->obj_context->frame_count&1));
+        ptg_send_source_frame(ctx, (ctx->obj_context->frame_count&1), ctx->obj_context->frame_count);
+    } else
+        ptg__H264ES_provide_buffer_for_BFrames(ctx);
+*/
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
+
+    return vaStatus;
+}
+#endif
+
+static VAStatus ptg__H264ES_process_picture_param_base(context_ENC_p ctx, unsigned char *buf)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
+    IMG_RC_PARAMS * psRCParams = &(ctx->sRCParams);
+    VAEncPictureParameterBufferH264 *psPicParams;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
+
+    psPicParams = (VAEncPictureParameterBufferH264 *) buf;
+
+    ASSERT(ctx->ui16Width == psPicParams->picture_width);
+    ASSERT(ctx->ui16PictureHeight == psPicParams->picture_height);
+
+#ifdef _TOPAZHP_OLD_LIBVA_
+    ps_buf->rec_surface = SURFACE(psPicParams->CurrPic.picture_id);
+    ps_buf->ref_surface = SURFACE(psPicParams->ReferenceFrames[0].picture_id);
+    ps_buf->coded_buf = BUFFER(psPicParams->coded_buf);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: psPicParams->coded_buf = 0x%08x, ps_buf->coded_buf = 0x%08x\n",
+        __FUNCTION__, psPicParams->coded_buf, ps_buf->coded_buf);
+#else
+    {
+        IMG_INT32 i;
+        ps_buf->rec_surface = SURFACE(psPicParams->CurrPic.picture_id);
+        for (i = 0; i < 16; i++)
+            ps_buf->ref_surface[i] = SURFACE(psPicParams->ReferenceFrames[i].picture_id);
+        ps_buf->coded_buf = BUFFER(psPicParams->coded_buf);
+    }
+#endif
+
+    if (NULL == ps_buf->coded_buf) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid coded buffer handle\n", __FUNCTION__, __LINE__);
+        free(psPicParams);
+        return VA_STATUS_ERROR_INVALID_BUFFER;
+    }
+
+    ctx->bH2648x8Transform = psPicParams->pic_fields.bits.transform_8x8_mode_flag;
+    if ((ctx->bH2648x8Transform == 1) && (ctx->ui8ProfileIdc != 7)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d only high profile could set bH2648x8Transform TRUE\n", __FUNCTION__, __LINE__);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psRCParams->ui32InitialQp = %d, psRCParams->iMinQP = %d\n",
+            __FUNCTION__, psPicParams->pic_init_qp, psPicParams->chroma_qp_index_offset);
+        ctx->bH2648x8Transform = 0;
+    }
+    ctx->bH264IntraConstrained = psPicParams->pic_fields.bits.constrained_intra_pred_flag;
+    if (ctx->bEnableMVC == 1) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d MVC could not set bH264IntraConstrained TRUE\n", __FUNCTION__, __LINE__);
+        ctx->bH264IntraConstrained = 0;
+    }
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ctx->bH2648x8Transform = 0x%08x, ctx->bH264IntraConstrained = 0x%08x\n",
+        __FUNCTION__, ctx->bH2648x8Transform, ctx->bH264IntraConstrained);
+
+    ctx->bCabacEnabled = psPicParams->pic_fields.bits.entropy_coding_mode_flag;
+    ctx->bWeightedPrediction = psPicParams->pic_fields.bits.weighted_pred_flag;
+    ctx->ui8VPWeightedImplicitBiPred = psPicParams->pic_fields.bits.weighted_bipred_idc;
+
+    /************* init ****************
+    ctx->bCustomScaling = psPicParams->pic_fields.bits.pic_scaling_matrix_present_flag;
+    /************* set rc params *************/
+    if (ctx->sRCParams.ui32InitialQp == 0)
+        ctx->sRCParams.ui32InitialQp = psPicParams->pic_init_qp;
+    // ctx->sRCParams.i8QCPOffset = psPicParams->chroma_qp_index_offset;
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "%s psRCParams->ui32InitialQp = %d, psRCParams->iMinQP = %d\n",
+        __FUNCTION__, psPicParams->pic_init_qp, psPicParams->chroma_qp_index_offset);
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
+    return vaStatus;
+}
+
+static VAStatus ptg__H264ES_process_picture_param_mvc(context_ENC_p ctx, unsigned char *buf)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    VAEncPictureParameterBufferH264MVC *psPicMvcParams;
+    
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
+    psPicMvcParams = (VAEncPictureParameterBufferH264MVC *) buf;
+    ctx->ui16MVCViewIdx = ctx->ui32StreamID = psPicMvcParams->view_id;
+    vaStatus = ptg__H264ES_process_picture_param_base(ctx, (unsigned char*)&(psPicMvcParams->base_picture_param));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
+
+    return vaStatus;
+}
+
+static VAStatus ptg__H264ES_process_picture_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
+    ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ctx->bEnableMVC = %d\n", __FUNCTION__, ctx->bEnableMVC);
+
+    if (ctx->bEnableMVC) {
+        if (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264MVC)) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid picture parameter H264 mvc buffer handle\n", __FUNCTION__, __LINE__);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+        vaStatus = ptg__H264ES_process_picture_param_mvc(ctx, obj_buffer->buffer_data);
+    } else {
+        if (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264)) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid picture parameter H264 buffer handle\n", __FUNCTION__, __LINE__);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+        vaStatus = ptg__H264ES_process_picture_param_base(ctx, obj_buffer->buffer_data);
+    }
+    free(obj_buffer->buffer_data);
+    obj_buffer->buffer_data = NULL;
+    obj_buffer->size = 0;
+    return vaStatus;
+}
+
+static VAStatus ptg__H264ES_process_slice_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+#ifdef _TOPAZHP_SLICE_PARAM_
+    VAEncSliceParameterBufferH264 *psSliceParams;
+#else
+    VAEncSliceParameterBuffer *psSliceParams;
+#endif
+    
+    ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
+    /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
+    
+    /* Transfer ownership of VAEncPictureParameterBufferH264 data */
+#ifdef _TOPAZHP_SLICE_PARAM_
+    psSliceParams = (VAEncSliceParameterBufferH264*) obj_buffer->buffer_data;
+#else
+    psSliceParams = (VAEncSliceParameterBuffer*) obj_buffer->buffer_data;
+#endif
+    obj_buffer->size = 0;
+    obj_buffer->buffer_data = NULL;
+
+    //deblocking behaviour
+    ctx->bArbitrarySO = IMG_FALSE;
+#ifdef _TOPAZHP_SLICE_PARAM_
+    ctx->ui8DeblockIDC = psSliceParams->disable_deblocking_filter_idc;
+#else
+    ctx->ui8DeblockIDC = psSliceParams->slice_flags.bits.disable_deblocking_filter_idc;
+#endif
+    if ((ctx->ui32StreamID == 0) && (ctx->ui32FrameCount[0] == 0))
+        ++ctx->ui8SlicesPerPicture;
+
+    free(psSliceParams);
+    return vaStatus;
+}
+
+static VAStatus ptg__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    VAEncMiscParameterBuffer *pBuffer;
+    VAEncMiscParameterFrameRate *frame_rate_param;
+    VAEncMiscParameterRateControl *rate_control_param;
+    IMG_RC_PARAMS   *psRCParams = &(ctx->sRCParams);
+
+    ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
+
+    /* Transfer ownership of VAEncMiscParameterBuffer data */
+    pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
+    obj_buffer->size = 0;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: start pBuffer->type = %d\n",
+        __FUNCTION__, pBuffer->type);
+
+    switch (pBuffer->type) {
+        case VAEncMiscParameterTypeFrameRate:
+            frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
+            psRCParams->ui32FrameRate = frame_rate_param->framerate;
+            if (psRCParams->ui32FrameRate == 0)
+                psRCParams->ui32FrameRate = 30;
+        case VAEncMiscParameterTypeRateControl:
+            ptg__H264ES_process_misc_ratecontrol_param(ctx, obj_buffer);
+            break;
+        case VAEncMiscParameterTypeHRD:
+            ptg__H264ES_process_misc_hrd_param(ctx, obj_buffer);
+        default:
+            break;
+    }
+    free(obj_buffer->buffer_data);
+    obj_buffer->buffer_data = NULL;
+    return vaStatus;
+
+#if 0
+    /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
+    VAEncMiscParameterBuffer *pBuffer;
+    VAEncMiscParameterRateControl *rate_control_param;
+    VAEncMiscParameterAIR *air_param;
+    VAEncMiscParameterMaxSliceSize *max_slice_size_param;
+    VAEncMiscParameterFrameRate *frame_rate_param;
+
+
+    ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
+
+    /* Transfer ownership of VAEncMiscParameterBuffer data */
+    pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
+    obj_buffer->size = 0;
+
+    switch (pBuffer->type) {
+    case VAEncMiscParameterTypeFrameRate:
+        frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
+
+        if (frame_rate_param->framerate > 65535) {
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        if (ctx->sRCParams.FrameRate == frame_rate_param->framerate)
+            break;
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "frame rate changed from %d to %d\n",
+                                 ctx->sRCParams.FrameRate,
+                                 frame_rate_param->framerate);
+        ctx->sRCParams.FrameRate = frame_rate_param->framerate;
+        ctx->sRCParams.bBitrateChanged = IMG_TRUE;
+        break;
+
+    case VAEncMiscParameterTypeRateControl:
+        rate_control_param = (VAEncMiscParameterRateControl *)pBuffer->data;
+
+        if (rate_control_param->initial_qp > 51 ||
+            rate_control_param->min_qp > 51) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp(%d) and min_qpinitial_qp(%d) "
+                               "are invalid.\nQP shouldn't be larger than 51 for H264\n",
+                               rate_control_param->initial_qp, rate_control_param->min_qp);
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "rate control changed from %d to %d\n",
+                                 ctx->sRCParams.ui32BitsPerSecond,
+                                 rate_control_param->bits_per_second);
+
+        if ((rate_control_param->bits_per_second == ctx->sRCParams.ui32BitsPerSecond) &&
+            (ctx->sRCParams.ui32BufferSize == ctx->sRCParams.ui32BitsPerSecond / 1000 * rate_control_param->window_size) &&
+            (ctx->sRCParams.iMinQP == rate_control_param->min_qp) &&
+            (ctx->sRCParams.ui32InitialQp == rate_control_param->initial_qp))
+            break;
+        else
+            ctx->sRCParams.bBitrateChanged = IMG_TRUE;
+
+        if (rate_control_param->bits_per_second > TOPAZ_H264_MAX_BITRATE) {
+            ctx->sRCParams.ui32BitsPerSecond = TOPAZ_H264_MAX_BITRATE;
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, " bits_per_second(%d) exceeds \
+			the maximum bitrate, set it with %d\n",
+                                     rate_control_param->bits_per_second,
+                                     TOPAZ_H264_MAX_BITRATE);
+        } else
+            ctx->sRCParams.ui32BitsPerSecond = rate_control_param->bits_per_second;
+
+        if (rate_control_param->window_size != 0)
+            ctx->sRCParams.ui32BufferSize = ctx->sRCParams.ui32BitsPerSecond * rate_control_param->window_size / 1000;
+        if (rate_control_param->initial_qp != 0)
+            ctx->sRCParams.ui32InitialQp = rate_control_param->initial_qp;
+        if (rate_control_param->min_qp != 0)
+            ctx->sRCParams.iMinQP = rate_control_param->min_qp;
+        break;
+
+    case VAEncMiscParameterTypeMaxSliceSize:
+        max_slice_size_param = (VAEncMiscParameterMaxSliceSize *)pBuffer->data;
+
+        if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
+            break;
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "max slice size changed to %d\n",
+                                 max_slice_size_param->max_slice_size);
+
+        ctx->max_slice_size = max_slice_size_param->max_slice_size;
+
+        break;
+
+    case VAEncMiscParameterTypeAIR:
+        air_param = (VAEncMiscParameterAIR *)pBuffer->data;
+
+        if (air_param->air_num_mbs > 65535 ||
+            air_param->air_threshold > 65535) {
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "air slice size changed to num_air_mbs %d "
+                                 "air_threshold %d, air_auto %d\n",
+                                 air_param->air_num_mbs, air_param->air_threshold,
+                                 air_param->air_auto);
+
+        if (((ctx->ui16PictureHeight * ctx->ui16Width) >> 8) < air_param->air_num_mbs)
+            air_param->air_num_mbs = ((ctx->ui16PictureHeight * ctx->ui16Width) >> 8);
+        if (air_param->air_threshold == 0)
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: air threshold is set to zero\n",
+                                     __func__);
+        ctx->num_air_mbs = air_param->air_num_mbs;
+        ctx->air_threshold = air_param->air_threshold;
+        //ctx->autotune_air_flag = air_param->air_auto;
+
+        break;
+
+    default:
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        DEBUG_FAILURE;
+        break;
+    }
+
+    free(obj_buffer->buffer_data);
+    obj_buffer->buffer_data = NULL;
+    return vaStatus;
+#endif
+
+}
+
+
+
+static VAStatus ptg_H264ES_RenderPicture(
+    object_context_p obj_context,
+    object_buffer_p *buffers,
+    int num_buffers)
+{
+    INIT_CONTEXT_H264ES;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    int i;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
+
+    for (i = 0; i < num_buffers; i++) {
+        object_buffer_p obj_buffer = buffers[i];
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: type = %d, num = %d\n",
+            __FUNCTION__, obj_buffer->type, num_buffers);
+
+        switch (obj_buffer->type) {
+            case VAEncSequenceParameterBufferType:
+                drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                    "ptg_H264_RenderPicture got VAEncSequenceParameterBufferType\n");
+                vaStatus = ptg__H264ES_process_sequence_param(ctx, obj_buffer);
+                DEBUG_FAILURE;
+                break;
+            case VAEncPictureParameterBufferType:
+                drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                    "ptg_H264_RenderPicture got VAEncPictureParameterBuffer\n");
+                vaStatus = ptg__H264ES_process_picture_param(ctx, obj_buffer);
+                DEBUG_FAILURE;
+                break;
+
+            case VAEncSliceParameterBufferType:
+                drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                    "ptg_H264_RenderPicture got VAEncSliceParameterBufferType\n");
+                vaStatus = ptg__H264ES_process_slice_param(ctx, obj_buffer);
+                DEBUG_FAILURE;
+                break;
+
+            case VAEncMiscParameterBufferType:
+                drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                    "ptg_H264_RenderPicture got VAEncMiscParameterBufferType\n");
+                vaStatus = ptg__H264ES_process_misc_param(ctx, obj_buffer);
+                DEBUG_FAILURE;
+                break;
+            default:
+                vaStatus = VA_STATUS_ERROR_UNKNOWN;
+                DEBUG_FAILURE;
+        }
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            break;
+        }
+    }
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
+
+    return vaStatus;
+}
+
+static IMG_UINT8 ptg__H264ES_calculate_evel(context_ENC_p ctx)
+{
+    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
+    IMG_UINT32 ui32MBf=0;
+    IMG_UINT32 ui32MBs;
+    IMG_UINT32 ui32Level=0;
+    IMG_UINT32 ui32TempLevel=0;
+    IMG_UINT32 ui32DpbMbs;
+    IMG_UINT8 ui8TargetLevel = 0;
+    // We need to calculate the level based on a few constraints these are
+    // Macroblocks per second
+    // picture size
+    // decoded picture buffer size, and bitrate
+    ui32MBf = (ctx->ui16Width)*(ctx->ui16FrameHeight) >> 8;
+    ui32MBs = ui32MBf * psRCParams->ui32FrameRate;
+
+
+    // could do these in nice tables, but this is clearer
+    if      (ui32MBf > 22080) ui32Level = SH_LEVEL_51;
+    else if (ui32MBf >  8704) ui32Level = SH_LEVEL_50;
+    else if (ui32MBf >  8192) ui32Level = SH_LEVEL_42;
+    else if (ui32MBf >  5120) ui32Level = SH_LEVEL_40;
+    else if (ui32MBf >  3600) ui32Level = SH_LEVEL_32;
+    else if (ui32MBf >  1620) ui32Level = SH_LEVEL_31;
+    else if (ui32MBf >   792) ui32Level = SH_LEVEL_22;
+    else if (ui32MBf >   396) ui32Level = SH_LEVEL_21;
+    else if (ui32MBf >    99) ui32Level = SH_LEVEL_11;
+    else ui32Level = SH_LEVEL_10;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: ui32MBf = %d, ui32MBs = %d, ui32Level = %d\n",
+        __FUNCTION__, ui32MBf, ui32MBs, ui32Level);
+
+
+    //ui32DpbMbs = ui32MBf * (psContext->ui32MaxNumRefFrames + 1);
+    ui32DpbMbs = ui32MBf * (ctx->ui8MaxNumRefFrames + 1);
+
+    if      (ui32DpbMbs > 110400) ui32TempLevel = SH_LEVEL_51;
+    else if (ui32DpbMbs >  34816) ui32TempLevel = SH_LEVEL_50;
+    else if (ui32DpbMbs >  32768) ui32TempLevel = SH_LEVEL_42;
+    else if (ui32DpbMbs >  20480) ui32TempLevel = SH_LEVEL_40;
+    else if (ui32DpbMbs >  18000) ui32TempLevel = SH_LEVEL_32;
+    else if (ui32DpbMbs >   8100) ui32TempLevel = SH_LEVEL_31;
+    else if (ui32DpbMbs >   4752) ui32TempLevel = SH_LEVEL_22;
+    else if (ui32DpbMbs >   2376) ui32TempLevel = SH_LEVEL_21;
+    else if (ui32DpbMbs >    900) ui32TempLevel = SH_LEVEL_12;
+    else if (ui32DpbMbs >    396) ui32TempLevel = SH_LEVEL_11;
+    else ui32TempLevel = SH_LEVEL_10;
+    ui32Level = ptg__max(ui32Level, ui32TempLevel);
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: ui32DpbMbs = %d, ui32Level = %d\n",
+        __FUNCTION__, ui32DpbMbs, ui32Level);
+
+    // now restrict based on the number of macroblocks per second
+    if      (ui32MBs > 589824) ui32TempLevel = SH_LEVEL_51;
+    else if (ui32MBs > 522240) ui32TempLevel = SH_LEVEL_50;
+    else if (ui32MBs > 245760) ui32TempLevel = SH_LEVEL_42;
+    else if (ui32MBs > 216000) ui32TempLevel = SH_LEVEL_40;
+    else if (ui32MBs > 108000) ui32TempLevel = SH_LEVEL_32;
+    else if (ui32MBs >  40500) ui32TempLevel = SH_LEVEL_31;
+    else if (ui32MBs >  20250) ui32TempLevel = SH_LEVEL_30;
+    else if (ui32MBs >  19800) ui32TempLevel = SH_LEVEL_22;
+    else if (ui32MBs >  11880) ui32TempLevel = SH_LEVEL_21;
+    else if (ui32MBs >   6000) ui32TempLevel = SH_LEVEL_13;
+    else if (ui32MBs >   3000) ui32TempLevel = SH_LEVEL_12;
+    else if (ui32MBs >   1485) ui32TempLevel = SH_LEVEL_11;
+    else ui32TempLevel = SH_LEVEL_10;
+    ui32Level = ptg__max(ui32Level, ui32TempLevel);
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: ui32TempLevel = %d, ui32Level = %d\n",
+        __FUNCTION__, ui32TempLevel, ui32Level);
+
+
+    if (psRCParams->bRCEnable) {
+        // now restrict based on the requested bitrate
+        if      (psRCParams->ui32FrameRate > 135000000) ui32TempLevel = SH_LEVEL_51;
+        else if (psRCParams->ui32FrameRate >  50000000) ui32TempLevel = SH_LEVEL_50;
+        else if (psRCParams->ui32FrameRate >  20000000) ui32TempLevel = SH_LEVEL_41;
+        else if (psRCParams->ui32FrameRate >  14000000) ui32TempLevel = SH_LEVEL_32;
+        else if (psRCParams->ui32FrameRate >  10000000) ui32TempLevel = SH_LEVEL_31;
+        else if (psRCParams->ui32FrameRate >   4000000) ui32TempLevel = SH_LEVEL_30;
+        else if (psRCParams->ui32FrameRate >   2000000) ui32TempLevel = SH_LEVEL_21;
+        else if (psRCParams->ui32FrameRate >    768000) ui32TempLevel = SH_LEVEL_20;
+        else if (psRCParams->ui32FrameRate >    384000) ui32TempLevel = SH_LEVEL_13;
+        else if (psRCParams->ui32FrameRate >    192000) ui32TempLevel = SH_LEVEL_12;
+        else if (psRCParams->ui32FrameRate >    128000) ui32TempLevel = SH_LEVEL_11;
+        else if (psRCParams->ui32FrameRate >     64000) ui32TempLevel = SH_LEVEL_1B;
+        else ui32TempLevel = SH_LEVEL_10;
+
+        ui32Level = ptg__max(ui32Level, ui32TempLevel);
+    }
+/*
+    if (pParams->bLossless) {
+        ui32Level = ptg__max(ui32Level, 320);
+    }
+*/
+    ui8TargetLevel = (IMG_UINT8)ui32Level;
+    return ptg__max(ui8TargetLevel, ctx->ui8LevelIdc);
+}
+
+
+static VAStatus ptg_H264ES_EndPicture(
+    object_context_p obj_context)
+{
+    INIT_CONTEXT_H264ES;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s start\n", __FUNCTION__);
+
+    ctx->ui8LevelIdc = ptg__H264ES_calculate_evel(ctx);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s ctx->ui8LevelIdc = %d\n", __FUNCTION__, ctx->ui8LevelIdc);
+
+    vaStatus = ptg_EndPicture(ctx);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s end\n", __FUNCTION__);
+    return vaStatus;
+}
+
+struct format_vtable_s ptg_H264ES_vtable = {
+queryConfigAttributes:
+    ptg_H264ES_QueryConfigAttributes,
+validateConfig:
+    ptg_H264ES_ValidateConfig,
+createContext:
+    ptg_H264ES_CreateContext,
+destroyContext:
+    ptg_H264ES_DestroyContext,
+beginPicture:
+    ptg_H264ES_BeginPicture,
+renderPicture:
+    ptg_H264ES_RenderPicture,
+endPicture:
+    ptg_H264ES_EndPicture
+};
+
+/*EOF*/
