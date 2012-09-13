@@ -30,7 +30,7 @@
 #define _VSP_VPP_H_
 
 #include "psb_drv_video.h"
-#include "vsp_fw.h"
+#include <linux/vsp_fw.h>
 
 struct context_VPP_s {
 	object_context_p obj_context; /* back reference */

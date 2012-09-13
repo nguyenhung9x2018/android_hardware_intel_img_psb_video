@@ -42,11 +42,39 @@
 
 #define KB 1024
 #define MB (KB * KB)
-#define VSP_PROC_CONTEXT_SIZE (1*MB)
+#define VSP_PROC_CONTEXT_SIZE (8*MB)
 
 #define VSP_FORWARD_REF_NUM 3
 
+#define VSP_COLOR_ENHANCE_FEATURES 2
+
 #define ALIGN_TO_128(value) ((value + 128 - 1) & ~(128 - 1))
+
+enum resolution_set {
+	VGA2HD1080P = 0,
+	QVGA2VGA,
+	QCIF2QVGA,
+	RESOLUTION_SET_NUM
+};
+
+struct vpp_chain_capability {
+	int frc_enabled;
+	int sharpen_enabled;
+	int color_balance_enabled;
+	int denoise_enabled;
+	int deblock_enabled;
+};
+
+enum filter_status {
+	FILTER_DISABLED = 0,
+	FILTER_ENABLED
+};
+
+struct vpp_chain_capability vpp_chain_caps[RESOLUTION_SET_NUM] = {
+	[VGA2HD1080P] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED, FILTER_DISABLED, FILTER_DISABLED},
+	[QVGA2VGA] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED},
+	[QCIF2QVGA] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED, FILTER_ENABLED}
+};
 
 static void vsp_VPP_DestroyContext(object_context_p obj_context);
 static VAStatus vsp_set_pipeline(context_VPP_p ctx);
@@ -157,7 +185,6 @@ static VAStatus vsp_VPP_CreateContext(
 	ctx->sharpen_param_offset = ctx->enhancer_param_offset + ctx->enhancer_param_sz;
 	ctx->frc_param_offset = ctx->sharpen_param_offset + ctx->sharpen_param_sz;
 
-#if 0
 	ctx->context_buf = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
 	if (NULL == ctx->context_buf) {
 		vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -169,7 +196,7 @@ static VAStatus vsp_VPP_CreateContext(
 	if (VA_STATUS_SUCCESS != vaStatus) {
 		goto out;
 	}
-#endif
+
 	obj_context->format_data = (void*) ctx;
 	ctx->obj_context = obj_context;
 
@@ -192,6 +219,9 @@ static VAStatus vsp_VPP_CreateContext(
 	return vaStatus;
 out:
 	vsp_VPP_DestroyContext(obj_context);
+
+	if (ctx)
+		free(ctx);
 
 	return vaStatus;
 }
@@ -243,7 +273,11 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		goto out;
 	}
 	
-	/* FIXME: ignore output_background_color setting  */
+	if (pipeline_param->output_background_color != 0) {
+		drv_debug_msg(VIDEO_DEBUG_ERROR, "Cann't support background color here\n");
+		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+		goto out;
+	}
 
 	if (pipeline_param->filters == NULL) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid filter setting filters = %p\n", pipeline_param->filters);
@@ -359,8 +393,8 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	cell_proc_picture_param->input_picture[0].height = input_surface->height_origin;
 	cell_proc_picture_param->input_picture[0].width = input_surface->width;
 	cell_proc_picture_param->input_picture[0].irq = 0;
-//	cell_proc_picture_param->input_picture[0].stride = input_surface->psb_surface->stride;
-	cell_proc_picture_param->input_picture[0].stride = 0;
+	cell_proc_picture_param->input_picture[0].stride = input_surface->psb_surface->stride;
+	cell_proc_picture_param->input_picture[0].format = ctx->format;
 
 	if (frc_param == NULL)
 		cell_proc_picture_param->num_output_pictures = 1;
@@ -370,6 +404,13 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		if (i == 0) {
 			cur_output_surf = ctx->obj_context->current_render_target;
 		} else {
+			if (frc_param == NULL) {
+				drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid output surface numbers %x\n",
+					      cell_proc_picture_param->num_output_pictures);
+				vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+				goto out;
+			}
+
 			cur_output_surf = SURFACE(frc_param->output_frames[i-1]);
 			if (cur_output_surf == NULL) {
 				drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid input surface %x\n", frc_param->output_frames[i-1]);
@@ -385,8 +426,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 					   cmdbuf->param_mem_loc, cell_proc_picture_param);
 		cell_proc_picture_param->output_picture[i].height = cur_output_surf->height_origin;
 		cell_proc_picture_param->output_picture[i].width = cur_output_surf->width;
-//		cell_proc_picture_param->output_picture[i].stride = cur_output_surf->psb_surface->stride;
-		cell_proc_picture_param->output_picture[i].stride = 0;
+		cell_proc_picture_param->output_picture[i].stride = cur_output_surf->psb_surface->stride;
 		cell_proc_picture_param->output_picture[i].irq = 1;
 		/* keep the same first, modify to dest format when feature's avaliable */
 		cell_proc_picture_param->output_picture[i].format = ctx->format;
@@ -461,6 +501,10 @@ static VAStatus vsp_VPP_BeginPicture(
 
 	cmdbuf = obj_context->vsp_cmdbuf;
 
+	if (ctx->obj_context->frame_count == 0) /* first picture */
+		vsp_cmdbuf_insert_command(cmdbuf, ctx->context_buf, VspSetContextCommand,
+					  0, VSP_PROC_CONTEXT_SIZE);
+
 	/* map param mem */
 	vaStatus = psb_buffer_map(&cmdbuf->param_mem, &cmdbuf->param_mem_p);
 	if (vaStatus) {
@@ -474,16 +518,6 @@ static VAStatus vsp_VPP_BeginPicture(
 	cmdbuf->enhancer_param_p = cmdbuf->param_mem_p + ctx->enhancer_param_offset;
 	cmdbuf->sharpen_param_p = cmdbuf->param_mem_p + ctx->sharpen_param_offset;
 	cmdbuf->frc_param_p = cmdbuf->param_mem_p + ctx->frc_param_offset;
-
-#if 0
-	if (ctx->obj_context->frame_count == 0) { /* first picture */
-		psb_driver_data_p driver_data = ctx->obj_context->driver_data;
-
-		vsp_cmdbuf_insert_command(cmdbuf, VSP_NEW_CONTEXT, 
-					  wsbmBOOffsetHint(ctx->context_buf->drm_buf),
-					  VSP_PROC_CONTEXT_SIZE);
-	}
-#endif
 
 	return VA_STATUS_SUCCESS;
 }
@@ -577,9 +611,10 @@ VAStatus vsp_QueryVideoProcFilters(
 	/* check if current HW support Video proc */
 	if (IS_MRFL(driver_data)) {
 		count = 0;
+		filters[count++] = VAProcFilterDeblocking;
 		filters[count++] = VAProcFilterNoiseReduction;
 		filters[count++] = VAProcFilterSharpening;
-		filters[count++] = VAProcFilterColorEnhancement;
+		filters[count++] = VAProcFilterColorBalance;
 		filters[count++] = VAProcFilterFrameRateConversion;
 		*num_filters = count;
 	} else {
@@ -604,7 +639,7 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 	VAEntrypoint tmp;
 	VAProcFilterCap *denoise_cap, *deblock_cap;
 	VAProcFilterCap *sharpen_cap;
-	VAProcFilterCap *color_enhancement_cap;
+	VAProcFilterCapColorBalance *color_balance_cap;
 	VAProcFilterCap *frc_cap;
 
 	/* check if context is right */
@@ -645,6 +680,7 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 			denoise_cap->range.max_value = 100;
 			denoise_cap->range.default_value = 50;
 			denoise_cap->range.step = 1;
+			*num_filter_caps = 1;
 			break;
 		case VAProcFilterDeblocking:
 			deblock_cap = filter_caps;
@@ -652,6 +688,7 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 			deblock_cap->range.max_value = 100;
 			deblock_cap->range.default_value = 50;
 			deblock_cap->range.step = 1;
+			*num_filter_caps = 1;
 			break;
 
 		case VAProcFilterSharpening:
@@ -660,14 +697,32 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 			sharpen_cap->range.max_value = 100;
 			sharpen_cap->range.default_value = 50;
 			sharpen_cap->range.step = 1;
+			*num_filter_caps = 1;
 			break;
 
-		case VAProcFilterColorEnhancement:
-			color_enhancement_cap = filter_caps;
-			color_enhancement_cap->range.min_value = 0;
-			color_enhancement_cap->range.max_value = 100;
-			color_enhancement_cap->range.default_value = 50;
-			color_enhancement_cap->range.step = 1;
+		case VAProcFilterColorBalance:
+			if (*num_filter_caps < VSP_COLOR_ENHANCE_FEATURES) {
+				drv_debug_msg(VIDEO_DEBUG_ERROR, "filter cap num is should big than %d(%d)\n",
+					      VSP_COLOR_ENHANCE_FEATURES, *num_filter_caps);
+				vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+				*num_filter_caps = 0;
+				goto err;
+			}
+			color_balance_cap = filter_caps;
+			color_balance_cap->type = VAProcColorBalanceAutoSaturation;
+			color_balance_cap->range.min_value = 0;
+			color_balance_cap->range.max_value = 1;
+			color_balance_cap->range.default_value = 1;
+			color_balance_cap->range.step = 1;
+
+			color_balance_cap++;
+			color_balance_cap->type = VAProcColorBalanceAutoBrightness;
+			color_balance_cap->range.min_value = 0;
+			color_balance_cap->range.max_value = 1;
+			color_balance_cap->range.default_value = 1;
+			color_balance_cap->range.step = 1;
+
+			*num_filter_caps = 2;
 			break;
 
 		case VAProcFilterFrameRateConversion:
@@ -677,6 +732,7 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 			frc_cap->range.default_value = 2;
 			/* FIXME: it's a set, step is helpless */
 			frc_cap->range.step = 0.5;
+			*num_filter_caps = 1;
 			break;
 
 		default:
@@ -685,7 +741,6 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 			*num_filter_caps = 0;
 			goto err;
 		}
-		*num_filter_caps = 1;
 	} else {
 		*num_filter_caps = 0;
 	}
@@ -707,7 +762,15 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 	object_context_p obj_context;
 	object_config_p obj_config;
 	VAEntrypoint tmp;
-	int i;
+	unsigned int i, j;
+	VAProcFilterParameterBuffer *deblock, *denoise, *sharpen;
+	VAProcFilterParameterBufferFrameRateConversion *frc;
+	VAProcFilterParameterBufferColorBalance *balance;
+	VAProcFilterParameterBufferBase *base;
+	object_buffer_p buf;
+	uint32_t enabled_brightness, enabled_saturation;
+	float ratio;
+	int res_set;
 
 	/* check if ctx is right */
 	obj_context = CONTEXT(context);
@@ -742,7 +805,6 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 
 	/* base on HW capability check the filters and return pipeline caps */
 	if (IS_MRFL(driver_data)) {
-		pipeline_caps->flags = 0;
 		pipeline_caps->pipeline_flags = 0;
 		pipeline_caps->filter_flags = 0;
 		pipeline_caps->num_forward_references = VSP_FORWARD_REF_NUM;
@@ -767,15 +829,106 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 		pipeline_caps->output_color_standards[0] = VAProcColorStandardNone;
 		pipeline_caps->num_output_color_standards = 1;
 
+		if (obj_context->picture_width < 144 || obj_context->picture_width > 1080) {
+			vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
+			goto err;
+		} else if (obj_context->picture_width <= 240) {
+			res_set = QCIF2QVGA;
+		} else if (obj_context->picture_width <= 480) {
+			res_set = QVGA2VGA;
+		} else if (obj_context->picture_width <= 1080) {
+			res_set = VGA2HD1080P;
+		} else {
+			/* full set already, should not be here */
+			vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
+			goto err;
+		}
+
+		if (getenv("VSP_NO_PIPELINE_CHECK") != NULL)
+			goto err;
+
 		/* FIXME: should check filter value settings here */
-#if 0
 		for (i = 0; i < num_filters; ++i) {
 			/* find buffer */
-			/* map buffer */
+			buf = BUFFER(*(filters + i));
+
+			base = (VAProcFilterParameterBufferBase *)buf->buffer_data;
 			/* check filter buffer setting */
-			/* unmap buffer */
+			switch (base->type) {
+			case VAProcFilterDeblocking:
+				if (vpp_chain_caps[res_set].deblock_enabled != FILTER_ENABLED) {
+					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
+					goto err;
+				}
+				break;
+
+			case VAProcFilterNoiseReduction:
+				if (vpp_chain_caps[res_set].denoise_enabled != FILTER_ENABLED) {
+					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
+					goto err;
+				}
+				break;
+
+			case VAProcFilterSharpening:
+				if (vpp_chain_caps[res_set].sharpen_enabled != FILTER_ENABLED) {
+					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
+					goto err;
+				}
+				break;
+
+			case VAProcFilterColorBalance:
+				balance = (VAProcFilterParameterBufferColorBalance *)base;
+
+				enabled_brightness = 0;
+				enabled_saturation = 0;
+
+				for (j = 0; j < buf->num_elements; ++j, ++balance) {
+					if (balance->attrib == VAProcColorBalanceAutoSaturation && balance->value == 1) {
+						enabled_saturation = 1;
+					} else if (balance->attrib == VAProcColorBalanceAutoBrightness && balance->value == 1) {
+						enabled_brightness = 1;
+					} else {
+						vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
+						goto err;
+					}
+				}
+
+				if (enabled_saturation != enabled_brightness) {
+					vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
+					goto err;
+				}
+
+				/* check filter chain */
+				if (vpp_chain_caps[res_set].color_balance_enabled != FILTER_ENABLED) {
+					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
+					goto err;
+				}
+
+				break;
+
+			case VAProcFilterFrameRateConversion:
+				frc = (VAProcFilterParameterBufferFrameRateConversion *)base;
+
+				/* check frame rate */
+				ratio = frc->output_fps / (float)frc->input_fps;
+
+				if (!((ratio == 2 || ratio == 2.5 || ratio == 4) && frc->output_fps <= 60)) {
+					vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
+					goto err;
+				}
+
+				/* check the chain */
+				if (vpp_chain_caps[res_set].frc_enabled != FILTER_ENABLED) {
+					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
+					goto err;
+				}
+
+				break;
+			default:
+				vaStatus = VA_STATUS_ERROR_UNKNOWN;
+				goto err;
+			}
 		}
-#endif
 	} else {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "no HW support\n");
 		vaStatus = VA_STATUS_ERROR_UNKNOWN;
@@ -825,7 +978,7 @@ static VAStatus vsp_set_pipeline(context_VPP_p ctx)
 		case VAProcFilterSharpening:
 			cell_pipeline_param->filter_pipeline[filter_count++] = VssProcFilterSharpening;
 			break;
-		case VAProcFilterColorEnhancement:
+		case VAProcFilterColorBalance:
 			cell_pipeline_param->filter_pipeline[filter_count++] = VssProcFilterColorEnhancement;
 			break;
 		case VAProcFilterFrameRateConversion:
@@ -910,7 +1063,8 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 						  ctx->sharpen_param_offset, sizeof(struct VssProcSharpenParameterBuffer));
 			break;
 
-		case VAProcFilterColorEnhancement:
+		case VAProcFilterColorBalance:
+			/* FIXME: check if it's possible to just enable auto brightness or saturation */
 			cell_enhancer_param->temp_detect  = 100;
 			cell_enhancer_param->temp_correct = 100;
 			cell_enhancer_param->clip_thr     = 5;

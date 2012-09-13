@@ -35,13 +35,17 @@
 #include <errno.h>
 #include <string.h>
 #include <wsbm/wsbm_manager.h>
+#ifdef ANDROID
+#include <linux/psb_drm.h>
+#else
+#include "psb_drm.h"
+#endif
 #include "psb_buffer.h"
 #include "tng_cmdbuf.h"
 #include "psb_def.h"
 #include "psb_drv_debug.h"
 #include "tng_hostcode.h"
 #include "psb_ws_driver.h"
-#include "psb_drm.h"
 #include "tng_trace.h"
 
 /*
