@@ -1,27 +1,27 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-
-/*
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
  * Authors:
  *    Waldo Bastian <waldo.bastian@intel.com>
  *    Zeng Li <zeng.li@intel.com>
@@ -29,8 +29,8 @@
  *
  */
 
-#ifndef _PTG_CMDBUF_H_
-#define _PTG_CMDBUF_H_
+#ifndef _TNG_CMDBUF_H_
+#define _TNG_CMDBUF_H_
 
 #include "psb_drv_video.h"
 #include "psb_surface.h"
@@ -50,9 +50,9 @@
 #define MTX_CMDWORD_INT_MASK    (1)
 //#endif
 
-#define PTG_CMDBUF_SEQ_HEADER_IDX       (0)
-#define PTG_CMDBUF_PIC_HEADER_IDX       (1)
-#define PTG_CMDBUF_MVC_SEQ_HEADER_IDX (2)
+#define TNG_CMDBUF_SEQ_HEADER_IDX       (0)
+#define TNG_CMDBUF_PIC_HEADER_IDX       (1)
+#define TNG_CMDBUF_MVC_SEQ_HEADER_IDX (2)
 
 /* @{ */
 #define SHIFT_MTX_CMDWORD_ID    (0)
@@ -69,7 +69,7 @@
 #define MASK_MTX_WBWORD_CORE   (0xff << SHIFT_MTX_WBWORD_CORE)
 
 
-struct ptg_cmdbuf_s {
+struct tng_cmdbuf_s {
     struct psb_buffer_s buf;
     unsigned int size;
 
@@ -145,41 +145,41 @@ struct ptg_cmdbuf_s {
     int frame_mem_index;
 };
 
-typedef struct ptg_cmdbuf_s *ptg_cmdbuf_p;
+typedef struct tng_cmdbuf_s *tng_cmdbuf_p;
 
 /*
  * Create command buffer
  */
-VAStatus ptg_cmdbuf_create(object_context_p obj_context,
+VAStatus tng_cmdbuf_create(object_context_p obj_context,
                            psb_driver_data_p driver_data,
-                           ptg_cmdbuf_p cmdbuf
+                           tng_cmdbuf_p cmdbuf
                           );
 
 /*
  * Destroy buffer
  */
-void ptg_cmdbuf_destroy(ptg_cmdbuf_p cmdbuf);
+void tng_cmdbuf_destroy(tng_cmdbuf_p cmdbuf);
 
 /*
  * Reset buffer & map
  *
  * Returns 0 on success
  */
-int ptg_cmdbuf_reset(ptg_cmdbuf_p cmdbuf);
+int tng_cmdbuf_reset(tng_cmdbuf_p cmdbuf);
 
 /*
  * Unmap buffer
  *
  * Returns 0 on success
  */
-int ptg_cmdbuf_unmap(ptg_cmdbuf_p cmdbuf);
+int tng_cmdbuf_unmap(tng_cmdbuf_p cmdbuf);
 
 /*
  * Reference an addtional buffer "buf" in the command stream
  * Returns a reference index that can be used to refer to "buf" in
  * relocation records, on error -1 is returned.
  */
-int ptg_cmdbuf_buffer_ref(ptg_cmdbuf_p cmdbuf, psb_buffer_p buf);
+int tng_cmdbuf_buffer_ref(tng_cmdbuf_p cmdbuf, psb_buffer_p buf);
 
 /* Creates a relocation record for a DWORD in the mapped "cmdbuf" at address
  * "addr_in_cmdbuf"
@@ -189,7 +189,7 @@ int ptg_cmdbuf_buffer_ref(ptg_cmdbuf_p cmdbuf, psb_buffer_p buf);
  * "mask" determines which bits of the target DWORD will be updated with the so
  * constructed address. The remaining bits will be filled with bits from "background".
  */
-void ptg_cmdbuf_add_relocation(ptg_cmdbuf_p cmdbuf,
+void tng_cmdbuf_add_relocation(tng_cmdbuf_p cmdbuf,
                                IMG_UINT32 *addr_in_dst_buffer,/*addr of dst_buffer for the DWORD*/
                                psb_buffer_p ref_buffer,
                                IMG_UINT32 buf_offset,
@@ -199,45 +199,45 @@ void ptg_cmdbuf_add_relocation(ptg_cmdbuf_p cmdbuf,
                                IMG_UINT32 dst_buffer, /*Index of the list refered by cmdbuf->buffer_refs */
                                IMG_UINT32 *start_of_dst_buffer);
 
-#define RELOC_CMDBUF_PTG(dest, offset, buf)     ptg_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, cmdbuf->cmd_start)
+#define RELOC_CMDBUF_PTG(dest, offset, buf)     tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, cmdbuf->cmd_start)
 
 /* do relocation in PIC_PARAMS: src/dst Y/UV base, InParamsBase, CodeBase, BellowParamsBase, AboveParamsBase
-#define RELOC_PIC_PARAMS_PTG(dest, offset, buf) ptg_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (uint32_t *)cmdbuf->pic_params_p)
+#define RELOC_PIC_PARAMS_PTG(dest, offset, buf) tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (uint32_t *)cmdbuf->pic_params_p)
 */
 
 /* do relocation in MTX_ENC_PARAMS */
-#define RELOC_MTXCTX_PARAMS_PTG(dest, offset, buf)       ptg_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->mtx_ctx_mem_p)
+#define RELOC_MTXCTX_PARAMS_PTG(dest, offset, buf)       tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->mtx_ctx_mem_p)
 
 /* do relocation in SLICE_PARAMS: reference Y/UV base,CodedData */
-//#define RELOC_SLICE_PARAMS_PTG(dest, offset, buf)       ptg_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 2,(uint32_t *)cmdbuf->slice_mem_p)
+//#define RELOC_SLICE_PARAMS_PTG(dest, offset, buf)       tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 2,(uint32_t *)cmdbuf->slice_mem_p)
 
 /* do relocation in IMG_BUFFER_PARAMS: reference Y/UV base,CodedData */
-#define RELOC_FRAME_PARAMS_PTG(dest, offset, buf)       ptg_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->frame_mem_p)
+#define RELOC_FRAME_PARAMS_PTG(dest, offset, buf)       tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->frame_mem_p)
 
 /* do relocation in IMG_BUFFER_PARAMS: reference Y/UV base,CodedData */
-#define RELOC_PICMGMT_PARAMS_PTG(dest, offset, buf)       ptg_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->picmgmt_mem_p)
+#define RELOC_PICMGMT_PARAMS_PTG(dest, offset, buf)       tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->picmgmt_mem_p)
 
 /* do relocation in PIC_PARAMS: src/dst Y/UV base, InParamsBase, CodeBase, BellowParamsBase, AboveParamsBase */
-#define RELOC_JPEG_PIC_PARAMS_PTG(dest, offset, buf) ptg_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (IMG_UINT32 *)cmdbuf->jpeg_pic_params_p)
+#define RELOC_JPEG_PIC_PARAMS_PTG(dest, offset, buf) tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (IMG_UINT32 *)cmdbuf->jpeg_pic_params_p)
 
 /* do relocation in IMG_BUFFER_PARAMS: reference Y/UV base,CodedData
-#define RELOC_CODED_PARAMS_PTG(dest, offset, buf)       ptg_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->coded_mem_p)
+#define RELOC_CODED_PARAMS_PTG(dest, offset, buf)       tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->coded_mem_p)
 */
 
 /* operation number is inserted by DRM */
 /*
-#define ptg_cmdbuf_insert_command(cmdbuf,cmdhdr,size,hint)              \
+#define tng_cmdbuf_insert_command(cmdbuf,cmdhdr,size,hint)              \
     do { *cmdbuf->cmd_idx++ = ((cmdhdr) << 1) | ((size)<<8) | ((hint)<<16); } while(0)
 */
 
-#define ptg_cmdbuf_insert_command_param(param)   \
+#define tng_cmdbuf_insert_command_param(param)   \
     do { *cmdbuf->cmd_idx++ = param; } while(0)
 
 
-#define ptg_cmdbuf_insert_reg_write(topaz_reg, base, offset, value)        \
+#define tng_cmdbuf_insert_reg_write(topaz_reg, base, offset, value)        \
     do { *cmdbuf->cmd_idx++ = topaz_reg; *cmdbuf->cmd_idx++ = base + offset; *cmdbuf->cmd_idx++ = value; count++; } while(0)
 
-void ptg_cmdbuf_insert_command_package(object_context_p obj_context,
+void tng_cmdbuf_insert_command_package(object_context_p obj_context,
                                        IMG_UINT32 core,
                                        IMG_UINT32 cmd_id,
                                        psb_buffer_p command_data,
@@ -247,30 +247,30 @@ void ptg_cmdbuf_insert_command_package(object_context_p obj_context,
  * Advances "obj_context" to the next cmdbuf
  * Returns 0 on success
  */
-int ptg_context_get_next_cmdbuf(object_context_p obj_context);
+int tng_context_get_next_cmdbuf(object_context_p obj_context);
 
 /*
  * Submits the current cmdbuf
  * Returns 0 on success
  */
-int ptg_context_submit_cmdbuf(object_context_p obj_context);
+int tng_context_submit_cmdbuf(object_context_p obj_context);
 
 /*
  * Get a encode surface FRAMESKIP flag, and store it into frame_skip argument
  * Returns 0 on success
  */
-int ptg_surface_get_frameskip(psb_driver_data_p driver_data, psb_surface_p psb_surface, int *frame_skip);
+int tng_surface_get_frameskip(psb_driver_data_p driver_data, psb_surface_p psb_surface, int *frame_skip);
 
 /*
  * Flushes the pending cmdbuf
  * Return 0 on success
  */
-int ptg_context_flush_cmdbuf(object_context_p obj_context);
+int tng_context_flush_cmdbuf(object_context_p obj_context);
 
-void ptg_cmdbuf_mem_unmap(ptg_cmdbuf_p cmdbuf);
+void tng_cmdbuf_mem_unmap(tng_cmdbuf_p cmdbuf);
 
-void ptg_cmdbuf_set_phys(IMG_UINT32 *dest_buf, int dest_num, psb_buffer_p ref_buf, unsigned int ref_ofs, unsigned int ref_len);
+void tng_cmdbuf_set_phys(IMG_UINT32 *dest_buf, int dest_num, psb_buffer_p ref_buf, unsigned int ref_ofs, unsigned int ref_len);
 
 
-#endif /* _PTG_CMDBUF_H_ */
+#endif /* _TNG_CMDBUF_H_ */
 

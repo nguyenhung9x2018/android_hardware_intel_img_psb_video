@@ -40,7 +40,7 @@
 #include "psb_cmdbuf.h"
 #include "lnc_cmdbuf.h"
 #include "pnw_cmdbuf.h"
-#include "ptg_cmdbuf.h"
+#include "tng_cmdbuf.h"
 #ifdef PSBVIDEO_MRFL_VPP
 #include "vsp_cmdbuf.h"
 #endif
@@ -68,10 +68,10 @@
 #include "pnw_jpeg.h"
 #endif
 #ifdef PSBVIDEO_MRFL
-#include "ptg_H264ES.h"
-#include "ptg_H263ES.h"
-#include "ptg_MPEG4ES.h"
-#include "ptg_jpeg.h"
+#include "tng_H264ES.h"
+#include "tng_H263ES.h"
+#include "tng_MPEG4ES.h"
+#include "tng_jpegES.h"
 #endif
 #ifdef PSBVIDEO_MRFL_VPP
 #include "vsp_VPP.h"
@@ -1085,8 +1085,8 @@ VAStatus psb_CreateContext(
     }
 
 #ifdef PSBVIDEO_MRFL
-    for (i = 0; i < PTG_MAX_CMDBUFS_ENCODE; i++) {
-        obj_context->ptg_cmdbuf_list[i] = NULL;
+    for (i = 0; i < TNG_MAX_CMDBUFS_ENCODE; i++) {
+        obj_context->tng_cmdbuf_list[i] = NULL;
     }
 #endif
 
@@ -1106,7 +1106,7 @@ VAStatus psb_CreateContext(
         if (encode) { /* Topaz encode context */
 #ifdef PSBVIDEO_MRFL
             if (IS_MRFL(obj_context->driver_data))
-                cmdbuf = calloc(1, sizeof(struct ptg_cmdbuf_s));
+                cmdbuf = calloc(1, sizeof(struct tng_cmdbuf_s));
 #endif
 #ifdef PSBVIDEO_MFLD
             if (IS_MFLD(obj_context->driver_data))
@@ -1134,7 +1134,7 @@ VAStatus psb_CreateContext(
 
 #ifdef PSBVIDEO_MRFL
             if (IS_MRFL(obj_context->driver_data))
-                vaStatus = ptg_cmdbuf_create(obj_context, driver_data, (ptg_cmdbuf_p)cmdbuf);
+                vaStatus = tng_cmdbuf_create(obj_context, driver_data, (tng_cmdbuf_p)cmdbuf);
 #endif
 #ifdef PSBVIDEO_MFLD
             if (IS_MFLD(obj_context->driver_data))
@@ -1167,7 +1167,7 @@ VAStatus psb_CreateContext(
 
 #ifdef PSBVIDEO_MRFL
             if (IS_MRFL(obj_context->driver_data))
-                obj_context->ptg_cmdbuf_list[i] = (ptg_cmdbuf_p)cmdbuf;
+                obj_context->tng_cmdbuf_list[i] = (tng_cmdbuf_p)cmdbuf;
 #endif
 #ifdef PSBVIDEO_MFLD
             if (IS_MFLD(obj_context->driver_data))
@@ -1190,7 +1190,7 @@ VAStatus psb_CreateContext(
     obj_context->cmdbuf = NULL;
     obj_context->lnc_cmdbuf = NULL;
     obj_context->pnw_cmdbuf = NULL;
-    obj_context->ptg_cmdbuf = NULL;
+    obj_context->tng_cmdbuf = NULL;
 #ifdef PSBVIDEO_MRFL_VPP
     obj_context->vsp_cmdbuf = NULL;
 #endif
@@ -1223,10 +1223,10 @@ VAStatus psb_CreateContext(
                 obj_context->pnw_cmdbuf_list[i] = NULL;
             }
 #ifdef PSBVIDEO_MRFL
-            if (obj_context->ptg_cmdbuf_list[i]) {
-                ptg_cmdbuf_destroy(obj_context->ptg_cmdbuf_list[i]);
-                free(obj_context->ptg_cmdbuf_list[i]);
-                obj_context->ptg_cmdbuf_list[i] = NULL;
+            if (obj_context->tng_cmdbuf_list[i]) {
+                tng_cmdbuf_destroy(obj_context->tng_cmdbuf_list[i]);
+                free(obj_context->tng_cmdbuf_list[i]);
+                obj_context->tng_cmdbuf_list[i] = NULL;
             }
 #endif            
             if (obj_context->cmdbuf_list[i]) {
@@ -1470,11 +1470,11 @@ static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p
         }
     }
 #ifdef PSBVIDEO_MRFL
-    for (i = 0; i < PTG_MAX_CMDBUFS_ENCODE; i++) {
-        if (obj_context->ptg_cmdbuf_list[i]) {
-            tng_cmdbuf_destroy(obj_context->ptg_cmdbuf_list[i]);
-            free(obj_context->ptg_cmdbuf_list[i]);
-            obj_context->ptg_cmdbuf_list[i] = NULL;
+    for (i = 0; i < TNG_MAX_CMDBUFS_ENCODE; i++) {
+        if (obj_context->tng_cmdbuf_list[i]) {
+            tng_cmdbuf_destroy(obj_context->tng_cmdbuf_list[i]);
+            free(obj_context->tng_cmdbuf_list[i]);
+            obj_context->tng_cmdbuf_list[i] = NULL;
         }
     }
 #endif
@@ -3068,14 +3068,14 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
 #ifdef PSBVIDEO_MRFL
     if (IS_MRFL(driver_data)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "merrifield topazhp encoder\n");
-        driver_data->profile2Format[VAProfileH264Baseline][VAEntrypointEncSlice] = &ptg_H264ES_vtable;
-        driver_data->profile2Format[VAProfileH264Main][VAEntrypointEncSlice] = &ptg_H264ES_vtable;
-        driver_data->profile2Format[VAProfileH264High][VAEntrypointEncSlice] = &ptg_H264ES_vtable;
-        driver_data->profile2Format[VAProfileH264StereoHigh][VAEntrypointEncSlice] = &ptg_H264ES_vtable;
-        driver_data->profile2Format[VAProfileH263Baseline][VAEntrypointEncSlice] = &ptg_H263ES_vtable;
-        driver_data->profile2Format[VAProfileJPEGBaseline][VAEntrypointEncPicture] = &ptg_JPEG_vtable;
-        driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointEncSlice] = &ptg_MPEG4ES_vtable;
-        driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointEncSlice] = &ptg_MPEG4ES_vtable;
+        driver_data->profile2Format[VAProfileH264Baseline][VAEntrypointEncSlice] = &tng_H264ES_vtable;
+        driver_data->profile2Format[VAProfileH264Main][VAEntrypointEncSlice] = &tng_H264ES_vtable;
+        driver_data->profile2Format[VAProfileH264High][VAEntrypointEncSlice] = &tng_H264ES_vtable;
+        driver_data->profile2Format[VAProfileH264StereoHigh][VAEntrypointEncSlice] = &tng_H264ES_vtable;
+        driver_data->profile2Format[VAProfileH263Baseline][VAEntrypointEncSlice] = &tng_H263ES_vtable;
+        driver_data->profile2Format[VAProfileJPEGBaseline][VAEntrypointEncPicture] = &tng_JPEGES_vtable;
+        driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointEncSlice] = &tng_MPEG4ES_vtable;
+        driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointEncSlice] = &tng_MPEG4ES_vtable;
     }
 #endif
 #ifdef PSBVIDEO_MRFL_VPP

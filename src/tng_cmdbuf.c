@@ -1,27 +1,27 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-
-/*
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
  * Authors:
  *    Waldo Bastian <waldo.bastian@intel.com>
  *    Zeng Li <zeng.li@intel.com>
@@ -37,13 +37,13 @@
 #include <string.h>
 #include <wsbm/wsbm_manager.h>
 #include "psb_buffer.h"
-#include "ptg_cmdbuf.h"
+#include "tng_cmdbuf.h"
 #include "psb_def.h"
 #include "psb_drv_debug.h"
-#include "ptg_hostcode.h"
+#include "tng_hostcode.h"
 #include "psb_ws_driver.h"
 #include "psb_drm.h"
-#include "ptg_trace.h"
+#include "tng_trace.h"
 
 /*
  * Buffer layout:
@@ -59,7 +59,7 @@
 #define CMD_MARGIN            (0x0400)
 #define MAX_CMD_COUNT         12
 #define MTX_SEG_SIZE          (0x0800)
-#define ptg_align_KB(x)  (((x) + (IMG_UINT32)(0xfff)) & (~(IMG_UINT32)(0xfff)))
+#define tng_align_KB(x)  (((x) + (IMG_UINT32)(0xfff)) & (~(IMG_UINT32)(0xfff)))
 
 /*!
  *****************************************************************************
@@ -73,7 +73,7 @@
 /*
  * clear buffer
  */
-void ptg_cmdbuf_mem_unmap(ptg_cmdbuf_p cmdbuf)
+void tng_cmdbuf_mem_unmap(tng_cmdbuf_p cmdbuf)
 {
     psb_buffer_unmap(&cmdbuf->frame_mem);
     psb_buffer_unmap(&cmdbuf->picmgmt_mem);
@@ -86,7 +86,7 @@ void ptg_cmdbuf_mem_unmap(ptg_cmdbuf_p cmdbuf)
 /*
  * clear buffer
  */
-static void ptg_cmdbuf_clear(ptg_cmdbuf_p cmdbuf, int flag)
+static void tng_cmdbuf_clear(tng_cmdbuf_p cmdbuf, int flag)
 {
     switch (flag) {
         default:
@@ -119,10 +119,10 @@ static void ptg_cmdbuf_clear(ptg_cmdbuf_p cmdbuf, int flag)
  * Create command buffer
  */
 
-VAStatus ptg_cmdbuf_create(
+VAStatus tng_cmdbuf_create(
     object_context_p obj_context,
     psb_driver_data_p driver_data,
-    ptg_cmdbuf_p cmdbuf)
+    tng_cmdbuf_p cmdbuf)
 {
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
 
@@ -153,13 +153,13 @@ VAStatus ptg_cmdbuf_create(
         return vaStatus;
     }
 
-    cmdbuf->mem_size = ptg_align_KB(PTG_HEADER_SIZE);
+    cmdbuf->mem_size = tng_align_KB(TNG_HEADER_SIZE);
 
     /* create buffer information buffer */
     vaStatus = psb_buffer_create(driver_data, COMM_CMD_FRAME_BUF_NUM * cmdbuf->mem_size, psb_bt_cpu_vpu, &cmdbuf->frame_mem);
     if (VA_STATUS_SUCCESS != vaStatus) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: error create frame buf\n", __FUNCTION__);
-        ptg_cmdbuf_clear(cmdbuf, 4);
+        tng_cmdbuf_clear(cmdbuf, 4);
         return vaStatus;
     }
     
@@ -171,12 +171,13 @@ VAStatus ptg_cmdbuf_create(
     } else {
         memset(cmdbuf->frame_mem_p, 0, COMM_CMD_FRAME_BUF_NUM * cmdbuf->mem_size);
     }
+    psb_buffer_unmap(&cmdbuf->frame_mem);
 
     /* create picture management information buffer */
     vaStatus = psb_buffer_create(driver_data, COMM_CMD_PICMGMT_BUF_NUM * cmdbuf->mem_size, psb_bt_cpu_vpu, &cmdbuf->picmgmt_mem);
     if (VA_STATUS_SUCCESS != vaStatus) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: error create picmgmt buf\n", __FUNCTION__);
-        ptg_cmdbuf_clear(cmdbuf, 5);
+        tng_cmdbuf_clear(cmdbuf, 5);
         return vaStatus;
     }
 
@@ -196,21 +197,21 @@ VAStatus ptg_cmdbuf_create(
     /* create JPEG quantization buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->jpeg_pic_params_size, psb_bt_cpu_vpu, &cmdbuf->jpeg_pic_params);
     if (VA_STATUS_SUCCESS != vaStatus) {
-        ptg_cmdbuf_clear(cmdbuf, 2);
+        tng_cmdbuf_clear(cmdbuf, 2);
         return vaStatus;
     }
 
     /* create JPEG MTX setup buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->jpeg_header_mem_size, psb_bt_cpu_vpu, &cmdbuf->jpeg_header_mem);
     if (VA_STATUS_SUCCESS != vaStatus) {
-        ptg_cmdbuf_clear(cmdbuf, 3);
+        tng_cmdbuf_clear(cmdbuf, 3);
         return vaStatus;
     }
 
     /* create JPEG MTX setup interface buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->jpeg_header_interface_mem_size, psb_bt_cpu_vpu, &cmdbuf->jpeg_header_interface_mem);
     if (VA_STATUS_SUCCESS != vaStatus) {
-        ptg_cmdbuf_clear(cmdbuf, 4);
+        tng_cmdbuf_clear(cmdbuf, 4);
         return vaStatus;
     }
 
@@ -220,9 +221,9 @@ VAStatus ptg_cmdbuf_create(
 /*
  * Destroy buffer
  */
-void ptg_cmdbuf_destroy(ptg_cmdbuf_p cmdbuf)
+void tng_cmdbuf_destroy(tng_cmdbuf_p cmdbuf)
 {
-    ptg_cmdbuf_clear(cmdbuf, 4);
+    tng_cmdbuf_clear(cmdbuf, 4);
 }
 
 /*
@@ -230,7 +231,7 @@ void ptg_cmdbuf_destroy(ptg_cmdbuf_p cmdbuf)
  *
  * Returns 0 on success
  */
-int ptg_cmdbuf_reset(ptg_cmdbuf_p cmdbuf)
+int tng_cmdbuf_reset(tng_cmdbuf_p cmdbuf)
 {
     int ret;
     cmdbuf->cmd_base = NULL;
@@ -241,7 +242,7 @@ int ptg_cmdbuf_reset(ptg_cmdbuf_p cmdbuf)
     cmdbuf->buffer_refs_count = 0;
     cmdbuf->frame_mem_index = 0;
     cmdbuf->cmd_count = 0;
-    cmdbuf->mem_size = ptg_align_KB(PTG_HEADER_SIZE);
+    cmdbuf->mem_size = tng_align_KB(TNG_HEADER_SIZE);
 
     ret = psb_buffer_map(&cmdbuf->buf, &cmdbuf->cmd_base);
     if (ret) {
@@ -255,7 +256,7 @@ int ptg_cmdbuf_reset(ptg_cmdbuf_p cmdbuf)
     cmdbuf->reloc_idx = (struct drm_psb_reloc *) cmdbuf->reloc_base;
 
     /* Add ourselves to the buffer list */
-    ptg_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->buf); /* cmd buf == 0 */
+    tng_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->buf); /* cmd buf == 0 */
     return ret;
 }
 
@@ -264,7 +265,7 @@ int ptg_cmdbuf_reset(ptg_cmdbuf_p cmdbuf)
  *
  * Returns 0 on success
  */
-int ptg_cmdbuf_unmap(ptg_cmdbuf_p cmdbuf)
+int tng_cmdbuf_unmap(tng_cmdbuf_p cmdbuf)
 {
     cmdbuf->cmd_base = NULL;
     cmdbuf->cmd_start = NULL;
@@ -282,7 +283,7 @@ int ptg_cmdbuf_unmap(ptg_cmdbuf_p cmdbuf)
  * Returns a reference index that can be used to refer to "buf" in
  * relocation records, -1 on error
  */
-int ptg_cmdbuf_buffer_ref(ptg_cmdbuf_p cmdbuf, psb_buffer_p buf)
+int tng_cmdbuf_buffer_ref(tng_cmdbuf_p cmdbuf, psb_buffer_p buf)
 {
     int item_loc = 0;
 
@@ -324,7 +325,7 @@ int ptg_cmdbuf_buffer_ref(ptg_cmdbuf_p cmdbuf, psb_buffer_p buf)
  * "mask" determines which bits of the target DWORD will be updated with the so
  * constructed address. The remaining bits will be filled with bits from "background".
  */
-void ptg_cmdbuf_add_relocation(ptg_cmdbuf_p cmdbuf,
+void tng_cmdbuf_add_relocation(tng_cmdbuf_p cmdbuf,
                                IMG_UINT32 *addr_in_dst_buffer,/*addr of dst_buffer for the DWORD*/
                                psb_buffer_p ref_buffer,
                                IMG_UINT32 buf_offset,
@@ -339,7 +340,7 @@ void ptg_cmdbuf_add_relocation(ptg_cmdbuf_p cmdbuf,
 
     reloc->where = addr_in_dst_buffer - start_of_dst_buffer; /* Offset in DWORDs */
 
-    reloc->buffer = ptg_cmdbuf_buffer_ref(cmdbuf, ref_buffer);
+    reloc->buffer = tng_cmdbuf_buffer_ref(cmdbuf, ref_buffer);
     ASSERT(reloc->buffer != -1);
 
     reloc->reloc_op = PSB_RELOC_OP_OFFSET;
@@ -368,7 +369,7 @@ void ptg_cmdbuf_add_relocation(ptg_cmdbuf_p cmdbuf,
 }
 
 /* Prepare one command package */
-void ptg_cmdbuf_insert_command_package(
+void tng_cmdbuf_insert_command_package(
     object_context_p obj_context,
     IMG_UINT32 stream_id,
     IMG_UINT32 cmd_id,
@@ -378,7 +379,8 @@ void ptg_cmdbuf_insert_command_package(
     IMG_UINT32 cmd_word;
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
     context_ENC_cmdbuf *ps_cmd = &(ctx->ctx_cmdbuf[stream_id]);
-    ptg_cmdbuf_p cmdbuf = obj_context->ptg_cmdbuf;
+    tng_cmdbuf_p cmdbuf = obj_context->tng_cmdbuf;
+    psb_driver_data_p driver_data = ctx->obj_context->driver_data;
     int interrupt_flags;
 
     //CMD composed by user space does not generate Interrupt
@@ -410,7 +412,7 @@ void ptg_cmdbuf_insert_command_package(
    /* Command data address */
     if (command_data) {
 #ifdef _TOPAZHP_OLD_LIBVA_
-        ptg_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, command_data, offset, 0);
+        tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, command_data, offset, 0);
 #else
         RELOC_CMDBUF_PTG(cmdbuf->cmd_idx, offset, command_data);
 #endif
@@ -427,6 +429,11 @@ void ptg_cmdbuf_insert_command_package(
         *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ctx->bufs_writeback.drm_buf));
     }
 
+    if (cmd_id == MTX_CMDID_SHUTDOWN) {
+        *(cmdbuf->cmd_idx)++ = driver_data->context_id & MTX_CMDWORD_COUNT_MASK;
+        *(cmdbuf->cmd_idx)++ = ctx->eCodec;
+    }
+
     return ;
 }
 
@@ -435,34 +442,34 @@ void ptg_cmdbuf_insert_command_package(
  *
  * Returns 0 on success
  */
-int ptg_context_get_next_cmdbuf(object_context_p obj_context)
+int tng_context_get_next_cmdbuf(object_context_p obj_context)
 {
-    ptg_cmdbuf_p cmdbuf;
+    tng_cmdbuf_p cmdbuf;
     int ret;
 #ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s: start obj_context->ptg_cmdbuf = %x\n", __FUNCTION__, obj_context->ptg_cmdbuf);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start obj_context->tng_cmdbuf = %x\n", __FUNCTION__, obj_context->tng_cmdbuf);
 #endif
 
-    if (obj_context->ptg_cmdbuf) {
+    if (obj_context->tng_cmdbuf) {
         return 0;
     }
 
     obj_context->cmdbuf_current++;
-    if (obj_context->cmdbuf_current >= PTG_MAX_CMDBUFS_ENCODE) {
+    if (obj_context->cmdbuf_current >= TNG_MAX_CMDBUFS_ENCODE) {
         obj_context->cmdbuf_current = 0;
     }
 
-    cmdbuf = obj_context->ptg_cmdbuf_list[obj_context->cmdbuf_current];
-    ret = ptg_cmdbuf_reset(cmdbuf);
+    cmdbuf = obj_context->tng_cmdbuf_list[obj_context->cmdbuf_current];
+    ret = tng_cmdbuf_reset(cmdbuf);
     if (!ret) {
         /* Success */
-        obj_context->ptg_cmdbuf = cmdbuf;
+        obj_context->tng_cmdbuf = cmdbuf;
     }
 
-//    ptg_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->pic_params);
-//    ptg_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->slice_mem);
+//    tng_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->pic_params);
+//    tng_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->slice_mem);
 #ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s: end\n", __FUNCTION__);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
 #endif
 
     return ret;
@@ -619,7 +626,7 @@ lnc_fence_wait(psb_driver_data_p driver_data,
  *
  * Returns 0 on success
  */
-int ptg_context_submit_cmdbuf(object_context_p obj_context)
+int tng_context_submit_cmdbuf(object_context_p obj_context)
 {
 
     return 0;
@@ -635,7 +642,7 @@ int ptg_context_submit_cmdbuf(object_context_p obj_context)
  * vaQuerySurfaceStatus is supposed only to be called after vaEndPicture/vaSyncSurface,
  * The caller should ensure the surface pertains to an encode context
  */
-int ptg_surface_get_frameskip(psb_driver_data_p driver_data,
+int tng_surface_get_frameskip(psb_driver_data_p driver_data,
                               psb_surface_p surface,
                               int *frame_skip)
 {
@@ -654,9 +661,9 @@ int ptg_surface_get_frameskip(psb_driver_data_p driver_data,
 /*
  * Flushes all cmdbufs
  */
-int ptg_context_flush_cmdbuf(object_context_p obj_context)
+int tng_context_flush_cmdbuf(object_context_p obj_context)
 {
-    ptg_cmdbuf_p cmdbuf = obj_context->ptg_cmdbuf;
+    tng_cmdbuf_p cmdbuf = obj_context->tng_cmdbuf;
     psb_driver_data_p driver_data = obj_context->driver_data;
     unsigned int fence_flags;
     struct psb_ttm_fence_rep fence_rep;
@@ -679,7 +686,7 @@ int ptg_context_flush_cmdbuf(object_context_p obj_context)
     reloc_offset = cmdbuf->reloc_base - cmdbuf->cmd_base;
     num_relocs = (((unsigned char *) (cmdbuf->reloc_idx)) - cmdbuf->reloc_base) / sizeof(struct drm_psb_reloc);
 
-    ptg_cmdbuf_unmap(cmdbuf);
+    tng_cmdbuf_unmap(cmdbuf);
 
     ASSERT(NULL == cmdbuf->reloc_base);
 
@@ -705,7 +712,7 @@ int ptg_context_flush_cmdbuf(object_context_p obj_context)
     UNLOCK_HARDWARE(driver_data);
 
     if (ret) {
-        obj_context->ptg_cmdbuf = NULL;
+        obj_context->tng_cmdbuf = NULL;
 
         DEBUG_FAILURE_RET;
         return ret;
@@ -722,13 +729,13 @@ int ptg_context_flush_cmdbuf(object_context_p obj_context)
         wsbmFenceUnreference(fence);
 #endif
 
-    obj_context->ptg_cmdbuf = NULL;
+    obj_context->tng_cmdbuf = NULL;
 
     return 0;
 }
 
 
-void ptg_cmdbuf_set_phys(IMG_UINT32 *dest_buf, int dest_num,
+void tng_cmdbuf_set_phys(IMG_UINT32 *dest_buf, int dest_num,
     psb_buffer_p ref_buf, unsigned int ref_ofs, unsigned int ref_len)
 {
     int i = 0;

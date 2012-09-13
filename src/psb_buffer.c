@@ -44,7 +44,7 @@
 #include "pnw_jpeg.h"
 #include "pnw_H264ES.h"
 #include "lnc_H264ES.h"
-#include "ptg_jpeg.h"
+#include "tng_jpegES.h"
 
 /*
  * Create buffer
@@ -437,18 +437,20 @@ int psb_buffer_unmap(psb_buffer_p buf)
     return 0;
 }
 
+#ifdef _MRFL_DEBUG_CODED_
 void psb__trace_coded(unsigned int *pBuf)
 {
     int i, j;
-    printf("%s code buffer is\n", __FUNCTION__);
+    drv_debug_msg("%s code buffer is\n", __FUNCTION__);
     for (i = 0; i < 6; i++) {
-        printf("\t");
+        drv_debug_msg("\t");
         for (j = 0; j < 4; j++) {
-             printf("0x%08x, ", pBuf[(i*4) + j]);
+             drv_debug_msg("0x%08x, ", pBuf[(i*4) + j]);
         }
-        printf("\n");
+        drv_debug_msg("\n");
     }
 }
+#endif
 /*
  * Return special data structure for codedbuffer
  *
@@ -532,11 +534,14 @@ int psb_codedbuf_map_mangle(
             p->size = *((unsigned long *) raw_codedbuf);
             p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 16); /* skip 16DWs */
             p->next = NULL;
+#ifdef _MRFL_DEBUG_CODED_
+            psb__trace_coded((unsigned int*)raw_codedbuf);
+#endif
             break;
 
         case VAProfileJPEGBaseline:
             /* 3~6 segment */
-            ptg_jpeg_AppendMarkers(obj_context, raw_codedbuf);
+            tng_jpeg_AppendMarkers(obj_context, raw_codedbuf);
             next_buf_off = 0;
             /*Max resolution 4096x4096 use 6 segments*/
             for (i = 0; i < PTG_JPEG_MAX_SCAN_NUM + 1; i++) {

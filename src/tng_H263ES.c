@@ -1,32 +1,32 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
- * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-/*
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
  * Authors:
  *    Elaine Wang <elaine.wang@intel.com>
  *    Zeng Li <zeng.li@intel.com>
  *    Edward Lin <edward.lin@intel.com>
- *    Zhaohan Ren <zhaohan.ren@intel.com>
+ *    Zhaohan Ren<zhaohan.ren@intel.com>
  *
  */
 
@@ -39,10 +39,10 @@
 
 #include "psb_def.h"
 #include "psb_surface.h"
-#include "ptg_cmdbuf.h"
-#include "ptg_hostcode.h"
-#include "ptg_hostheader.h"
-#include "ptg_MPEG4ES.h"
+#include "tng_cmdbuf.h"
+#include "tng_hostcode.h"
+#include "tng_hostheader.h"
+#include "tng_H263ES.h"
 #include "psb_drv_debug.h"
 
 #include "hwdefs/coreflags.h"
@@ -51,13 +51,13 @@
 #include "hwdefs/topaz_db_regs.h"
 #include "hwdefs/topazhp_default_params.h"
 
-#define TOPAZ_MPEG4_MAX_BITRATE 16000000
+#define TOPAZ_H263_MAX_BITRATE 16000000
 
-#define INIT_CONTEXT_MPEG4ES    context_ENC_p ctx = (context_ENC_p) obj_context->format_data
+#define INIT_CONTEXT_H263ES     context_ENC_p ctx = (context_ENC_p) obj_context->format_data
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
-static void ptg_MPEG4ES_QueryConfigAttributes(
+static void tng_H263ES_QueryConfigAttributes(
     VAProfile profile,
     VAEntrypoint entrypoint,
     VAConfigAttrib *attrib_list,
@@ -85,7 +85,7 @@ static void ptg_MPEG4ES_QueryConfigAttributes(
 }
 
 
-static VAStatus ptg_MPEG4ES_ValidateConfig(
+static VAStatus tng_H263ES_ValidateConfig(
     object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -94,41 +94,41 @@ static VAStatus ptg_MPEG4ES_ValidateConfig(
     return vaStatus;
 }
 
-static VAStatus ptg_MPEG4ES_CreateContext(
+static VAStatus tng_H263ES_CreateContext(
     object_context_p obj_context,
     object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_p ctx;
-    unsigned int eRCMode;
 #ifndef _TOPAZHP_OLD_LIBVA_
     int i;
     unsigned int eFormatMode;
 #endif
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
 
-    vaStatus = ptg_CreateContext(obj_context, obj_config, 0);
+    vaStatus = tng_CreateContext(obj_context, obj_config, 0);
 
     if (VA_STATUS_SUCCESS != vaStatus)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
     ctx = (context_ENC_p) obj_context->format_data;
-    ctx->eStandard = IMG_STANDARD_MPEG4;
+    ctx->eStandard = IMG_STANDARD_H263;
     ctx->eFormat = IMG_CODEC_PL12;                          // use default
+    ctx->bNoOffscreenMv = IMG_TRUE; //Default Value ?? Extended Parameter and bUseOffScreenMVUserSetting
 
     switch(ctx->sRCParams.eRCMode) {
-	case IMG_RCMODE_NONE:
-	    ctx->eCodec = IMG_CODEC_MPEG4_NO_RC;
-	    break;
-	case IMG_RCMODE_VBR:
-	    ctx->eCodec = IMG_CODEC_MPEG4_VBR;
-	    break;
-	case IMG_RCMODE_CBR:
-	    ctx->eCodec = IMG_CODEC_MPEG4_CBR;
-	    break;
-	default:
-	    drv_debug_msg(VIDEO_DEBUG_ERROR, "Unknown RCMode %08x\n", ctx->sRCParams.eRCMode);
-	    break;
+       case IMG_RCMODE_NONE:
+           ctx->eCodec = IMG_CODEC_H263_NO_RC;
+           break;
+       case IMG_RCMODE_VBR:
+           ctx->eCodec = IMG_CODEC_H263_VBR;
+           break;
+       case IMG_RCMODE_CBR:
+           ctx->eCodec = IMG_CODEC_H263_CBR;
+           break;
+       default:
+           drv_debug_msg(VIDEO_DEBUG_ERROR, "Unknown RCMode %08x\n", ctx->sRCParams.eRCMode);
+           break;
     }
 
 #ifdef _TOPAZHP_OLD_LIBVA_
@@ -150,7 +150,7 @@ static VAStatus ptg_MPEG4ES_CreateContext(
         ctx->bIsInterlaced = IMG_FALSE;
         ctx->bIsInterleaved = IMG_FALSE;
         ctx->ui16PictureHeight = ctx->ui16FrameHeight;
-        ctx->eCodec = IMG_CODEC_MPEG4_NO_RC;
+        ctx->eCodec = IMG_CODEC_H263_NO_RC;
     } else {
         if (eFormatMode == VA_ENC_INTERLACED_FRAME) {
             ctx->bIsInterlaced = IMG_TRUE;
@@ -165,19 +165,6 @@ static VAStatus ptg_MPEG4ES_CreateContext(
         ctx->ui16PictureHeight = ctx->ui16FrameHeight >> 1;
     }
 #endif
-
-    ctx->bVPAdaptiveRoundingDisable = IMG_TRUE;
-
-    switch (obj_config->profile) {
-        case VAProfileMPEG4Simple:
-            ctx->ui8ProfileIdc = 2;
-            break;
-        case VAProfileMPEG4AdvancedSimple:
-            ctx->ui8ProfileIdc = 3;
-        default:
-            ctx->ui8ProfileIdc = 2;
-        break;
-    }
 
     //This parameter need not be exposed
     ctx->ui8InterIntraIndex = 3;
@@ -208,66 +195,66 @@ static VAStatus ptg_MPEG4ES_CreateContext(
     return vaStatus;
 }
 
-static void ptg_MPEG4ES_DestroyContext(
+static void tng_H263ES_DestroyContext(
     object_context_p obj_context)
 {
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
-    ptg_DestroyContext(obj_context, 0);
+    tng_DestroyContext(obj_context, 0);
 }
 
-static VAStatus ptg_MPEG4ES_BeginPicture(
+static VAStatus tng_H263ES_BeginPicture(
     object_context_p obj_context)
 {
-    INIT_CONTEXT_MPEG4ES;
-    ptg_cmdbuf_p cmdbuf = ctx->obj_context->ptg_cmdbuf;
-    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-#ifdef _TOPAZHP_PDUMP_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-#endif
-    vaStatus = ptg_BeginPicture(ctx);
+    INIT_CONTEXT_H263ES;
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+	context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
+	VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-#ifdef _TOPAZHP_PDUMP_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
-#endif
+		
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
+    vaStatus = tng_BeginPicture(ctx);
+
     return vaStatus;
 }
 
-static VAStatus ptg__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+static VAStatus tng__H263ES_process_sequence_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
-    VAEncSequenceParameterBufferMPEG4 *psSeqParams;
-    ptg_cmdbuf_p cmdbuf = ctx->obj_context->ptg_cmdbuf;
+    VAEncSequenceParameterBufferH263 *psSeqParams;
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
+//    IMG_UINT32 ClippedPictureHeight;
+//    IMG_UINT32 ClippedPictureWidth;
 
     ASSERT(obj_buffer->type == VAEncSequenceParameterBufferType);
-    ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferMPEG4));
+    ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH263));
 
-    if (obj_buffer->size != sizeof(VAEncSequenceParameterBufferMPEG4)) {
+    if (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH263)) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
-
     ctx->obj_context->frame_count = 0;
-    psSeqParams = (VAEncSequenceParameterBufferMPEG4 *) obj_buffer->buffer_data;
+    psSeqParams = (VAEncSequenceParameterBufferH263 *) obj_buffer->buffer_data;
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
+    /********************************/
     ctx->ui32IdrPeriod = psSeqParams->intra_period;
     ctx->ui32IntraCnt = psSeqParams->intra_period;
     ctx->bCustomScaling = IMG_FALSE;
     ctx->bUseDefaultScalingList = IMG_FALSE;
+    
 
     //set MV limit infor
     ctx->ui32VertMVLimit = 255 ;//(63.75 in qpel increments)
     ctx->bLimitNumVectors = IMG_TRUE;
 
     /**************set rc params ****************/
-    if (psSeqParams->bits_per_second > TOPAZ_MPEG4_MAX_BITRATE) {
-        ctx->sRCParams.ui32BitsPerSecond = TOPAZ_MPEG4_MAX_BITRATE;
+    if (psSeqParams->bits_per_second > TOPAZ_H263_MAX_BITRATE) {
+        ctx->sRCParams.ui32BitsPerSecond = TOPAZ_H263_MAX_BITRATE;
         drv_debug_msg(VIDEO_DEBUG_GENERAL, " bits_per_second(%d) exceeds \
 		the maximum bitrate, set it with %d\n",
                                  psSeqParams->bits_per_second,
-                                 TOPAZ_MPEG4_MAX_BITRATE);
+                                 TOPAZ_H263_MAX_BITRATE);
     } else
         ctx->sRCParams.ui32BitsPerSecond = psSeqParams->bits_per_second;
 
@@ -300,35 +287,34 @@ static VAStatus ptg__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
     ctx->sRCParams.ui16BFrames = 0;
     ctx->ui8SlotsRequired = ctx->ui8SlotsInUse = psRCParams->ui16BFrames + 2;
 
-#if HEADERS_VERBOSE_OUTPUT
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n\n**********************************************************************\n");
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "******** HOST FIRMWARE ROUTINES TO PASS HEADERS AND TOKENS TO MTX******\n");
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "**********************************************************************\n\n");
-#endif
+    if (psRCParams->eRCMode != IMG_RCMODE_NONE) {
+    }
+
+    cmdbuf->cmd_idx_saved[TNG_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
 
     free(psSeqParams);
 
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus ptg__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+static VAStatus tng__H263ES_process_picture_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
-    VAEncPictureParameterBufferMPEG4 *psPicParams;
+    VAEncPictureParameterBufferH263 *psPicParams;
     IMG_BOOL bDepViewPPS = IMG_FALSE;
-    void* pTmpBuf = NULL;
+	void* pTmpBuf = NULL;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
-    if (obj_buffer->size != sizeof(VAEncPictureParameterBufferMPEG4)) {
+    if (obj_buffer->size != sizeof(VAEncPictureParameterBufferH263)) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid coded buffer handle\n", __FUNCTION__, __LINE__);
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
-    /* Transfer ownership of VAEncPictureParameterBufferMPEG4 data */
-    psPicParams = (VAEncPictureParameterBufferMPEG4 *) obj_buffer->buffer_data;
+    /* Transfer ownership of VAEncPictureParameterBufferH263 data */
+    psPicParams = (VAEncPictureParameterBufferH263 *) obj_buffer->buffer_data;
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
@@ -355,13 +341,28 @@ static VAStatus ptg__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
         return VA_STATUS_ERROR_INVALID_BUFFER;
     }
 
+    if ((ctx->ui16Width == 128) && (ctx->ui16FrameHeight == 96))
+        ctx->ui8H263SourceFormat = _128x96_SubQCIF;
+    else if ((ctx->ui16Width == 176) && (ctx->ui16FrameHeight == 144))
+        ctx->ui8H263SourceFormat = _176x144_QCIF;
+    else if ((ctx->ui16Width == 352) && (ctx->ui16FrameHeight == 288))
+        ctx->ui8H263SourceFormat = _352x288_CIF;
+    else if ((ctx->ui16Width == 704) && (ctx->ui16FrameHeight == 576))
+        ctx->ui8H263SourceFormat = _704x576_4CIF;
+    else if ((ctx->ui16Width <= 720) && (ctx->ui16FrameHeight <= 576))
+        ctx->ui8H263SourceFormat = 7;
+    else {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Unsupported resolution!\n");
+        return VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
+    }
+
     free(psPicParams);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
 
     return vaStatus;
 }
 
-static VAStatus ptg__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+static VAStatus tng__H263ES_process_slice_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VAEncSliceParameterBuffer *psSliceParams;
@@ -369,7 +370,7 @@ static VAStatus ptg__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
     /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
     
-    /* Transfer ownership of VAEncPictureParameterBufferMPEG4 data */
+    /* Transfer ownership of VAEncPictureParameterBufferH263 data */
     psSliceParams = (VAEncSliceParameterBuffer*) obj_buffer->buffer_data;
     obj_buffer->size = 0;
 
@@ -380,7 +381,7 @@ static VAStatus ptg__MPEG4ES_process_slice_param(context_ENC_p ctx, object_buffe
     return vaStatus;
 }
 
-static VAStatus ptg__MPEG4ES_process_misc_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+static VAStatus tng__H263ES_process_misc_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VAEncMiscParameterBuffer *pBuffer;
@@ -409,7 +410,7 @@ static VAStatus ptg__MPEG4ES_process_misc_param(context_ENC_p ctx, object_buffer
 
         if (rate_control_param->initial_qp > 51 || rate_control_param->min_qp > 51) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp(%d) and min_qpinitial_qp(%d) "
-                               "are invalid.\nQP shouldn't be larger than 51 for MPEG4\n",
+                               "are invalid.\nQP shouldn't be larger than 51 for H263\n",
                                rate_control_param->initial_qp, rate_control_param->min_qp);
             vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
             break;
@@ -425,12 +426,12 @@ static VAStatus ptg__MPEG4ES_process_misc_param(context_ENC_p ctx, object_buffer
             (psRCParams->ui32InitialQp == rate_control_param->initial_qp))
             break;
 
-        if (rate_control_param->bits_per_second > TOPAZ_MPEG4_MAX_BITRATE) {
-            psRCParams->ui32BitsPerSecond = TOPAZ_MPEG4_MAX_BITRATE;
+        if (rate_control_param->bits_per_second > TOPAZ_H263_MAX_BITRATE) {
+            psRCParams->ui32BitsPerSecond = TOPAZ_H263_MAX_BITRATE;
             drv_debug_msg(VIDEO_DEBUG_GENERAL, " bits_per_second(%d) exceeds \
 				the maximum bitrate, set it with %d\n",
                                      rate_control_param->bits_per_second,
-                                     TOPAZ_MPEG4_MAX_BITRATE);
+                                     TOPAZ_H263_MAX_BITRATE);
         } else
             psRCParams->ui32BitsPerSecond = rate_control_param->bits_per_second;
 
@@ -444,45 +445,167 @@ static VAStatus ptg__MPEG4ES_process_misc_param(context_ENC_p ctx, object_buffer
     default:
         break;
     }
+#if 0
+    /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
+    VAEncMiscParameterBuffer *pBuffer;
+    VAEncMiscParameterRateControl *rate_control_param;
+    VAEncMiscParameterAIR *air_param;
+    VAEncMiscParameterMaxSliceSize *max_slice_size_param;
+    VAEncMiscParameterFrameRate *frame_rate_param;
 
+
+    ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
+
+    /* Transfer ownership of VAEncMiscParameterBuffer data */
+    pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
+    obj_buffer->size = 0;
+
+    switch (pBuffer->type) {
+    case VAEncMiscParameterTypeFrameRate:
+        frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
+
+        if (frame_rate_param->framerate > 65535) {
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        if (ctx->sRCParams.FrameRate == frame_rate_param->framerate)
+            break;
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "frame rate changed from %d to %d\n",
+                                 ctx->sRCParams.FrameRate,
+                                 frame_rate_param->framerate);
+        ctx->sRCParams.FrameRate = frame_rate_param->framerate;
+        ctx->sRCParams.bBitrateChanged = IMG_TRUE;
+        break;
+
+    case VAEncMiscParameterTypeRateControl:
+        rate_control_param = (VAEncMiscParameterRateControl *)pBuffer->data;
+
+        if (rate_control_param->initial_qp > 51 ||
+            rate_control_param->min_qp > 51) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp(%d) and min_qpinitial_qp(%d) "
+                               "are invalid.\nQP shouldn't be larger than 51 for H264\n",
+                               rate_control_param->initial_qp, rate_control_param->min_qp);
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "rate control changed from %d to %d\n",
+                                 ctx->sRCParams.ui32BitsPerSecond,
+                                 rate_control_param->bits_per_second);
+
+        if ((rate_control_param->bits_per_second == ctx->sRCParams.ui32BitsPerSecond) &&
+            (ctx->sRCParams.ui32BufferSize == ctx->sRCParams.ui32BitsPerSecond / 1000 * rate_control_param->window_size) &&
+            (ctx->sRCParams.iMinQP == rate_control_param->min_qp) &&
+            (ctx->sRCParams.ui32InitialQp == rate_control_param->initial_qp))
+            break;
+        else
+            ctx->sRCParams.bBitrateChanged = IMG_TRUE;
+
+        if (rate_control_param->bits_per_second > TOPAZ_H264_MAX_BITRATE) {
+            ctx->sRCParams.ui32BitsPerSecond = TOPAZ_H264_MAX_BITRATE;
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, " bits_per_second(%d) exceeds \
+			the maximum bitrate, set it with %d\n",
+                                     rate_control_param->bits_per_second,
+                                     TOPAZ_H264_MAX_BITRATE);
+        } else
+            ctx->sRCParams.ui32BitsPerSecond = rate_control_param->bits_per_second;
+
+        if (rate_control_param->window_size != 0)
+            ctx->sRCParams.ui32BufferSize = ctx->sRCParams.ui32BitsPerSecond * rate_control_param->window_size / 1000;
+        if (rate_control_param->initial_qp != 0)
+            ctx->sRCParams.ui32InitialQp = rate_control_param->initial_qp;
+        if (rate_control_param->min_qp != 0)
+            ctx->sRCParams.iMinQP = rate_control_param->min_qp;
+        break;
+
+    case VAEncMiscParameterTypeMaxSliceSize:
+        max_slice_size_param = (VAEncMiscParameterMaxSliceSize *)pBuffer->data;
+
+        if (ctx->max_slice_size == max_slice_size_param->max_slice_size)
+            break;
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "max slice size changed to %d\n",
+                                 max_slice_size_param->max_slice_size);
+
+        ctx->max_slice_size = max_slice_size_param->max_slice_size;
+
+        break;
+
+    case VAEncMiscParameterTypeAIR:
+        air_param = (VAEncMiscParameterAIR *)pBuffer->data;
+
+        if (air_param->air_num_mbs > 65535 ||
+            air_param->air_threshold > 65535) {
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "air slice size changed to num_air_mbs %d "
+                                 "air_threshold %d, air_auto %d\n",
+                                 air_param->air_num_mbs, air_param->air_threshold,
+                                 air_param->air_auto);
+
+        if (((ctx->ui16PictureHeight * ctx->ui16Width) >> 8) < air_param->air_num_mbs)
+            air_param->air_num_mbs = ((ctx->ui16PictureHeight * ctx->ui16Width) >> 8);
+        if (air_param->air_threshold == 0)
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: air threshold is set to zero\n",
+                                     __func__);
+        ctx->num_air_mbs = air_param->air_num_mbs;
+        ctx->air_threshold = air_param->air_threshold;
+        //ctx->autotune_air_flag = air_param->air_auto;
+
+        break;
+
+    default:
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        DEBUG_FAILURE;
+        break;
+    }
+
+    free(obj_buffer->buffer_data);
+    obj_buffer->buffer_data = NULL;
+#endif
     return vaStatus;
 }
 
-static VAStatus ptg_MPEG4ES_RenderPicture(
+
+
+static VAStatus tng_H263ES_RenderPicture(
     object_context_p obj_context,
     object_buffer_p *buffers,
     int num_buffers)
 {
-    INIT_CONTEXT_MPEG4ES;
+    INIT_CONTEXT_H263ES;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_H263ES_RenderPicture\n");
     for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: type = %d, num = %d\n", __FUNCTION__, obj_buffer->type, num_buffers);
 
         switch (obj_buffer->type) {
         case VAEncSequenceParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_MPEG4_RenderPicture got VAEncSequenceParameterBufferType\n");
-            vaStatus = ptg__MPEG4ES_process_sequence_param(ctx, obj_buffer);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_H263_RenderPicture got VAEncSequenceParameterBufferType\n");
+            vaStatus = tng__H263ES_process_sequence_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
         case VAEncPictureParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_MPEG4_RenderPicture got VAEncPictureParameterBuffer\n");
-            vaStatus = ptg__MPEG4ES_process_picture_param(ctx, obj_buffer);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_H263_RenderPicture got VAEncPictureParameterBuffer\n");
+            vaStatus = tng__H263ES_process_picture_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAEncSliceParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_MPEG4_RenderPicture got VAEncSliceParameterBufferType\n");
-            vaStatus = ptg__MPEG4ES_process_slice_param(ctx, obj_buffer);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_H263_RenderPicture got VAEncSliceParameterBufferType\n");
+            vaStatus = tng__H263ES_process_slice_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
 
         case VAEncMiscParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_MPEG4_RenderPicture got VAEncMiscParameterBufferType\n");
-            vaStatus = ptg__MPEG4ES_process_misc_param(ctx, obj_buffer);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_H263_RenderPicture got VAEncMiscParameterBufferType\n");
+            vaStatus = tng__H263ES_process_misc_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
         default:
@@ -493,38 +616,37 @@ static VAStatus ptg_MPEG4ES_RenderPicture(
             break;
         }
     }
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
 
     return vaStatus;
 }
 
-static VAStatus ptg_MPEG4ES_EndPicture(
+static VAStatus tng_H263ES_EndPicture(
     object_context_p obj_context)
 {
-    INIT_CONTEXT_MPEG4ES;
+    INIT_CONTEXT_H263ES;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-    vaStatus = ptg_EndPicture(ctx);
+    vaStatus = tng_EndPicture(ctx);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
 
     return vaStatus;
 }
 
-struct format_vtable_s ptg_MPEG4ES_vtable = {
+struct format_vtable_s tng_H263ES_vtable = {
 queryConfigAttributes:
-    ptg_MPEG4ES_QueryConfigAttributes,
+    tng_H263ES_QueryConfigAttributes,
 validateConfig:
-    ptg_MPEG4ES_ValidateConfig,
+    tng_H263ES_ValidateConfig,
 createContext:
-    ptg_MPEG4ES_CreateContext,
+    tng_H263ES_CreateContext,
 destroyContext:
-    ptg_MPEG4ES_DestroyContext,
+    tng_H263ES_DestroyContext,
 beginPicture:
-    ptg_MPEG4ES_BeginPicture,
+    tng_H263ES_BeginPicture,
 renderPicture:
-    ptg_MPEG4ES_RenderPicture,
+    tng_H263ES_RenderPicture,
 endPicture:
-    ptg_MPEG4ES_EndPicture
+    tng_H263ES_EndPicture
 };
 
 /*EOF*/

@@ -101,8 +101,8 @@ ifneq ($(filter $(TARGET_PRODUCT),$(MERRIFIELD_PRODUCT)),)
 LOCAL_SRC_FILES += \
     tng_VP8.c \
     tng_jpegdec.c \
-    ptg_cmdbuf.c ptg_hostheader.c ptg_hostcode.c ptg_picmgmt.c ptg_hostbias.c \
-    ptg_H264ES.c ptg_H263ES.c  ptg_MPEG4ES.c ptg_jpeg.c ptg_slotorder.c \
+    tng_cmdbuf.c tng_hostheader.c tng_hostcode.c tng_picmgmt.c tng_hostbias.c \
+    tng_H264ES.c tng_H263ES.c tng_MPEG4ES.c tng_jpegES.c tng_slotorder.c \
 #LOCAL_SRC_FILES += \
     vsp_VPP.c \
     vsp_cmdbuf.c

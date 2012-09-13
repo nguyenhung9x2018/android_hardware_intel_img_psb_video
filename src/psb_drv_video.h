@@ -70,14 +70,14 @@
 #endif
 
 //#define _TOPAZHP_VIRTUAL_
-#define _TOPAZHP_VIR_ADDR
-#define _TOPAZHP_ALLOC__
+#define _TOPAZHP_VIR_ADDR_
 #define _TOPAZHP_SLICE_PARAM_
 //#define _TOPAZHP_PDUMP_
 //#define _TOPAZHP_PDUMP_ALL_
 #define _TOPAZHP_OLD_LIBVA_
 #define FORCED_REFERENCE 1
 #define LTREFHEADER 1
+//#define _TOPAZHP_REC_
 
 /*
  * WORKAROUND_DMA_OFF_BY_ONE: LLDMA requests may access one additional byte which can cause
@@ -102,7 +102,7 @@
 #define PSB_MAX_CMDBUFS                         10
 #define LNC_MAX_CMDBUFS_ENCODE                  4
 #define PNW_MAX_CMDBUFS_ENCODE                  4
-#define PTG_MAX_CMDBUFS_ENCODE                  4
+#define TNG_MAX_CMDBUFS_ENCODE                  4
 #define VSP_MAX_CMDBUFS				10
 
 #define PSB_SURFACE_DISPLAYING_F (0x1U<<0)
@@ -354,7 +354,7 @@ struct object_context_s {
     struct psb_cmdbuf_s *cmdbuf_list[PSB_MAX_CMDBUFS];
     struct lnc_cmdbuf_s *lnc_cmdbuf_list[LNC_MAX_CMDBUFS_ENCODE];
     struct pnw_cmdbuf_s *pnw_cmdbuf_list[PNW_MAX_CMDBUFS_ENCODE];
-    struct ptg_cmdbuf_s	*ptg_cmdbuf_list[PTG_MAX_CMDBUFS_ENCODE];
+    struct tng_cmdbuf_s	*tng_cmdbuf_list[TNG_MAX_CMDBUFS_ENCODE];
 #ifdef PSBVIDEO_MRFL_VPP
     struct vsp_cmdbuf_s *vsp_cmdbuf_list[VSP_MAX_CMDBUFS];
 #endif
@@ -362,7 +362,7 @@ struct object_context_s {
     struct psb_cmdbuf_s *cmdbuf; /* Current cmd buffer */
     struct lnc_cmdbuf_s *lnc_cmdbuf;
     struct pnw_cmdbuf_s *pnw_cmdbuf;
-    struct ptg_cmdbuf_s *ptg_cmdbuf;
+    struct tng_cmdbuf_s *tng_cmdbuf;
 #ifdef PSBVIDEO_MRFL_VPP
     struct vsp_cmdbuf_s *vsp_cmdbuf;
 #endif

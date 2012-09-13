@@ -33,8 +33,8 @@
  * Description  DMA code for mtx Platform     : Generic
  */
 
-#ifndef _PNW_HOSTHEADER_H_
-#define _PNW_HOSTHEADER_H_
+#ifndef _TNG_HOSTHEADER_H_
+#define _TNG_HOSTHEADER_H_
 
 
 #include "img_types.h"
@@ -352,7 +352,7 @@ typedef enum _H263_SOURCE_FORMAT_ENUM {
 
 /* H264 header preparation */
 
-void ptg__H264ES_prepare_sequence_header(
+void tng__H264ES_prepare_sequence_header(
     void *pHeaderMemory,
     H264_VUI_PARAMS *psVUI_Params,
     H264_CROP_PARAMS *psCropParams,
@@ -369,7 +369,7 @@ void ptg__H264ES_prepare_sequence_header(
     IMG_BOOL  bASO
 );
 
-void ptg__H264ES_prepare_picture_header(
+void tng__H264ES_prepare_picture_header(
     void *pHeaderMemory,
     IMG_BOOL    bCabacEnabled,
     IMG_BOOL    b_8x8transform,
@@ -382,7 +382,7 @@ void ptg__H264ES_prepare_picture_header(
     IMG_BOOL    bScalingLists
 );
 
-void ptg__H264_prepare_slice_header(
+void tng__H264_prepare_slice_header(
     IMG_UINT32 *pHeaderMemory,
     IMG_BOOL        bIntraSlice,
     IMG_BOOL        bInterBSlice,
@@ -399,7 +399,7 @@ void ptg__H264_prepare_slice_header(
     IMG_BOOL        bIsLongTermRef);
 
 /* MPEG4 header preparation */
-void ptg__MPEG4_prepare_sequence_header(
+void tng__MPEG4_prepare_sequence_header(
     void *pHeaderMemory,
     IMG_BOOL bBFrame,
     MPEG4_PROFILE_TYPE sProfile,
@@ -410,7 +410,7 @@ void ptg__MPEG4_prepare_sequence_header(
     VBVPARAMS * psVBVParams,
     IMG_UINT32 VopTimeResolution);
 
-void ptg__MPEG4_prepare_vop_header(
+void tng__MPEG4_prepare_vop_header(
     IMG_UINT32 *pHeaderMem,
     IMG_BOOL bIsVOP_coded,
     IMG_UINT32 VOP_time_increment,
@@ -420,11 +420,11 @@ void ptg__MPEG4_prepare_vop_header(
 
 
 /* H263 header preparation */
-void ptg__H263_prepare_sequence_header(
+void tng__H263_prepare_sequence_header(
     IMG_UINT32 *pHeaderMem,
     IMG_UINT8 Profile_and_level_indication);
 
-void ptg__H263_prepare_picture_header(
+void tng__H263_prepare_picture_header(
     IMG_UINT32 *pHeaderMem,
     IMG_UINT8 Temporal_Ref,
     H263_PICTURE_CODING_TYPE PictureCodingType,
@@ -433,7 +433,7 @@ void ptg__H263_prepare_picture_header(
     IMG_UINT16 PictureWidth,
     IMG_UINT16 PictureHeigth);
 
-void ptg__H263_notforsims_prepare_video_pictureheader(
+void tng__H263_notforsims_prepare_video_pictureheader(
     MTX_HEADER_PARAMS* pMTX_Header,
     H263_PICTURE_CODING_TYPE ePictureCodingType,
     H263_SOURCE_FORMAT_TYPE eSourceFormatType,
@@ -441,14 +441,14 @@ void ptg__H263_notforsims_prepare_video_pictureheader(
     IMG_UINT32 ui32PictureWidth,
     IMG_UINT32 ui32PictureHeigth);
 
-void ptg__H263_prepare_GOBslice_header(
+void tng__H263_prepare_GOBslice_header(
     IMG_UINT32 *pHeaderMem,
     IMG_UINT8 GOBNumber,
     IMG_UINT8 GOBFrameId);
 
-void ptg__H264ES_prepare_AUD_header(unsigned char *virtual_addr);
+void tng__H264ES_prepare_AUD_header(unsigned char *virtual_addr);
 
-void ptg__H264ES_prepare_SEI_buffering_period_header(
+void tng__H264ES_prepare_SEI_buffering_period_header(
     unsigned char *virtual_addr,
     IMG_UINT8 ui8NalHrdBpPresentFlag,
     IMG_UINT8 ui8nal_cpb_cnt_minus1,
@@ -459,7 +459,7 @@ void ptg__H264ES_prepare_SEI_buffering_period_header(
     IMG_UINT32 ui32vcl_initial_cpb_removal_delay,
     IMG_UINT32 ui32vcl_initial_cpb_removal_delay_offset);
 
-void ptg__H264ES_prepare_SEI_picture_timing_header(
+void tng__H264ES_prepare_SEI_picture_timing_header(
     unsigned char *virtual_addr,
     IMG_UINT8 ui8CpbDpbDelaysPresentFlag,
     IMG_UINT32 ui32cpb_removal_delay_length_minus1,
@@ -486,7 +486,7 @@ void ptg__H264ES_prepare_SEI_picture_timing_header(
     IMG_UINT8 ui8time_offset_length,
     IMG_INT32 i32time_offset);
 
-void ptg__H264ES_notforsims_prepare_sliceheader(
+void tng__H264ES_notforsims_prepare_sliceheader(
     IMG_UINT8       *slice_mem_p,
     IMG_UINT32      ui32SliceType,
     IMG_UINT8       ui8DisableDeblockingFilterIDC,
@@ -497,7 +497,7 @@ void ptg__H264ES_notforsims_prepare_sliceheader(
     IMG_UINT16      ui16MvcViewIdx,
     IMG_BOOL        bIsLongTermRef);
 
-void ptg__H264ES_prepare_mvc_sequence_header(
+void tng__H264ES_prepare_mvc_sequence_header(
     void *pHeaderMemory,
     H264_CROP_PARAMS *psCropParams,
     IMG_UINT16 ui16PictureWidth,
@@ -512,14 +512,14 @@ void ptg__H264ES_prepare_mvc_sequence_header(
     IMG_BOOL  bEnableLossless,
     IMG_BOOL  bASO);
 
-void ptg__H263ES_notforsims_prepare_gobsliceheader(IMG_UINT8 *slice_mem_p);
-void ptg__MPEG2_prepare_sliceheader(IMG_UINT8 *slice_mem_p);
-void ptg__MPEG4_notforsims_prepare_vop_header(
+void tng__H263ES_notforsims_prepare_gobsliceheader(IMG_UINT8 *slice_mem_p);
+void tng__MPEG2_prepare_sliceheader(IMG_UINT8 *slice_mem_p);
+void tng__MPEG4_notforsims_prepare_vop_header(
     MTX_HEADER_PARAMS* pMTX_Header,
     IMG_BOOL bIsVOP_coded,
     SEARCH_RANGE_TYPE eSearch_range,
     VOP_CODING_TYPE eVop_Coding_Type);
 
-#endif /* _PTG_HOSTHEADER_H_ */
+#endif /* _TNG_HOSTHEADER_H_ */
 
 

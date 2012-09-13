@@ -1,33 +1,33 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
- * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-/*
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
  * Authors:
  *    Edward Lin <edward.lin@intel.com>
  *
  */
-#ifndef _PTG_HOSTDEFS_H_
-#define _PTG_HOSTDEFS_H_
+#ifndef _TNG_HOSTDEFS_H_
+#define _TNG_HOSTDEFS_H_
 
 #include "img_types.h"
 #include "hwdefs/coreflags.h"
@@ -108,7 +108,7 @@ typedef enum {
     MTX_CMDID_SW_LEAVE_LOWPOWER = 0x7c,
     MTX_CMDID_SW_ENTER_LOWPOWER = 0x7e,
     MTX_CMDID_SW_NEW_CODEC = 0x7f
-} ptg_MTX_CMD_ID;
+} tng_MTX_CMD_ID;
 
 
 /*!
@@ -251,7 +251,7 @@ typedef struct
 
 //MAX_HEADERSIZEBYTES
 //MAX_HEADERSIZEWORDS
-#define PTG_HEADER_SIZE (128)
+#define TNG_HEADER_SIZE (128)
 #define MAX_REF_LEVELS_ARRAYSIZE        (MAX_REF_B_LEVELS + MAX_REF_I_OR_P_LEVELS)
 #define MAX_PIC_NODES_ARRAYSIZE (MAX_REF_LEVELS_ARRAYSIZE + 2)
 #define MAX_MV_ARRAYSIZE (MAX_PIC_NODES_ARRAYSIZE * 2)
@@ -789,4 +789,4 @@ typedef enum
 } MTX_eScratchRegData;
 
 
-#endif //_PTG_HOSTDEFS_H_
+#endif //_TNG_HOSTDEFS_H_

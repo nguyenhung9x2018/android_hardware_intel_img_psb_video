@@ -1,45 +1,45 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
- * Copyright 2005-2007 Imagination Technologies Limited. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-/*
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
  * Authors:
  *    Elaine Wang <elaine.wang@intel.com>
  *    Zeng Li <zeng.li@intel.com>
  *    Edward Lin <edward.lin@intel.com>
  *
  */
-#ifndef _PTG_HOSTCODE_H_
-#define _PTG_HOSTCODE_H_
+#ifndef _TNG_HOSTCODE_H_
+#define _TNG_HOSTCODE_H_
 
 #include "img_types.h"
 #include "hwdefs/coreflags.h"
 #include "psb_drv_video.h"
 #include "psb_surface.h"
-#include "ptg_cmdbuf.h"
-#include "ptg_hostdefs.h"
-#include "ptg_hostheader.h"
-#include "ptg_jpeg.h"
-#include "ptg_slotorder.h"
+#include "tng_cmdbuf.h"
+#include "tng_hostdefs.h"
+#include "tng_hostheader.h"
+#include "tng_jpegES.h"
+#include "tng_slotorder.h"
 
 
 #define MIN(a,b)  ((a)>(b)?(b):(a))
@@ -230,6 +230,7 @@ struct context_ENC_s {
     H264_VUI_PARAMS sVuiParams;
     FRAME_ORDER_INFO sFrameOrderInfo;
     
+    IMG_UINT32  ui32RawFrameCount;
     IMG_UINT32  ui32CoreRev;
     IMG_UINT32  ui32StreamID;
     IMG_UINT32  ui32FCode;
@@ -433,25 +434,25 @@ typedef struct context_ENC_s *context_ENC_p;
 #define SET_SURFACE_INFO_skipped_flag(psb_surface, value) psb_surface->extra_info[5] = (SURFACE_INFO_SKIP_FLAG_SETTLED | value)
 #define CLEAR_SURFACE_INFO_skipped_flag(psb_surface) psb_surface->extra_info[5] = 0
 
-VAStatus ptg_CreateContext(object_context_p obj_context,
+VAStatus tng_CreateContext(object_context_p obj_context,
                            object_config_p obj_config,
                            unsigned char is_JPEG);
 
-//VAStatus ptg_InitContext(context_ENC_p ctx);
+//VAStatus tng_InitContext(context_ENC_p ctx);
 
-void ptg_DestroyContext(
+void tng_DestroyContext(
     object_context_p obj_context,
     unsigned char is_JPEG);
 
-VAStatus ptg_BeginPicture(context_ENC_p ctx);
-VAStatus ptg_EndPicture(context_ENC_p ctx);
+VAStatus tng_BeginPicture(context_ENC_p ctx);
+VAStatus tng_EndPicture(context_ENC_p ctx);
 
-void ptg_setup_slice_params(
+void tng_setup_slice_params(
     context_ENC_p  ctx, IMG_UINT16 YSliceStartPos,
     IMG_UINT16 SliceHeight, IMG_BOOL IsIntra,
     IMG_BOOL  VectorsValid, int bySliceQP);
 
-VAStatus ptg__send_encode_slice_params(
+VAStatus tng__send_encode_slice_params(
     context_ENC_p ctx,
     IMG_BOOL IsIntra,
     IMG_UINT16 CurrentRow,
@@ -460,12 +461,12 @@ VAStatus ptg__send_encode_slice_params(
     IMG_UINT16 SliceHeight,
     IMG_UINT16 CurrentSlice);
 
-VAStatus ptg_RenderPictureParameter(context_ENC_p ctx);
-void ptg__setup_enc_profile_features(context_ENC_p ctx, IMG_UINT32 ui32EncProfile);
-VAStatus ptg__patch_hw_profile(context_ENC_p ctx);
-void ptg_reset_encoder_params(context_ENC_p ctx);
-unsigned int ptg__get_ipe_control(IMG_CODEC  eEncodingFormat);
-void ptg__UpdateRCBitsTransmitted(context_ENC_p ctx);
-void ptg__trace_in_params(IMG_MTX_VIDEO_CONTEXT* psMtxEncCtx);
-void ptg__trace_mtx_context(IMG_MTX_VIDEO_CONTEXT* psMtxEncCtx);
-#endif
+VAStatus tng_RenderPictureParameter(context_ENC_p ctx);
+void tng__setup_enc_profile_features(context_ENC_p ctx, IMG_UINT32 ui32EncProfile);
+VAStatus tng__patch_hw_profile(context_ENC_p ctx);
+void tng_reset_encoder_params(context_ENC_p ctx);
+unsigned int tng__get_ipe_control(IMG_CODEC  eEncodingFormat);
+void tng__UpdateRCBitsTransmitted(context_ENC_p ctx);
+void tng__trace_in_params(IMG_MTX_VIDEO_CONTEXT* psMtxEncCtx);
+void tng__trace_mtx_context(IMG_MTX_VIDEO_CONTEXT* psMtxEncCtx);
+#endif  //_TNG_HOSTCODE_H_

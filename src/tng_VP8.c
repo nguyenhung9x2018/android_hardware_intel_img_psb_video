@@ -123,129 +123,7 @@ const uint32_t	CABAC_LSR_CoefficientProb_Stride    = 12;
 const uint32_t	CABAC_LSR_CoefficientProb_Valid     = 11;
 const uint32_t CABAC_LSR_CoefficientProb_ToIdxMap[] = {0, 1, 2, 3, 4, 6, 0/*ignored value here*/, 5, 7, 8, 9, 10};
 
-const Probability b_mode_prob[10][10][9] = 
-{
-    {
-        { 231, 120, 48, 89, 115, 113, 120, 152, 112},
-        { 152, 179, 64, 126, 170, 118, 46, 70, 95},
-        { 175, 69, 143, 80, 85, 82, 72, 155, 103},
-        { 56, 58, 10, 171, 218, 189, 17, 13, 152},
-        { 144, 71, 10, 38, 171, 213, 144, 34, 26},
-        { 114, 26, 17, 163, 44, 195, 21, 10, 173},
-        { 121, 24, 80, 195, 26, 62, 44, 64, 85},
-        { 170, 46, 55, 19, 136, 160, 33, 206, 71},
-        { 63, 20, 8, 114, 114, 208, 12, 9, 226},
-        { 81, 40, 11, 96, 182, 84, 29, 16, 36}
-    },
-    {
-        { 134, 183, 89, 137, 98, 101, 106, 165, 148},
-        { 72, 187, 100, 130, 157, 111, 32, 75, 80},
-        { 66, 102, 167, 99, 74, 62, 40, 234, 128},
-        { 41, 53, 9, 178, 241, 141, 26, 8, 107},
-        { 104, 79, 12, 27, 217, 255, 87, 17, 7},
-        { 74, 43, 26, 146, 73, 166, 49, 23, 157},
-        { 65, 38, 105, 160, 51, 52, 31, 115, 128},
-        { 87, 68, 71, 44, 114, 51, 15, 186, 23},
-        { 47, 41, 14, 110, 182, 183, 21, 17, 194},
-        { 66, 45, 25, 102, 197, 189, 23, 18, 22}
-    },
-    {
-        { 88, 88, 147, 150, 42, 46, 45, 196, 205},
-        { 43, 97, 183, 117, 85, 38, 35, 179, 61},
-        { 39, 53, 200, 87, 26, 21, 43, 232, 171},
-        { 56, 34, 51, 104, 114, 102, 29, 93, 77},
-        { 107, 54, 32, 26, 51, 1, 81, 43, 31},
-        { 39, 28, 85, 171, 58, 165, 90, 98, 64},
-        { 34, 22, 116, 206, 23, 34, 43, 166, 73},
-        { 68, 25, 106, 22, 64, 171, 36, 225, 114},
-        { 34, 19, 21, 102, 132, 188, 16, 76, 124},
-        { 62, 18, 78, 95, 85, 57, 50, 48, 51}
-    },
-    {
-        { 193, 101, 35, 159, 215, 111, 89, 46, 111},
-        { 60, 148, 31, 172, 219, 228, 21, 18, 111},
-        { 112, 113, 77, 85, 179, 255, 38, 120, 114},
-        { 40, 42, 1, 196, 245, 209, 10, 25, 109},
-        { 100, 80, 8, 43, 154, 1, 51, 26, 71},
-        { 88, 43, 29, 140, 166, 213, 37, 43, 154},
-        { 61, 63, 30, 155, 67, 45, 68, 1, 209},
-        { 142, 78, 78, 16, 255, 128, 34, 197, 171},
-        { 41, 40, 5, 102, 211, 183, 4, 1, 221},
-        { 51, 50, 17, 168, 209, 192, 23, 25, 82}
-    },
-    {
-        { 125, 98, 42, 88, 104, 85, 117, 175, 82},
-        { 95, 84, 53, 89, 128, 100, 113, 101, 45},
-        { 75, 79, 123, 47, 51, 128, 81, 171, 1},
-        { 57, 17, 5, 71, 102, 57, 53, 41, 49},
-        { 115, 21, 2, 10, 102, 255, 166, 23, 6},
-        { 38, 33, 13, 121, 57, 73, 26, 1, 85},
-        { 41, 10, 67, 138, 77, 110, 90, 47, 114},
-        { 101, 29, 16, 10, 85, 128, 101, 196, 26},
-        { 57, 18, 10, 102, 102, 213, 34, 20, 43},
-        { 117, 20, 15, 36, 163, 128, 68, 1, 26}
-    },
-    {
-        { 138, 31, 36, 171, 27, 166, 38, 44, 229},
-        { 67, 87, 58, 169, 82, 115, 26, 59, 179},
-        { 63, 59, 90, 180, 59, 166, 93, 73, 154},
-        { 40, 40, 21, 116, 143, 209, 34, 39, 175},
-        { 57, 46, 22, 24, 128, 1, 54, 17, 37},
-        { 47, 15, 16, 183, 34, 223, 49, 45, 183},
-        { 46, 17, 33, 183, 6, 98, 15, 32, 183},
-        { 65, 32, 73, 115, 28, 128, 23, 128, 205},
-        { 40, 3, 9, 115, 51, 192, 18, 6, 223},
-        { 87, 37, 9, 115, 59, 77, 64, 21, 47}
-    },
-    {
-        { 104, 55, 44, 218, 9, 54, 53, 130, 226},
-        { 64, 90, 70, 205, 40, 41, 23, 26, 57},
-        { 54, 57, 112, 184, 5, 41, 38, 166, 213},
-        { 30, 34, 26, 133, 152, 116, 10, 32, 134},
-        { 75, 32, 12, 51, 192, 255, 160, 43, 51},
-        { 39, 19, 53, 221, 26, 114, 32, 73, 255},
-        { 31, 9, 65, 234, 2, 15, 1, 118, 73},
-        { 88, 31, 35, 67, 102, 85, 55, 186, 85},
-        { 56, 21, 23, 111, 59, 205, 45, 37, 192},
-        { 55, 38, 70, 124, 73, 102, 1, 34, 98}
-    },
-    {
-        { 102, 61, 71, 37, 34, 53, 31, 243, 192},
-        { 69, 60, 71, 38, 73, 119, 28, 222, 37},
-        { 68, 45, 128, 34, 1, 47, 11, 245, 171},
-        { 62, 17, 19, 70, 146, 85, 55, 62, 70},
-        { 75, 15, 9, 9, 64, 255, 184, 119, 16},
-        { 37, 43, 37, 154, 100, 163, 85, 160, 1},
-        { 63, 9, 92, 136, 28, 64, 32, 201, 85},
-        { 86, 6, 28, 5, 64, 255, 25, 248, 1},
-        { 56, 8, 17, 132, 137, 255, 55, 116, 128},
-        { 58, 15, 20, 82, 135, 57, 26, 121, 40}
-    },
-    {
-        { 164, 50, 31, 137, 154, 133, 25, 35, 218},
-        { 51, 103, 44, 131, 131, 123, 31, 6, 158},
-        { 86, 40, 64, 135, 148, 224, 45, 183, 128},
-        { 22, 26, 17, 131, 240, 154, 14, 1, 209},
-        { 83, 12, 13, 54, 192, 255, 68, 47, 28},
-        { 45, 16, 21, 91, 64, 222, 7, 1, 197},
-        { 56, 21, 39, 155, 60, 138, 23, 102, 213},
-        { 85, 26, 85, 85, 128, 128, 32, 146, 171},
-        { 18, 11, 7, 63, 144, 171, 4, 4, 246},
-        { 35, 27, 10, 146, 174, 171, 12, 26, 128}
-    },
-    {
-        { 190, 80, 35, 99, 180, 80, 126, 54, 45},
-        { 85, 126, 47, 87, 176, 51, 41, 20, 32},
-        { 101, 75, 128, 139, 118, 146, 116, 128, 85},
-        { 56, 41, 15, 176, 236, 85, 37, 9, 62},
-        { 146, 36, 19, 30, 171, 255, 97, 27, 20},
-        { 71, 30, 17, 119, 118, 255, 17, 18, 138},
-        { 101, 38, 60, 138, 55, 70, 43, 26, 142},
-        { 138, 45, 61, 62, 219, 1, 81, 188, 64},
-        { 32, 41, 20, 117, 151, 142, 20, 21, 163},
-        { 112, 19, 12, 61, 195, 128, 48, 4, 24}
-    }
-};
+
 typedef enum
 {
     Level_AltQuant = 0,
@@ -273,17 +151,16 @@ struct context_VP8_s {
     object_surface_p	golden_ref_picture;
     object_surface_p	alt_ref_picture;
     object_surface_p	last_ref_picture;
- //   VP8_FRAME_TYPE	picture_coding_mode;
- 
-    int8_t	BaselineFilter[MAX_MB_SEGMENTS]; 
+    /* VP8_FRAME_TYPE	picture_coding_mode; */
+
+    int8_t      baseline_filter[MAX_MB_SEGMENTS];
 
     uint32_t	size_mb;        /* in macroblocks */
     uint32_t	slice_count;
 
-    uint32_t	FE_MB_segment_probs;
-    uint32_t	FE_MB_flags_probs;
+    /* uint32_t	FE_MB_segment_probs; */
+    /* uint32_t	FE_MB_flags_probs; */
     uint32_t	DCT_Base_Address_Offset;
-    //uint32_t	cmd_slice_params;
 
     uint32_t	operating_mode;
 
@@ -296,23 +173,25 @@ struct context_VP8_s {
     int8_t	q_index[MAX_MB_SEGMENTS];
 
     /* Registers */
+    /*
     uint32_t	reg_FE_PIC0;
     uint32_t	reg_FE_PIC1;
     uint32_t	reg_FE_PIC2;
-//    uint32_t	reg_BE_PIC0;
-//    uint32_t	reg_BE_PIC1;
-//    uint32_t	reg_BE_PIC2;
-//    uint32_t	reg_BE_BaseAdr1stPartPic;
+    uint32_t	reg_BE_PIC0;
+    uint32_t	reg_BE_PIC1;
+    uint32_t	reg_BE_PIC2;
+    uint32_t	reg_BE_BaseAdr1stPartPic;
+   */
 
     /* Split buffers */
-    int split_buffer_pending;
+    uint32_t split_buffer_pending;
 
-    int cmd_slice_params;
+    uint32_t cmd_slice_params;
 
     /* List of VASliceParameterBuffers */
     object_buffer_p	*slice_param_list;
-    int			 slice_param_list_size;
-    int			 slice_param_list_idx;
+    uint32_t	        slice_param_list_size;
+    uint32_t	        slice_param_list_idx;
 
 /*      VP8 features        */
     /* MB Flags Buffer */
@@ -354,8 +233,8 @@ struct context_VP8_s {
 
     /* CoLocated buffers - aka ParamMemInfo */
     struct psb_buffer_s *colocated_buffers;
-    int			 colocated_buffers_size;
-    int			 colocated_buffers_idx;
+    uint32_t		colocated_buffers_size;
+    uint32_t	        colocated_buffers_idx;
 };
 
 typedef struct context_VP8_s	*context_VP8_p;
@@ -364,73 +243,66 @@ typedef struct context_VP8_s	*context_VP8_p;
 
 #define SURFACE(id)	((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 
-inline psb_surface_stride_t get_opp_mode_stride(context_VP8_p ctx, const unsigned int uiStride)
-{
-	psb_surface_p		target_surface = ctx->obj_context->current_render_target->psb_surface;
-	psb_surface_stride_t	eOppModeStride = target_surface->stride_mode;
-	switch( uiStride )
-        {
-              case 4096:
-		 eOppModeStride = STRIDE_4096;
-                 break;
-	      case 2048:
-	         eOppModeStride = STRIDE_2048;
-                 break;
-	      case 1280:
-	         eOppModeStride = STRIDE_1280;
-		 break;
-              case 1920:
-	         eOppModeStride = STRIDE_1920;
-                 break;
-              case 1024:
-                 eOppModeStride = STRIDE_1024;
-		 break;
-              case 512:
-                 eOppModeStride = STRIDE_512;
-		 break;
-              case 352:
-                 eOppModeStride = STRIDE_352;
-                 break;
-	      default:
-                 eOppModeStride = STRIDE_UNDEFINED;	/* Assume Extended stride is used */
-		 break;
-        }
-     return eOppModeStride;
+static psb_surface_stride_t get_opp_mode_stride(context_VP8_p ctx, const unsigned int uiStride) {
+    psb_surface_p    target_surface = ctx->obj_context->current_render_target->psb_surface;
+    psb_surface_stride_t    eOppModeStride = target_surface->stride_mode;
+    switch (uiStride) {
+    case 4096:
+        eOppModeStride = STRIDE_4096;
+        break;
+    case 2048:
+	eOppModeStride = STRIDE_2048;
+        break;
+    case 1280:
+	eOppModeStride = STRIDE_1280;
+        break;
+    case 1920:
+        eOppModeStride = STRIDE_1920;
+        break;
+    case 1024:
+        eOppModeStride = STRIDE_1024;
+        break;
+    case 512:
+        eOppModeStride = STRIDE_512;
+        break;
+    case 352:
+        eOppModeStride = STRIDE_352;
+        break;
+    default:
+        eOppModeStride = STRIDE_UNDEFINED;/* Assume Extended stride is used */
+        break;
+    }
+
+    return eOppModeStride;
 }
 
-static int get_inloop_opmod(context_VP8_p ctx)
-{
-	ctx->obj_context->operating_mode = 0;
-	psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
-	//printf("target_surface->stride=%d\n",target_surface->stride);
-	psb_surface_stride_t eOppModeStride = get_opp_mode_stride(ctx,target_surface->stride);
+static int get_inloop_opmod(context_VP8_p ctx) {
+    ctx->obj_context->operating_mode = 0;
+    psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
+    psb_surface_stride_t eOppModeStride = get_opp_mode_stride(ctx,target_surface->stride);
 
-	if( eOppModeStride == STRIDE_UNDEFINED )
-	{
-		REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, USE_EXT_ROW_STRIDE, 1 );
-	}
-	else
-	{
-		REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, ROW_STRIDE,       eOppModeStride );
-	}
+    if (eOppModeStride == STRIDE_UNDEFINED) {
+        REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, USE_EXT_ROW_STRIDE, 1);
+    } else {
+        REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, ROW_STRIDE, eOppModeStride);
+    }
 
-	REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CHROMA_INTERLEAVED,       0);
-	return ctx->obj_context->operating_mode;
+    REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CHROMA_INTERLEAVED, 0);
+
+    return ctx->obj_context->operating_mode;
 }
 
 static void tng_VP8_QueryConfigAttributes(
     VAProfile profile,
     VAEntrypoint entrypoint,
     VAConfigAttrib *attrib_list,
-    int num_attribs)
-{
+    int num_attribs) {
     /* No VP8 specific attributes */
 }
 
 static VAStatus tng_VP8_ValidateConfig(
-    object_config_p obj_config)
-{
-    int i;
+    object_config_p obj_config) {
+    uint32_t i;
     /* Check all attributes */
     for (i = 0; i < obj_config->attrib_count; i++) {
         switch (obj_config->attrib_list[i].type) {
@@ -443,7 +315,6 @@ static VAStatus tng_VP8_ValidateConfig(
         }
     }
 
-
     return VA_STATUS_SUCCESS;
 }
 
@@ -451,9 +322,8 @@ static VAStatus tng_VP8_ValidateConfig(
 static void tng_VP8_DestroyContext(object_context_p obj_context);
 
 static VAStatus tng_VP8_CreateContext(
-       object_context_p obj_context,
-       object_config_p obj_config)
-{
+    object_context_p obj_context,
+    object_config_p obj_config) {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_VP8_p ctx;
 
@@ -464,6 +334,7 @@ static VAStatus tng_VP8_CreateContext(
         DEBUG_FAILURE;
         return vaStatus;
     }
+
     obj_context->format_data = (void *) ctx;
     ctx->obj_context = obj_context;
     ctx->pic_params  = NULL;
@@ -493,15 +364,15 @@ static VAStatus tng_VP8_CreateContext(
         return vaStatus;
     }
 
-    //ctx->cache_ref_offset = 72;
-    //ctx->cache_row_offset = 4;
+    /* ctx->cache_ref_offset = 72; */
+    /* ctx->cache_row_offset = 4; */
     ctx->cache_ref_offset = 144;
     ctx->cache_row_offset = 8;
 
     //uint32_t TotalMBs = ((obj_context->picture_width + 19) * obj_context->picture_height) / (16*16);
-    uint32_t TotalMBs = (((obj_context->picture_height + 15) >> 4) + 4) * ((obj_context->picture_width + 15) >> 4);
-    ctx->buffer_size = TotalMBs * 64;    // 64 bytes per MB 
-    ctx->segid_size = TotalMBs / 4;      // 2 bits per MB
+    uint32_t total_mbs = (((obj_context->picture_height + 15) >> 4) + 4) * ((obj_context->picture_width + 15) >> 4);
+    ctx->buffer_size = total_mbs * 64;    // 64 bytes per MB
+    ctx->segid_size = total_mbs / 4;      // 2 bits per MB
     //ctx->segid_size = (ctx->buffer_size + 0xfff) & ~0xfff;
     ctx->segid_size = (ctx->segid_size + 0xfff) & ~0xfff;
 
@@ -532,7 +403,7 @@ static VAStatus tng_VP8_CreateContext(
     }
 
     /* Create mem resource for PIC MB Flags .*/ 
-    /* one MB would take 2 bits to store Y2 flag and mb_skip_coeff flag, so size would be same as ui32segidsize*/
+    /* one MB would take 2 bits to store Y2 flag and mb_skip_coeff flag, so size would be same as ui32segidsize */
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = psb_buffer_create(obj_context->driver_data,
                                      ctx->segid_size,
@@ -541,7 +412,7 @@ static VAStatus tng_VP8_CreateContext(
         DEBUG_FAILURE;
     }
 
-    /*  calculate the size of prbability buffer size for both the partitions */
+    /* calculate the size of prbability buffer size for both the partitions */
     ctx->probability_data_1st_part_size = 1200;
     ctx->probability_data_2nd_part_size = 1200;
 
@@ -571,7 +442,7 @@ static VAStatus tng_VP8_CreateContext(
         DEBUG_FAILURE;
     }
 
-    /*  allocate Aux Line buffer.*/ 
+    /* allocate Aux Line buffer */
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = psb_buffer_create(obj_context->driver_data,
                                      AUX_LINE_BUFFER_SIZE,
@@ -596,10 +467,9 @@ static VAStatus tng_VP8_CreateContext(
 }
 
 static void tng_VP8_DestroyContext(
-    object_context_p obj_context)
-{
+    object_context_p obj_context) {
     INIT_CONTEXT_VP8
-    int i;
+    uint32_t i;
 
     psb_buffer_destroy(&ctx->cur_pic_buffer);
     psb_buffer_destroy(&ctx->buffer_1st_part);
@@ -638,8 +508,7 @@ static void tng_VP8_DestroyContext(
     obj_context->format_data = NULL;
 }
 
-static VAStatus tng__VP8_allocate_colocated_buffer(context_VP8_p ctx, object_surface_p obj_surface, uint32_t size)
-{
+static VAStatus tng__VP8_allocate_colocated_buffer(context_VP8_p ctx, object_surface_p obj_surface, uint32_t size) {
     psb_surface_p surface = obj_surface->psb_surface;
 
     if (!GET_SURFACE_INFO_colocated_index(surface)) {
@@ -665,27 +534,17 @@ static VAStatus tng__VP8_allocate_colocated_buffer(context_VP8_p ctx, object_sur
 
 #ifdef DEBUG_TRACE
 #define P(x)    psb__trace_message("PARAMS: " #x "\t= %08x (%d)\n", p->x, p->x)
-static void psb__VP8_trace_pic_params(VAPictureParameterBufferVP8 *p)
-{
-    P(CurrPic);
-    P(picture_width_in_mbs_minus1);
-    P(picture_height_in_mbs_minus1);
-    P(bit_depth_luma_minus8);
-    P(bit_depth_chroma_minus8);
-    P(num_ref_frames);
-    P(seq_fields);
-    P(num_slice_groups_minus1);
-    P(slice_group_map_type);
-    P(pic_init_qp_minus26);
-    P(chroma_qp_index_offset);
-    P(second_chroma_qp_index_offset);
-    P(pic_fields);
-    P(frame_num);
+static void psb__VP8_trace_pic_params(VAPictureParameterBufferVP8 *p) {
+    P(prob_skip_false);
+    P(prob_intra);
+    P(prob_last);
+    P(prob_gf);
+    P(num_of_partitions);
+    P(macroblock_offset);
 }
 #endif
 
-static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_p obj_buffer)
-{
+static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_p obj_buffer) {
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
     uint32_t reg_value;
     VAStatus vaStatus;
@@ -706,6 +565,7 @@ static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_
     if (ctx->pic_params) {
         free(ctx->pic_params);
     }
+
     ctx->pic_params = pic_params;
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
@@ -715,7 +575,7 @@ static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_
 #endif
 
     ctx->size_mb = ((ctx->pic_params->frame_width) * (ctx->pic_params->frame_height)) >> 8;
-    /* TODO : port DDK D3DDDIFMT_PICTUREPARAMSDATA ->  */
+    /* port DDK D3DDDIFMT_PICTUREPARAMSDATA ->  */
 /*
     SetCodedWidth (  ((PicParam.FrameWidth + 15) / 16) * 16 );
     SetCodedHeight(   ((PicParam.FrameHeight + 15) / 16) * 16 );
@@ -733,55 +593,46 @@ static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_
     /* If this is the first sighting of this frame we must allocate some storage for colocated parameters */
     uint32_t colocated_size = VP8_BYTES_PER_MB * (ctx->size_mb);
 
-       /*      Create co-located buffer.                                       */
+    /* Create co-located buffer */
     vaStatus = tng__VP8_allocate_colocated_buffer(ctx, ctx->obj_context->current_render_target, colocated_size);
     if (VA_STATUS_SUCCESS != vaStatus) {
         DEBUG_FAILURE;
         return vaStatus;
     }
 
-     /*ASYN_MODE would depend upon certain condition, VDEB module would be activated on the condition basis*/
+    /*ASYN_MODE would depend upon certain condition, VDEB module would be activated on the condition basis*/
     // uint32_t bdeblock = IMG_FALSE;
+    /* // move to vp8vld to calculate loop_filter_disable
     if((pic_params->pic_fields.bits.version == 0) || (pic_params->pic_fields.bits.version == 1))
     {
      //   bdeblock =  (pic_params->loop_filter_level > 0 )? IMG_TRUE : IMG_FALSE ;
           pic_params->pic_fields.bits.loop_filter_disable =  (pic_params->loop_filter_level[0] > 0 )? IMG_TRUE : IMG_FALSE ;
     }
+    */
 
     ctx->obj_context->operating_mode = get_inloop_opmod(ctx); /* port from ui32OperatingMode = mpDestFrame->GetInloopOpMode() */
     REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CHROMA_FORMAT, 1);
-    REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE, (pic_params->pic_fields.bits.loop_filter_disable == 1)? 0:1 );/* 0 = VDMC and VDEB active.  1 = VDEB pass-thru. */
+    REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE, (pic_params->pic_fields.bits.loop_filter_disable == 1)? 0:1);/* 0 = VDMC and VDEB active.  1 = VDEB pass-thru. */
     REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CODEC_MODE, VEC_MODE_VP8);
     REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CODEC_PROFILE, pic_params->pic_fields.bits.version);
 
-    if( pic_params->last_ref_frame != VA_INVALID_SURFACE )
-    {
+    if (pic_params->last_ref_frame != VA_INVALID_SURFACE) {
         ctx->last_ref_picture = SURFACE(pic_params->last_ref_frame);
-    }
-    else
-    {
+    } else {
         /* for mmu fault protection */
         ctx->last_ref_picture = ctx->obj_context->current_render_target;
     }
 
-    if( pic_params->golden_ref_frame != VA_INVALID_SURFACE )
-    {
+    if (pic_params->golden_ref_frame != VA_INVALID_SURFACE) {
         ctx->golden_ref_picture = SURFACE(pic_params->golden_ref_frame);
-
-    }
-    else
-    {
+    } else {
         /* for mmu fault protection */
         ctx->golden_ref_picture = ctx->obj_context->current_render_target;
     }
 
-    if( pic_params->alt_ref_frame != VA_INVALID_SURFACE )
-    {
+    if (pic_params->alt_ref_frame != VA_INVALID_SURFACE) {
         ctx->alt_ref_picture = SURFACE(pic_params->alt_ref_frame);
-
-    }
-    else
-    {
+    } else {
         /* for mmu fault protection */
         ctx->alt_ref_picture = ctx->obj_context->current_render_target;
     }
@@ -792,8 +643,7 @@ static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus tng__VP8_process_probility_param(context_VP8_p ctx, object_buffer_p obj_buffer)
-{
+static VAStatus tng__VP8_process_probility_param(context_VP8_p ctx, object_buffer_p obj_buffer) {
     ASSERT(obj_buffer->type == VAProbabilityBufferType);
     ASSERT(obj_buffer->num_elements == 1);
     ASSERT(obj_buffer->size == sizeof(VANodeProbabilityBufferVP8));
@@ -803,11 +653,11 @@ static VAStatus tng__VP8_process_probility_param(context_VP8_p ctx, object_buffe
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
-    /* Transfer ownership of VANodeProbabilityBufferVP8 data */
     if (ctx->probs_params) {
         free(ctx->probs_params);
     }
 
+    /* Transfer ownership of VANodeProbabilityBufferVP8 data */
     ctx->probs_params = (VAProbabilityDataBufferVP8 *) obj_buffer->buffer_data;
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
@@ -815,13 +665,12 @@ static VAStatus tng__VP8_process_probility_param(context_VP8_p ctx, object_buffe
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus psb__VP8_process_iq_matrix(context_VP8_p ctx, object_buffer_p obj_buffer)
-{
+static VAStatus psb__VP8_process_iq_matrix(context_VP8_p ctx, object_buffer_p obj_buffer) {
      ASSERT(obj_buffer->type == VAIQMatrixBufferType);
      ASSERT(obj_buffer->num_elements == 1);
      ASSERT(obj_buffer->size == sizeof(VAIQMatrixBufferVP8));
      if ((obj_buffer->num_elements != 1) ||
-        (obj_buffer->size != sizeof(VAIQMatrixBufferVP8))){
+        (obj_buffer->size != sizeof(VAIQMatrixBufferVP8))) {
 		return VA_STATUS_ERROR_UNKNOWN;
      }
 
@@ -841,26 +690,25 @@ static VAStatus psb__VP8_process_iq_matrix(context_VP8_p ctx, object_buffer_p ob
 /*
 * Adds a VASliceParameterBuffer to the list of slice params
 */
-static VAStatus tng__VP8_add_slice_param(context_VP8_p ctx, object_buffer_p obj_buffer)
-{
+static VAStatus tng__VP8_add_slice_param(context_VP8_p ctx, object_buffer_p obj_buffer) {
      ASSERT(obj_buffer->type == VASliceParameterBufferType);
      if (ctx->slice_param_list_idx >= ctx->slice_param_list_size) {
          void *new_list;
          ctx->slice_param_list_size +=8;
          new_list = realloc(ctx->slice_param_list,
                             sizeof(object_buffer_p) * ctx->slice_param_list_size);
-         if(NULL == new_list) {
+         if (NULL == new_list) {
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
          }
          ctx->slice_param_list = (object_buffer_p *) new_list;
      }
      ctx->slice_param_list[ctx->slice_param_list_idx] = obj_buffer;
      ctx->slice_param_list_idx++;
+
      return VA_STATUS_SUCCESS;
 }
 
-static void tng__VP8_write_kick(context_VP8_p ctx, VASliceParameterBufferBase *slice_param)
-{
+static void tng__VP8_write_kick(context_VP8_p ctx, VASliceParameterBufferBase *slice_param) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
     (void) slice_param; /* Unused for now */
@@ -868,9 +716,8 @@ static void tng__VP8_write_kick(context_VP8_p ctx, VASliceParameterBufferBase *s
     *cmdbuf->cmd_idx++ = CMD_COMPLETION;
 }
 
-/*    Set MSVDX Front end register     */
-static void tng__VP8_FE_state(context_VP8_p ctx)
-{
+/* Set MSVDX Front end register */
+static void tng__VP8_FE_state(context_VP8_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     CTRL_ALLOC_HEADER *cmd_header = (CTRL_ALLOC_HEADER *)psb_cmdbuf_alloc_space(cmdbuf, sizeof(CTRL_ALLOC_HEADER));
 
@@ -899,9 +746,8 @@ static void tng__VP8_FE_state(context_VP8_p ctx)
     ctx->cmd_header = cmd_header;
 }
 
-/* Programme the Alt output if there is a rotation*/
-static void tng__VP8_setup_alternative_frame(context_VP8_p ctx)
-{
+/* Programme the Alt output if there is a rotation */
+static void tng__VP8_setup_alternative_frame(context_VP8_p ctx) {
     uint32_t cmd;
     uint32_t alt_output_flag = 0;
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
@@ -915,7 +761,7 @@ static void tng__VP8_setup_alternative_frame(context_VP8_p ctx)
     }
 #endif
 
-    if(CONTEXT_ROTATE(ctx->obj_context)) {
+    if (CONTEXT_ROTATE(ctx->obj_context)) {
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
 
         psb_cmdbuf_rendec_write_address(cmdbuf, &rotate_surface->buf, rotate_surface->buf.buffer_ofs);
@@ -972,8 +818,7 @@ static void tng__VP8_set_operation_target(context_VP8_p ctx)
 }
 */
 
-static void tng__VP8_set_target_picture(context_VP8_p ctx)
-{
+static void tng__VP8_set_target_picture(context_VP8_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, LUMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES));
@@ -986,10 +831,9 @@ static void tng__VP8_set_target_picture(context_VP8_p ctx)
         tng__VP8_setup_alternative_frame(ctx);
 }
 
-/*    Set Reference pictures address    */
-static void tng__VP8_set_reference_picture(context_VP8_p ctx)
-{
-	/* Reference pictures base addresses */
+/* Set Reference pictures address */
+static void tng__VP8_set_reference_picture(context_VP8_p ctx) {
+    /* Reference pictures base addresses */
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p last_ref_surface = ctx->last_ref_picture->psb_surface;
     psb_surface_p golden_ref_surface = ctx->golden_ref_picture->psb_surface;
@@ -997,15 +841,15 @@ static void tng__VP8_set_reference_picture(context_VP8_p ctx)
 
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES));
 
-        /*write last refernce picture address*/ 
+    /* write last refernce picture address */
     psb_cmdbuf_rendec_write_address(cmdbuf, &last_ref_surface->buf, last_ref_surface->buf.buffer_ofs);
     psb_cmdbuf_rendec_write_address(cmdbuf, &last_ref_surface->buf, last_ref_surface->buf.buffer_ofs + last_ref_surface->chroma_offset);
 
-       /*write Golden refernce picture address*/ 
+    /* write Golden refernce picture address */
     psb_cmdbuf_rendec_write_address(cmdbuf, &golden_ref_surface->buf, golden_ref_surface->buf.buffer_ofs);
     psb_cmdbuf_rendec_write_address(cmdbuf, &golden_ref_surface->buf, golden_ref_surface->buf.buffer_ofs + golden_ref_surface->chroma_offset);
 
-       /*write Alternate refernce picture address*/
+    /* write Alternate refernce picture address */
     psb_cmdbuf_rendec_write_address(cmdbuf, &alt_ref_surface->buf, alt_ref_surface->buf.buffer_ofs);
     psb_cmdbuf_rendec_write_address(cmdbuf, &alt_ref_surface->buf, alt_ref_surface->buf.buffer_ofs + alt_ref_surface->chroma_offset);
 
@@ -1070,45 +914,40 @@ static void tng__VP8_set_picture_header_data(context_VP8_p ctx)
 }
 */
 
-static void tng__VP8_compile_baseline_filter_data(context_VP8_p ctx)
-{
+static void tng__VP8_compile_baseline_filter_data(context_VP8_p ctx) {
     uint32_t i;
 
-    for (i = 0; i < MAX_MB_SEGMENTS; i++)
-    {
-        ctx->BaselineFilter[i] = ctx->pic_params->loop_filter_level[i];
+    for (i = 0; i < MAX_MB_SEGMENTS; i++) {
+        ctx->baseline_filter[i] = ctx->pic_params->loop_filter_level[i];
     }
 }
 
-static void tng__VP8_compile_qindex_data(context_VP8_p ctx)
-{
+static void tng__VP8_compile_qindex_data(context_VP8_p ctx) {
     uint32_t i;
-    for (i = 0; i < MAX_MB_SEGMENTS; i++)
-    {
+    for (i = 0; i < MAX_MB_SEGMENTS; i++) {
 	ctx->q_index[i] = ctx->iq_params->quantization_index[i][0];
     }
 }
 
-static void tng__CMDS_registers_write(context_VP8_p ctx)
-{
+static void tng__CMDS_registers_write(context_VP8_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
 
-   // psb_cmdbuf_reg_start_block(cmdbuf, 0);
+    // psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
-    //psb_cmdbuf_reg_set(cmdbuf,  REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0), ctx->reg_FE_PIC0);
-   // psb_cmdbuf_reg_set(cmdbuf,  REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC1), ctx->reg_FE_PIC1);
-   // psb_cmdbuf_reg_set(cmdbuf,  REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2), ctx->reg_FE_PIC2);
+    // psb_cmdbuf_reg_set(cmdbuf,  REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0), ctx->reg_FE_PIC0);
+    // psb_cmdbuf_reg_set(cmdbuf,  REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC1), ctx->reg_FE_PIC1);
+    // psb_cmdbuf_reg_set(cmdbuf,  REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2), ctx->reg_FE_PIC2);
 
-   // psb_cmdbuf_reg_end_block(cmdbuf);
+    // psb_cmdbuf_reg_end_block(cmdbuf);
 
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE));
 
     /* DISPLAY_PICTURE_SIZE */
     //ctx->display_picture_size = 0;
     reg_value = 0;
-    REGIO_WRITE_FIELD_LITE( reg_value , MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_WIDTH, ((ctx->pic_params->frame_width) - 1)  );
-    REGIO_WRITE_FIELD_LITE( reg_value , MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_HEIGHT, ((ctx->pic_params->frame_height) - 1) );
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_WIDTH, (((ctx->pic_params->frame_width + 15 / 16) * 16) - 1));
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, DISPLAY_PICTURE_SIZE, DISPLAY_PICTURE_HEIGHT, (((ctx->pic_params->frame_height + 15 / 16) * 16) - 1));
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
    // psb_cmdbuf_rendec_end(cmdbuf);
 
@@ -1116,8 +955,8 @@ static void tng__CMDS_registers_write(context_VP8_p ctx)
     /* CODED_PICTURE_SIZE */
     //ctx->coded_picture_size = 0;
     reg_value = 0;
-    REGIO_WRITE_FIELD_LITE( reg_value , MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_WIDTH, ((ctx->pic_params->frame_width) - 1)  );
-    REGIO_WRITE_FIELD_LITE( reg_value , MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_HEIGHT, ((ctx->pic_params->frame_height) - 1) );
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_WIDTH, (((ctx->pic_params->frame_width + 15 / 16) * 16) - 1));
+    REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_CMDS, CODED_PICTURE_SIZE, CODED_PICTURE_HEIGHT, (((ctx->pic_params->frame_height + 15 / 16) * 16) - 1));
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 
     /* Set operating mode */
@@ -1125,27 +964,27 @@ static void tng__CMDS_registers_write(context_VP8_p ctx)
 
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    // VP8_LOOP_FILTER_CONTROL/ 
+    /* VP8_LOOP_FILTER_CONTROL */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VP8_LOOP_FILTER_CONTROL));
 
     reg_value = 0;
     REGIO_WRITE_FIELD_LITE( reg_value, MSVDX_CMDS,  VP8_LOOP_FILTER_CONTROL,  VP8_MODE_REF_LF_DELTA_ENABLED, ctx->pic_params->pic_fields.bits.loop_filter_adj_enable);
-    REGIO_WRITE_FIELD_LITE( reg_value, MSVDX_CMDS,  VP8_LOOP_FILTER_CONTROL,  VP8_MODE_REF_LF_DELTA_ENABLED, ctx->pic_params->pic_fields.bits.sharpness_level);
+    REGIO_WRITE_FIELD_LITE( reg_value, MSVDX_CMDS,  VP8_LOOP_FILTER_CONTROL,  VP8_SHARPNESS_LEVEL, ctx->pic_params->pic_fields.bits.sharpness_level);
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
     psb_cmdbuf_rendec_end(cmdbuf); 
 
-    // VP8_LOOP_FILTER_BASELINE_LEVEL
+    /* VP8_LOOP_FILTER_BASELINE_LEVEL */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VP8_LOOP_FILTER_BASELINE_LEVEL));
     reg_value = 0;
     tng__VP8_compile_baseline_filter_data(ctx);
-    REGIO_WRITE_FIELD( reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_BASELINE_LEVEL, VP8_LF_BASLINE3, ctx->BaselineFilter[3] );
-    REGIO_WRITE_FIELD( reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_BASELINE_LEVEL, VP8_LF_BASLINE2, ctx->BaselineFilter[2]);
-    REGIO_WRITE_FIELD( reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_BASELINE_LEVEL, VP8_LF_BASLINE1, ctx->BaselineFilter[1]);
-    REGIO_WRITE_FIELD( reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_BASELINE_LEVEL, VP8_LF_BASLINE0, ctx->BaselineFilter[0]);
+    REGIO_WRITE_FIELD( reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_BASELINE_LEVEL, VP8_LF_BASLINE3, ctx->baseline_filter[3] );
+    REGIO_WRITE_FIELD( reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_BASELINE_LEVEL, VP8_LF_BASLINE2, ctx->baseline_filter[2]);
+    REGIO_WRITE_FIELD( reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_BASELINE_LEVEL, VP8_LF_BASLINE1, ctx->baseline_filter[1]);
+    REGIO_WRITE_FIELD( reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_BASELINE_LEVEL, VP8_LF_BASLINE0, ctx->baseline_filter[0]);
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    // VP8_LOOP_FILTER_REFERENCE_DELTAS
+    /* VP8_LOOP_FILTER_REFERENCE_DELTAS */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VP8_LOOP_FILTER_REFERENCE_DELTAS));
     reg_value = 0;
     REGIO_WRITE_FIELD(reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_REFERENCE_DELTAS, VP8_REF_LF_DELTA3, ctx->pic_params->loop_filter_deltas_ref_frame[3]);
@@ -1155,7 +994,7 @@ static void tng__CMDS_registers_write(context_VP8_p ctx)
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
     psb_cmdbuf_rendec_end(cmdbuf);
 
-    // VP8_LOOP_FILTER_MODE_DELTAS
+    /* VP8_LOOP_FILTER_MODE_DELTAS */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VP8_LOOP_FILTER_MODE_DELTAS));
     reg_value = 0;
     REGIO_WRITE_FIELD( reg_value, MSVDX_CMDS, VP8_LOOP_FILTER_MODE_DELTAS, VP8_MODE_LF_DELTA3, ctx->pic_params->loop_filter_deltas_mode[3]);
@@ -1172,29 +1011,26 @@ static void tng__CMDS_registers_write(context_VP8_p ctx)
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
     psb_cmdbuf_rendec_end(cmdbuf); 
 
-    // TODO!!!!!!!!!!!!!!!
-//    psb_surface_p forward_ref_surface = ctx->forward_ref_picture->psb_surface;
-//    psb_surface_p golden_ref_surface = ctx->golden_ref_picture->psb_surface;
+    /* psb_surface_p forward_ref_surface = ctx->forward_ref_picture->psb_surface; */
+    /* psb_surface_p golden_ref_surface = ctx->golden_ref_picture->psb_surface; */
 
     /* rendec block */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, INTRA_BUFFER_BASE_ADDRESS));
-    //psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->MB_flags_buffer, ctx->MB_flags_buffer.buffer_ofs);
+    // psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->MB_flags_buffer, ctx->MB_flags_buffer.buffer_ofs);
     psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->intra_buffer, ctx->intra_buffer.buffer_ofs);
-//    psb_cmdbuf_rendec_write_address(cmdbuf, &forward_ref_surface->buf, forward_ref_surface->buf.buffer_ofs + forward_ref_surface->chroma_offset);
+    // psb_cmdbuf_rendec_write_address(cmdbuf, &forward_ref_surface->buf, forward_ref_surface->buf.buffer_ofs + forward_ref_surface->chroma_offset);
     psb_cmdbuf_rendec_end(cmdbuf);
 
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, AUX_LINE_BUFFER_BASE_ADDRESS));
     psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->aux_line_buffer, ctx->aux_line_buffer.buffer_ofs);
-//    psb_cmdbuf_rendec_write_address(cmdbuf, &golden_ref_surface->buf, golden_ref_surface->buf.buffer_ofs + golden_ref_surface->chroma_offset);   
+    // psb_cmdbuf_rendec_write_address(cmdbuf, &golden_ref_surface->buf, golden_ref_surface->buf.buffer_ofs + golden_ref_surface->chroma_offset);
     psb_cmdbuf_rendec_end(cmdbuf);
 
     tng__VP8_setup_alternative_frame(ctx);  /* port from CVldDecoder::ProgramOutputModeRegisters */
 }
 
-static void tng__VP8_set_slice_param(context_VP8_p ctx)
-{
+static void tng__VP8_set_slice_param(context_VP8_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-   // uint32_t cmd_slice_params;
 
     {
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, SLICE_PARAMS)  );
@@ -1217,20 +1053,18 @@ static void tng__VP8_set_slice_param(context_VP8_p ctx)
 	ctx->cmd_header->uiSliceFirstMbYX_uiPicLastMbYX = (slice_first_mb_xy << 16) | pic_last_mb_xy;
     }
 
-    /*if VP8 bitstream is multi-partitioned then convey all the info including buffer offest information for 2nd partiti     on to the firmware  */
-        ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->partition_size[0] + ((ctx->pic_params->pic_fields.bits.key_frame == 0) ? 10 : 3)) & VP8_BUFFOFFSET_MASK) ;
-        ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->num_of_partitions << VP8_PARTITIONSCOUNT_SHIFT) & VP8_PARTITIONSCOUNT_MASK) ; /*if the bistream is multistream*/
-        // not used in fw ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->frame_type << VP8_FRAMETYPE_SHIFT) & VP8_BUFFOFFSET_MASK) ;
+    /* if VP8 bitstream is multi-partitioned then convey all the info including buffer offest information for 2nd partition to the firmware  */
+    ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->partition_size[0] + ((ctx->pic_params->pic_fields.bits.key_frame == 0) ? 10 : 3)) & VP8_BUFFOFFSET_MASK) ;
+    ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->num_of_partitions << VP8_PARTITIONSCOUNT_SHIFT) & VP8_PARTITIONSCOUNT_MASK) ; /* if the bistream is multistream */
+    // not used in fw ctx->cmd_header->ui32Cmd_AdditionalParams |= ((ctx->pic_params->frame_type << VP8_FRAMETYPE_SHIFT) & VP8_BUFFOFFSET_MASK) ;
 }
 
-static void tng__VP8_FE_Registers_Write(context_VP8_p ctx)
-{
+static void tng__VP8_FE_Registers_Write(context_VP8_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
-    //uint32_t DCT_Base_Address = 0;
 
     {
-         // set entdec control to a valid codec before accessing SR
+        /* set entdec control to a valid codec before accessing SR */
         psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
 	psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_VEC, CR_VEC_ENTDEC_FE_CONTROL), RegEntdecFeControl);
@@ -1241,66 +1075,60 @@ static void tng__VP8_FE_Registers_Write(context_VP8_p ctx)
         psb_cmdbuf_reg_start_block(cmdbuf, 0);
         reg_value=0;
 
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0, VP8_FE_FRAME_TYPE,              (ctx->pic_params->pic_fields.bits.key_frame == 0)? 0 : 1 );
+        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0, VP8_FE_FRAME_TYPE, (ctx->pic_params->pic_fields.bits.key_frame == 0)? 0 : 1 );
         REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0, VP8_FE_UPDATE_SEGMENTATION_MAP, (ctx->pic_params->pic_fields.bits.update_mb_segmentation_map == 0 )? 0 : 1 );
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0, VP8_FE_NUM_PARTITION_MINUS1,     ctx->pic_params->num_of_partitions - 1);
+        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0, VP8_FE_NUM_PARTITION_MINUS1, ctx->pic_params->num_of_partitions - 1);
 
-       // SEGMENTATION ID CONTROL
-       if(ctx->pic_params->pic_fields.bits.segmentation_enabled)
-       {
-            if(ctx->pic_params->pic_fields.bits.update_segment_feature_data)
-            {
+       /* SEGMENTATION ID CONTROL */
+       if(ctx->pic_params->pic_fields.bits.segmentation_enabled) {
+            if(ctx->pic_params->pic_fields.bits.update_segment_feature_data) {
                 REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0, VP8_FE_SEG_ID_CTRL, 2); // current
-            }
-            else
-            {
+            } else {
                 REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0, VP8_FE_SEG_ID_CTRL, 1); // previous
             }
-        }
-        else
-        {
+       } else {
             REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0, VP8_FE_SEG_ID_CTRL, 0); // none
-        }
+       }
 
-	psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0), reg_value);
+       psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC0), reg_value);
 
-        reg_value=0;
-	REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC1, VP8_FE_PIC_HEIGHT_IN_MBS_LESS1,((ctx->pic_params->frame_height + 15 )>> 4) - 1);
-	REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC1, VP8_FE_PIC_WIDTH_IN_MBS_LESS1, ((ctx->pic_params->frame_width + 15) >> 4) - 1 );
-	psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC1), reg_value);
+       reg_value=0;
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC1, VP8_FE_PIC_HEIGHT_IN_MBS_LESS1,((ctx->pic_params->frame_height + 15 )>> 4) - 1);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC1, VP8_FE_PIC_WIDTH_IN_MBS_LESS1, ((ctx->pic_params->frame_width + 15) >> 4) - 1 );
+       psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC1), reg_value);
 
-        reg_value=0;
-        // Important for VP8_FE_DECODE_PRED_NOT_COEFFS. First partition always has macroblock level data. See PDF, p. 34.
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_DECODE_PRED_NOT_COEFFS, 1);
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_MB_NO_COEFF_SKIP, ctx->pic_params->pic_fields.bits.mb_no_coeff_skip);
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_SIGN_BIAS_FOR_GF, ctx->pic_params->pic_fields.bits.sign_bias_golden);
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_SIGN_BIAS_FOR_GF, ctx->pic_params->pic_fields.bits.sign_bias_alternate);
-        psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2), reg_value);
+       reg_value=0;
+       /* Important for VP8_FE_DECODE_PRED_NOT_COEFFS. First partition always has macroblock level data. See PDF, p. 34. */
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_DECODE_PRED_NOT_COEFFS, 1);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_MB_NO_COEFF_SKIP, ctx->pic_params->pic_fields.bits.mb_no_coeff_skip);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_SIGN_BIAS_FOR_GF, ctx->pic_params->pic_fields.bits.sign_bias_golden);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_SIGN_BIAS_FOR_GF, ctx->pic_params->pic_fields.bits.sign_bias_alternate);
+       psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2), reg_value);
 
-        reg_value=0;
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_SEGMENT_PROBS, VP8_FE_SEGMENT_ID_PROB0,  ctx->pic_params->mb_segment_tree_probs[0]);
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_SEGMENT_PROBS, VP8_FE_SEGMENT_ID_PROB1,  ctx->pic_params->mb_segment_tree_probs[1]);
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_SEGMENT_PROBS, VP8_FE_SEGMENT_ID_PROB2,  ctx->pic_params->mb_segment_tree_probs[2]);
-        psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_SEGMENT_PROBS), reg_value);
+       reg_value=0;
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_SEGMENT_PROBS, VP8_FE_SEGMENT_ID_PROB0, ctx->pic_params->mb_segment_tree_probs[0]);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_SEGMENT_PROBS, VP8_FE_SEGMENT_ID_PROB1, ctx->pic_params->mb_segment_tree_probs[1]);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_SEGMENT_PROBS, VP8_FE_SEGMENT_ID_PROB2, ctx->pic_params->mb_segment_tree_probs[2]);
+       psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_SEGMENT_PROBS), reg_value);
 
-        reg_value = 0;
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS,   VP8_FE_SKIP_PROB,               ctx->pic_params->prob_skip_false);
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS,   VP8_FE_INTRA_MB_PROB,           ctx->pic_params->prob_intra);
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS,   VP8_FE_LAST_FRAME_PROB,         ctx->pic_params->prob_last);
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS,   VP8_FE_GOLDEN_FRAME_PROB,       ctx->pic_params->prob_gf);
-        psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS), reg_value);
-	psb_cmdbuf_reg_end_block(cmdbuf);
-   }
+       reg_value = 0;
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS, VP8_FE_SKIP_PROB, ctx->pic_params->prob_skip_false);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS, VP8_FE_INTRA_MB_PROB, ctx->pic_params->prob_intra);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS, VP8_FE_LAST_FRAME_PROB, ctx->pic_params->prob_last);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS, VP8_FE_GOLDEN_FRAME_PROB, ctx->pic_params->prob_gf);
+       psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_VEC_VP8, CR_VEC_VP8_FE_MB_FLAGS_PROBS), reg_value);
+       psb_cmdbuf_reg_end_block(cmdbuf);
+    }
 
-   { 
+    {
         psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
 	psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
-	//psb_buffer_p* const ctx->MB_flags_buffer = ctx->MB_flags_buffer.buffer_ofs;
-        //unsigned int MB_flags_buffer_alloc = ctx->MB_flags_buffer.buffer_ofs;
+	/* psb_buffer_p* const ctx->MB_flags_buffer = ctx->MB_flags_buffer.buffer_ofs; */
+        /* unsigned int MB_flags_buffer_alloc = ctx->MB_flags_buffer.buffer_ofs; */
 
-	//psb_cmdbuf_reg_set(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC_MB_FLAGS_BASE_ADDRESS), 0);
+	// psb_cmdbuf_reg_set(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC_MB_FLAGS_BASE_ADDRESS), 0);
 	psb_cmdbuf_reg_set_address(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC_MB_FLAGS_BASE_ADDRESS), 
 			           &ctx->MB_flags_buffer, ctx->MB_flags_buffer.buffer_ofs);
 	psb_cmdbuf_reg_end_block(cmdbuf);
@@ -1310,28 +1138,27 @@ static void tng__VP8_FE_Registers_Write(context_VP8_p ctx)
         psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
         psb_cmdbuf_reg_start_block(cmdbuf, 0);
-	//psb_cmdbuf_reg_set(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_SEG_ID_BASE_ADDRESS),0);
+	// psb_cmdbuf_reg_set(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_SEG_ID_BASE_ADDRESS),0);
 	psb_cmdbuf_reg_set_address(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_SEG_ID_BASE_ADDRESS), &ctx->segID_buffer, ctx->segID_buffer.buffer_ofs);
 
 	psb_cmdbuf_reg_end_block(cmdbuf);
    }
 
    {
-       //add the first partition offset
-        psb_cmdbuf_reg_start_block(cmdbuf, 0);
+       /* add the first partition offset */
+       psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
-        ctx->DCT_Base_Address_Offset = (ctx->pic_params->partition_size[0]) + ((ctx->pic_params->pic_fields.bits.key_frame == 0) ? 10 : 3) + 3*(ctx->pic_params->num_of_partitions - 1) ;
-        /* REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_DCT_BASE_ADDRESS, VP8_FE_DCT_BASE_ADDRESS, ctx->DCT_Base_Address); */
-        psb_cmdbuf_reg_set_address(cmdbuf, REGISTER_OFFSET (MSVDX_VEC_VP8, CR_VEC_VP8_FE_DCT_BASE_ADDRESS),
-					ctx->slice_data_buffer, ctx->DCT_Base_Address_Offset);
+       ctx->DCT_Base_Address_Offset = (ctx->pic_params->partition_size[0]) + ((ctx->pic_params->pic_fields.bits.key_frame == 0) ? 10 : 3) + 3 * (ctx->pic_params->num_of_partitions - 1) ;
+       /* REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_DCT_BASE_ADDRESS, VP8_FE_DCT_BASE_ADDRESS, ctx->DCT_Base_Address); */
+       psb_cmdbuf_reg_set_address(cmdbuf, REGISTER_OFFSET (MSVDX_VEC_VP8, CR_VEC_VP8_FE_DCT_BASE_ADDRESS),
+				  ctx->slice_data_buffer, ctx->DCT_Base_Address_Offset);
 
-	psb_cmdbuf_reg_end_block(cmdbuf);
+       psb_cmdbuf_reg_end_block(cmdbuf);
    }
 
 }
 
-static void tng__VP8_BE_Registers_Write(context_VP8_p ctx)
-{
+static void tng__VP8_BE_Registers_Write(context_VP8_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
 
@@ -1345,70 +1172,70 @@ static void tng__VP8_BE_Registers_Write(context_VP8_p ctx)
     }
 
     {
-        // PIC0
+        /* PIC0 */
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC0));
         reg_value = 0;
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC0, VP8_BE_FRAME_TYPE, (ctx->pic_params->pic_fields.bits.key_frame == 0)? 0 : 1 );
+        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC0, VP8_BE_FRAME_TYPE, (ctx->pic_params->pic_fields.bits.key_frame == 0)? 0 : 1);
         psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 
-        // PIC1
-        //psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC1));
+        /* PIC1 */
+        // psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC1));
         reg_value = 0;
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC1, VP8_BE_PIC_HEIGHT_IN_MBS_LESS1, ((ctx->pic_params->frame_height + 15) >> 4) - 1 );
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC1, VP8_BE_PIC_WIDTH_IN_MBS_LESS1 , ((ctx->pic_params->frame_width + 15) >> 4) - 1 );
+        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC1, VP8_BE_PIC_HEIGHT_IN_MBS_LESS1, ((ctx->pic_params->frame_height + 15) >> 4) - 1);
+        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC1, VP8_BE_PIC_WIDTH_IN_MBS_LESS1, ((ctx->pic_params->frame_width + 15) >> 4) - 1);
         psb_cmdbuf_rendec_write(cmdbuf, reg_value);
-	psb_cmdbuf_rendec_end(cmdbuf);
+        psb_cmdbuf_rendec_end(cmdbuf);
     }
 
     {
-        // PIC2
+        /* PIC2 */
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC2));
         reg_value = 0;
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC2, VP8_BE_DECODE_PRED_NOT_COEFFS, 1 );
-//        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC2, VP8_BE_USE_STORED_SEGMENT_MAP, 1 );
+        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC2, VP8_BE_DECODE_PRED_NOT_COEFFS, 1);
+        // REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_PIC2, VP8_BE_USE_STORED_SEGMENT_MAP, 1);
         psb_cmdbuf_rendec_write(cmdbuf, reg_value);
-	psb_cmdbuf_rendec_end(cmdbuf);
+        psb_cmdbuf_rendec_end(cmdbuf);
     }
 
     {
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_QINDEXMAP));
         tng__VP8_compile_qindex_data(ctx);
-            // QINDEX MAP
+        /* QINDEX MAP */
         reg_value = 0;
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QINDEXMAP, VP8_BE_QINDEX_SEG0_DEFAULT, ctx->q_index[0] );
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QINDEXMAP, VP8_BE_QINDEX_SEG1        , ctx->q_index[1] );
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QINDEXMAP, VP8_BE_QINDEX_SEG2        , ctx->q_index[2] );
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QINDEXMAP, VP8_BE_QINDEX_SEG3        , ctx->q_index[3] );
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QINDEXMAP, VP8_BE_QINDEX_SEG0_DEFAULT, ctx->q_index[0]);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QINDEXMAP, VP8_BE_QINDEX_SEG1        , ctx->q_index[1]);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QINDEXMAP, VP8_BE_QINDEX_SEG2        , ctx->q_index[2]);
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QINDEXMAP, VP8_BE_QINDEX_SEG3        , ctx->q_index[3]);
         psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 	psb_cmdbuf_rendec_end(cmdbuf);
     }
 
     {
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS));
-            // QDELTAS - this was removed in msvdx_vec_vp8_regs.def in 1.11
+        /* QDELTAS - this was removed in msvdx_vec_vp8_regs.def in 1.11 */
         reg_value = 0;
         uint16_t Y1_DC_Delta;
         Y1_DC_Delta = ctx->iq_params->quantization_index[0][1] - ctx->iq_params->quantization_index[0][0];
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_YDC_DELTA  , Y1_DC_Delta );
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_YDC_DELTA, Y1_DC_Delta);
 
         uint16_t Y2_DC_Delta;
         Y2_DC_Delta  = ctx->iq_params->quantization_index[0][2] - ctx->iq_params->quantization_index[0][0];
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_Y2DC_DELTA , Y2_DC_Delta );
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_Y2DC_DELTA, Y2_DC_Delta);
 
         uint16_t Y2_AC_Delta;
         Y2_AC_Delta = ctx->iq_params->quantization_index[0][3] - ctx->iq_params->quantization_index[0][0];
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_Y2AC_DELTA , Y2_AC_Delta );
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_Y2AC_DELTA, Y2_AC_Delta);
 
        uint16_t UV_DC_Delta;
         UV_DC_Delta = ctx->iq_params->quantization_index[0][4] - ctx->iq_params->quantization_index[0][0];
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_UVDC_DELTA , UV_DC_Delta );
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_UVDC_DELTA, UV_DC_Delta);
 
         uint16_t UV_AC_Delta;
         UV_AC_Delta = ctx->iq_params->quantization_index[0][5] - ctx->iq_params->quantization_index[0][0];
-        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_UVAC_DELTA , UV_AC_Delta );
+        REGIO_WRITE_FIELD(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_BE_QDELTAS, VP8_BE_UVAC_DELTA, UV_AC_Delta);
 
-	psb_cmdbuf_rendec_write(cmdbuf, reg_value);
-	psb_cmdbuf_rendec_end(cmdbuf);
+        psb_cmdbuf_rendec_write(cmdbuf, reg_value);
+        psb_cmdbuf_rendec_end(cmdbuf);
     }
 #if 0
     {
@@ -1423,9 +1250,9 @@ static void tng__VP8_BE_Registers_Write(context_VP8_p ctx)
     {  
         psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
-        psb_cmdbuf_rendec_start(cmdbuf , RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_BASE_ADDR_1STPART_PIC));
+        psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_BASE_ADDR_1STPART_PIC));
 
-	//psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->buffer_1st_part, 0);
+	// psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->buffer_1st_part, 0);
         psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->buffer_1st_part, ctx->buffer_1st_part.buffer_ofs);
 
         psb_cmdbuf_rendec_end(cmdbuf);
@@ -1434,10 +1261,10 @@ static void tng__VP8_BE_Registers_Write(context_VP8_p ctx)
     {  
         psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
 
-        psb_cmdbuf_rendec_start(cmdbuf , RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_BASE_ADDR_CURR));
+        psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_BE_BASE_ADDR_CURR));
 
-//	psb_cmdbuf_rendec_write(cmdbuf, 0);
-//	psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->cur_pic_buffer, 0);
+        // psb_cmdbuf_rendec_write(cmdbuf, 0);
+        // psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->cur_pic_buffer, 0);
         psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->cur_pic_buffer, ctx->cur_pic_buffer.buffer_ofs);
 
         psb_cmdbuf_rendec_end(cmdbuf);
@@ -1448,66 +1275,63 @@ static void tng__VP8_BE_Registers_Write(context_VP8_p ctx)
 /***********************************************************************************
 * Description        : Set Bool coder context which has been conveyed from application.
 ************************************************************************************/
-static void tng__VP8_set_bool_coder_context(context_VP8_p ctx)
-{
-	psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-	uint32_t bool_init = 0;
-	uint32_t bool_ctrl = 0;
-	uint32_t reg_value = 0;
-     {
-          /* Entdec Front-End controls*/
-         psb_cmdbuf_reg_start_block(cmdbuf, 0);
+static void tng__VP8_set_bool_coder_context(context_VP8_p ctx) {
+    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
+    uint32_t bool_init = 0;
+    uint32_t bool_ctrl = 0;
+    uint32_t reg_value = 0;
+    {
+        /* Entdec Front-End controls*/
+        psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
-         REGIO_WRITE_FIELD_LITE (bool_init,  MSVDX_VEC,  CR_VEC_BOOL_INIT,  BOOL_INIT_RANGE,   ctx->pic_params->bool_coder_ctx.range);
-         REGIO_WRITE_FIELD_LITE (bool_init,  MSVDX_VEC,  CR_VEC_BOOL_INIT,  BOOL_INIT_VALUE,  (ctx->pic_params->bool_coder_ctx.value >> 24)&0xff );  // Set only MSB of value param of bool context
-         psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_VEC, CR_VEC_BOOL_INIT), bool_init);
+        REGIO_WRITE_FIELD_LITE (bool_init, MSVDX_VEC, CR_VEC_BOOL_INIT, BOOL_INIT_RANGE, ctx->pic_params->bool_coder_ctx.range);
+        REGIO_WRITE_FIELD_LITE (bool_init, MSVDX_VEC, CR_VEC_BOOL_INIT, BOOL_INIT_VALUE, (ctx->pic_params->bool_coder_ctx.value >> 24) & 0xff);  /* Set only MSB of value param of bool context */
+        psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_BOOL_INIT), bool_init);
 
-	 psb_cmdbuf_reg_end_block(cmdbuf);
-     }
+        psb_cmdbuf_reg_end_block(cmdbuf);
+    }
 
-     {
-         psb_cmdbuf_reg_start_block(cmdbuf, 0);
+    {
+        psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
-         REGIO_WRITE_FIELD_LITE (bool_ctrl,  MSVDX_VEC,  CR_VEC_BOOL_CTRL,  BOOL_MASTER_SELECT, 0x02);
-         psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET (MSVDX_VEC, CR_VEC_BOOL_CTRL), bool_ctrl);
+        REGIO_WRITE_FIELD_LITE(bool_ctrl, MSVDX_VEC, CR_VEC_BOOL_CTRL, BOOL_MASTER_SELECT, 0x02);
+        psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_BOOL_CTRL), bool_ctrl);
 
-	 psb_cmdbuf_reg_end_block(cmdbuf);
-     }
+        psb_cmdbuf_reg_end_block(cmdbuf);
+    }
 
+    {
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, MC_CACHE_CONFIGURATION));
         REGIO_WRITE_FIELD_LITE( reg_value, MSVDX_CMDS, MC_CACHE_CONFIGURATION, CONFIG_REF_OFFSET, ctx->cache_ref_offset);
         REGIO_WRITE_FIELD_LITE( reg_value, MSVDX_CMDS, MC_CACHE_CONFIGURATION, CONFIG_ROW_OFFSET, ctx->cache_row_offset);
         psb_cmdbuf_rendec_write(cmdbuf, reg_value);
         psb_cmdbuf_rendec_end(cmdbuf);
+    }
 }
 
 /***********************************************************************************
 * Description        : Write probability data in buffer according to MSVDX setting.
 ************************************************************************************/
-static void tng_KeyFrame_BModeProbsDataCompile(Probability* ui8_probs_to_write, uint32_t* ui32_probs_buffer)
-{
+static void tng_KeyFrame_BModeProbsDataCompile(Probability* ui8_probs_to_write, uint32_t* ui32_probs_buffer) {
     uint32_t dim0, dim1;
     uint32_t i, j, address;
     uint32_t src_tab_offset = 0;
 
     address = 0;
 
-    for(dim1 = 0; dim1 < 10; dim1++)
-    {
-        for(dim0 = 0; dim0 < 10; dim0++)
-        {   
+    for(dim1 = 0; dim1 < 10; dim1++) {
+        for(dim0 = 0; dim0 < 10; dim0++) { 
             j =0;
-            for (i =0 ; i < CABAC_LSR_KeyFrame_BModeProb_Stride ; i += 4)
-            {
+            for (i =0 ; i < CABAC_LSR_KeyFrame_BModeProb_Stride ; i += 4) {
                 *(ui32_probs_buffer+ address +  j++ ) =
                   (uint32_t)ui8_probs_to_write[CABAC_LSR_KeyFrame_BModeProb_ToIdxMap[i] + src_tab_offset  ]
                 | (uint32_t)ui8_probs_to_write[CABAC_LSR_KeyFrame_BModeProb_ToIdxMap[i+1] + src_tab_offset ] << 8
                 | (uint32_t)ui8_probs_to_write[CABAC_LSR_KeyFrame_BModeProb_ToIdxMap[i+2] + src_tab_offset ] << 16
                 | (uint32_t)ui8_probs_to_write[CABAC_LSR_KeyFrame_BModeProb_ToIdxMap[i+3] + src_tab_offset ] << 24;            
             }
-            //increment the address by the stride
+            /* increment the address by the stride */
             address +=  (CABAC_LSR_KeyFrame_BModeProb_Stride >> 2);
-            //increment source table offset
+            /* increment source table offset */
             src_tab_offset += CABAC_LSR_KeyFrame_BModeProb_Valid;
         }
     }
@@ -1516,8 +1340,7 @@ static void tng_KeyFrame_BModeProbsDataCompile(Probability* ui8_probs_to_write, 
 /***********************************************************************************
 * Description        : Write probability data in buffer according to MSVDX setting.
 ************************************************************************************/
-static void tng_InterFrame_YModeProbsDataCompile(Probability* ui8_probs_to_write, uint32_t* ui32_probs_buffer)
-{
+static void tng_InterFrame_YModeProbsDataCompile(Probability* ui8_probs_to_write, uint32_t* ui32_probs_buffer) {
     *(ui32_probs_buffer) =      (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_YModeProb_ToIdxMap[0]]
                             |   (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_YModeProb_ToIdxMap[1]] << 8
                             |   (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_YModeProb_ToIdxMap[2]] << 16
@@ -1527,8 +1350,7 @@ static void tng_InterFrame_YModeProbsDataCompile(Probability* ui8_probs_to_write
 /***********************************************************************************
 * Description        : Write probability data in buffer according to MSVDX setting.
 ************************************************************************************/
-static void tng_InterFrame_UVModeProbsDataCompile(Probability* ui8_probs_to_write, uint32_t* ui32_probs_buffer)
-{
+static void tng_InterFrame_UVModeProbsDataCompile(Probability* ui8_probs_to_write, uint32_t* ui32_probs_buffer) {
     *(ui32_probs_buffer) =      (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_UVModeProb_ToIdxMap[0]]
                             |   (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_UVModeProb_ToIdxMap[1]] << 8
                             |   (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_UVModeProb_ToIdxMap[2]] << 16;
@@ -1537,62 +1359,54 @@ static void tng_InterFrame_UVModeProbsDataCompile(Probability* ui8_probs_to_writ
 /***********************************************************************************
 * Description        : Write probability data in buffer according to MSVDX setting.
 ************************************************************************************/
-static void tng_InterFrame_MVContextProbsDataCompile(uint8_t* ui8_probs_to_write, uint32_t* ui32_probs_buffer)
-{
+static void tng_InterFrame_MVContextProbsDataCompile(uint8_t* ui8_probs_to_write, uint32_t* ui32_probs_buffer) {
     uint32_t dim0;
     uint32_t i, j, address;
     uint32_t src_tab_offset = 0;
 
     address = 0;
 
-    for(dim0 = 0; dim0 < 2; dim0++)
-    {   
-        j   =   0;
-        for (i =0 ; i < CABAC_LSR_InterFrame_MVContextProb_Stride ; i += 4)
-        {
+    for(dim0 = 0; dim0 < 2; dim0++) { 
+        j = 0;
+        for (i =0 ; i < CABAC_LSR_InterFrame_MVContextProb_Stride ; i += 4) {
                 *(ui32_probs_buffer+ address +  j++ ) =
                   (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_MVContextProb_ToIdxMap[i] + src_tab_offset  ]
                 | (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_MVContextProb_ToIdxMap[i+1] + src_tab_offset ] << 8
                 | (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_MVContextProb_ToIdxMap[i+2] + src_tab_offset ] << 16
                 | (uint32_t)ui8_probs_to_write[CABAC_LSR_InterFrame_MVContextProb_ToIdxMap[i+3] + src_tab_offset ] << 24;  
         }
-            //increment the address by the stride
-            address +=  (CABAC_LSR_InterFrame_MVContextProb_Stride >> 2);
-            //increment source table offset
-            src_tab_offset += CABAC_LSR_InterFrame_MVContextProb_Valid;
+        /* increment the address by the stride */
+        address += (CABAC_LSR_InterFrame_MVContextProb_Stride >> 2);
+        /* increment source table offset */
+        src_tab_offset += CABAC_LSR_InterFrame_MVContextProb_Valid;
     }
 }
 
 /***********************************************************************************
 * Description        : Write probability data in buffer according to MSVDX setting.
 ************************************************************************************/
-static void tng_DCT_Coefficient_ProbsDataCompile(Probability* ui8_probs_to_write, uint32_t* ui32_probs_buffer)
-{
+static void tng_DCT_Coefficient_ProbsDataCompile(Probability* ui8_probs_to_write, uint32_t* ui32_probs_buffer) {
     uint32_t dim0, dim1, dim2;
     uint32_t i, j, address;
     uint32_t src_tab_offset = 0;
 
     address = 0;
 
-    for(dim2 = 0; dim2 < 4; dim2++)
-    {
-        for(dim1 = 0; dim1 < 8; dim1++)
-        {
-            for(dim0 = 0; dim0 < 3; dim0++)
-            {   
+    for(dim2 = 0; dim2 < 4; dim2++) {
+        for(dim1 = 0; dim1 < 8; dim1++) {
+            for(dim0 = 0; dim0 < 3; dim0++) { 
                 j =0;
-                for (i =0 ; i < CABAC_LSR_CoefficientProb_Stride ; i += 4)
-                {
-                  *(ui32_probs_buffer + address + j++ ) =
-                      (uint32_t)ui8_probs_to_write[CABAC_LSR_CoefficientProb_ToIdxMap[i] + src_tab_offset  ]
-                    | (uint32_t)ui8_probs_to_write[CABAC_LSR_CoefficientProb_ToIdxMap[i+1] + src_tab_offset ] << 8
-                    | (uint32_t)ui8_probs_to_write[CABAC_LSR_CoefficientProb_ToIdxMap[i+2] + src_tab_offset ] << 16
-                    | (uint32_t)ui8_probs_to_write[CABAC_LSR_CoefficientProb_ToIdxMap[i+3] + src_tab_offset ] << 24;
+                for (i =0 ; i < CABAC_LSR_CoefficientProb_Stride ; i += 4) {
+                    *(ui32_probs_buffer + address + j++ ) =
+                          (uint32_t)ui8_probs_to_write[CABAC_LSR_CoefficientProb_ToIdxMap[i] + src_tab_offset]
+                        | (uint32_t)ui8_probs_to_write[CABAC_LSR_CoefficientProb_ToIdxMap[i+1] + src_tab_offset] << 8
+                        | (uint32_t)ui8_probs_to_write[CABAC_LSR_CoefficientProb_ToIdxMap[i+2] + src_tab_offset] << 16
+                        | (uint32_t)ui8_probs_to_write[CABAC_LSR_CoefficientProb_ToIdxMap[i+3] + src_tab_offset] << 24;
                     
                 }
-                //increment the address by the stride
+                /* increment the address by the stride */
                 address +=  (CABAC_LSR_CoefficientProb_Stride >> 2);
-                //increment source table offset
+                /* increment source table offset */
                 src_tab_offset += CABAC_LSR_CoefficientProb_Valid;
             }
         }
@@ -1602,27 +1416,23 @@ static void tng_DCT_Coefficient_ProbsDataCompile(Probability* ui8_probs_to_write
 /***********************************************************************************
 * Description        : programme the DMA to send probability data.
 ************************************************************************************/
-static void tng__VP8_set_probility_reg(context_VP8_p ctx)
-{
+static void tng__VP8_set_probility_reg(context_VP8_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t *probs_buffer_1stPart , *probs_buffer_2ndPart;
-//    uint32_t* probs_table_1stbuffer = NULL;
+    //uint32_t* probs_table_1stbuffer = NULL;
 
-    /* First write the data for the first partition*/
-    /*Write the probability data in the probability data buffer*/
+    /* First write the data for the first partition */
+    /* Write the probability data in the probability data buffer */
     psb_buffer_map(&ctx->probability_data_1st_part, (void **)&probs_buffer_1stPart);
     if(NULL == probs_buffer_1stPart) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng__VP8_set_probility_reg: map buffer fail\n");
         return;
-     }
+    }
     {
         memset(probs_buffer_1stPart, 0, sizeof(ctx->probability_data_1st_part));
-        if(ctx->pic_params->pic_fields.bits.key_frame == 0)
-        {
+        if(ctx->pic_params->pic_fields.bits.key_frame == 0) {
             tng_KeyFrame_BModeProbsDataCompile(b_mode_prob, probs_buffer_1stPart);
-        }
-        else
-        {
+        } else {
             tng_InterFrame_YModeProbsDataCompile(ctx->pic_params->y_mode_probs, probs_buffer_1stPart);
 
             probs_buffer_1stPart += ( CABAC_LSR_InterFrame_UVModeProb_Address >> 2);
@@ -1634,33 +1444,32 @@ static void tng__VP8_set_probility_reg(context_VP8_p ctx)
 
         psb_buffer_unmap(&ctx->probability_data_1st_part);
         psb_cmdbuf_dma_write_cmdbuf(cmdbuf, &ctx->probability_data_1st_part, 0,
-                                  ctx->probability_data_1st_part_size, 0,
-                                  DMA_TYPE_PROBABILITY_DATA);
+                                    ctx->probability_data_1st_part_size, 0,
+                                    DMA_TYPE_PROBABILITY_DATA);
     }
     
-     /* Write the probability data for the second partition and create a linked list*/ 
+    /* Write the probability data for the second partition and create a linked list */ 
     psb_buffer_map(&ctx->probability_data_2nd_part, (void **) &probs_buffer_2ndPart);
     if(NULL == probs_buffer_2ndPart) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng__VP8_set_probility_reg: map buffer fail\n");
         return;
-     }
+    }
 
     {
         memset(probs_buffer_2ndPart, 0, sizeof(ctx->probability_data_2nd_part));
-        // for any other partition
+        /* for any other partition */
         tng_DCT_Coefficient_ProbsDataCompile(ctx->probs_params->dct_coeff_probs, probs_buffer_2ndPart);
 
         psb_buffer_unmap(&ctx->probability_data_2nd_part);
 	/* Set ui32ExternStateBuffAddr to addr of probability_data_2nd_part in tng__VP8_FE_state() */
 
-   }
+    }
 }
 
-//TODO port CVldDecoder::ProcessVLDSlice
+/* TODO port CVldDecoder::ProcessVLDSlice */
 static VAStatus tng__VP8_process_slice(context_VP8_p ctx,
                                       VASliceParameterBufferBase *slice_param,
-                                      object_buffer_p obj_buffer)
-{
+                                      object_buffer_p obj_buffer) {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
@@ -1682,13 +1491,13 @@ static VAStatus tng__VP8_process_slice(context_VP8_p ctx,
         tng__VP8_FE_state(ctx);
 
         psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
-                                         ctx->pic_params->macroblock_offset,
-                                         0);
+                                       obj_buffer->psb_buffer,
+                                       obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
+                                       slice_param->slice_data_size,
+                                       ctx->pic_params->macroblock_offset,
+                                       0);
 
-	ctx->slice_data_buffer = obj_buffer->psb_buffer;
+        ctx->slice_data_buffer = obj_buffer->psb_buffer;
 
         if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) {
             ctx->split_buffer_pending = TRUE;
@@ -1710,33 +1519,31 @@ static VAStatus tng__VP8_process_slice(context_VP8_p ctx,
             ASSERT(ctx->split_buffer_pending);
         }
 
-
-    //TODO port DDK CVP8VldDecoder::ProcessSlice here
+        /* TODO port DDK CVP8VldDecoder::ProcessSlice here */
         tng__CMDS_registers_write(ctx);
 
-        // Fill VP8 specific MSVDX FE registers (note: the behavior changes between partitions)
+        /* Fill VP8 specific MSVDX FE registers (note: the behavior changes between partitions) */
         tng__VP8_FE_Registers_Write(ctx);
 
-        // Fill VP8 BE registers
+        /* Fill VP8 BE registers */
         tng__VP8_BE_Registers_Write(ctx);
 
         tng__VP8_set_slice_param(ctx);
 
-        // Write  Probability registers
-        tng__VP8_set_probility_reg(ctx);//note
+        /* Write  Probability registers */
+        tng__VP8_set_probility_reg(ctx);
 
         tng__VP8_set_target_picture(ctx);
 
         tng__VP8_set_reference_picture(ctx);
 
-        tng__VP8_set_bool_coder_context(ctx); //note
+        tng__VP8_set_bool_coder_context(ctx);
 
-        //tng__VP8_set_decode_slice_reg(ctx);
+        /* tng__VP8_set_decode_slice_reg(ctx);*/
 
         tng__VP8_write_kick(ctx, slice_param);
 
-
-	ctx->split_buffer_pending = FALSE;
+        ctx->split_buffer_pending = FALSE;
         ctx->obj_context->video_op = psb_video_vld;
         ctx->obj_context->flags = 0;
 
@@ -1749,15 +1556,15 @@ static VAStatus tng__VP8_process_slice(context_VP8_p ctx,
 
         ctx->slice_count++;
     }
+
     return vaStatus;
 }
 
-static VAStatus tng__VP8_process_slice_data(context_VP8_p ctx, object_buffer_p obj_buffer)
-{
+static VAStatus tng__VP8_process_slice_data(context_VP8_p ctx, object_buffer_p obj_buffer) {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VASliceParameterBufferBase *slice_param;
-    int buffer_idx = 0;
-    int element_idx = 0;
+    uint32_t buffer_idx = 0;
+    uint32_t element_idx = 0;
 
     ASSERT((obj_buffer->type == VASliceDataBufferType) || (obj_buffer->type == VAProtectedSliceDataBufferType));
 
@@ -1792,6 +1599,7 @@ static VAStatus tng__VP8_process_slice_data(context_VP8_p ctx, object_buffer_p o
             break;
         }
     }
+
     ctx->slice_param_list_idx = 0;
 
     return vaStatus;
@@ -1799,8 +1607,7 @@ static VAStatus tng__VP8_process_slice_data(context_VP8_p ctx, object_buffer_p o
 
 
 static VAStatus tng_VP8_BeginPicture(
-    object_context_p obj_context)
-{
+    object_context_p obj_context) {
     INIT_CONTEXT_VP8
 
     if (ctx->pic_params) {
@@ -1817,7 +1624,7 @@ static VAStatus tng_VP8_BeginPicture(
 	    free(ctx->iq_params);
 	    ctx->iq_params = NULL;
     }
-   // ctx->table_stats[VP8_VLC_NUM_TABLES-1].size = 16;
+    /* ctx->table_stats[VP8_VLC_NUM_TABLES-1].size = 16; */
     ctx->slice_count = 0;
 
     return VA_STATUS_SUCCESS;
@@ -1826,8 +1633,7 @@ static VAStatus tng_VP8_BeginPicture(
 static VAStatus tng_VP8_RenderPicture(
     object_context_p obj_context,
     object_buffer_p *buffers,
-    int num_buffers)
-{
+    int num_buffers) {
     int i;
     INIT_CONTEXT_VP8
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -1880,8 +1686,7 @@ static VAStatus tng_VP8_RenderPicture(
 }
 
 static VAStatus tng_VP8_EndPicture(
-    object_context_p obj_context)
-{
+    object_context_p obj_context) {
     INIT_CONTEXT_VP8
 
     if (psb_context_flush_cmdbuf(ctx->obj_context)) {
@@ -1902,6 +1707,7 @@ static VAStatus tng_VP8_EndPicture(
 	free(ctx->iq_params);
 	ctx->iq_params = NULL;
     }
+
     return VA_STATUS_SUCCESS;
 }
 

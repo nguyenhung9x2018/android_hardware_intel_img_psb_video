@@ -1,26 +1,27 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-/*
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
  * Authors:
  *    Edward Lin <edward.lin@intel.com>
  *
@@ -34,8 +35,8 @@
 #include "hwdefs/topazhp_multicore_regs.h"
 #include "hwdefs/topazhp_multicore_regs_old.h"
 #include "psb_drv_video.h"
-#include "ptg_cmdbuf.h"
-#include "ptg_hostbias.h"
+#include "tng_cmdbuf.h"
+#include "tng_hostbias.h"
 #include "psb_drv_debug.h"
 
 #define UNINIT_PARAM 0xCDCDCDCD
@@ -139,7 +140,7 @@ static IMG_INT16 H264_InterIntraBias[27] = {
     1600, 1800, 2000
 };
 
-static IMG_INT16 ptg__H264ES_inter_bias(IMG_INT8 i8QP)
+static IMG_INT16 tng__H264ES_inter_bias(IMG_INT8 i8QP)
 {
     if (i8QP < 1) {
         i8QP = 1;
@@ -206,7 +207,7 @@ CalculateDCScaler(IMG_INT iQP, IMG_BOOL bChroma)
 *
 ***************************************************************************************************/
 void
-ptg__MPEG4ES_generate_bias_tables(
+tng__MPEG4ES_generate_bias_tables(
 	context_ENC_p ctx)
 {
     IMG_INT16 n;
@@ -275,7 +276,7 @@ ptg__MPEG4ES_generate_bias_tables(
 *
 ***************************************************************************************************/
 void
-ptg__H263ES_generate_bias_tables(
+tng__H263ES_generate_bias_tables(
 	context_ENC_p ctx)
 {
     IMG_INT16 n;
@@ -343,7 +344,7 @@ ptg__H263ES_generate_bias_tables(
 * Description:  Generate the bias tables for H.264
 *
 ***************************************************************************************************/
-static void ptg__H264ES_generate_bias_tables(context_ENC_p ctx)
+static void tng__H264ES_generate_bias_tables(context_ENC_p ctx)
 {
     IMG_INT32 n;
     IMG_UINT32 ui32RegVal;
@@ -390,7 +391,7 @@ static void ptg__H264ES_generate_bias_tables(context_ENC_p ctx)
         if (qp > 51) qp = 51;
 
         if (psBiasParams->bRCEnable || psBiasParams->bRCBiases) {
-            iInterMBBias_P  = ptg__H264ES_inter_bias(qp);
+            iInterMBBias_P  = tng__H264ES_inter_bias(qp);
             uDirectVecBias_P  = H264_DIRECT_BIAS[n/2];
 
             iInterMBBias_B  = iInterMBBias_P;
@@ -464,19 +465,19 @@ static void ptg__H264ES_generate_bias_tables(context_ENC_p ctx)
 * Description:  Generate the bias tables
 *
 ***************************************************************************************************/
-VAStatus ptg__generate_bias(context_ENC_p ctx)
+VAStatus tng__generate_bias(context_ENC_p ctx)
 {
     assert(ctx);
 
     switch (ctx->eStandard) {
         case IMG_STANDARD_H264:
-            ptg__H264ES_generate_bias_tables(ctx);
+            tng__H264ES_generate_bias_tables(ctx);
             break;
         case IMG_STANDARD_H263:
-            ptg__H263ES_generate_bias_tables(ctx);
+            tng__H263ES_generate_bias_tables(ctx);
             break;
         case IMG_STANDARD_MPEG4:
-	    ptg__MPEG4ES_generate_bias_tables(ctx);
+	    tng__MPEG4ES_generate_bias_tables(ctx);
 	    break;
 /*
         case IMG_STANDARD_MPEG2:
@@ -506,14 +507,14 @@ static IMG_INT H263_LAMBDA_COEFFS[3] = {
 	0, 333, 716
 };
 
-static void ptg__H263ES_load_bias_tables(
+static void tng__H263ES_load_bias_tables(
     context_ENC_p ctx,
     IMG_FRAME_TYPE eFrameType)
 {
     IMG_INT32 n;
     IMG_UINT32 ui32Pipe,ui32RegVal;
     IMG_UINT32 count = 0, cmd_word = 0;
-    ptg_cmdbuf_p cmdbuf = ctx->obj_context->ptg_cmdbuf;
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     IMG_BIAS_TABLES* psBiasTables = &(ctx->sBiasTables);
     IMG_UINT32 *pCount;
 
@@ -526,50 +527,50 @@ static void ptg__H263ES_load_bias_tables(
     ctx->ui32CoreRev = 0x00030401;
 
     for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
-        ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SEQUENCER_CONFIG, 0, psBiasTables->ui32SeqConfigInit);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SEQUENCER_CONFIG, 0, psBiasTables->ui32SeqConfigInit);
 
     if (ctx->ui32CoreRev <= MAX_32_REV)
     {
 	for(n=31;n>=1;n--)
 	{
 	    //FIXME: Zhaohan, missing register TOPAZHP_TOP_CR_LAMBDA_DC_TABLE
-	    //ptg_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_LAMBDA_DC_TABLE, 0, psBiasTables->aui32LambdaBias[n]);
+	    //tng_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_LAMBDA_DC_TABLE, 0, psBiasTables->aui32LambdaBias[n]);
 	}
     } else {
 	ui32RegVal = (((H263_LAMBDA_COEFFS[0]) << (SHIFT_TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_00)) & (MASK_TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_00));
 	ui32RegVal |= (((H263_LAMBDA_COEFFS[1]) << (SHIFT_TOPAZHP_TOP_CR_POLYNOM_BETA_COEFF_CORE_00)) & (MASK_TOPAZHP_TOP_CR_POLYNOM_BETA_COEFF_CORE_00));
-	ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_0, 0, ui32RegVal);
+	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_0, 0, ui32RegVal);
 
 	ui32RegVal = (((H263_LAMBDA_COEFFS[2]) << (SHIFT_TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_01)) & (MASK_TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_01));
-	ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_0, 0, ui32RegVal);
+	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_0, 0, ui32RegVal);
 
 	ui32RegVal = 0x3f;
-	ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_0, 0, ui32RegVal);
+	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_0, 0, ui32RegVal);
     }
 
     for(n=31;n>=1;n-=2)
     {
-	ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTRA_BIAS_TABLE, 0, psBiasTables->aui32IntraBias[n]);
-	ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTER_BIAS_TABLE, 0, psBiasTables->aui32InterBias_P[n]);
-	ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_P[n]);
+	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTRA_BIAS_TABLE, 0, psBiasTables->aui32IntraBias[n]);
+	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTER_BIAS_TABLE, 0, psBiasTables->aui32InterBias_P[n]);
+	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_P[n]);
     }
 
     for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++) {
-	ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
+	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
     }
 
     for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
-        ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
 
     *pCount = count;
 }
 
-static void ptg__MPEG4_load_bias_tables(context_ENC_p ctx)
+static void tng__MPEG4_load_bias_tables(context_ENC_p ctx)
 {
     IMG_INT32 n;
     IMG_UINT32 ui32Pipe, ui32RegVal;
     IMG_UINT32 count = 0, cmd_word = 0;
-    ptg_cmdbuf_p cmdbuf = ctx->obj_context->ptg_cmdbuf;
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     IMG_BIAS_TABLES* psBiasTables = &(ctx->sBiasTables);
     IMG_UINT32 *pCount;
 
@@ -582,49 +583,49 @@ static void ptg__MPEG4_load_bias_tables(context_ENC_p ctx)
     ctx->ui32CoreRev = 0x00030401;
 
     for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
-        ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SEQUENCER_CONFIG, 0, psBiasTables->ui32SeqConfigInit);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SEQUENCER_CONFIG, 0, psBiasTables->ui32SeqConfigInit);
 
     if (ctx->ui32CoreRev <= MAX_32_REV) {
         for (n=31; n >= 1; n--) {
 	    //FIXME: Zhaohan, missing register TOPAZHP_TOP_CR_LAMBDA_DC_TABLE
-            //ptg_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_LAMBDA_DC_TABLE, 0, psBiasTables->aui32LambdaBias[n]);
+            //tng_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_LAMBDA_DC_TABLE, 0, psBiasTables->aui32LambdaBias[n]);
         }
     } else {
 	    //ui32RegVal = MPEG4_LAMBDA_COEFFS[0]| (MPEG4_LAMBDA_COEFFS[1]<<8);
 	    ui32RegVal = (((MPEG4_LAMBDA_COEFFS[0]) << (SHIFT_TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_00)) & (MASK_TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_00));
 	    ui32RegVal |= (((MPEG4_LAMBDA_COEFFS[1]) << (SHIFT_TOPAZHP_TOP_CR_POLYNOM_BETA_COEFF_CORE_00)) & (MASK_TOPAZHP_TOP_CR_POLYNOM_BETA_COEFF_CORE_00));
 
-	    ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_0, 0, ui32RegVal);
+	    tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_0, 0, ui32RegVal);
 	    //ui32RegVal = MPEG4_LAMBDA_COEFFS[2];
 	    ui32RegVal = (((MPEG4_LAMBDA_COEFFS[2]) << (SHIFT_TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_01)) & (MASK_TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_01));
 
-	    ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_0, 0, ui32RegVal);	
+	    tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_0, 0, ui32RegVal);	
 	
 	    ui32RegVal = 0x3f;
-	    ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_0, 0, ui32RegVal);
+	    tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_0, 0, ui32RegVal);
     }
 
     for(n=31;n>=1;n-=2)
     {
-	ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTRA_BIAS_TABLE, 0, psBiasTables->aui32IntraBias[n]);
-	ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTER_BIAS_TABLE, 0, psBiasTables->aui32InterBias_P[n]);
-	ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_P[n]);
+	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTRA_BIAS_TABLE, 0, psBiasTables->aui32IntraBias[n]);
+	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTER_BIAS_TABLE, 0, psBiasTables->aui32InterBias_P[n]);
+	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_P[n]);
     }
 
     for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++) {
-	ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
+	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
 		
 	//VLC RSize is fcode - 1 and only done for mpeg4 AND mpeg2 not H263
-	ptg_cmdbuf_insert_reg_write(TOPAZ_VLC_REG, TOPAZ_VLC_CR_VLC_MPEG4_CFG, 0, F_ENCODE(psBiasTables->ui32FCode - 1, TOPAZ_VLC_CR_RSIZE));
+	tng_cmdbuf_insert_reg_write(TOPAZ_VLC_REG, TOPAZ_VLC_CR_VLC_MPEG4_CFG, 0, F_ENCODE(psBiasTables->ui32FCode - 1, TOPAZ_VLC_CR_RSIZE));
     }
 
     for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
-        ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
 
     *pCount = count;
 }
 
-static void ptg__H264ES_load_bias_tables(
+static void tng__H264ES_load_bias_tables(
     context_ENC_p ctx,
     IMG_FRAME_TYPE eFrameType)
 {
@@ -632,7 +633,7 @@ static void ptg__H264ES_load_bias_tables(
     IMG_UINT32 ui32Pipe;
     IMG_UINT32 ui32RegVal;
     IMG_BIAS_TABLES* psBiasTables = &(ctx->sBiasTables);
-    ptg_cmdbuf_p cmdbuf = ctx->obj_context->ptg_cmdbuf;
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     IMG_UINT32 count = 0, cmd_word = 0;
     IMG_UINT32 *pCount;
 #ifdef _PDUMP_FUNC_
@@ -648,14 +649,14 @@ static void ptg__H264ES_load_bias_tables(
     psBiasTables->ui32SeqConfigInit = 0x40038412;
 
     for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
-        ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SEQUENCER_CONFIG, 0, psBiasTables->ui32SeqConfigInit);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SEQUENCER_CONFIG, 0, psBiasTables->ui32SeqConfigInit);
 
     ctx->ui32CoreRev = 0x00030401;
     
     if (ctx->ui32CoreRev <= MAX_32_REV) {
         for (n=51; n >= 0; n--) {
 	    //FIXME: Zhaohan, missing register TOPAZHP_TOP_CR_LAMBDA_DC_TABLE
-            //ptg_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_LAMBDA_DC_TABLE, 0, psBiasTables->aui32LambdaBias[n]);
+            //tng_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_LAMBDA_DC_TABLE, 0, psBiasTables->aui32LambdaBias[n]);
         }
     } else {
         //Load the lambda coeffs
@@ -664,49 +665,49 @@ static void ptg__H264ES_load_bias_tables(
             ui32RegVal = (((H264_LAMBDA_COEFFS[n][0]) << (SHIFT_TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_00)) & (MASK_TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_00));
             ui32RegVal |= (((H264_LAMBDA_COEFFS[n][1]) << (SHIFT_TOPAZHP_TOP_CR_POLYNOM_BETA_COEFF_CORE_00)) & (MASK_TOPAZHP_TOP_CR_POLYNOM_BETA_COEFF_CORE_00));
 
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_0, 0, ui32RegVal);
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_1, 0, ui32RegVal);
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_2, 0, ui32RegVal);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_0, 0, ui32RegVal);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_1, 0, ui32RegVal);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_ALPHA_COEFF_CORE_2, 0, ui32RegVal);
 
             //ui32RegVal = H264_LAMBDA_COEFFS[n][2];
             ui32RegVal = (((H264_LAMBDA_COEFFS[n][2]) << (SHIFT_TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_01)) & (MASK_TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_01));
 
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_0, 0, ui32RegVal);
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_1, 0, ui32RegVal);
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_2, 0, ui32RegVal);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_0, 0, ui32RegVal);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_1, 0, ui32RegVal);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_GAMMA_COEFF_CORE_2, 0, ui32RegVal);
         }
         ui32RegVal = 29 |(29<<6);
-        ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_0, 0, ui32RegVal);
-        ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_1, 0, ui32RegVal);
-        ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_2, 0, ui32RegVal);
+        tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_0, 0, ui32RegVal);
+        tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_1, 0, ui32RegVal);
+        tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_POLYNOM_CUTOFF_CORE_2, 0, ui32RegVal);
     }
 
     for (n=52;n>=0;n-=2) {
         if (eFrameType == IMG_INTER_B) {
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTER_BIAS_TABLE, 0, psBiasTables->aui32InterBias_B[n]);
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_B[n]);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTER_BIAS_TABLE, 0, psBiasTables->aui32InterBias_B[n]);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_B[n]);
         } else {
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTER_BIAS_TABLE, 0, psBiasTables->aui32InterBias_P[n]);
-            ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_P[n]);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTER_BIAS_TABLE, 0, psBiasTables->aui32InterBias_P[n]);
+            tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_P[n]);
         }
-        ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTRA_BIAS_TABLE, 0, psBiasTables->aui32IntraBias[n]);
-        ptg_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTRA_SCALE_TABLE, 0, psBiasTables->aui32IntraScale[n]);
+        tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTRA_BIAS_TABLE, 0, psBiasTables->aui32IntraBias[n]);
+        tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_INTRA_SCALE_TABLE, 0, psBiasTables->aui32IntraScale[n]);
     }
 
     //aui32HpCoreRegId[ui32Pipe]
     for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++) {
-        ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
-        ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_H264COMP_REJECT_THRESHOLD, 0, psBiasTables->ui32RejectThresholdH264);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_H264COMP_REJECT_THRESHOLD, 0, psBiasTables->ui32RejectThresholdH264);
     }
 
-//    ptg_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_FIRMWARE_REG_1, (MTX_SCRATCHREG_TOMTX<<2), ui32BuffersReg);
-//    ptg_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_FIRMWARE_REG_1, (MTX_SCRATCHREG_TOHOST<<2),ui32ToHostReg);
+//    tng_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_FIRMWARE_REG_1, (MTX_SCRATCHREG_TOMTX<<2), ui32BuffersReg);
+//    tng_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_FIRMWARE_REG_1, (MTX_SCRATCHREG_TOHOST<<2),ui32ToHostReg);
 
     // now setup the LRITC chache priority
     {
         //aui32HpCoreRegId[ui32Pipe]
         for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++) {
-            ptg_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
+            tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
         }
     }
 #ifdef _PDUMP_FUNC_
@@ -716,23 +717,23 @@ static void ptg__H264ES_load_bias_tables(
     *pCount = count;
 }
 
-VAStatus ptg_load_bias(context_ENC_p ctx, IMG_FRAME_TYPE eFrameType)
+VAStatus tng_load_bias(context_ENC_p ctx, IMG_FRAME_TYPE eFrameType)
 {
     IMG_STANDARD eStandard = ctx->eStandard;
 
     switch (eStandard) {
         case IMG_STANDARD_H264:
-            ptg__H264ES_load_bias_tables(ctx, eFrameType); //IMG_INTER_P);
+            tng__H264ES_load_bias_tables(ctx, eFrameType); //IMG_INTER_P);
             break;
         case IMG_STANDARD_H263:
-            ptg__H263ES_load_bias_tables(ctx, eFrameType); //IMG_INTER_P);
+            tng__H263ES_load_bias_tables(ctx, eFrameType); //IMG_INTER_P);
             break;
         case IMG_STANDARD_MPEG4:
-            ptg__MPEG4_load_bias_tables(ctx);
+            tng__MPEG4_load_bias_tables(ctx);
             break;
 /*
         case IMG_STANDARD_MPEG2:
-            ptg__MPEG2_LoadBiasTables(psBiasTables);
+            tng__MPEG2_LoadBiasTables(psBiasTables);
             break;
 */
         default:
@@ -742,7 +743,7 @@ VAStatus ptg_load_bias(context_ENC_p ctx, IMG_FRAME_TYPE eFrameType)
     return VA_STATUS_SUCCESS;
 }
 
-void ptg_init_bias_params(context_ENC_p ctx)
+void tng_init_bias_params(context_ENC_p ctx)
 {
     IMG_BIAS_PARAMS * psBiasParams = &(ctx->sBiasParams);
     memset(psBiasParams, 0, sizeof(IMG_BIAS_PARAMS));

@@ -1,26 +1,27 @@
 /*
- * INTEL CONFIDENTIAL
- * Copyright 2007 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2011 Intel Corporation. All Rights Reserved.
+ * Copyright (c) Imagination Technologies Limited, UK
  *
- * The source code contained or described herein and all documents related to
- * the source code ("Material") are owned by Intel Corporation or its suppliers
- * or licensors. Title to the Material remains with Intel Corporation or its
- * suppliers and licensors. The Material may contain trade secrets and
- * proprietary and confidential information of Intel Corporation and its
- * suppliers and licensors, and is protected by worldwide copyright and trade
- * secret laws and treaty provisions. No part of the Material may be used,
- * copied, reproduced, modified, published, uploaded, posted, transmitted,
- * distributed, or disclosed in any way without Intel's prior express written
- * permission.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
  *
- * No license under any patent, copyright, trade secret or other intellectual
- * property right is granted to or conferred upon you by disclosure or delivery
- * of the Materials, either expressly, by implication, inducement, estoppel or
- * otherwise. Any license under such intellectual property rights must be
- * express and approved by Intel in writing.
- */
-
-/*
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+ * IN NO EVENT SHALL PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
  * Authors:
  *    Elaine Wang <elaine.wang@intel.com>
  *
@@ -34,14 +35,14 @@
 #include "psb_drv_debug.h"
 #include "psb_surface.h"
 #include "psb_cmdbuf.h"
-#include "ptg_hostcode.h"
-#include "ptg_hostheader.h"
-#include "ptg_jpeg.h"
+#include "tng_hostcode.h"
+#include "tng_hostheader.h"
+#include "tng_jpegES.h"
 #ifdef _TOPAZHP_PDUMP_
-#include "ptg_trace.h"
+#include "tng_trace.h"
 #endif
 
-static void ptg__trace_cmdbuf(ptg_cmdbuf_p cmdbuf)
+static void tng__trace_cmdbuf(tng_cmdbuf_p cmdbuf)
 {
     int i;
     IMG_UINT32 ui32CmdTmp[4];
@@ -300,15 +301,15 @@ static void IssueQmatix(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Issue Quantization Table data\n");
     for (i = 0; i < 128 ; i++) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%d \t", *((unsigned char *)ctx->obj_context->ptg_cmdbuf->jpeg_pic_params_p + i));
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%d \t", *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p + i));
         if (((i + 1) % 8) == 0)
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n");
     }
 
-    ptg_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command_package(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETQUANT,
-                                      &(ctx->obj_context->ptg_cmdbuf->jpeg_pic_params),
+                                      &(ctx->obj_context->tng_cmdbuf->jpeg_pic_params),
                                       0);
 }
 
@@ -457,7 +458,7 @@ static void SetSetupInterface(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
     context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
 
-    ptg_cmdbuf_set_phys(pJPEGContext->pMTXSetupInterface->apWritebackRegions, WB_FIFO_SIZE,
+    tng_cmdbuf_set_phys(pJPEGContext->pMTXSetupInterface->apWritebackRegions, WB_FIFO_SIZE,
                         &(ctx->bufs_writeback), 0, ps_mem_size->writeback);
 
     pJPEGContext->pMTXSetupInterface->ui32ComponentsInScan = MTX_MAX_COMPONENTS;
@@ -470,10 +471,10 @@ static void IssueSetupInterface(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
     ASSERT(NULL != pJPEGContext->pMTXSetup);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Issue SetupInterface\n");
 
-    ptg_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command_package(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETUP_INTERFACE,
-                                      &(ctx->obj_context->ptg_cmdbuf->jpeg_header_interface_mem),
+                                      &(ctx->obj_context->tng_cmdbuf->jpeg_header_interface_mem),
                                       0);
 }
 
@@ -483,11 +484,11 @@ static IMG_ERRORCODE SetMTXSetup(
 {
     IMG_UINT32 srf_buf_offset;
     context_ENC_p ctx = (context_ENC_p)pJPEGContext->ctx;
-    ptg_cmdbuf_p cmdbuf = ctx->obj_context->ptg_cmdbuf;
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
     context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
 
-    ptg_cmdbuf_set_phys(pJPEGContext->pMTXSetup->apWritebackRegions, WB_FIFO_SIZE,
+    tng_cmdbuf_set_phys(pJPEGContext->pMTXSetup->apWritebackRegions, WB_FIFO_SIZE,
                         &(ctx->bufs_writeback), 0, ps_mem_size->writeback);
 
     pJPEGContext->pMTXSetup->ui32ComponentsInScan = MTX_MAX_COMPONENTS;
@@ -565,10 +566,10 @@ static void IssueMTXSetup(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
                                  pJPEGContext->pMTXSetup->apWritebackRegions[i]);
     }
 
-    ptg_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command_package(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETUP,
-                                      &(ctx->obj_context->ptg_cmdbuf->jpeg_header_mem),
+                                      &(ctx->obj_context->tng_cmdbuf->jpeg_header_mem),
                                       0);
 
     return;
@@ -900,7 +901,7 @@ static IMG_ERRORCODE IssueBufferToHW(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Command Data: 0x%x\n", (unsigned int)(PTG_JPEG_HEADER_MAX_SIZE + ui16BCnt * pJPEGContext->ui32SizePerCodedBuffer));
 
     // Issue buffers
-    ptg_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command_package(ctx->obj_context,
                                       0,
                                       MTX_CMDID_ISSUEBUFF,
                                       ps_buf->coded_buf->psb_buffer,
@@ -909,7 +910,7 @@ static IMG_ERRORCODE IssueBufferToHW(
     return IMG_ERR_OK;
 }
 
-static void ptg_jpeg_QueryConfigAttributes(
+static void tng_jpeg_QueryConfigAttributes(
     VAProfile profile,
     VAEntrypoint entrypoint,
     VAConfigAttrib *attrib_list,
@@ -917,7 +918,7 @@ static void ptg_jpeg_QueryConfigAttributes(
 {
     int i;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_jpeg_QueryConfigAttributes\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_QueryConfigAttributes\n");
 
     /* RateControl attributes */
     for (i = 0; i < num_attribs; i++) {
@@ -934,17 +935,17 @@ static void ptg_jpeg_QueryConfigAttributes(
 }
 
 
-static VAStatus ptg_jpeg_ValidateConfig(
+static VAStatus tng_jpeg_ValidateConfig(
     object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_jpeg_ValidateConfig\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_ValidateConfig\n");
 
     return vaStatus;
 
 }
 
-static VAStatus ptg_jpeg_CreateContext(
+static VAStatus tng_jpeg_CreateContext(
     object_context_p obj_context,
     object_config_p obj_config)
 {
@@ -953,9 +954,9 @@ static VAStatus ptg_jpeg_CreateContext(
     context_ENC_p ctx;
     TOPAZHP_JPEG_ENCODER_CONTEXT *jpeg_ctx_p;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_jpeg_CreateContext\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_CreateContext\n");
 
-    vaStatus = ptg_CreateContext(obj_context, obj_config, 1);
+    vaStatus = tng_CreateContext(obj_context, obj_config, 1);
     if (VA_STATUS_SUCCESS != vaStatus)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
@@ -1013,12 +1014,12 @@ static VAStatus ptg_jpeg_CreateContext(
 }
 
 
-static void ptg_jpeg_DestroyContext(
+static void tng_jpeg_DestroyContext(
     object_context_p obj_context)
 {
     context_ENC_p ctx;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_jpeg_DestroyPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_DestroyPicture\n");
 
     ctx = (context_ENC_p)(obj_context->format_data);
 
@@ -1031,21 +1032,38 @@ static void ptg_jpeg_DestroyContext(
         free(ctx->jpeg_ctx);
     }
 
-    ptg_DestroyContext(obj_context, 1);
+    tng_DestroyContext(obj_context, 1);
 }
 
-static VAStatus ptg_jpeg_BeginPicture(
+static VAStatus tng__cmdbuf_lowpower(context_ENC_p ctx)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+    psb_driver_data_p driver_data = ctx->obj_context->driver_data;
+
+    *cmdbuf->cmd_idx++ =
+        ((MTX_CMDID_SW_LEAVE_LOWPOWER & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
+        ((ctx->ui32RawFrameCount  & MTX_CMDWORD_CORE_MASK) << MTX_CMDWORD_CORE_SHIFT) |
+        (((driver_data->context_id & MTX_CMDWORD_COUNT_MASK) << MTX_CMDWORD_COUNT_SHIFT));
+
+    tng_cmdbuf_insert_command_param(ctx->eCodec);
+
+    return vaStatus;
+}
+
+static VAStatus tng_jpeg_BeginPicture(
     object_context_p obj_context)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int ret;
-    ptg_cmdbuf_p cmdbuf;
+    tng_cmdbuf_p cmdbuf;
 
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
     TOPAZHP_JPEG_ENCODER_CONTEXT *jpeg_ctx_p = ctx->jpeg_ctx;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
+    psb_driver_data_p driver_data = ctx->obj_context->driver_data;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_jpeg_BeginPicture: Frame %d\n", ctx->obj_context->frame_count);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_BeginPicture: Frame %d\n", ctx->obj_context->frame_count);
 
 
     /* Get the current surface */
@@ -1053,24 +1071,22 @@ static VAStatus ptg_jpeg_BeginPicture(
 
 
     /* Initialize the command buffer */
-    ret = ptg_context_get_next_cmdbuf(ctx->obj_context);
+    ret = tng_context_get_next_cmdbuf(ctx->obj_context);
     if (ret) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "get next cmdbuf fail\n");
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         return vaStatus;
     }
-    cmdbuf = ctx->obj_context->ptg_cmdbuf;
+    cmdbuf = ctx->obj_context->tng_cmdbuf;
 
 
     //For the first picture of a set to be encoded, need to ask kernel to perpare JPEG encoding
     if (ctx->obj_context->frame_count == 0) { /* first picture */
 
-        psb_driver_data_p driver_data = ctx->obj_context->driver_data;
-
         *cmdbuf->cmd_idx++ = ((MTX_CMDID_SW_NEW_CODEC & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
+			     ((ctx->eCodec) << MTX_CMDWORD_CORE_SHIFT) |
                              (((driver_data->drm_context & MTX_CMDWORD_COUNT_MASK) << MTX_CMDWORD_COUNT_SHIFT));
-        ptg_cmdbuf_insert_command_param(ctx->eCodec);
-        ptg_cmdbuf_insert_command_param((ctx->ui16Width << 16) | ctx->ui16FrameHeight);
+        tng_cmdbuf_insert_command_param((ctx->ui16Width << 16) | ctx->ui16FrameHeight);
     }
 
 
@@ -1109,6 +1125,17 @@ static VAStatus ptg_jpeg_BeginPicture(
     jpeg_ctx_p->psTablesBlock = (JPEG_MTX_QUANT_TABLE *)jpeg_ctx_p->pMemInfoTableBlock;
     memset(jpeg_ctx_p->pMemInfoTableBlock, 0x0, ctx->jpeg_pic_params_size);
 
+    *cmdbuf->cmd_idx++ =
+        ((MTX_CMDID_SW_LEAVE_LOWPOWER & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
+        ((0 & MTX_CMDWORD_CORE_MASK) << MTX_CMDWORD_CORE_SHIFT) |
+        (((driver_data->context_id & MTX_CMDWORD_COUNT_MASK) << MTX_CMDWORD_COUNT_SHIFT));
+
+    *cmdbuf->cmd_idx++ = IMG_CODEC_JPEG;
+
+    vaStatus = tng__cmdbuf_lowpower(ctx);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf lowpower\n");
+    }
 
     /* Set SetupInterface*/
     SetSetupInterface(jpeg_ctx_p);
@@ -1126,7 +1153,7 @@ static VAStatus ptg_jpeg_BeginPicture(
     /* Initialize scan counters */
     InitializeScanCounter(jpeg_ctx_p);
 
-    ptg_cmdbuf_buffer_ref(cmdbuf, &(ctx->obj_context->current_render_target->psb_surface->buf));
+    tng_cmdbuf_buffer_ref(cmdbuf, &(ctx->obj_context->current_render_target->psb_surface->buf));
 
     return vaStatus;
 }
@@ -1235,7 +1262,7 @@ static VAStatus ProcessPictureParam(context_ENC_p ctx, object_buffer_p obj_buffe
 
     return vaStatus;
 }
-static VAStatus ptg_jpeg_RenderPicture(
+static VAStatus tng_jpeg_RenderPicture(
     object_context_p obj_context,
     object_buffer_p *buffers,
     int num_buffers)
@@ -1244,19 +1271,19 @@ static VAStatus ptg_jpeg_RenderPicture(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_jpeg_RenderPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_RenderPicture\n");
 
     for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
 
         switch (obj_buffer->type) {
         case VAQMatrixBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_jpeg_RenderPicture got VAEncSliceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_RenderPicture got VAEncSliceParameterBufferType\n");
             vaStatus = ProcessQmatrixParam(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
         case VAEncPictureParameterBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_jpeg_RenderPicture got VAEncPictureParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_RenderPicture got VAEncPictureParameterBufferType\n");
             vaStatus = ProcessPictureParam(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
@@ -1269,7 +1296,7 @@ static VAStatus ptg_jpeg_RenderPicture(
     return vaStatus;
 }
 
-static VAStatus ptg_jpeg_EndPicture(
+static VAStatus tng_jpeg_EndPicture(
     object_context_p obj_context)
 {
     IMG_UINT16 ui16BCnt;
@@ -1280,11 +1307,11 @@ static VAStatus ptg_jpeg_EndPicture(
 
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
     TOPAZHP_JPEG_ENCODER_CONTEXT *jpeg_ctx_p = ctx->jpeg_ctx;
-    ptg_cmdbuf_p cmdbuf = (ptg_cmdbuf_p)ctx->obj_context->ptg_cmdbuf;
+    tng_cmdbuf_p cmdbuf = (tng_cmdbuf_p)ctx->obj_context->tng_cmdbuf;
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "ptg_jpeg_EndPicture\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_EndPicture\n");
 
     IssueQmatix(jpeg_ctx_p);
 
@@ -1332,9 +1359,9 @@ static VAStatus ptg_jpeg_EndPicture(
     psb_buffer_unmap(&(ctx->bufs_writeback));
 
 
-    ptg__trace_cmdbuf(cmdbuf);
+    //tng__trace_cmdbuf(cmdbuf);
 
-    if (ptg_context_flush_cmdbuf(ctx->obj_context)) {
+    if (tng_context_flush_cmdbuf(ctx->obj_context)) {
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         return vaStatus;
     }
@@ -1344,7 +1371,7 @@ static VAStatus ptg_jpeg_EndPicture(
 }
 
 /* Add Restart interval termination (RSTm)to coded buf 1 ~ NumCores-1*/
-static inline VAStatus ptg_OutputResetIntervalToCB(IMG_UINT8 *pui8Buf, IMG_UINT8 ui8_marker)
+static inline VAStatus tng_OutputResetIntervalToCB(IMG_UINT8 *pui8Buf, IMG_UINT8 ui8_marker)
 {
     if (NULL == pui8Buf)
         return VA_STATUS_ERROR_UNKNOWN;
@@ -1360,7 +1387,7 @@ static inline VAStatus ptg_OutputResetIntervalToCB(IMG_UINT8 *pui8Buf, IMG_UINT8
     return 0;
 }
 
-VAStatus ptg_jpeg_AppendMarkers(object_context_p obj_context, void *raw_coded_buf)
+VAStatus tng_jpeg_AppendMarkers(object_context_p obj_context, void *raw_coded_buf)
 {
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
     TOPAZHP_JPEG_ENCODER_CONTEXT *jpeg_ctx_p = ctx->jpeg_ctx;
@@ -1399,7 +1426,7 @@ VAStatus ptg_jpeg_AppendMarkers(object_context_p obj_context, void *raw_coded_bu
                                      "to Coded Buffer Part %d\n", ui16BCnt - 1, ui16BCnt);
 
             // OUTPUT RESTART INTERVAL TO CODED BUFFER
-            ptg_OutputResetIntervalToCB(
+            tng_OutputResetIntervalToCB(
                 (IMG_UINT8 *)(pSegStart + sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed),
                 ui16BCnt - 1);
 
@@ -1430,19 +1457,19 @@ VAStatus ptg_jpeg_AppendMarkers(object_context_p obj_context, void *raw_coded_bu
     return VA_STATUS_SUCCESS;
 }
 
-struct format_vtable_s ptg_JPEG_vtable = {
+struct format_vtable_s tng_JPEGES_vtable = {
 queryConfigAttributes:
-    ptg_jpeg_QueryConfigAttributes,
+    tng_jpeg_QueryConfigAttributes,
 validateConfig:
-    ptg_jpeg_ValidateConfig,
+    tng_jpeg_ValidateConfig,
 createContext:
-    ptg_jpeg_CreateContext,
+    tng_jpeg_CreateContext,
 destroyContext:
-    ptg_jpeg_DestroyContext,
+    tng_jpeg_DestroyContext,
 beginPicture:
-    ptg_jpeg_BeginPicture,
+    tng_jpeg_BeginPicture,
 renderPicture:
-    ptg_jpeg_RenderPicture,
+    tng_jpeg_RenderPicture,
 endPicture:
-    ptg_jpeg_EndPicture
+    tng_jpeg_EndPicture
 };
