@@ -602,28 +602,6 @@ void JPG_VLC_CompileTable(
 }
 
 
-#ifndef DE3_FIRMWARE
-static void tng__JPEG_FE_state(context_JPEG_p ctx) {
-    psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-
-    /* See RENDER_BUFFER_HEADER */
-    *cmdbuf->cmd_idx++ = CMD_HEADER_VC1;
-
-    ctx->p_range_mapping_base0 = cmdbuf->cmd_idx++;
-    ctx->p_range_mapping_base1 = cmdbuf->cmd_idx++;
-
-    *ctx->p_range_mapping_base0 = 0;
-    *ctx->p_range_mapping_base1 = 0;
-
-    ctx->p_slice_params = cmdbuf->cmd_idx;
-    *cmdbuf->cmd_idx++ = 0; /* ui32SliceParams */
-
-    *cmdbuf->cmd_idx++ = 0; /* skip two lldma addr field */
-
-    *cmdbuf->cmd_idx++  = 0;
-    ctx->slice_first_pic_last = cmdbuf->cmd_idx++;
-}
-#else
 static void tng__JPEG_FE_state(context_JPEG_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     CTRL_ALLOC_HEADER *cmd_header = (CTRL_ALLOC_HEADER *)psb_cmdbuf_alloc_space(cmdbuf, sizeof(CTRL_ALLOC_HEADER));
@@ -646,7 +624,6 @@ static void tng__JPEG_FE_state(context_JPEG_p ctx) {
     ctx->alt_output_flags = &cmd_header->ui32AltOutputFlags;
     cmd_header->ui32AltOutputFlags = 0;
 }
-#endif
 
 static VAStatus tng__JPEG_process_picture_param(context_JPEG_p ctx, object_buffer_p obj_buffer) {
     VAStatus vaStatus;
@@ -770,15 +747,9 @@ static void tng__JPEG_write_huffman_tables(context_JPEG_p ctx) {
 
     // VLC Table
     // Write a LLDMA Cmd to transfer VLD Table data
-#ifndef DE3_FIRMWARE
-    psb_cmdbuf_lldma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table, 0,
-                                  ctx->vlctable_buffer_size,
-                                  0, LLDMA_TYPE_VLC_TABLE);
-#else
     psb_cmdbuf_dma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table, 0,
                                   ctx->vlctable_buffer_size, 0,
                                   DMA_TYPE_VLC_TABLE);
-#endif
 
     // Write Table addresses
     psb_cmdbuf_reg_start_block(cmdbuf, 0);
@@ -1145,14 +1116,6 @@ static VAStatus tng__JPEG_process_slice(context_JPEG_p ctx,
 
         tng__JPEG_write_qmatrices(ctx);
 
-#ifndef DE3_FIRMWARE
-        psb_cmdbuf_lldma_write_bitstream(ctx->obj_context->cmdbuf,
-                                         obj_buffer->psb_buffer,
-                                         obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
-                                         slice_param->slice_data_size,
-                                         0,
-                                         CMD_ENABLE_RBDU_EXTRACTION);
-#else
 
         psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
                                          obj_buffer->psb_buffer,
@@ -1161,7 +1124,6 @@ static VAStatus tng__JPEG_process_slice(context_JPEG_p ctx,
                                          0,
                                          CMD_ENABLE_RBDU_EXTRACTION);
 
-#endif
 
         if (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) {
             ctx->split_buffer_pending = TRUE;
@@ -1171,15 +1133,9 @@ static VAStatus tng__JPEG_process_slice(context_JPEG_p ctx,
         ASSERT(0 == slice_param->slice_data_offset);
         /* Create LLDMA chain to continue buffer */
         if (slice_param->slice_data_size) {
-#ifndef DE3_FIRMWARE
-            psb_cmdbuf_lldma_write_bitstream_chained(ctx->obj_context->cmdbuf,
-                    obj_buffer->psb_buffer,
-                    slice_param->slice_data_size);
-#else
             psb_cmdbuf_dma_write_bitstream_chained(ctx->obj_context->cmdbuf,
                     obj_buffer->psb_buffer,
                     slice_param->slice_data_size);
-#endif
         }
     }
 

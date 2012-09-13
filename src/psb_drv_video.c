@@ -60,7 +60,7 @@
 #include "pnw_H264.h"
 #include "pnw_VC1.h"
 #include "tng_jpegdec.h"
-#include "pnw_VP8.h"
+#include "tng_VP8.h"
 #ifdef PSBVIDEO_MFLD
 #include "pnw_MPEG4ES.h"
 #include "pnw_H264ES.h"
