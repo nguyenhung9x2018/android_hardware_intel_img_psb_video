@@ -1363,7 +1363,9 @@ static void pnw__update_rcdata(
 
         psPicParams->sInParams.AvQPVal =  psPicParams->sInParams.SeInitQP;
 
-        if (flBpp >= 0.25) {
+        if (flBpp >= 0.25
+                && (psContext->eCodec == IMG_CODEC_MPEG4_CBR ||
+                    psContext->eCodec == IMG_CODEC_MPEG4_VBR)) {
             psPicParams->sInParams.MinQPVal = 1;
         } else {
             psPicParams->sInParams.MinQPVal = 2;
