@@ -202,11 +202,13 @@ static void tng__write_upto8bits_elements(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "WBS(8) bits %x, cnt = %d\n", ui8WriteBits, ui16BitCnt);
 #endif
 
+//    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: mtx_hdr->ui32Elments overflow (%d)\n", __FUNCTION__, pMTX_Header->ui32Elements);
     /* WA for klockwork */
-    if (pMTX_Header->ui32Elements >= MAXNUMBERELEMENTS) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "mtx_hdr->ui32Elments overflow\n");
-        return;
-    }
+
+//    if (pMTX_Header->ui32Elements >= MAXNUMBERELEMENTS) {
+//        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: mtx_hdr->ui32Elments overflow (%d)\n", __FUNCTION__, pMTX_Header->ui32Elements);
+//        return;
+//    }
     // First ensure that unused bits  in ui8WriteBits are zeroed
     ui8WriteBits &= (0x00ff >> (8 - ui16BitCnt));
     InputVal.UI16Input=0;
@@ -335,13 +337,13 @@ static void tng__insert_element_token(
     IMG_UINT8 *ui8P = NULL;
 #ifdef _TOPAZHP_PDUMP_BITS_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
-    "%s: in element = %d, Token = %d\n", __FUNCTION__, pMTX_Header->ui32Elements, ui32Token);
+        "%s: in element = %d, Token = %d\n", __FUNCTION__, pMTX_Header->ui32Elements, ui32Token);
 #endif
 
     /* WA for klockwork */
     if ((pMTX_Header->ui32Elements != ELEMENTS_EMPTY) &&
         (pMTX_Header->ui32Elements >= MAXNUMBERELEMENTS)) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "mtx_hdr->ui32Elments overflow\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: mtx_hdr->ui32Elments overflow\n", __FUNCTION__);
         return;
     }
 
@@ -2672,8 +2674,14 @@ void tng__H264ES_prepare_sequence_header(
     if (SHParams.VUI_Params_Present)
         memcpy(&SHParams.VUI_Params, psVUI_Params, sizeof(H264_VUI_PARAMS));
     SHParams.ucFrame_mbs_only_flag = (ui8FieldCount > 1) ? IMG_FALSE : IMG_TRUE;
+    
     SHParams.seq_scaling_matrix_present_flag = (bPpsScaling) ? IMG_FALSE : (IMG_UINT8)(ui32CustomQuantMask);
     SHParams.bUseDefaultScalingList = (bPpsScaling) ? IMG_FALSE : bUseDefaultScalingList;
+
+    
+    SHParams.seq_scaling_matrix_present_flag = (ui32CustomQuantMask != 0 && !bPpsScaling);
+    SHParams.bUseDefaultScalingList = (bUseDefaultScalingList && !bPpsScaling);
+
     SHParams.max_num_ref_frames = ui8MaxNumRefFrames;
     SHParams.bIsLossless = bEnableLossless;
     SHParams.log2_max_pic_order_cnt = 6;

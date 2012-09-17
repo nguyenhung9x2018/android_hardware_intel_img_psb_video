@@ -26,19 +26,22 @@
 #ifndef _TNG_SLOTORDER_H_
 #define _TNG_SLOTORDER_H_
 
+#include "tng_hostdefs.h"
+
 #define SLOT_STAUS_OCCUPIED 1
 #define SLOT_STAUS_EMPTY 0
-#define FRAME_I 0
-#define FRAME_P 1
-#define FRAME_B 2
-#define FRAME_IDR 3
+
+//#define FRAME_I 0
+//#define FRAME_P 1
+//#define FRAME_B 2
+//#define FRAME_IDR 3
 
 typedef struct _FRAME_ORDER_INFO {
-    short last_frame_type;
-    short last_slot;
+    unsigned long long max_dpy_num;
     int *slot_consume_dpy_order;
     int *slot_consume_enc_order;
-    unsigned long long max_dpy_num;
+    IMG_FRAME_TYPE last_frame_type;
+    short last_slot;
 } FRAME_ORDER_INFO;
 
 /* Input, the encoding order, start from 0
@@ -56,7 +59,5 @@ int getFrameDpyOrder(
     int intracnt, /*Input, Intra period*/
     int idrcnt, /*INput, IDR period. 0: only one IDR; */
     FRAME_ORDER_INFO *p_last_info, /*Input & Output. Reset to 0 on first call*/
-    unsigned long long *displaying_order, /* Output. The displaying order */
-    int *frame_type, /*Output. Frame type. 0: I frame. 1: P frame. 2: B frame*/
-    int *slot); /*Output. The corresponding slot index */
+    unsigned long long *displaying_order); /* Output. The displaying order */
 #endif  //_TNG_SLOTORDER_H_

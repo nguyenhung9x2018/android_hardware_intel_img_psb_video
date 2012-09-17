@@ -34,6 +34,7 @@
 #ifdef PDUMP_TEST
 #include "topazscfwif.h"
 #else
+#include "psb_drv_debug.h"
 #include "tng_hostcode.h"
 #include "tng_hostheader.h"
 #include "tng_picmgmt.h"
@@ -45,9 +46,9 @@
 #define PRINT_ARRAY_NEW( FEILD, NUM)            \
     for(i=0;i< NUM;i++) {                       \
         if(i%6==0)                              \
-            printf("\n\t\t");                   \
-        printf("\t0x%x", data->FEILD[i]); } \
-    printf("\n\t\t}\n");
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\t\t");                   \
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t0x%x", data->FEILD[i]); } \
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\t\t}\n");
 
 #define PRINT_ARRAY_INT( FEILD, NUM)            \
 do {                                            \
@@ -55,10 +56,10 @@ do {                                            \
                                                 \
     for(tmp=0;tmp< NUM;tmp++) {                 \
         if(tmp%6==0)                            \
-            printf("\n\t\t");                   \
-        printf("\t0x%08x", FEILD[tmp]);         \
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\t\t");                   \
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t0x%08x", FEILD[tmp]);         \
     }                                           \
-    printf("\n\t\t}\n");                        \
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\t\t}\n");                        \
 } while (0)
 
 
@@ -68,18 +69,18 @@ do {                                            \
                                                 \
     for(tmp=0;tmp< NUM;tmp++) {                 \
         if(tmp%8==0)                           \
-            printf("\n\t\t");                   \
-        printf("\t0x%02x", FEILD[tmp]);         \
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\t\t");                   \
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t0x%02x", FEILD[tmp]);         \
     }                                           \
-    printf("\n\t\t}\n");                        \
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\t\t}\n");                        \
 } while (0)
 
 
 /*
 #define PRINT_ARRAY( FEILD, NUM)                \
     for(i=0;i< NUM;i++)                         \
-        printf("\t0x%x", data->FEILD[i]);       \
-    printf("\n\t\t}\n");
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t0x%x", data->FEILD[i]);       \
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\t\t}\n");
 */
 
 #define PRINT_ARRAY( FEILD, NUM)  PRINT_ARRAY_NEW(FEILD, NUM)                
@@ -87,21 +88,21 @@ do {                                            \
 #define PRINT_ARRAY_ADDR(STR, FEILD, NUM)                       \
 do {                                                            \
     int i = 0;                                                  \
-    printf("\n");                                               \
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n");                                               \
     for (i=0;i< NUM;i++)  {                                     \
-        printf("\t\t%s[%02d]=x%08x = {\t", STR, i, data->FEILD[i]); \
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t%s[%02d]=x%08x = {\t", STR, i, data->FEILD[i]); \
         if (dump_address_content && data->FEILD[i]) {           \
             unsigned char *virt = phy2virt(data->FEILD[i]);     \
             PRINT_ARRAY_BYTE( virt, 64);                        \
         } else {                                                \
-            printf("}\n");                                      \
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"}\n");                                      \
         }                                                       \
     }                                                           \
 } while (0)
 
 
 unsigned int duplicate_setvideo_dump = 0;
-unsigned int dump_address_content = 0;
+unsigned int dump_address_content = 1;
 static unsigned int last_setvideo_dump = 0;
 static unsigned int hide_setvideo_dump = 0;
 
@@ -120,9 +121,9 @@ static int setup_device()
     iopl(3);
     
     phy_mmio = pci_get_long(1,0<<3, PCI_BASE_ADDRESS_1);
-    printf("MMIO:  PCI base1 for MMIO is 0x%08x\n", phy_mmio);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"MMIO:  PCI base1 for MMIO is 0x%08x\n", phy_mmio);
     phy_fb = pci_get_long(1,0<<3, PCI_BASE_ADDRESS_2);
-    printf("DDRM:  PCI base2 for FB   is 0x%08x\n", phy_fb);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"DDRM:  PCI base2 for FB   is 0x%08x\n", phy_fb);
         
     phy_mmio &= 0xfff80000;
     phy_fb &= 0xfffff000;
@@ -163,61 +164,76 @@ static void *phy2virt_mmu(unsigned int phyaddr)
     if (phy_mmio == 0 || phy_fb == 0 || linear_fb == 0 || linear_mmio_topaz == 0) {
         setup_device();
     }
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: phy_mmio 0x%08x, phy_fb 0x%08x, linear_fb 0x%08x, linear_mmio_topaz 0x%08x\n", phy_mmio, phy_fb, linear_fb, linear_mmio_topaz);
+#endif
+
     if (phy_mmio == 0 || phy_fb == 0 || linear_fb == 0 || linear_mmio_topaz == 0) {
-        printf("ERROR:setup_device failed!\n");
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"ERROR:setup_device failed!\n");
         exit(-1);
     }
-    
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: phy_mmio 0x%08x, phy_fb 0x%08x, linear_fb 0x%08x, linear_mmio_topaz 0x%08x\n", phy_mmio, phy_fb, linear_fb, linear_mmio_topaz);
+#endif
+
     /* first map page directory */
     MULTICORE_READ32(REGNUM_TOPAZ_CR_MMU_DIR_LIST_BASE_ADDR, &pd_phyaddr);
-    printf("INFO: page directory 0x%08x, phy addr is 0x%08x\n", pd_phyaddr, phyaddr);
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: page directory 0x%08x, phy addr is 0x%08x\n", pd_phyaddr, phyaddr);
+#endif
 
     pd_phyaddr &= 0xfffff000;
     fb_start = phy_fb;
     fb_end = fb_start + (128<<20);
-    printf("ERROR: page directory 0x%08x is not fb range [0x%08x, 0x%08x]\n",
-               pd_phyaddr, fb_start, fb_end);
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: pd_phyaddr 0x%08x, fb_start 0x%08x, fb_end 0x%08x\n", pd_phyaddr, fb_start, fb_end);
+#endif
 
-
-    
-    pd_index = phyaddr >> 22; /* the top 10bits are pd index */
-    pt_index = (phyaddr >> 12) & 0x3ff; /* the middle 10 bits are pt index */
-    pg_offset = phyaddr & 0xfff;
-
-    
     if ((pd_phyaddr < fb_start) || (pd_phyaddr > fb_end)) {
-        printf("ERROR: page directory 0x%08x is not fb range [0x%08x, 0x%08x]\n",
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"ERROR: page directory 0x%08x is not fb range [0x%08x, 0x%08x]\n",
                pd_phyaddr, fb_start, fb_end);
         exit(-1);
     }
-        
+
+    pd_index = phyaddr >> 22; /* the top 10bits are pd index */
+    pt_index = (phyaddr >> 12) & 0x3ff; /* the middle 10 bits are pt index */
+    pg_offset = phyaddr & 0xfff;
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: phyaddr 0x%08x, pd_index 0x%08x, pt_index 0x%08x, pg_offset 0x%08x\n", phyaddr, pd_index, pt_index, pg_offset);
+#endif    
+
     /* find page directory entry */
     pd = (unsigned int *)(linear_fb + (pd_phyaddr - phy_fb));
-
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: pd_index 0x%08x, pd 0x%08x, pd[pd_index] 0x%08x\n", pd_index, pd, pd[pd_index]);
+#endif
     if ((pd[pd_index] & 1) == 0) {/* not valid */
-        printf("Error: the page directory index is invalid, not mapped\n");
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"Error: the page directory index is invalid, not mapped\n");
         exit(-1);
     }
     pt_phyaddr = pd[pd_index] & 0xfffff000;
 
     /* process page table entry */
     if ((pt_phyaddr < fb_start) || (pt_phyaddr > fb_end)) {
-        printf("ERROR: page table 0x%08x is not fb range [0x%08x, 0x%08x]\n",
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"ERROR: page table 0x%08x is not fb range [0x%08x, 0x%08x]\n",
                pt_phyaddr, fb_start, fb_end);
         exit(-1);
     }
     pt = (unsigned int *)(linear_fb + (pt_phyaddr - phy_fb));
-            
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: pt_index 0x%08x, pt 0x%08x, pt[pt_index] 0x%08x\n", pt_index, pt, pt[pt_index]);
+#endif
     if ((pt[pt_index] & 1) == 0) {
-        printf("Error: the page table index is invalid, not mapped\n");
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"Error: the page table index is invalid, not mapped\n");
         exit(-1);
     }
+
     mem_start = pt[pt_index] & 0xfffff000;
     
 #if 0
-    printf("Phy=0x%08x(PD index=%d, PT index=%d, Page offset=%d)\n",
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"Phy=0x%08x(PD index=%d, PT index=%d, Page offset=%d)\n",
            phyaddr, pd_index, pt_index, pg_offset);
-    printf("MMU PD Phy=0x%08x, PT Phy=PD[%d]=0x%08x, PT[%d]=0x%08x, means mem real phy(start)=0x%08x\n",
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"MMU PD Phy=0x%08x, PT Phy=PD[%d]=0x%08x, PT[%d]=0x%08x, means mem real phy(start)=0x%08x\n",
            pd_phyaddr, pd_index, pd[pd_index], pt_index, pt[pt_index], mem_start);
 #endif    
     mem_virt = (void *)(linear_fb + (mem_start - phy_fb));
@@ -241,43 +257,43 @@ static void *phy2virt(unsigned int phyaddr)
 static void JPEG_MTX_DMA_dump(JPEG_MTX_DMA_SETUP *data)
 {
     int i;
-    printf("\t\t	ComponentPlane{\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ComponentPlane{\n");
     for(i=0;i<MTX_MAX_COMPONENTS ;i++)
     {
-        printf("\t\t\t   ui32PhysAddr=%d\n",data->ComponentPlane[i].ui32PhysAddr);
-        printf("\t   ui32Stride=%d",data->ComponentPlane[i].ui32Stride);
-        printf("\t   ui32Height=%d\n",data->ComponentPlane[i].ui32Height);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t\t   ui32PhysAddr=%d\n",data->ComponentPlane[i].ui32PhysAddr);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t   ui32Stride=%d",data->ComponentPlane[i].ui32Stride);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t   ui32Height=%d\n",data->ComponentPlane[i].ui32Height);
     }
-    printf("\t\t	}\n");
-    printf("\t\t	MCUComponent{\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	}\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	MCUComponent{\n");
     for(i=0;i<MTX_MAX_COMPONENTS ;i++)
     {
-        printf("\t\t\t   ui32WidthBlocks=%d",data->MCUComponent[i].ui32WidthBlocks);
-        printf("\t   ui32HeightBlocks=%d",data->MCUComponent[i].ui32HeightBlocks);
-        printf("\t   ui32XLimit=%d\n",data->MCUComponent[i].ui32XLimit);
-        printf("\t   ui32YLimit=%d\n",data->MCUComponent[i].ui32YLimit);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t\t   ui32WidthBlocks=%d",data->MCUComponent[i].ui32WidthBlocks);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t   ui32HeightBlocks=%d",data->MCUComponent[i].ui32HeightBlocks);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t   ui32XLimit=%d\n",data->MCUComponent[i].ui32XLimit);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t   ui32YLimit=%d\n",data->MCUComponent[i].ui32YLimit);
     }
-    printf("\t\t	}\n");
-    printf("\t\t	ui32ComponentsInScan =%d\n", data->ui32ComponentsInScan);
-    printf("\t\t	ui32TableA =%d\n", data->ui32TableA);
-    printf("\t\t	ui16DataInterleaveStatus =%d\n", data->ui16DataInterleaveStatus);
-    printf("\t\t	ui16MaxPipes =%d\n", data->ui16MaxPipes);
-    printf("\t\t	apWritebackRegions  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	}\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui32ComponentsInScan =%d\n", data->ui32ComponentsInScan);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui32TableA =%d\n", data->ui32TableA);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16DataInterleaveStatus =%d\n", data->ui16DataInterleaveStatus);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16MaxPipes =%d\n", data->ui16MaxPipes);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	apWritebackRegions  {");
     PRINT_ARRAY(	apWritebackRegions, WB_FIFO_SIZE);
 }
 
 static void ISSUE_BUFFER_dump(MTX_ISSUE_BUFFERS *data)
 {
-    printf("\t\t	ui32MCUPositionOfScanAndPipeNo =%d\n", data->ui32MCUPositionOfScanAndPipeNo);
-    printf("\t\t	ui32MCUCntAndResetFlag =%d\n", data->ui32MCUCntAndResetFlag);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui32MCUPositionOfScanAndPipeNo =%d\n", data->ui32MCUPositionOfScanAndPipeNo);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui32MCUCntAndResetFlag =%d\n", data->ui32MCUCntAndResetFlag);
 }
 
 static void JPEG_TABLE_dump(JPEG_MTX_QUANT_TABLE *data)
 {
     int i;
-    printf("\t\t	aui8LumaQuantParams  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	aui8LumaQuantParams  {");
     PRINT_ARRAY(	aui8LumaQuantParams, QUANT_TABLE_SIZE_BYTES);
-    printf("\t\t	aui8ChromaQuantParams  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	aui8ChromaQuantParams  {");
     PRINT_ARRAY(	aui8ChromaQuantParams, QUANT_TABLE_SIZE_BYTES);
 }
 
@@ -288,22 +304,22 @@ static int SETVIDEO_ui32MVSettingsBTable_dump(unsigned int phyaddr)
     IMG_MV_SETTINGS * pHostMVSettingsBTable;
         
     pHostMVSettingsBTable = (IMG_MV_SETTINGS *) phy2virt(phyaddr);
-    printf("\t\t(====ui32MVSettingsBTable====)\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32MVSettingsBTable====)\n");
     
     for (ui32DistanceB = 0; ui32DistanceB < MAX_BFRAMES; ui32DistanceB++)
     {
         for (ui32Position = 1; ui32Position <= ui32DistanceB + 1; ui32Position++)
         {
             IMG_MV_SETTINGS * pMvElement = (IMG_MV_SETTINGS * ) ((IMG_UINT8 *) pHostMVSettingsBTable + MV_OFFSET_IN_TABLE(ui32DistanceB, ui32Position - 1));
-            printf("\t\t[ui32DistanceB=%d][ui32Position=%d].ui32MVCalc_Config=0x%08x\n",
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d][ui32Position=%d].ui32MVCalc_Config=0x%08x\n",
                    ui32DistanceB, ui32Position, pMvElement->ui32MVCalc_Config);
-            printf("\t\t[ui32DistanceB=%d][ui32Position=%d].ui32MVCalc_Colocated=0x%08x\n",
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d][ui32Position=%d].ui32MVCalc_Colocated=0x%08x\n",
                    ui32DistanceB, ui32Position, pMvElement->ui32MVCalc_Colocated);
-            printf("\t\t[ui32DistanceB=%d][ui32Position=%d].ui32MVCalc_Below=0x%08x\n",
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d][ui32Position=%d].ui32MVCalc_Below=0x%08x\n",
                    ui32DistanceB, ui32Position, pMvElement->ui32MVCalc_Below);
         }
     }
-    printf("\t\t(====ui32MVSettingsBTable====)\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32MVSettingsBTable====)\n");
 
     return 0;
 }
@@ -315,20 +331,20 @@ static int SETVIDEO_ui32MVSettingsHierarchical_dump(unsigned int phyaddr)
         
     pHostMVSettingsHierarchical = (IMG_MV_SETTINGS *) phy2virt(phyaddr);
 
-    printf("\t\t(====ui32MVSettingsHierarchical====)\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32MVSettingsHierarchical====)\n");
     
     for (ui32DistanceB = 0; ui32DistanceB < MAX_BFRAMES; ui32DistanceB++) {
         IMG_MV_SETTINGS *pMvElement = pHostMVSettingsHierarchical + ui32DistanceB;
 
-        printf("\t\t[ui32DistanceB=%d].ui32MVCalc_Config=0x%08x\n",
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d].ui32MVCalc_Config=0x%08x\n",
                ui32DistanceB, pMvElement->ui32MVCalc_Config);
-        printf("\t\t[ui32DistanceB=%d].ui32MVCalc_Colocated=0x%08x\n",
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d].ui32MVCalc_Colocated=0x%08x\n",
                ui32DistanceB, pMvElement->ui32MVCalc_Colocated);
-        printf("\t\t[ui32DistanceB=%d].ui32MVCalc_Below=0x%08x\n",
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d].ui32MVCalc_Below=0x%08x\n",
                ui32DistanceB, pMvElement->ui32MVCalc_Below);
         
     }
-    printf("\t\t(====ui32MVSettingsHierarchical====)\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32MVSettingsHierarchical====)\n");
 
     return 0;
 }
@@ -339,13 +355,13 @@ static int SETVIDEO_ui32FlatGopStruct_dump(unsigned int phyaddr)
     IMG_UINT16 * psGopStructure = (IMG_UINT16 * )phy2virt(phyaddr);
     int ui8EncodeOrderPos;
     
-    printf("\t\t(====ui32FlatGopStruct====)\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32FlatGopStruct====)\n");
 
     /* refer to DDK:MiniGop_GenerateFlat */
     for (ui8EncodeOrderPos = 0; ui8EncodeOrderPos < MAX_GOP_SIZE; ui8EncodeOrderPos++){
-        printf("\t\tui32FlatGopStruct[%d]=0x%04x\n",ui8EncodeOrderPos, psGopStructure[ui8EncodeOrderPos]);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32FlatGopStruct[%d]=0x%04x\n",ui8EncodeOrderPos, psGopStructure[ui8EncodeOrderPos]);
     }
-    printf("\t\t(====ui32FlatGopStruct====)\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32FlatGopStruct====)\n");
 
     return 0;
 }
@@ -356,13 +372,13 @@ static int SETVIDEO_ui32HierarGopStruct_dump(unsigned int phyaddr)
     IMG_UINT16 * psGopStructure = (IMG_UINT16 * )phy2virt(phyaddr);
     int ui8EncodeOrderPos;
     
-    printf("\t\t(====ui32HierarGopStruct====)\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32HierarGopStruct====)\n");
 
     /* refer to DDK:MiniGop_GenerateFlat */
     for (ui8EncodeOrderPos = 0; ui8EncodeOrderPos < MAX_GOP_SIZE; ui8EncodeOrderPos++){
-        printf("\t\tui32HierarGopStruct[%d]=0x%04x\n",ui8EncodeOrderPos, psGopStructure[ui8EncodeOrderPos]);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32HierarGopStruct[%d]=0x%04x\n",ui8EncodeOrderPos, psGopStructure[ui8EncodeOrderPos]);
     }
-    printf("\t\t(====ui32HierarGopStruct====)\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32HierarGopStruct====)\n");
 
     return 0;
 }
@@ -386,15 +402,30 @@ static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p);
 static int apSliceParamsTemplates_dump(SLICE_PARAMS *p)
 {
     unsigned char *ptmp = (unsigned char*)&p->sSliceHdrTmpl;
-    printf("\t\tui32Flags=0x%08x\n", p->ui32Flags);
-    printf("\t\tui32SliceConfig=0x%08x\n", p->ui32SliceConfig);
-    printf("\t\tui32IPEControl=0x%08x\n", p->ui32IPEControl);
-    printf("\t\tui32SeqConfig=0x%08x\n", p->ui32SeqConfig);
-    printf("\t\teTemplateType=%s\n", IMG_FRAME_TEMPLATE_TYPE2Str(p->eTemplateType));
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32Flags=0x%08x\n", p->ui32Flags);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32SliceConfig=0x%08x\n", p->ui32SliceConfig);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32IPEControl=0x%08x\n", p->ui32IPEControl);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32SeqConfig=0x%08x\n", p->ui32SeqConfig);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\teTemplateType=%s\n", IMG_FRAME_TEMPLATE_TYPE2Str(p->eTemplateType));
 
-    PRINT_ARRAY_BYTE(ptmp, 64);
+    //PRINT_ARRAY_BYTE(ptmp, 64);
 
     MTX_HEADER_PARAMS_dump(&p->sSliceHdrTmpl);
+    
+    return 0;
+}
+
+static int DO_HEADER_dump(MTX_HEADER_PARAMS *data)
+{
+    MTX_HEADER_PARAMS *p = data;
+    unsigned char *q=(unsigned char *)data;
+
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(===RawBits===)");
+    PRINT_ARRAY_BYTE(q, 128);
+
+    MTX_HEADER_PARAMS_dump(p);
+        
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\n");
     
     return 0;
 }
@@ -406,233 +437,228 @@ static void SETVIDEO_dump(IMG_MTX_VIDEO_CONTEXT *data)
 
     if(hide_setvideo_dump == 1)
         return ;
-    printf("\t\t==========IMG_MTX_VIDEO_CONTEXT=============\n");
-    printf("\t	ui64ClockDivBitrate=%lld\n", data->ui64ClockDivBitrate);
-    printf("\t	ui32WidthInMbs=%d\n", data->ui32WidthInMbs);
-    printf("\t	ui32PictureHeightInMbs=%d\n", data->ui32PictureHeightInMbs);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t==========IMG_MTX_VIDEO_CONTEXT=============\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui64ClockDivBitrate=%lld\n", data->ui64ClockDivBitrate);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32WidthInMbs=%d\n", data->ui32WidthInMbs);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32PictureHeightInMbs=%d\n", data->ui32PictureHeightInMbs);
 #ifdef FORCED_REFERENCE
-    printf("\t	apTmpReconstructured  {");
-    PRINT_ARRAY_ADDR("apTmpReconstructured",	apTmpReconstructured, MAX_PIC_NODES_CTXT);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apTmpReconstructured  {");
+    PRINT_ARRAY_ADDR("apTmpReconstructured",	apTmpReconstructured, MAX_PIC_NODES);
 #endif
-    printf("\t	apReconstructured  {");
-    PRINT_ARRAY_ADDR("apReconstructured",	apReconstructured, MAX_PIC_NODES_CTXT);
-    printf("\t	apColocated  {");
-    PRINT_ARRAY_ADDR("apColocated",	apColocated, MAX_PIC_NODES_CTXT);
-    printf("\t	apMV  {");
-    PRINT_ARRAY_ADDR("apMV",	apMV, MAX_MV_CTXT);	
-    printf("\t	apInterViewMV  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apReconstructured  {");
+    PRINT_ARRAY_ADDR("apReconstructured",	apReconstructured, MAX_PIC_NODES);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apColocated  {");
+    PRINT_ARRAY_ADDR("apColocated",	apColocated, MAX_PIC_NODES);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apMV  {");
+    PRINT_ARRAY_ADDR("apMV",	apMV, MAX_MV);	
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apInterViewMV  {");
 //    PRINT_ARRAY(	apInterViewMV, 2 );
     PRINT_ARRAY_ADDR("apInterViewMV", apInterViewMV, 2);	
 
-    printf("\t	ui32DebugCRCs=0x%x\n", data->ui32DebugCRCs);
-    printf("\t	apWritebackRegions  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32DebugCRCs=0x%x\n", data->ui32DebugCRCs);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apWritebackRegions  {");
     PRINT_ARRAY_ADDR("apWritebackRegions",	apWritebackRegions, WB_FIFO_SIZE);
-    printf("\t	ui32InitialCPBremovaldelayoffset=0x%x\n", data->ui32InitialCPBremovaldelayoffset);
-    printf("\t	ui32MaxBufferMultClockDivBitrate=0x%x\n", data->ui32MaxBufferMultClockDivBitrate);
-    printf("\t	pSEIBufferingPeriodTemplate=0x%x\n", data->pSEIBufferingPeriodTemplate);
-    printf("\t	pSEIPictureTimingTemplate=0x%x\n", data->pSEIPictureTimingTemplate);
-    printf("\t	b16EnableMvc=%d\n", data->b16EnableMvc);
-    //printf("\t	b16EnableInterViewReference=%d\n", data->b16EnableInterViewReference);
-    printf("\t	ui16MvcViewIdx=0x%x\n", data->ui16MvcViewIdx);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32InitialCPBremovaldelayoffset=0x%x\n", data->ui32InitialCPBremovaldelayoffset);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32MaxBufferMultClockDivBitrate=0x%x\n", data->ui32MaxBufferMultClockDivBitrate);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pSEIBufferingPeriodTemplate=0x%x\n", data->pSEIBufferingPeriodTemplate);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pSEIPictureTimingTemplate=0x%x\n", data->pSEIPictureTimingTemplate);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b16EnableMvc=%d\n", data->b16EnableMvc);
+    //drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b16EnableInterViewReference=%d\n", data->b16EnableInterViewReference);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui16MvcViewIdx=0x%x\n", data->ui16MvcViewIdx);
 
-    printf("\t	apSliceParamsTemplates  {\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apSliceParamsTemplates  {\n");
     //PRINT_ARRAY_ADDR( apSliceParamsTemplates, 5);
     for (i=0; i<5; i++) {
-        printf("\t\tapSliceParamsTemplates[%d]=0x%08x  {\n", i, data->apSliceParamsTemplates[i]);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapSliceParamsTemplates[%d]=0x%08x  {\n", i, data->apSliceParamsTemplates[i]);
         apSliceParamsTemplates_dump(phy2virt(data->apSliceParamsTemplates[i]));
-        printf("\t\t}\n");
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
     }
 
-    printf("\t	apPicHdrTemplates  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apPicHdrTemplates  {");
     PRINT_ARRAY_ADDR("apPicHdrTemplates", apPicHdrTemplates, 4);
     MTX_HEADER_PARAMS_dump(phy2virt(data->apPicHdrTemplates[0]));
-    printf("\t	aui32SliceMap  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32SliceMap  {");
     PRINT_ARRAY_ADDR("aui32SliceMap", 	aui32SliceMap, MAX_SOURCE_SLOTS_SL);
 
-    printf("\t	ui32FlatGopStruct=0x%x\n", data->ui32FlatGopStruct);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32FlatGopStruct=0x%x\n", data->ui32FlatGopStruct);
     SETVIDEO_ui32FlatGopStruct_dump(data->ui32FlatGopStruct);
 
-    printf("\t	apSeqHeader        =0x%x\n", data->apSeqHeader);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apSeqHeader        =0x%x\n", data->apSeqHeader);
     if (data->apSeqHeader != 0)
 	DO_HEADER_dump((MTX_HEADER_PARAMS *)(phy2virt(data->apSeqHeader)));
-    printf("\t	apSubSetSeqHeader  =0x%x\n", data->apSubSetSeqHeader);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apSubSetSeqHeader  =0x%x\n", data->apSubSetSeqHeader);
     if(data->apSubSetSeqHeader != 0)
         DO_HEADER_dump((MTX_HEADER_PARAMS *)(phy2virt(data->apSubSetSeqHeader)));
-    printf("\t	bNoSequenceHeaders =0x%x\n", data->bNoSequenceHeaders);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b16NoSequenceHeaders =0x%x\n", data->b16NoSequenceHeaders);
     
-    printf("\t	b8WeightedPredictionEnabled=%d\n", data->b8WeightedPredictionEnabled);
-    printf("\t	ui8MTXWeightedImplicitBiPred=0x%x\n", data->ui8MTXWeightedImplicitBiPred);
-    printf("\t	aui32WeightedPredictionVirtAddr  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8WeightedPredictionEnabled=%d\n", data->b8WeightedPredictionEnabled);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui8MTXWeightedImplicitBiPred=0x%x\n", data->ui8MTXWeightedImplicitBiPred);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32WeightedPredictionVirtAddr  {");
     PRINT_ARRAY(aui32WeightedPredictionVirtAddr, MAX_SOURCE_SLOTS_SL);
-    printf("\t	ui32HierarGopStruct=0x%x\n", data->ui32HierarGopStruct);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32HierarGopStruct=0x%x\n", data->ui32HierarGopStruct);
     if(data->ui32HierarGopStruct != 0)
         SETVIDEO_ui32HierarGopStruct_dump(data->ui32HierarGopStruct);
 
-    printf("\t	pFirstPassOutParamAddr  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pFirstPassOutParamAddr  {");
     PRINT_ARRAY_ADDR("pFirstPassOutParamAddr",pFirstPassOutParamAddr, MAX_SOURCE_SLOTS_SL);
 #ifndef EXCLUDE_BEST_MP_DECISION_DATA
-    printf("\t	pFirstPassOutBestMultipassParamAddr  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pFirstPassOutBestMultipassParamAddr  {");
     PRINT_ARRAY_ADDR("pFirstPassOutBestMultipassParamAddr", pFirstPassOutBestMultipassParamAddr, MAX_SOURCE_SLOTS_SL);
 #endif
-    printf("\t	pMBCtrlInParamsAddr  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pMBCtrlInParamsAddr  {");
     PRINT_ARRAY_ADDR("pMBCtrlInParamsAddr", pMBCtrlInParamsAddr, MAX_SOURCE_SLOTS_SL);
-    printf("\t	ui32InterIntraScale{");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32InterIntraScale{");
     PRINT_ARRAY( ui32InterIntraScale, SCALE_TBL_SZ);
-    printf("\t	ui32SkippedCodedScale  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32SkippedCodedScale  {");
     PRINT_ARRAY( ui32SkippedCodedScale, SCALE_TBL_SZ);
 
 
-    printf("\t	ui32PicRowStride=0x%x\n", data->ui32PicRowStride);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32PicRowStride=0x%x\n", data->ui32PicRowStride);
 
-    printf("\t	aui32BytesCodedAddr  {");
-    PRINT_ARRAY_ADDR("aui32BytesCodedAddr", aui32BytesCodedAddr, MAX_CODED_BUFFERS);
-    printf("\t	apAboveParams  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apAboveParams  {");
     PRINT_ARRAY_ADDR("apAboveParams", apAboveParams, TOPAZHP_NUM_PIPES);
 
-    printf("\t	ui32IdrPeriod =0x%x\n ", data->ui32IdrPeriod);
-    printf("\t	ui32IntraLoopCnt =0x%x\n", data->ui32IntraLoopCnt);
-    printf("\t	ui32BFrameCount =0x%x\n", data->ui32BFrameCount);
-    printf("\t	b8Hierarchical=%d\n", data->b8Hierarchical);
-    printf("\t	ui8MPEG2IntraDCPrecision =0x%x\n", data->ui8MPEG2IntraDCPrecision);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32IdrPeriod =0x%x\n ", data->ui32IdrPeriod);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32IntraLoopCnt =0x%x\n", data->ui32IntraLoopCnt);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32BFrameCount =0x%x\n", data->ui32BFrameCount);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8Hierarchical=%d\n", data->b8Hierarchical);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui8MPEG2IntraDCPrecision =0x%x\n", data->ui8MPEG2IntraDCPrecision);
 
-    printf("\t	aui8PicOnLevel  {");
-    PRINT_ARRAY(aui8PicOnLevel, MAX_REF_LEVELS_CTXT);
-    printf("\t	ui32VopTimeResolution=0x%x\n", data->ui32VopTimeResolution);
-    printf("\t	ui32InitialQp=0x%x\n", data->ui32InitialQp);
-    printf("\t	ui32BUSize=0x%x\n", data->ui32BUSize);
-    printf("\t	sMVSettingsIdr { \n\t\t\tui32MVCalc_Below=0x%x\n \t\t\tui32MVCalc_Colocated=0x%x\n \t\t\tui32MVCalc_Config=0x%x\n \t\t}\n", data->sMVSettingsIdr.ui32MVCalc_Below,data->sMVSettingsIdr.ui32MVCalc_Colocated, data->sMVSettingsIdr.ui32MVCalc_Config);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui8PicOnLevel  {");
+    PRINT_ARRAY(aui8PicOnLevel, MAX_REF_LEVELS);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32VopTimeResolution=0x%x\n", data->ui32VopTimeResolution);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32InitialQp=0x%x\n", data->ui32InitialQp);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32BUSize=0x%x\n", data->ui32BUSize);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	sMVSettingsIdr { \n\t\t\tui32MVCalc_Below=0x%x\n \t\t\tui32MVCalc_Colocated=0x%x\n \t\t\tui32MVCalc_Config=0x%x\n \t\t}\n", data->sMVSettingsIdr.ui32MVCalc_Below,data->sMVSettingsIdr.ui32MVCalc_Colocated, data->sMVSettingsIdr.ui32MVCalc_Config);
 
-    printf("\t	sMVSettingsNonB { \n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	sMVSettingsNonB { \n");
     for(i=0;i<MAX_BFRAMES +1;i++)
-        printf("\t\t\tui32MVCalc_Below=0x%x   ui32MVCalc_Colocated=0x%x   ui32MVCalc_Config=0x%x }\n", data->sMVSettingsNonB[i].ui32MVCalc_Below,data->sMVSettingsNonB[i].ui32MVCalc_Colocated, data->sMVSettingsNonB[i].ui32MVCalc_Config);
-    printf("\t\t}\n");
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t\tui32MVCalc_Below=0x%x   ui32MVCalc_Colocated=0x%x   ui32MVCalc_Config=0x%x }\n", data->sMVSettingsNonB[i].ui32MVCalc_Below,data->sMVSettingsNonB[i].ui32MVCalc_Colocated, data->sMVSettingsNonB[i].ui32MVCalc_Config);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
 
-    printf(" \t	ui32MVSettingsBTable=0x%x\n", data->ui32MVSettingsBTable);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP," \t	ui32MVSettingsBTable=0x%x\n", data->ui32MVSettingsBTable);
     SETVIDEO_ui32MVSettingsBTable_dump(data->ui32MVSettingsBTable);
     
-    printf(" \t	ui32MVSettingsHierarchical=0x%x\n", data->ui32MVSettingsHierarchical);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP," \t	ui32MVSettingsHierarchical=0x%x\n", data->ui32MVSettingsHierarchical);
     if(data->ui32MVSettingsHierarchical != 0)
         SETVIDEO_ui32MVSettingsHierarchical_dump(data->ui32MVSettingsHierarchical);
     
 #ifdef FIRMWARE_BIAS
-    printf("\t	aui32DirectBias_P  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32DirectBias_P  {");
     PRINT_ARRAY_NEW(aui32DirectBias_P,27 );
-    printf("\t	aui32InterBias_P  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32InterBias_P  {");
     PRINT_ARRAY_NEW(aui32InterBias_P,27 );
-    printf("\t	aui32DirectBias_B  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32DirectBias_B  {");
     PRINT_ARRAY_NEW(aui32DirectBias_B,27 );
-    printf("\t	aui32InterBias_B  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32InterBias_B  {");
     PRINT_ARRAY_NEW(aui32InterBias_B,27 );
 #endif
-    printf("\t	eFormat=%d\n", data->eFormat);
-    printf("\t	eStandard=%d\n", data->eStandard);
-    printf("\t	eRCMode=%d\n", data->eRCMode);
-    printf("\t	b8FirstPic=%d\n", data->b8FirstPic);
-    printf("\t	b8IsInterlaced=%d\n", data->b8IsInterlaced);
-    printf("\t	b8TopFieldFirst=%d\n", data->b8TopFieldFirst);
-    printf("\t	b8ArbitrarySO=%d\n", data->b8ArbitrarySO);
-    printf("\t	bOutputReconstructed=%d\n", data->bOutputReconstructed);
-    printf("\t	b8DisableBitStuffing=%d\n", data->b8DisableBitStuffing);
-    printf("\t	b8InsertHRDparams=%d\n", data->b8InsertHRDparams);
-    printf("\t	ui8MaxSlicesPerPicture=%d\n", data->ui8MaxSlicesPerPicture);
-    printf("\t	ui8NumPipes=%d\n", data->ui8NumPipes);
-    printf("\t	bCARC=%d\n", data->bCARC);
-    printf("\t	iCARCBaseline=%d\n", data->iCARCBaseline);
-    printf("\t	uCARCThreshold=%d\n", data->uCARCThreshold);
-    printf("\t	uCARCCutoff=%d\n", data->uCARCCutoff);
-    printf("\t	uCARCNegRange=%d\n", data->uCARCNegRange);
-    printf("\t	uCARCNegScale=%d\n", data->uCARCNegScale);
-    printf("\t	uCARCPosRange=%d\n", data->uCARCPosRange);
-    printf("\t	uCARCPosScale=%d\n", data->uCARCPosScale);
-    printf("\t	uCARCShift=%d\n", data->uCARCShift);
-    printf("\t	ui32MVClip_Config=%d\n", data->ui32MVClip_Config);
-    printf("\t	ui32PredCombControl=%d\n", data->ui32PredCombControl);
-    printf("\t	ui32LRITC_Tile_Use_Config=%d\n", data->ui32LRITC_Tile_Use_Config);
-    printf("\t	ui32LRITC_Cache_Chunk_Config=%d\n", data->ui32LRITC_Cache_Chunk_Config);
-    printf("\t	ui32IPEVectorClipping=%d\n", data->ui32IPEVectorClipping);
-    printf("\t	ui32H264CompControl=%d\n", data->ui32H264CompControl);
-    printf("\t	ui32H264CompIntraPredModes=%d\n", data->ui32H264CompIntraPredModes);
-    printf("\t	ui32IPCM_0_Config=%d\n", data->ui32IPCM_0_Config);
-    printf("\t	ui32IPCM_1_Config=%d\n", data->ui32IPCM_1_Config);
-    printf("\t	ui32SPEMvdClipRange=%d\n", data->ui32SPEMvdClipRange);
-    printf("\t	ui32JMCompControl=%d\n", data->ui32JMCompControl);
-    printf("\t	ui32MBHostCtrl=%d\n", data->ui32MBHostCtrl);
-    printf("\t	ui32DeblockCtrl=%d\n", data->ui32DeblockCtrl);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	eFormat=%d\n", data->eFormat);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	eStandard=%d\n", data->eStandard);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	eRCMode=%d\n", data->eRCMode);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8FirstPic=%d\n", data->b8FirstPic);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8IsInterlaced=%d\n", data->b8IsInterlaced);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8TopFieldFirst=%d\n", data->b8TopFieldFirst);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8ArbitrarySO=%d\n", data->b8ArbitrarySO);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	bOutputReconstructed=%d\n", data->bOutputReconstructed);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8DisableBitStuffing=%d\n", data->b8DisableBitStuffing);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8InsertHRDparams=%d\n", data->b8InsertHRDparams);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui8MaxSlicesPerPicture=%d\n", data->ui8MaxSlicesPerPicture);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui8NumPipes=%d\n", data->ui8NumPipes);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	bCARC=%d\n", data->bCARC);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	iCARCBaseline=%d\n", data->iCARCBaseline);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	uCARCThreshold=%d\n", data->uCARCThreshold);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	uCARCCutoff=%d\n", data->uCARCCutoff);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	uCARCNegRange=%d\n", data->uCARCNegRange);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	uCARCNegScale=%d\n", data->uCARCNegScale);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	uCARCPosRange=%d\n", data->uCARCPosRange);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	uCARCPosScale=%d\n", data->uCARCPosScale);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	uCARCShift=%d\n", data->uCARCShift);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32MVClip_Config=%d\n", data->ui32MVClip_Config);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32PredCombControl=%d\n", data->ui32PredCombControl);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32LRITC_Tile_Use_Config=%d\n", data->ui32LRITC_Tile_Use_Config);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32LRITC_Cache_Chunk_Config=%d\n", data->ui32LRITC_Cache_Chunk_Config);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32IPEVectorClipping=%d\n", data->ui32IPEVectorClipping);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32H264CompControl=%d\n", data->ui32H264CompControl);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32H264CompIntraPredModes=%d\n", data->ui32H264CompIntraPredModes);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32IPCM_0_Config=%d\n", data->ui32IPCM_0_Config);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32IPCM_1_Config=%d\n", data->ui32IPCM_1_Config);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32SPEMvdClipRange=%d\n", data->ui32SPEMvdClipRange);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32JMCompControl=%d\n", data->ui32JMCompControl);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32MBHostCtrl=%d\n", data->ui32MBHostCtrl);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32DeblockCtrl=%d\n", data->ui32DeblockCtrl);
     
-    printf("\t	ui32SkipCodedInterIntra=%d\n", data->ui32SkipCodedInterIntra);
-    printf("\t	ui32VLCControl=%d\n", data->ui32VLCControl);
-    printf("\t	ui32VLCSliceControl=%d\n", data->ui32VLCSliceControl);
-    printf("\t	ui32VLCSliceMBControl=%d\n", data->ui32VLCSliceMBControl);
-    printf("\t	ui16CQPOffset=%d\n", data->ui16CQPOffset);
-    printf("\t	b8CodedHeaderPerSlice=%d\n", data->b8CodedHeaderPerSlice);
-    printf("\t	ui32FirstPicFlags=%d\n", data->ui32FirstPicFlags);
-    printf("\t	ui32NonFirstPicFlags=%d\n", data->ui32NonFirstPicFlags);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32SkipCodedInterIntra=%d\n", data->ui32SkipCodedInterIntra);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32VLCControl=%d\n", data->ui32VLCControl);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32VLCSliceControl=%d\n", data->ui32VLCSliceControl);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32VLCSliceMBControl=%d\n", data->ui32VLCSliceMBControl);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui16CQPOffset=%d\n", data->ui16CQPOffset);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8CodedHeaderPerSlice=%d\n", data->b8CodedHeaderPerSlice);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32FirstPicFlags=%d\n", data->ui32FirstPicFlags);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32NonFirstPicFlags=%d\n", data->ui32NonFirstPicFlags);
 
 #ifndef EXCLUDE_ADAPTIVE_ROUNDING
-    printf("\t	bMCAdaptiveRoundingDisable=%d\n",data->bMCAdaptiveRoundingDisable);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	bMCAdaptiveRoundingDisable=%d\n",data->bMCAdaptiveRoundingDisable);
     int j;
-    printf("\t	ui16MCAdaptiveRoundingOffsets[18][4]");
-    printf("\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui16MCAdaptiveRoundingOffsets[18][4]");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n");
     for(i=0;i<18;i++){
         for(j=0;j<4;j++)
-            printf("\t\t\t0x%x", data-> ui16MCAdaptiveRoundingOffsets[i][j]);
-        printf("\n");
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t\t0x%x", data-> ui16MCAdaptiveRoundingOffsets[i][j]);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n");
     }
 #endif
 
 #ifdef FORCED_REFERENCE
-    printf("\t	ui32PatchedReconAddress=0x%x\n", data->ui32PatchedReconAddress);
-    printf("\t	ui32PatchedRef0Address=0x%x\n", data->ui32PatchedRef0Address);
-    printf("\t	ui32PatchedRef1Address=0x%x\n", data->ui32PatchedRef1Address);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32PatchedReconAddress=0x%x\n", data->ui32PatchedReconAddress);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32PatchedRef0Address=0x%x\n", data->ui32PatchedRef0Address);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32PatchedRef1Address=0x%x\n", data->ui32PatchedRef1Address);
 #endif
 #ifdef LTREFHEADER
-    printf("\t	aui32LTRefHeader  {");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32LTRefHeader  {");
     PRINT_ARRAY_ADDR("aui32LTRefHeader",aui32LTRefHeader, MAX_SOURCE_SLOTS_SL);
-    printf("\t	i8SliceHeaderSlotNum=%d\n",data->i8SliceHeaderSlotNum);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	i8SliceHeaderSlotNum=%d\n",data->i8SliceHeaderSlotNum);
 #endif
-    printf("\t	b8ReconIsLongTerm=%d\n", data->b8ReconIsLongTerm);
-    printf("\t	b8Ref0IsLongTerm=%d\n", data->b8Ref0IsLongTerm);
-    printf("\t	b8Ref1IsLongTerm=%d\n", data->b8Ref1IsLongTerm);
-    printf("\t	ui8RefSpacing=0x%x\n", data->ui8RefSpacing);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8ReconIsLongTerm=%d\n", data->b8ReconIsLongTerm);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8Ref0IsLongTerm=%d\n", data->b8Ref0IsLongTerm);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8Ref1IsLongTerm=%d\n", data->b8Ref1IsLongTerm);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui8RefSpacing=0x%x\n", data->ui8RefSpacing);
 
-    printf("\t	ui8FirstPipe=0x%x\n", data->ui8FirstPipe);
-    printf("\t	ui8LastPipe=0x%x\n", data->ui8LastPipe);
-    printf("\t	ui8PipesToUseFlags=0x%x\n", data->ui8PipesToUseFlags);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui8FirstPipe=0x%x\n", data->ui8FirstPipe);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui8LastPipe=0x%x\n", data->ui8LastPipe);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui8PipesToUseFlags=0x%x\n", data->ui8PipesToUseFlags);
     
-    printf("\t	sInParams {\n");
-    printf("\t\t	ui16MBPerFrm=%d\n",data->sInParams.ui16MBPerFrm);
-    printf("\t\t	ui16MBPerBU=%d\n", data->sInParams.ui16MBPerBU);
-    printf("\t\t	ui16BUPerFrm=%d\n",data->sInParams.ui16BUPerFrm);
-    printf("\t\t	ui16IntraPerio=%d\n",data->sInParams.ui16IntraPeriod);
-    printf("\t\t	ui16BFrames=%d\n", data->sInParams.ui16BFrames);
-    printf("\t\t	bHierarchicalMode=%d\n",data->sInParams.bHierarchicalMode);
-    printf("\t\t	i32BitsPerFrm=%d\n",   data->sInParams.i32BitsPerFrm);
-    printf("\t\t	i32BitsPerBU=%d\n",    data->sInParams.i32BitsPerBU);
-    printf("\t\t	i32BitsPerMB=%d\n",    data->sInParams.i32BitsPerMB);
-    printf("\t\t	i32BitRate=%d\n",data->sInParams.i32BitRate);
-    printf("\t\t	i32BufferSiz=%d\n",data->sInParams.i32BufferSize );
-    printf("\t\t	i32InitialLevel=%d\n", data->sInParams.i32InitialLevel);
-    printf("\t\t	i32InitialDelay=%d\n", data->sInParams.i32InitialDelay);
-    printf("\t\t	i32BitsPerGOP=%d\n",   data->sInParams.i32BitsPerGOP);
-    printf("\t\t	ui16AvQPVal=%d\n", data->sInParams.ui16AvQPVal);
-    printf("\t\t	ui16MyInitQP=%d\n",data->sInParams.ui16MyInitQP);
-    printf("\t\t	ui32RCScaleFactor=%d\n",data->sInParams.ui32RCScaleFactor);
-    printf("\t\t	bScDetectDis;=%d\n", data->sInParams.bScDetectDisable);
-    printf("\t\t	bFrmSkipDisable=%d\n",data->sInParams.bFrmSkipDisable);
-    printf("\t\t	bBUSkipDisable=%d\n",data->sInParams.bBUSkipDisable);
-    printf("\t\t	bRCIsH264VBR=%d\n",data->sInParams.bRCIsH264VBR);
-    printf("\t\t	ui8SeInitQP=%d\n",    data->sInParams.ui8SeInitQP	);
-    printf("\t\t	ui8MinQPVal=%d\n",    data->sInParams.ui8MinQPVal	);
-    printf("\t\t	ui8MaxQPVal=%d\n",    data->sInParams.ui8MaxQPVal	);
-    printf("\t\t	ui8MBPerRow=%d\n",    data->sInParams.ui8MBPerRow	);
-    printf("\t\t	ui8ScaleFactor=%d\n",  data->sInParams.ui8ScaleFactor);
-    printf("\t\t	ui8HalfFrame=%d\n",    data->sInParams.ui8HalfFrameRate);
-    printf("\t\t	ui8FCode=%d\n",        data->sInParams.ui8FCode);
-    printf("\t\t	ui8VCMBitrateMargin=%d\n", data->sInParams.ui8VCMBitrateMargin);
-    printf("\t\t	i32ForceSkipin=%d\n",data->sInParams.i32ForceSkipMargin);
-    printf("\t\t	i32TransferRate=%d\n",data->sInParams.i32TransferRate);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	sInParams {\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16MBPerFrm=%d\n",data->sInParams.ui16MBPerFrm);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16MBPerBU=%d\n", data->sInParams.ui16MBPerBU);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16BUPerFrm=%d\n",data->sInParams.ui16BUPerFrm);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16IntraPerio=%d\n",data->sInParams.ui16IntraPeriod);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16BFrames=%d\n", data->sInParams.ui16BFrames);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	bHierarchicalMode=%d\n",data->sInParams.mode.h264.bHierarchicalMode);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32BitsPerFrm=%d\n",   data->sInParams.i32BitsPerFrm);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32BitsPerBU=%d\n",    data->sInParams.i32BitsPerBU);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32BitsPerMB=%d\n",    data->sInParams.mode.other.i32BitsPerMB);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32BitRate=%d\n",data->sInParams.i32BitRate);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32BufferSiz=%d\n",data->sInParams.i32BufferSize );
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32InitialLevel=%d\n", data->sInParams.i32InitialLevel);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32InitialDelay=%d\n", data->sInParams.i32InitialDelay);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32BitsPerGOP=%d\n",   data->sInParams.mode.other.i32BitsPerGOP);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16AvQPVal=%d\n", data->sInParams.mode.other.ui16AvQPVal);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16MyInitQP=%d\n",data->sInParams.mode.other.ui16MyInitQP);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui32RCScaleFactor=%d\n",data->sInParams.mode.h264.ui32RCScaleFactor);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	bScDetectDis;=%d\n", data->sInParams.mode.h264.bScDetectDisable);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	bFrmSkipDisable=%d\n",data->sInParams.bFrmSkipDisable);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	bBUSkipDisable=%d\n",data->sInParams.mode.other.bBUSkipDisable);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui8SeInitQP=%d\n",    data->sInParams.ui8SeInitQP	);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui8MinQPVal=%d\n",    data->sInParams.ui8MinQPVal	);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui8MaxQPVal=%d\n",    data->sInParams.ui8MaxQPVal	);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui8MBPerRow=%d\n",    data->sInParams.ui8MBPerRow	);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui8ScaleFactor=%d\n",  data->sInParams.ui8ScaleFactor);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui8HalfFrame=%d\n",    data->sInParams.mode.other.ui8HalfFrameRate);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui8FCode=%d\n",        data->sInParams.mode.other.ui8FCode);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32TransferRate=%d\n",data->sInParams.mode.h264.i32TransferRate);
     
-    printf("\t\t}\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
 }
 
 
@@ -678,7 +704,6 @@ struct header_token {
     {BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_OFFSET,"BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_OFFSET"},
     {PTH_SEI_NAL_CPB_REMOVAL_DELAY,"PTH_SEI_NAL_CPB_REMOVAL_DELAY"},
     {PTH_SEI_NAL_DPB_OUTPUT_DELAY,"PTH_SEI_NAL_DPB_OUTPUT_DELAY"},
-    {ELEMENT_WEIGHTED_PRED_AND_BIPRED_IDC_FLAGS,"ELEMENT_WEIGHTED_PRED_AND_BIPRED_IDC_FLAGS"},
     {ELEMENT_SLICEWEIGHTEDPREDICTIONSTRUCT,"ELEMENT_SLICEWEIGHTEDPREDICTIONSTRUCT"},
     {ELEMENT_CUSTOM_QUANT,"ELEMENT_CUSTOM_QUANT"}
 };
@@ -702,7 +727,7 @@ static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p)
     MTX_HEADER_ELEMENT *last_element=NULL;
     int i;
     
-    printf("\t\tui32Elements=%d\n", p->ui32Elements);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32Elements=%d\n", p->ui32Elements);
     for (i=0; i<p->ui32Elements; i++) {
         MTX_HEADER_ELEMENT *q = &(p->asElementStream[0]);
 
@@ -730,8 +755,8 @@ static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p)
             q=(MTX_HEADER_ELEMENT *) ui8P;
         }
         
-        printf("\t\t----Head %d----\n",i);
-        printf("\t\t\tElement_Type=%d(0x%x:%s)\n",
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t----Head %d----\n",i);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t\tElement_Type=%d(0x%x:%s)\n",
                q->Element_Type, q->Element_Type, header_to_str(q->Element_Type));
 
         if (q->Element_Type==ELEMENT_STARTCODE_RAWDATA ||
@@ -740,8 +765,8 @@ static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p)
             int i, ui8Offset = 0;
             IMG_UINT8 *ui8P;
             
-            printf("\t\t\tui8Size=%d(0x%x)\n", q->ui8Size, q->ui8Size);
-            printf("\t\t\t(====aui8Bits===)");
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t\tui8Size=%d(0x%x)\n", q->ui8Size, q->ui8Size);
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t\t(====aui8Bits===)");
             
             //Find RAWBit size in bytes (rounded to word boundary))
             ui8Offset=q->ui8Size+8+31; // NumberofRawbits (excluding size of bit count field)+ size of the bitcount field
@@ -752,13 +777,13 @@ static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p)
             ui8P = &q->aui8Bits;
             for (i=0; i<ui8Offset; i++) {
                 if ((i%8) == 0)
-                    printf("\n\t\t\t");
-                printf("0x%02x\t", *ui8P);
+                    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\t\t\t");
+                drv_debug_msg(VIDEO_ENCODE_PDUMP,"0x%02x\t", *ui8P);
                 ui8P++;
             }
-            printf("\n");
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n");
         } else {
-            printf("\t\t\t(no ui8Size/aui8Bits for this type header)\n");
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t\t(no ui8Size/aui8Bits for this type header)\n");
         }
         
         last_element = q;
@@ -767,68 +792,42 @@ static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p)
     return 0;
 }
 
-int DO_HEADER_dump(MTX_HEADER_PARAMS *data)
-{
-    MTX_HEADER_PARAMS *p = data;
-    unsigned char *q=(unsigned char *)data;
-
-    printf("\t\t(===RawBits===)");
-    PRINT_ARRAY_BYTE(q, 128);
-
-    MTX_HEADER_PARAMS_dump(p);
-        
-    printf("\n\n");
-    
-    return 0;
-}
-
-static char *eBufferType2str(IMG_BUFFER_TYPE tmp)
+static char *eBufferType2str(IMG_REF_BUFFER_TYPE tmp)
 {
     switch (tmp) {
-    case IMG_BUFFER_SOURCE:
-        return "IMG_BUFFER_SOURCE";
     case IMG_BUFFER_REF0:
         return "IMG_BUFFER_REF0";
     case IMG_BUFFER_REF1:
         return "IMG_BUFFER_REF1";
     case IMG_BUFFER_RECON:
         return "IMG_BUFFER_RECON";
-    case IMG_BUFFER_CODED:
-        return "IMG_BUFFER_CODED";
     default:
         return "Unknown Buffer Type";
     }
 }
 
-int PROVIDEBUFFER_dump(IMG_BUFFER_PARAMS *data)
+static void PROVIDEBUFFER_SOURCE_dump(void *data)
 {
-    IMG_BUFFER_PARAMS *p = data;
+    IMG_SOURCE_BUFFER_PARAMS *source = (IMG_SOURCE_BUFFER_PARAMS*) data;
+
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32PhysAddrYPlane_Field0=0x%x\n",source->ui32PhysAddrYPlane_Field0);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32PhysAddrUPlane_Field0=0x%x\n",source->ui32PhysAddrUPlane_Field0);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32PhysAddrVPlane_Field0=0x%x\n",source->ui32PhysAddrVPlane_Field0);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32PhysAddrYPlane_Field1=0x%x\n",source->ui32PhysAddrYPlane_Field1);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32PhysAddrUPlane_Field1=0x%x\n",source->ui32PhysAddrUPlane_Field1);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32PhysAddrVPlane_Field1=0x%x\n",source->ui32PhysAddrVPlane_Field1);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32HostContext=%d\n",source->ui32HostContext);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui8DisplayOrderNum=%d\n",source->ui8DisplayOrderNum);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui8SlotNum=%d\n",source->ui8SlotNum);
+    return ;
+}
+
+static int PROVIDEBUFFER_dump(unsigned int data)
+{
+    IMG_REF_BUFFER_TYPE eBufType = (data & MASK_MTX_MSG_PROVIDE_REF_BUFFER_USE) >> SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_USE;
     //IMG_BUFFER_DATA *bufdata = p->sData;
-    printf("\t\teBufferType=%d(%s)\n", p->eBufferType, eBufferType2str(p->eBufferType));
-    printf("\t\tui32PhysAddr=0x%08x\n", p->ui32PhysAddr);
-    printf("\t\t(======sData=======)\n");
-    if (p->eBufferType == IMG_BUFFER_SOURCE) { /* source */
-        IMG_BUFFER_SOURCE_DATA *source = &p->sData.sSource;
-
-        printf("\t\tui32PhysAddrYPlane_Field0=0x%x\n",source->ui32PhysAddrYPlane_Field0);
-        printf("\t\tui32PhysAddrUPlane_Field0=0x%x\n",source->ui32PhysAddrUPlane_Field0);
-        printf("\t\tui32PhysAddrVPlane_Field0=0x%x\n",source->ui32PhysAddrVPlane_Field0);
-        printf("\t\tui32PhysAddrYPlane_Field1=0x%x\n",source->ui32PhysAddrYPlane_Field1);
-        printf("\t\tui32PhysAddrUPlane_Field1=0x%x\n",source->ui32PhysAddrUPlane_Field1);
-        printf("\t\tui32PhysAddrVPlane_Field1=0x%x\n",source->ui32PhysAddrVPlane_Field1);
-        printf("\t\tui32HostContext=%d\n",source->ui32HostContext);
-        printf("\t\tui8DisplayOrderNum=%d\n",source->ui8DisplayOrderNum);
-        printf("\t\tui8SlotNum=%d\n",source->ui8SlotNum);
-    } else if (p->eBufferType == IMG_BUFFER_REF0 || p->eBufferType == IMG_BUFFER_REF1) {
-        //IMG_BUFFER_REF_DATA *sRef = bufdata->sRef;
-    } else if (p->eBufferType == IMG_BUFFER_RECON) {
-    } else if (p->eBufferType == IMG_BUFFER_CODED) {
-        IMG_BUFFER_CODED_DATA *sCoded = &p->sData.sCoded;
-        printf("\t\tui32Size=%d\n", sCoded->ui32Size);
-        printf("\t\tui8SlotNum=%d\n", sCoded->ui8SlotNum);
-    }
-
-    printf("\n\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\teBufferType=(%s)\n",  eBufferType2str(eBufType));
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\n");
     
     return 0;
 }
@@ -836,52 +835,56 @@ int PROVIDEBUFFER_dump(IMG_BUFFER_PARAMS *data)
 static char *eSubtype2str(IMG_PICMGMT_TYPE eSubtype)
 {
     switch (eSubtype) {
-    case IMG_PICMGMT_REF_TYPE:return "IMG_PICMGMT_REF_TYPE";
-    case IMG_PICMGMT_GOP_STRUCT:return "IMG_PICMGMT_GOP_STRUCT";
-    case IMG_PICMGMT_SKIP_FRAME:return "IMG_PICMGMT_SKIP_FRAME";
-    case IMG_PICMGMT_EOS:return "IMG_PICMGMT_EOS";
-    case IMG_PICMGMT_RC_UPDATE:return "IMG_PICMGMT_RC_UPDATE";
-    case IMG_PICMGMT_FLUSH:return "IMG_PICMGMT_FLUSH";
-    case IMG_PICMGMT_QUANT:return "IMG_PICMGMT_QUANT";
-        
-    default: return "Unknow";
+        case IMG_PICMGMT_REF_TYPE:return "IMG_PICMGMT_REF_TYPE";
+        case IMG_PICMGMT_GOP_STRUCT:return "IMG_PICMGMT_GOP_STRUCT";
+        case IMG_PICMGMT_SKIP_FRAME:return "IMG_PICMGMT_SKIP_FRAME";
+        case IMG_PICMGMT_EOS:return "IMG_PICMGMT_EOS";
+        case IMG_PICMGMT_FLUSH:return "IMG_PICMGMT_FLUSH";
+        case IMG_PICMGMT_QUANT:return "IMG_PICMGMT_QUANT";
+        default: return "Unknow";
     }
 }
-
-int PICMGMT_dump(IMG_PICMGMT_PARAMS *data)
+int PICMGMT_dump(IMG_UINT32 data)
 {
-    IMG_PICMGMT_PARAMS *p = data;
+    IMG_PICMGMT_TYPE eSubType = (data & MASK_MTX_MSG_PICMGMT_SUBTYPE) >> SHIFT_MTX_MSG_PICMGMT_SUBTYPE;
+    IMG_FRAME_TYPE eFrameType = 0;
+    IMG_UINT32 ui32FrameCount = 0;
 
-    printf("\t\teSubtype=%d(%s)\n", p->eSubtype, eSubtype2str(p->eSubtype));
-    printf("\t\t(=====(additional data)=====\n");
-    if (p->eSubtype == IMG_PICMGMT_REF_TYPE) {
-        IMG_PICMGMT_REF_DATA *q = &p->sRefType;
-        switch (q->eFrameType) {
-        case IMG_INTRA_IDR:
-            printf("\t\teFrameType=IMG_INTRA_IDR\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,
+        "\t\teSubtype=%d(%s)\n", eSubType, eSubtype2str(eSubType));
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,
+        "\t\t(=====(additional data)=====\n");
+    switch (eSubType) {
+        case IMG_PICMGMT_REF_TYPE:
+            eFrameType = (data & MASK_MTX_MSG_PICMGMT_DATA) >> SHIFT_MTX_MSG_PICMGMT_DATA;
+            switch (eFrameType) {
+                case IMG_INTRA_IDR:
+                    drv_debug_msg(VIDEO_ENCODE_PDUMP,
+                        "\t\teFrameType=IMG_INTRA_IDR\n");
+                    break;
+                case IMG_INTRA_FRAME:
+                    drv_debug_msg(VIDEO_ENCODE_PDUMP,
+                        "\t\teFrameType=IMG_INTRA_FRAME\n");
+                    break;
+                case IMG_INTER_P:
+                    drv_debug_msg(VIDEO_ENCODE_PDUMP,
+                        "\t\teFrameType=IMG_INTER_P\n");
+                    break;
+                case IMG_INTER_B:
+                    drv_debug_msg(VIDEO_ENCODE_PDUMP,
+                        "\t\teFrameType=IMG_INTER_B\n");
+                    break;
+            }
             break;
-        case IMG_INTRA_FRAME:
-            printf("\t\teFrameType=IMG_INTRA_FRAME\n");
-            break;
-        case IMG_INTER_P:
-            printf("\t\teFrameType=IMG_INTER_P\n");
-            break;
-        case IMG_INTER_B:
-            printf("\t\teFrameType=IMG_INTER_B\n");
-            break;
-        }
-    } else if (p->eSubtype == IMG_PICMGMT_GOP_STRUCT) {
-    } else if (p->eSubtype ==  IMG_PICMGMT_SKIP_FRAME) {
-    } else if (p->eSubtype == IMG_PICMGMT_EOS) {
-        IMG_PICMGMT_EOS_DATA *q = &p->sEosParams;
-        
-        printf("\t\tui32FrameCount=%d\n", q->ui32FrameCount);
-    } else if (p->eSubtype == IMG_PICMGMT_RC_UPDATE) {
-    } else if (p->eSubtype == IMG_PICMGMT_FLUSH) {
-    } else if (p->eSubtype == IMG_PICMGMT_QUANT) {
+        case IMG_PICMGMT_EOS:
+             ui32FrameCount = (data & MASK_MTX_MSG_PICMGMT_DATA) >> SHIFT_MTX_MSG_PICMGMT_DATA;
+             drv_debug_msg(VIDEO_ENCODE_PDUMP,
+                 "\t\tui32FrameCount=%d\n", ui32FrameCount);
+             break;
+        default:
+             break;
     }
-    
-    printf("\n\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\n");
 
     return 0;
 }
@@ -890,36 +893,43 @@ int PICMGMT_dump(IMG_PICMGMT_PARAMS *data)
 static char * cmd2str(int cmdid)
 {
     switch (cmdid) {
-    case MTX_CMDID_NULL:return "MTX_CMDID_NULL";
-    case MTX_CMDID_SHUTDOWN:return "MTX_CMDID_SHUTDOWN"; 
+    case MTX_CMDID_NULL:        return "MTX_CMDID_NULL";
+    case MTX_CMDID_SHUTDOWN:    return "MTX_CMDID_SHUTDOWN"; 
 	// Video Commands
-    case MTX_CMDID_DO_HEADER:return "MTX_CMDID_DO_HEADER";
+    case MTX_CMDID_DO_HEADER:   return "MTX_CMDID_DO_HEADER";
     case MTX_CMDID_ENCODE_FRAME:return "MTX_CMDID_ENCODE_FRAME";
-    case MTX_CMDID_SETVIDEO:return "MTX_CMDID_SETVIDEO";        
-    case MTX_CMDID_GETVIDEO:return "MTX_CMDID_GETVIDEO";        
-    case MTX_CMDID_PICMGMT:return "MTX_CMDID_PICMGMT";          
-    case MTX_CMDID_PROVIDE_BUFFER:return "MTX_CMDID_PROVIDE_BUFFER";
-    case MTX_CMDID_ABORT:return "MTX_CMDID_ABORT";
+    case MTX_CMDID_START_FRAME: return "MTX_CMDID_START_FRAME";
+    case MTX_CMDID_ENCODE_SLICE:return "MTX_CMDID_ENCODE_SLICE";
+    case MTX_CMDID_END_FRAME:   return "MTX_CMDID_END_FRAME";
+    case MTX_CMDID_SETVIDEO:    return "MTX_CMDID_SETVIDEO";
+    case MTX_CMDID_GETVIDEO:    return "MTX_CMDID_GETVIDEO";
+    case MTX_CMDID_PICMGMT:     return "MTX_CMDID_PICMGMT";
+    case MTX_CMDID_RC_UPDATE:   return "MTX_CMDID_RC_UPDATE";
+    case MTX_CMDID_PROVIDE_SOURCE_BUFFER:return "MTX_CMDID_PROVIDE_SOURCE_BUFFER";
+    case MTX_CMDID_PROVIDE_REF_BUFFER:   return "MTX_CMDID_PROVIDE_REF_BUFFER";
+    case MTX_CMDID_PROVIDE_CODED_BUFFER: return "MTX_CMDID_PROVIDE_CODED_BUFFER";
+    case MTX_CMDID_ABORT:       return "MTX_CMDID_ABORT";
 	// JPEG commands
-    case MTX_CMDID_SETQUANT:return "MTX_CMDID_SETQUANT";         
-    case MTX_CMDID_SETUP_INTERFACE:return "MTX_CMDID_SETUP_INTERFACE"; 
-    case MTX_CMDID_ISSUEBUFF:return "MTX_CMDID_ISSUEBUFF";       
-    case MTX_CMDID_SETUP:return "MTX_CMDID_SETUP";           
+    case MTX_CMDID_SETQUANT:    return "MTX_CMDID_SETQUANT";         
+    case MTX_CMDID_SETUP_INTERFACE:      return "MTX_CMDID_SETUP_INTERFACE"; 
+    case MTX_CMDID_ISSUEBUFF:   return "MTX_CMDID_ISSUEBUFF";       
+    case MTX_CMDID_SETUP:       return "MTX_CMDID_SETUP";           
     case MTX_CMDID_ENDMARKER:
     default:
         return "Invalid Command (%d)";
     }
 }
 
-int command_parameter_dump(int cmdid, void *virt_addr)
+static int command_parameter_dump(int cmdid, unsigned int cmd_data, unsigned int cmd_addr)
 {
     MTX_HEADER_PARAMS *header_para;
     IMG_MTX_VIDEO_CONTEXT *context;
-    IMG_PICMGMT_PARAMS *picmgmt_para;
-    IMG_BUFFER_PARAMS *buffer_para ;
     JPEG_MTX_QUANT_TABLE *jpeg_table;
     MTX_ISSUE_BUFFERS *issue_buffer;
     JPEG_MTX_DMA_SETUP *jpeg_mtx_dma_setup;
+    void *virt_addr = 0;
+    if (cmd_addr != 0)
+        virt_addr = phy2virt(cmd_addr);
 
     switch (cmdid) {
         case MTX_CMDID_NULL:
@@ -947,30 +957,27 @@ int command_parameter_dump(int cmdid, void *virt_addr)
                 SETVIDEO_dump(context);
             break;
         case MTX_CMDID_PICMGMT :            
-            picmgmt_para = (IMG_PICMGMT_PARAMS *)virt_addr;
-            PICMGMT_dump(picmgmt_para);
-
-            if (duplicate_setvideo_dump)
-                SETVIDEO_dump(mtx_ctx);
+            PICMGMT_dump(cmd_data);
             break;
-        case  MTX_CMDID_PROVIDE_BUFFER:	 //!< (data: #IMG_BUFFER_PARAMS)\n Transfer buffer b\w Host and Topaz\n
-            buffer_para = (IMG_BUFFER_PARAMS *)virt_addr;
-            PROVIDEBUFFER_dump(buffer_para);
-
-            if (duplicate_setvideo_dump)
-                SETVIDEO_dump(mtx_ctx);
+        case  MTX_CMDID_PROVIDE_SOURCE_BUFFER:
+            PROVIDEBUFFER_SOURCE_dump((IMG_SOURCE_BUFFER_PARAMS *)virt_addr);
+            break;
+        case  MTX_CMDID_PROVIDE_REF_BUFFER:
+            PROVIDEBUFFER_dump(cmd_data);
+            break;
+        case MTX_CMDID_PROVIDE_CODED_BUFFER:
             break;
 
             // JPEG commands
-        case      MTX_CMDID_SETQUANT:          //!< (data: #JPEG_MTX_QUANT_TABLE)\n
+        case MTX_CMDID_SETQUANT:          //!< (data: #JPEG_MTX_QUANT_TABLE)\n
             jpeg_table = (JPEG_MTX_QUANT_TABLE *)virt_addr;
             JPEG_TABLE_dump(jpeg_table);
             break;
-        case      MTX_CMDID_ISSUEBUFF:         //!< (data: #MTX_ISSUE_BUFFERS)\n
+        case MTX_CMDID_ISSUEBUFF:         //!< (data: #MTX_ISSUE_BUFFERS)\n
             issue_buffer = (MTX_ISSUE_BUFFERS *)virt_addr;
             ISSUE_BUFFER_dump(issue_buffer);
             break;
-        case      MTX_CMDID_SETUP:             //!< (data: #JPEG_MTX_DMA_SETUP)\n\n
+        case MTX_CMDID_SETUP:             //!< (data: #JPEG_MTX_DMA_SETUP)\n\n
             jpeg_mtx_dma_setup = (JPEG_MTX_DMA_SETUP *)virt_addr;
             JPEG_MTX_DMA_dump(jpeg_mtx_dma_setup);
             break;
@@ -979,6 +986,203 @@ int command_parameter_dump(int cmdid, void *virt_addr)
     }
     return 0;
 }
+static struct RegisterInfomation multicore_regs[] = {
+    {"MULTICORE_SRST",0x0000},
+    {"MULTICORE_INT_STAT",0x0004},
+    {"MULTICORE_MTX_INT_ENAB",0x0008},
+    {"MULTICORE_HOST_INT_ENAB",0x000C},
+    {"MULTICORE_INT_CLEAR",0x0010},
+    {"MULTICORE_MAN_CLK_GATE",0x0014},
+    {"TOPAZ_MTX_C_RATIO",0x0018},
+    {"MMU_STATUS",0x001C},
+    {"MMU_MEM_REQ",0x0020},
+    {"MMU_CONTROL0",0x0024},
+    {"MMU_CONTROL1",0x0028},
+    {"MMU_CONTROL2",0x002C},
+    {"MMU_DIR_LIST_BASE",0x0030},
+    {"MMU_TILE",0x0038},
+    {"MTX_DEBUG_MSTR",0x0044},
+    {"MTX_DEBUG_SLV",0x0048},
+    {"MULTICORE_CORE_SEL_0",0x0050},
+    {"MULTICORE_CORE_SEL_1",0x0054},
+    {"MULTICORE_HW_CFG",0x0058},
+    {"MULTICORE_CMD_FIFO_WRITE",0x0060},
+    {"MULTICORE_CMD_FIFO_WRITE_SPACE",0x0064},
+    {"TOPAZ_CMD_FIFO_READ",0x0070},
+    {"TOPAZ_CMD_FIFO_READ_AVAILABLE",0x0074},
+    {"TOPAZ_CMD_FIFO_FLUSH",0x0078},
+    {"MMU_TILE_EXT",0x0080},
+    {"FIRMWARE_REG_1",0x0100},
+    {"FIRMWARE_REG_2",0x0104},
+    {"FIRMWARE_REG_3",0x0108},
+    {"CYCLE_COUNTER",0x0110},
+    {"CYCLE_COUNTER_CTRL",0x0114},
+    {"MULTICORE_IDLE_PWR_MAN",0x0118},
+    {"DIRECT_BIAS_TABLE",0x0124},
+    {"INTRA_BIAS_TABLE",0x0128},
+    {"INTER_BIAS_TABLE",0x012C},
+    {"INTRA_SCALE_TABLE",0x0130},
+    {"QPCB_QPCR_OFFSET",0x0134},
+    {"INTER_INTRA_SCALE_TABLE",0x0140},
+    {"SKIPPED_CODED_SCALE_TABLE",0x0144},
+    {"POLYNOM_ALPHA_COEFF_CORE0",0x0148},
+    {"POLYNOM_GAMMA_COEFF_CORE0",0x014C},
+    {"POLYNOM_CUTOFF_CORE0",0x0150},
+    {"POLYNOM_ALPHA_COEFF_CORE1",0x0154},
+    {"POLYNOM_GAMMA_COEFF_CORE1",0x0158},
+    {"POLYNOM_CUTOFF_CORE1",0x015C},
+    {"POLYNOM_ALPHA_COEFF_CORE2",0x0160},
+    {"POLYNOM_GAMMA_COEFF_CORE2",0x0164},
+    {"POLYNOM_CUTOFF_CORE2",0x0168},
+    {"FIRMWARE_REG_4",0x0300},
+    {"FIRMWARE_REG_5",0x0304},
+    {"FIRMWARE_REG_6",0x0308},
+    {"FIRMWARE_REG_7",0x030C},
+    {"MULTICORE_RSVD0",0x03B0},
+    {"TOPAZHP_CORE_ID",0x03C0},
+    {"TOPAZHP_CORE_REV",0x03D0},
+    {"TOPAZHP_CORE_DES1",0x03E0},
+    {"TOPAZHP_CORE_DES2",0x03F0},
+};
+
+
+static struct RegisterInfomation core_regs[] = {
+    {"TOPAZHP_SRST",0x0000},
+    {"TOPAZHP_INTSTAT",0x0004},
+    {"TOPAZHP_MTX_INTENAB",0x0008},
+    {"TOPAZHP_HOST_INTENAB",0x000C},
+    {"TOPAZHP_INTCLEAR",0x0010},
+    {"TOPAZHP_INT_COMB_SEL",0x0014},
+    {"TOPAZHP_BUSY",0x0018},
+    {"TOPAZHP_AUTO_CLOCK_GATING",0x0024},
+    {"TOPAZHP_MAN_CLOCK_GATING",0x0028},
+    {"TOPAZHP_RTM",0x0030},
+    {"TOPAZHP_RTM_VALUE",0x0034},
+    {"TOPAZHP_MB_PERFORMANCE_RESULT",0x0038},
+    {"TOPAZHP_MB_PERFORMANCE_MB_NUMBER",0x003C},
+    {"FIELD_PARITY",0x0188},
+    {"WEIGHTED_PRED_CONTROL",0x03D0},
+    {"WEIGHTED_PRED_COEFFS",0x03D4},
+    {"WEIGHTED_PRED_INV_WEIGHT",0x03E0},
+    {"TOPAZHP_RSVD0",0x03F0},
+    {"TOPAZHP_CRC_CLEAR",0x03F4},
+    {"SPE_ZERO_THRESH",0x0344},
+    {"SPE0_BEST_SAD_SIGNATURE",0x0348},
+    {"SPE1_BEST_SAD_SIGNATURE",0x034C},
+    {"SPE0_BEST_INDEX_SIGNATURE",0x0350},
+    {"SPE1_BEST_INDEX_SIGNATURE",0x0354},
+    {"SPE_INTRA_COST_SIGNATURE",0x0358},
+    {"SPE_MVD_CLIP_RANGE",0x0360},
+    {"SPE_SUBPEL_RESOLUTION",0x0364},
+    {"SPE0_MV_SIZE_SIGNATURE",0x0368},
+    {"SPE1_MV_SIZE_SIGNATURE",0x036C},
+    {"SPE_MB_PERFORMANCE_RESULT",0x0370},
+    {"SPE_MB_PERFORMANCE_MB_NUMBER",0x0374},
+    {"SPE_MB_PERFORMANCE_CLEAR",0x0378},
+    {"MEM_SIGNATURE_CONTROL",0x0060},
+    {"MEM_SIGNATURE_ENC_WDATA",0x0064},
+    {"MEM_SIGNATURE_ENC_RDATA",0x0068},
+    {"MEM_SIGNATURE_ENC_ADDR",0x006C},
+    {"PREFETCH_LRITC_SIGNATURE",0x0070},
+    {"PROC_DMA_CONTROL",0x00E0},
+    {"PROC_DMA_STATUS",0x00E4},
+    {"PROC_ESB_ACCESS_CONTROL",0x00EC},
+    {"PROC_ESB_ACCESS_WORD0",0x00F0},
+    {"PROC_ESB_ACCESS_WORD1",0x00F4},
+    {"PROC_ESB_ACCESS_WORD2",0x00F8},
+    {"PROC_ESB_ACCESS_WORD3",0x00FC},
+
+    {"LRITC_TILE_USE_CONFIG",0x0040},
+    {"LRITC_TILE_USE_STATUS",0x0048},
+    {"LRITC_TILE_FREE_STATUS",0x004C},
+    {"LRITC_CACHE_CHUNK_CONFIG",0x0050},
+    {"LRITC_CACHE_CHUNK_STATUS",0x0054},
+    {"LRITC_SIGNATURE_ADDR",0x0058},
+    {"LRITC_SIGNATURE_RDATA",0x005C},
+    
+    {"SEQ_CUR_PIC_LUMA_BASE_ADDR",0x0100},
+    {"SEQ_CUR_PIC_CB_BASE_ADDR",0x0104},
+    {"SEQ_CUR_PIC_CR_BASE_ADDR",0x0108},
+    {"SEQ_CUR_PIC_ROW_STRIDE",0x010C},
+    {"SEQ_REF_PIC0_LUMA_BASE_ADDR",0x0110},
+    {"SEQ_REF_PIC0_CHROMA_BASE_ADDR",0x0114},
+    {"SEQ_REF_PIC1_LUMA_BASE_ADDR",0x0118},
+    {"SEQ_REF_PIC1_CHROMA_BASE_ADDR",0x011C},
+    {"SEQ_CUR_PIC_CONFIG",0x0120},
+    {"SEQ_CUR_PIC_SIZE",0x0124},
+    {"SEQ_RECON_LUMA_BASE_ADDR",0x0128},
+    {"SEQ_RECON_CHROMA_BASE_ADDR",0x012C},
+    {"SEQ_ABOVE_PARAM_BASE_ADDR",0x0130},
+    {"SEQ_TEMPORAL_COLOCATED_IN_ADDR",0x0134},
+    {"SEQ_TEMPORAL_PIC0_MV_IN_ADDR",0x0138},
+    {"SEQ_TEMPORAL_PIC1_MV_IN_ADDR",0x013C},
+    {"SEQ_TEMPORAL_COLOCATED_OUT_ADDR",0x0140},
+    {"SEQ_TEMPORAL_PIC0_MV_OUT_ADDR",0x0144},
+    {"SEQ_TEMPORAL_PIC1_MV_OUT_ADDR",0x0148},
+    {"SEQ_MB_FIRST_STAGE_OUT_ADDR",0x014C},
+    {"SEQ_MB_CONTROL_IN_ADDR",0x0150},
+    {"SEQUENCER_CONFIG",0x0154},
+    {"SLICE_CONFIG",0x0158},
+    {"SLICE_QP_CONFIG",0x015C},
+    {"SEQUENCER_KICK",0x0160},
+    {"H264COMP_REJECT_THRESHOLD",0x0184},
+    {"H264COMP_CUSTOM_QUANT_SP",0x01A0},
+    {"H264COMP_CUSTOM_QUANT_Q",0x01A4},
+    {"H264COMP_CONTROL",0x01A8},
+    {"H264COMP_INTRA_PRED_MODES",0x01AC},
+    {"H264COMP_MAX_CYCLE_COUNT",0x01B0},
+    {"H264COMP_MAX_CYCLE_MB",0x01B4},
+    {"H264COMP_MAX_CYCLE_RESET",0x01B8},
+    {"H264COMP4X4_PRED_CRC",0x01BC},
+    {"H264COMP4X4_COEFFS_CRC",0x01C0},
+    {"H264COMP4X4_RECON_CRC",0x01C4},
+    {"H264COMP8X8_PRED_CRC",0x01C8},
+    {"H264COMP8X8_COEFFS_CRC",0x01CC},
+    {"H264COMP8X8_RECON_CRC",0x01D0},
+    {"H264COMP16X16_PRED_CRC",0x01D4},
+    {"H264COMP16X16_COEFFS_CRC",0x01D8},
+    {"H264COMP16X16_RECON_CRC",0x01DC},
+    {"H264COMP_ROUND_0",0x01E0},
+    {"H264COMP_ROUND_1",0x01E4},
+    {"H264COMP_ROUND_2",0x01E8},
+    {"H264COMP_ROUND_INIT",0x01EC},
+    {"H264COMP_VIDEO_CONF_CONTROL_0",0x01F0},
+    {"H264COMP_VIDEO_CONF_CONTROL_1",0x01F4},
+    {"H264COMP_VIDEO_CONF_STATUS_0",0x01F8},
+    {"H264COMP_VIDEO_CONF_STATUS_1",0x01FC},
+};
+
+static struct RegisterInfomation mtx_regs[] = {
+    {"MTX_ENABLE",0x0000},
+    {"MTX_STATUS",0x0008},
+    {"MTX_KICK",0x0080},
+    {"MTX_KICKI",0x0088},
+    {"MTX_FAULT0",0x0090},
+    {"MTX_REGISTER_READ_WRITE_DATA",0x00F8},
+    {"MTX_REGISTER_READ_WRITE_REQUEST",0x00FC},
+    {"MTX_RAM_ACCESS_DATA_EXCHANGE",0x0100},
+    {"MTX_RAM_ACCESS_DATA_TRANSFER",0x0104},
+    {"MTX_RAM_ACCESS_CONTROL",0x0108},
+    {"MTX_RAM_ACCESS_STATUS",0x010C},
+    {"MTX_SOFT_RESET",0x0200},
+    {"MTX_SYSC_CDMAC",0x0340},
+    {"MTX_SYSC_CDMAA",0x0344},
+    {"MTX_SYSC_CDMAS0",0x0348},
+    {"MTX_SYSC_CDMAS1",0x034C},
+    {"MTX_SYSC_CDMAT",0x0350}
+};
+
+
+static struct RegisterInfomation dmac_regs[] = {
+    {"DMA_Setup",0x0000},
+    {"DMA_Count",0x0004},
+    {"DMA_Peripheral_param",0x0008},
+    {"DMA_IRQ_Stat",0x000c},
+    {"DMA_2D_Mode",0x0010},
+    {"DMA_Peripheral_addr",0x0014},
+    {"DMA_Per_hold",0x0018},
+    {"DMA_SoftReset",0x0020},
+};
 
 
 int topazhp_dump_command(unsigned int *comm_dword)
@@ -988,25 +1192,22 @@ int topazhp_dump_command(unsigned int *comm_dword)
     if (comm_dword == NULL)
         return 1;
     
-    cmdid = (comm_dword[0] & MASK_MTX_CMDWORD_ID) & ~MTX_CMDID_PRIORITY;
+    cmdid = (comm_dword[0] & MASK_MTX_MSG_CMD_ID) & ~ MASK_MTX_MSG_PRIORITY;
 
     (void)multicore_regs;
     (void)core_regs;
     (void)mtx_regs;
     (void)dmac_regs;
     
-    printf("\tSend command to MTX\n");
-    printf("\t\tCMDWORD_ID=%s(High priority:%s)\n", cmd2str(cmdid),
-           (comm_dword[0] & MTX_CMDID_PRIORITY)?"Yes":"No");
-    printf("\t\tCMDWORD_CORE=%d\n", (comm_dword[0] & MASK_MTX_CMDWORD_CORE) >> SHIFT_MTX_CMDWORD_CORE);
-    printf("\t\tCMDWORD_COUNT=%d\n", (comm_dword[0] & MASK_MTX_CMDWORD_COUNT) >> SHIFT_MTX_CMDWORD_COUNT);
-    printf("\t\tCMDWORD_PARAM=0x%08x\n", comm_dword[1]);
-    printf("\t\tCMDWORD_WBADDR=0x%08x\n", comm_dword[2]);
-    printf("\t\tCMDWORD_WBVALUE=0x%08x\n", comm_dword[3]);
-    if (comm_dword[1] != NULL)
-	command_parameter_dump(cmdid, phy2virt(comm_dword[1]));
-    else
-	command_parameter_dump(cmdid, NULL);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\tSend command to MTX\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_ID=%s(High priority:%s)\n", cmd2str(cmdid),
+           (comm_dword[0] & MASK_MTX_MSG_PRIORITY)?"Yes":"No");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_CORE=%d\n", (comm_dword[0] & MASK_MTX_MSG_CORE) >> SHIFT_MTX_MSG_CORE);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_COUNT=%d\n", (comm_dword[0] & MASK_MTX_MSG_COUNT) >> SHIFT_MTX_MSG_COUNT);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_DATA=0x%08x\n", comm_dword[1]);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_ADDR=0x%08x\n", comm_dword[2]);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_WBVALUE=0x%08x\n", comm_dword[3]);
+    command_parameter_dump(cmdid, comm_dword[1], comm_dword[2]);
 
     return 0;
 }

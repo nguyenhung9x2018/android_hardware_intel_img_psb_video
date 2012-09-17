@@ -299,7 +299,7 @@ static VAStatus tng__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
 
     //B-frames are not supported for non-H.264 streams
     ctx->sRCParams.ui16BFrames = 0;
-    ctx->ui8SlotsRequired = ctx->ui8SlotsInUse = psRCParams->ui16BFrames + 2;
+    ctx->ui8SlotsInUse = psRCParams->ui16BFrames + 2;
 
 #if HEADERS_VERBOSE_OUTPUT
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n\n**********************************************************************\n");

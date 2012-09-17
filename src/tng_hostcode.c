@@ -29,6 +29,7 @@
  *
  */
 
+
 #include "psb_drv_video.h"
 //#include "tng_H263ES.h"
 #include "tng_hostheader.h"
@@ -40,6 +41,8 @@
 #include "psb_output.h"
 #include "tng_picmgmt.h"
 #include "tng_hostbias.h"
+#include "tng_hostair.h"
+#include "tng_trace.h"
 #include <wsbm/wsbm_manager.h>
 
 #include "hwdefs/topazhp_core_regs.h"
@@ -70,8 +73,11 @@
 #ifdef _TOPAZHP_PDUMP_ALL_
 #define _PDUMP_FUNC_
 #define _PDUMP_SLICE_
-#define _TOPAZHP_CMDBUF_
 #define _PDUMP_BFRAME_
+#endif
+
+#ifdef _TOPAZHP_PDUMP_
+#define _TOPAZHP_CMDBUF_
 #endif
 
 #ifdef _TOPAZHP_CMDBUF_
@@ -87,7 +93,7 @@ static void tng__trace_cmdbuf_words(tng_cmdbuf_p cmdbuf)
 }
 #endif
 
-
+#if 0
 static IMG_UINT32 tng__get_codedbuffer_size(
     IMG_STANDARD eStandard,
     IMG_UINT16 ui16MBWidth,
@@ -118,14 +124,16 @@ static IMG_UINT32 tng__get_buffer_size(IMG_UINT32 src_size)
 {
     return (src_size + 0x1000) & (~0xfff);
 }
+#endif
 
-static inline VAStatus tng__alloc_init_buffer(
+//static inline
+VAStatus tng__alloc_init_buffer(
     psb_driver_data_p driver_data,
     unsigned int size,
     psb_buffer_type_t type,
     psb_buffer_p buf)
 {
-    IMG_UINT32 pTry;
+//    IMG_UINT32 pTry;
     unsigned char *pch_virt_addr;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     vaStatus = psb_buffer_create(driver_data, size, type, buf);
@@ -134,9 +142,11 @@ static inline VAStatus tng__alloc_init_buffer(
         return vaStatus;
     }
 
-    tng_cmdbuf_set_phys(&pTry, 1, buf, 0, 0);
+//    tng_cmdbuf_set_phys(&pTry, 1, buf, 0, 0);
     
     vaStatus = psb_buffer_map(buf, &pch_virt_addr);
+    //drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: phy addr 0x%08x, vir addr 0x%08x\n", __FUNCTION__, buf->drm_buf, pch_virt_addr);
+
     if (vaStatus) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "map buf\n");
         psb_buffer_destroy(buf);
@@ -155,33 +165,31 @@ static inline VAStatus tng__alloc_init_buffer(
     return vaStatus;
 }
 
-static VAStatus tng__alloc_context_buffer(context_ENC_p ctx, unsigned char is_JPEG, unsigned int stream_id)
+static VAStatus tng__alloc_context_buffer(context_ENC_p ctx, IMG_UINT8 ui8IsJpeg, IMG_UINT32 ui32StreamID)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     IMG_UINT32 ui32_pic_width, ui32_pic_height;
-    IMG_UINT32 ui32_mb_width, ui32_mb_height;
-    IMG_INT32  i32_num_pipes;
+    IMG_UINT32 ui32_mb_per_row, ui32_mb_per_column;
+    IMG_UINT32 ui32_adj_mb_per_row = 0; 
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     psb_driver_data_p ps_driver_data = ctx->obj_context->driver_data;
-    context_ENC_mem *ps_mem = &(ctx->ctx_mem[stream_id]);
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamID]);
     context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
     
-
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
 
     if (ctx->eStandard == IMG_STANDARD_H264) {
-        i32_num_pipes = MIN(ctx->i32NumPipes, ctx->ui8SlicesPerPicture);
+        ctx->ui8PipesToUse = tng__min(ctx->ui8PipesToUse, ctx->ui8SlicesPerPicture);
     } else {
-        i32_num_pipes = 1;
+        ctx->ui8PipesToUse = 1;
     }
 
-    ctx->i32NumPipes = i32_num_pipes;
     ctx->i32PicNodes  = (psRCParams->b16Hierarchical ? MAX_REF_B_LEVELS : 0) + 4;
     ctx->i32MVStores = (ctx->i32PicNodes * 2);
-    ctx->i32CodedBuffers = i32_num_pipes * (ctx->bIsInterlaced ? 3 : 2);
+    ctx->i32CodedBuffers = (IMG_INT32)(ctx->ui8PipesToUse) * (ctx->bIsInterlaced ? 3 : 2);
     ctx->ui8SlotsInUse = psRCParams->ui16BFrames + 2;
 
-    if (0 != is_JPEG) {
+    if (0 != ui8IsJpeg) {
         ctx->jpeg_pic_params_size = (sizeof(JPEG_MTX_QUANT_TABLE) + 0x3f) & (~0x3f);
         ctx->jpeg_header_mem_size = (sizeof(JPEG_MTX_DMA_SETUP) + 0x3f) & (~0x3f);
         ctx->jpeg_header_interface_mem_size = ctx->jpeg_header_mem_size;
@@ -196,104 +204,113 @@ static VAStatus tng__alloc_context_buffer(context_ENC_p ctx, unsigned char is_JP
 
     /* width and height should be source surface's w and h or ?? */
     ui32_pic_width = ctx->obj_context->picture_width;
-    ui32_mb_width = (ctx->obj_context->picture_width + 15) >> 4;
+    ui32_mb_per_row = (ctx->obj_context->picture_width + 15) >> 4;
     ui32_pic_height = ctx->obj_context->picture_height;
-    ui32_mb_height = (ctx->obj_context->picture_height + 15) >> 4;
+    ui32_mb_per_column = (ctx->obj_context->picture_height + 15) >> 4;
+    ui32_adj_mb_per_row = ((ui32_mb_per_row + 7)>>3)<<3;  // Ensure multiple of 8 MBs per row
 
     //command buffer use
     ps_mem_size->pic_template = ps_mem_size->slice_template = 
     ps_mem_size->sei_header = ps_mem_size->seq_header = tng_align_KB(TNG_HEADER_SIZE);
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->seq_header,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_seq_header));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_seq_header));
+
     if (ctx->bEnableMVC)
         tng__alloc_init_buffer(ps_driver_data, ps_mem_size->seq_header,
-                                        psb_bt_cpu_vpu, &(ps_mem->bufs_sub_seq_header));
+            psb_bt_cpu_vpu, &(ps_mem->bufs_sub_seq_header));
 
     tng__alloc_init_buffer(ps_driver_data, 4 * ps_mem_size->pic_template,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_pic_template));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_pic_template));
+
     tng__alloc_init_buffer(ps_driver_data, NUM_SLICE_TYPES * ps_mem_size->slice_template,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_slice_template));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_slice_template));
 
     ps_mem_size->mtx_context = tng_align_KB(MTX_CONTEXT_SIZE);
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->mtx_context,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_mtx_context));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_mtx_context));
 
     //gop header
     ps_mem_size->flat_gop = ps_mem_size->hierar_gop = tng_align_KB(64);
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->flat_gop,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_flat_gop));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_flat_gop));
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->hierar_gop,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_hierar_gop));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_hierar_gop));
 
     //above params
-    ps_mem_size->above_params = tng_align_KB(MVEA_ABOVE_PARAM_REGION_SIZE * tng_align_64(ui32_mb_width));
-    tng__alloc_init_buffer(ps_driver_data, ctx->i32NumPipes * ps_mem_size->above_params,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_above_params));
+    ps_mem_size->above_params = tng_align_KB(MVEA_ABOVE_PARAM_REGION_SIZE * tng_align_64(ui32_mb_per_row));
+    tng__alloc_init_buffer(ps_driver_data, (IMG_UINT32)(ctx->ui8PipesToUse) * ps_mem_size->above_params,
+        psb_bt_cpu_vpu, &(ps_mem->bufs_above_params));
 
     //ctx->mv_setting_btable_size = tng_align_KB(MAX_BFRAMES * (tng_align_64(sizeof(IMG_MV_SETTINGS) * MAX_BFRAMES)));
     ps_mem_size->mv_setting_btable = tng_align_KB(MAX_BFRAMES * MV_ROW_STRIDE);
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->mv_setting_btable,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_mv_setting_btable));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_mv_setting_btable));
     
     ps_mem_size->mv_setting_hierar = tng_align_KB(MAX_BFRAMES * sizeof(IMG_MV_SETTINGS));
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->mv_setting_hierar,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_mv_setting_hierar));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_mv_setting_hierar));
 
     //colocated params
-    ps_mem_size->colocated = tng_align_KB(MVEA_MV_PARAM_REGION_SIZE * tng_align_4(ui32_mb_width * ui32_mb_height));
+    ps_mem_size->colocated = tng_align_KB(MVEA_MV_PARAM_REGION_SIZE * tng_align_4(ui32_mb_per_row * ui32_mb_per_column));
     tng__alloc_init_buffer(ps_driver_data, ctx->i32PicNodes * ps_mem_size->colocated,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_colocated));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_colocated));
 
     ps_mem_size->interview_mv = ps_mem_size->mv = ps_mem_size->colocated;
     tng__alloc_init_buffer(ps_driver_data, ctx->i32MVStores * ps_mem_size->mv,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_mv));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_mv));
 
     if (ctx->bEnableMVC) {
         tng__alloc_init_buffer(ps_driver_data, 2 * ps_mem_size->interview_mv,
-                                        psb_bt_cpu_vpu, &(ps_mem->bufs_interview_mv));
+            psb_bt_cpu_vpu, &(ps_mem->bufs_interview_mv));
     }
 
     //write back region
     ps_mem_size->writeback = tng_align_KB(COMM_WB_DATA_BUF_SIZE);
     tng__alloc_init_buffer(ps_driver_data, WB_FIFO_SIZE * ps_mem_size->writeback,
-                                    psb_bt_cpu_vpu, &(ctx->bufs_writeback));
+        psb_bt_cpu_vpu, &(ctx->bufs_writeback));
 
     ps_mem_size->slice_map = tng_align_KB(0x1500); //(1 + MAX_SLICESPERPIC * 2 + 15) & ~15);
     tng__alloc_init_buffer(ps_driver_data, ctx->ui8SlotsInUse * ps_mem_size->slice_map,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_slice_map));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_slice_map));
 
     ps_mem_size->weighted_prediction = tng_align_KB(sizeof(WEIGHTED_PREDICTION_VALUES));
     tng__alloc_init_buffer(ps_driver_data, ctx->ui8SlotsInUse * ps_mem_size->weighted_prediction,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_weighted_prediction));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_weighted_prediction));
 
 #ifdef LTREFHEADER
     ps_mem_size->lt_ref_header = tng_align_KB((sizeof(MTX_HEADER_PARAMS)+63)&~63);
     tng__alloc_init_buffer(ps_driver_data, ctx->ui8SlotsInUse * ps_mem_size->lt_ref_header,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_lt_ref_header));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_lt_ref_header));
 #endif
 
     ps_mem_size->recon_pictures = tng_align_KB((tng_align_64(ui32_pic_width)*tng_align_64(ui32_pic_height))*3/2);
     tng__alloc_init_buffer(ps_driver_data, ctx->i32PicNodes * ps_mem_size->recon_pictures,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_recon_pictures));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_recon_pictures));
     
-    ps_mem_size->coded_buf = ps_mem_size->recon_pictures;
-    tng__alloc_init_buffer(ps_driver_data, ps_mem_size->coded_buf,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_coded_buf));
+    ctx->ctx_mem_size.first_pass_out_params = tng_align_KB(sizeof(IMG_FIRST_STAGE_MB_PARAMS) * ui32_mb_per_row *  ui32_mb_per_column); 
+    tng__alloc_init_buffer(ps_driver_data, ctx->ui8SlotsInUse * ctx->ctx_mem_size.first_pass_out_params,
+        psb_bt_cpu_vpu, &(ps_mem->bufs_first_pass_out_params));
 
-    ctx->ctx_mem_size.mb_ctrl_in_params = tng_align_KB(sizeof(IMG_FIRST_STAGE_MB_PARAMS) * ui32_mb_width *  ui32_mb_height); 
+#ifndef EXCLUDE_BEST_MP_DECISION_DATA
+    ctx->ctx_mem_size.first_pass_out_best_multipass_param = tng_align_KB(ui32_mb_per_column * (((5*ui32_mb_per_row)+3)>>2) * 64); 
+    tng__alloc_init_buffer(ps_driver_data, ctx->ui8SlotsInUse * ctx->ctx_mem_size.first_pass_out_best_multipass_param,
+        psb_bt_cpu_vpu, &(ps_mem->bufs_first_pass_out_best_multipass_param));
+#endif
+
+    ctx->ctx_mem_size.mb_ctrl_in_params = tng_align_KB(sizeof(IMG_FIRST_STAGE_MB_PARAMS) * ui32_adj_mb_per_row *  ui32_mb_per_column); 
     tng__alloc_init_buffer(ps_driver_data, ctx->ui8SlotsInUse * ctx->ctx_mem_size.mb_ctrl_in_params,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_mb_ctrl_in_params));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_mb_ctrl_in_params));
 
     ctx->ctx_mem_size.lowpower_params = tng_align_KB(TNG_HEADER_SIZE);
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->lowpower_params,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_lowpower_params));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_lowpower_params));
 
     ctx->ctx_mem_size.lowpower_data = tng_align_KB(0x10000);
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->lowpower_data,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_lowpower_data));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_lowpower_data));
 
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->lowpower_data,
-                                    psb_bt_cpu_vpu, &(ps_mem->bufs_lowpower_reg));
+        psb_bt_cpu_vpu, &(ps_mem->bufs_lowpower_reg));
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
 
@@ -302,35 +319,49 @@ static VAStatus tng__alloc_context_buffer(context_ENC_p ctx, unsigned char is_JP
 
 static void tng__free_context_buffer(context_ENC_p ctx, unsigned char is_JPEG, unsigned int stream_id)
 {
-    context_ENC_mem *ps_mem = &(ctx->ctx_mem[stream_id]);    
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[stream_id]);
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
 
     if (0 != is_JPEG) {
         psb_buffer_destroy(&(ctx->bufs_writeback));
         return;
     }
+    psb_buffer_destroy(&(ps_mem->bufs_seq_header));
+    if (ctx->bEnableMVC)
+        psb_buffer_destroy(&(ps_mem->bufs_sub_seq_header));
+    psb_buffer_destroy(&(ps_mem->bufs_pic_template));
+    psb_buffer_destroy(&(ps_mem->bufs_slice_template));
+    psb_buffer_destroy(&(ps_mem->bufs_mtx_context));
+
     psb_buffer_destroy(&(ps_mem->bufs_flat_gop));
     psb_buffer_destroy(&(ps_mem->bufs_hierar_gop));
+    psb_buffer_destroy(&(ps_mem->bufs_above_params));
     psb_buffer_destroy(&(ps_mem->bufs_mv_setting_btable));
     psb_buffer_destroy(&(ps_mem->bufs_mv_setting_hierar));
-    psb_buffer_destroy(&(ps_mem->bufs_above_params));
     psb_buffer_destroy(&(ps_mem->bufs_colocated));
     psb_buffer_destroy(&(ps_mem->bufs_mv));
+    if (ctx->bEnableMVC)
+        psb_buffer_destroy(&(ps_mem->bufs_interview_mv));
+
     psb_buffer_destroy(&(ctx->bufs_writeback));
     psb_buffer_destroy(&(ps_mem->bufs_slice_map));
     psb_buffer_destroy(&(ps_mem->bufs_weighted_prediction));
-    psb_buffer_destroy(&(ps_mem->bufs_mb_ctrl_in_params));
-    psb_buffer_destroy(&(ps_mem->bufs_coded_buf));
-//    psb_buffer_destroy(&(ps_mem->bufs_ref_frames));
 #ifdef LTREFHEADER
     psb_buffer_destroy(&(ps_mem->bufs_lt_ref_header));
 #endif
-    if (ctx->ui16UseCustomScalingLists)
-	    psb_buffer_destroy(&(ps_mem->bufs_custom_quant));
 
+    psb_buffer_destroy(&(ps_mem->bufs_recon_pictures));
+    psb_buffer_destroy(&(ps_mem->bufs_first_pass_out_params));
+#ifndef EXCLUDE_BEST_MP_DECISION_DATA
+    psb_buffer_destroy(&(ps_mem->bufs_first_pass_out_best_multipass_param));
+#endif
+    psb_buffer_destroy(&(ps_mem->bufs_mb_ctrl_in_params));
     psb_buffer_destroy(&(ps_mem->bufs_lowpower_params));
-    psb_buffer_destroy(&(ps_mem->bufs_lowpower_reg));
     psb_buffer_destroy(&(ps_mem->bufs_lowpower_data));
+    psb_buffer_destroy(&(ps_mem->bufs_lowpower_reg));
 
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
     return ;
 }
 
@@ -474,28 +505,102 @@ VAStatus tng__patch_hw_profile(context_ENC_p ctx)
     return VA_STATUS_SUCCESS;
 }
 
+static void tng__trace_cmdbuf(tng_cmdbuf_p cmdbuf, int idx)
+{
+    IMG_UINT32 ui32CmdTmp[4];
+    IMG_UINT32 *ptmp = (IMG_UINT32 *)(cmdbuf->cmd_start);
+    IMG_UINT32 *pend = (IMG_UINT32 *)(cmdbuf->cmd_idx);
+    IMG_UINT32 ui32Len;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start, stream (%d), ptmp (0x%08x), pend (0x%08x}\n", __FUNCTION__, idx, (unsigned int)ptmp, (unsigned int)pend);
+
+    if (idx)
+        return ;
+
+    while (ptmp < pend) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ptmp (0x%08x}\n", __FUNCTION__, *ptmp);
+        if ((*ptmp & 0x7f) == MTX_CMDID_SW_NEW_CODEC) {
+            ptmp += 4;
+        } else if ((*ptmp & 0x7f) == MTX_CMDID_SW_LEAVE_LOWPOWER) {
+            ptmp += 2;
+        } else if ((*ptmp & 0x7f) == MTX_CMDID_SW_WRITEREG) {
+            ui32Len = *(++ptmp);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: len = %d\n", __FUNCTION__, ui32Len);
+            ptmp += (ui32Len * 3) + 1;
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: reg ptmp (0x%08x}\n", __FUNCTION__, *ptmp);
+        } else if ((*ptmp & 0x7f) == MTX_CMDID_DO_HEADER) {
+            ui32CmdTmp[0] = *ptmp++;
+            ui32CmdTmp[1] = *ptmp++;
+            ui32CmdTmp[2] = *ptmp++;
+            ui32CmdTmp[3] = 0;
+            topazhp_dump_command((unsigned int*)ui32CmdTmp);
+            ptmp += 2;
+        } else if (
+            ((*ptmp & 0x7f) == MTX_CMDID_SETVIDEO)||
+            ((*ptmp & 0x7f) == MTX_CMDID_SHUTDOWN)) {
+            ui32CmdTmp[0] = *ptmp++;
+            ui32CmdTmp[1] = *ptmp++;
+            ui32CmdTmp[2] = *ptmp++;
+            ui32CmdTmp[3] = *ptmp++;
+            topazhp_dump_command((unsigned int*)ui32CmdTmp);
+        } else if (
+            ((*ptmp & 0x7f) == MTX_CMDID_PROVIDE_SOURCE_BUFFER) ||
+            ((*ptmp & 0x7f) == MTX_CMDID_PROVIDE_REF_BUFFER) ||
+            ((*ptmp & 0x7f) == MTX_CMDID_PROVIDE_CODED_BUFFER) ||
+            ((*ptmp & 0x7f) == MTX_CMDID_PICMGMT) ||
+            ((*ptmp & 0x7f) == MTX_CMDID_ENCODE_FRAME)) {
+            ui32CmdTmp[0] = *ptmp++;
+            ui32CmdTmp[1] = *ptmp++;
+            ui32CmdTmp[2] = *ptmp++;
+            ui32CmdTmp[3] = 0;
+            topazhp_dump_command((unsigned int*)ui32CmdTmp);
+        } else {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: error leave lowpower = 0x%08x\n", __FUNCTION__, *ptmp++);            
+        }
+    }
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
+
+    return ;
+}
+
 void tng_DestroyContext(object_context_p obj_context, unsigned char is_JPEG)
 {
     context_ENC_p ctx;
 //    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     ctx = (context_ENC_p)obj_context->format_data;
-    FRAME_ORDER_INFO *psFrameOrderInfo = &(ctx->sFrameOrderInfo);
+    tng_cmdbuf_p cmdbuf = NULL;
+    FRAME_ORDER_INFO *psFrameInfo = &(ctx->sFrameOrderInfo);
 
     if (tng_context_get_next_cmdbuf(ctx->obj_context))
         drv_debug_msg(VIDEO_DEBUG_ERROR, "get next cmdbuf fail\n");
 
     tng_cmdbuf_insert_command_package(ctx->obj_context, 0,
-        MTX_CMDID_SHUTDOWN, 0, 0);
+        MTX_CMDID_SHUTDOWN, 0, 0, 0);
+
+    cmdbuf = ctx->obj_context->tng_cmdbuf;
+
+#ifdef _TOPAZHP_CMDBUF_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s addr = 0x%08x \n", __FUNCTION__, cmdbuf);
+    tng__trace_cmdbuf_words(cmdbuf);
+#endif
+
+#ifdef _TOPAZHP_PDUMP_
+    tng__trace_cmdbuf(cmdbuf, ctx->ui32StreamID);
+#endif
 
     if (tng_context_flush_cmdbuf(ctx->obj_context))
         drv_debug_msg(VIDEO_DEBUG_ERROR, "flush cmd package fail\n");
 
-    if (psFrameOrderInfo->slot_consume_dpy_order != NULL)
-        free(psFrameOrderInfo->slot_consume_dpy_order);
-    if (psFrameOrderInfo->slot_consume_enc_order != NULL)
-        free(psFrameOrderInfo->slot_consume_enc_order);
+    if (psFrameInfo->slot_consume_dpy_order != NULL)
+        free(psFrameInfo->slot_consume_dpy_order);
+    if (psFrameInfo->slot_consume_enc_order != NULL)
+        free(psFrameInfo->slot_consume_enc_order);
+
+    tng_air_buf_free(ctx);
 
     tng__free_context_buffer(ctx, is_JPEG, 0);
+
     if (ctx->bEnableMVC)
         tng__free_context_buffer(ctx, is_JPEG, 1);
 
@@ -522,7 +627,7 @@ static VAStatus tng__init_rc_params(context_ENC_p ctx, object_config_p obj_confi
         eRCmode = obj_config->attrib_list[i].value;
     }
 
-	ctx->sRCParams.bRCEnable = IMG_TRUE;
+    ctx->sRCParams.bRCEnable = IMG_TRUE;
     if (eRCmode == VA_RC_NONE) {
         ctx->sRCParams.bRCEnable = IMG_FALSE;
         ctx->sRCParams.eRCMode = IMG_RCMODE_NONE;
@@ -583,7 +688,7 @@ static VAStatus tng__get_encoder_caps(context_ENC_p ctx)
     
     /* get the actual number of cores */
     ui32NumCores = tng__get_num_pipes();
-    ctx->i32NumPipes = ui32NumCores;
+    ctx->ui8PipesToUse = (IMG_UINT8)(ui32NumCores & 0xff);
         
     switch (ctx->eStandard) {
         case IMG_STANDARD_JPEG:
@@ -695,6 +800,8 @@ static VAStatus tng__init_context(context_ENC_p ctx)
     ctx->bTopFieldFirst = IMG_TRUE;
     ctx->bOutputReconstructed = IMG_FALSE;
     ctx->sBiasTables.ui32FCode = ctx->ui32FCode;
+    ctx->ui32pseudo_rand_seed = UNINIT_PARAM;
+    ctx->bVPAdaptiveRoundingDisable = IMG_TRUE;
 
     //Default fcode is 4
     if (!ctx->sBiasTables.ui32FCode)
@@ -756,75 +863,13 @@ VAStatus tng_CreateContext(
     tng__setup_enc_profile_features(ctx, ENC_PROFILE_DEFAULT);
 
     if (is_JPEG) {
-	    vaStatus = tng__alloc_context_buffer(ctx, is_JPEG, 0);
-	    if (vaStatus != VA_STATUS_SUCCESS) {
-		    drv_debug_msg(VIDEO_DEBUG_ERROR, "setup enc profile");
-	    }
+        vaStatus = tng__alloc_context_buffer(ctx, is_JPEG, 0);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "setup enc profile");
+        }
     }
 
     return vaStatus;
-}
-
-static void tng_buffer_unmap(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
-{
-    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start \n", __FUNCTION__);
-#endif
-    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
-    psb_buffer_unmap(&(ps_mem->bufs_seq_header)); 
-    if (ctx->bEnableMVC)
-        psb_buffer_unmap(&(ps_mem->bufs_sub_seq_header)); 
-    if (ctx->bInsertHRDParams) {
-        psb_buffer_unmap(&(ps_mem->bufs_sei_header));
-    }
-    psb_buffer_unmap(&(ps_mem->bufs_pic_template));
-    psb_buffer_unmap(&(ps_mem->bufs_slice_template));
-    psb_buffer_unmap(&(ctx->bufs_writeback));
-
-    psb_buffer_unmap(&(ps_mem->bufs_above_params));
-    psb_buffer_unmap(&(ps_mem->bufs_recon_pictures));
-    psb_buffer_unmap(&(ps_mem->bufs_colocated));
-    psb_buffer_unmap(&(ps_mem->bufs_mv));
-    if (ctx->bEnableMVC)
-        psb_buffer_unmap(&(ps_mem->bufs_interview_mv));
-/*
-    psb_buffer_unmap(&(ps_mem->bufs_bytes_coded));
-    psb_buffer_unmap(&(ps_mem->bufs_src_phy_addr));
-*/
-    // WEIGHTED PREDICTION
-    psb_buffer_unmap(&(ps_mem->bufs_weighted_prediction));
-    psb_buffer_unmap(&(ps_mem->bufs_flat_gop));
-    psb_buffer_unmap(&(ps_mem->bufs_hierar_gop));
-    
-#ifdef LTREFHEADER
-    psb_buffer_unmap(&(ps_mem->bufs_lt_ref_header));
-#endif
-
-    if (ctx->ui16UseCustomScalingLists)
-        psb_buffer_unmap(&(ps_mem->bufs_custom_quant));   
-    psb_buffer_unmap(&(ps_mem->bufs_slice_map));
-    
-    /*  | MVSetingsB0 | MVSetingsB1 | ... | MVSetings Bn |  */
-    psb_buffer_unmap(&(ps_mem->bufs_mv_setting_btable));
-    psb_buffer_unmap(&(ps_mem->bufs_mv_setting_hierar));
-/*
-    psb_buffer_unmap(&(ps_mem->bufs_recon_buffer)); 
-    psb_buffer_unmap(&(ps_mem->bufs_patch_recon_buffer));
-    
-    psb_buffer_unmap(&(ps_mem->bufs_first_pass_out_params));
-#ifndef EXCLUDE_BEST_MP_DECISION_DATA
-    psb_buffer_unmap(&(ps_mem->bufs_first_pass_out_best_multipass_param));
-#endif
-*/
-    psb_buffer_unmap(&(ps_mem->bufs_mb_ctrl_in_params));
-    psb_buffer_unmap(&(ps_mem->bufs_coded_buf));
-//    psb_buffer_unmap(&(ps_mem->bufs_ref_frames));
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end \n", __FUNCTION__);
-#endif
-
-    return ;
 }
 
 VAStatus tng_BeginPicture(context_ENC_p ctx)
@@ -875,70 +920,71 @@ static VAStatus tng__provide_buffer_BFrames(context_ENC_p ctx, IMG_UINT32 ui32St
 {
     IMG_RC_PARAMS * psRCParams = &(ctx->sRCParams);
     FRAME_ORDER_INFO *psFrameInfo = &(ctx->sFrameOrderInfo);
-    static int frame_type;
-    static int slot_num;
-    static unsigned long long display_order;
+    int slot_index = 0;
+    unsigned long long display_order;
     IMG_UINT32 ui32SlotBuf = psRCParams->ui16BFrames + 2;
     IMG_UINT32 ui32FrameIdx = ctx->ui32FrameCount[ui32StreamIndex];
-//    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
-
-#ifdef _PDUMP_BFRAME_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s: frame count = %d\n", __FUNCTION__, (int)ui32FrameIdx);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s: psRCParams->ui16BFrames = %d, psRCParams->ui32IntraFreq = %d, ctx->ui32IdrPeriod = %d\n",
-        __FUNCTION__, (int)psRCParams->ui16BFrames, (int)psRCParams->ui32IntraFreq, ctx->ui32IdrPeriod);
-#endif
-
-//    tng_send_codedbuf(ctx, (ui32FrameIdx&1));
-    tng_send_codedbuf(ctx, ui32StreamIndex);
 
     if (ui32StreamIndex == 0)
-        getFrameDpyOrder(ui32FrameIdx,
-            psRCParams->ui16BFrames, ctx->ui32IntraCnt, ctx->ui32IdrPeriod,
-            psFrameInfo, &display_order, &frame_type, &slot_num);
+        getFrameDpyOrder(ui32FrameIdx, psRCParams->ui16BFrames, ctx->ui32IntraCnt,
+             ctx->ui32IdrPeriod, psFrameInfo, &display_order);
+
+    slot_index = psFrameInfo->last_slot;
 
 #ifdef _PDUMP_BFRAME_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s: slot_num = %d, display_order = %d\n",
-        __FUNCTION__, slot_num, display_order);
+        "%s: (int)ui32FrameIdx = %d, psRCParams->ui16BFrames = %d, psRCParams->ui32IntraFreq = %d, ctx->ui32IdrPeriod = %d\n",
+        __FUNCTION__, (int)ui32FrameIdx, (int)psRCParams->ui16BFrames, (int)psRCParams->ui32IntraFreq, ctx->ui32IdrPeriod);
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: last_slot = %d, last_frame_type = %d, display_order = %d\n",
+        __FUNCTION__, psFrameInfo->last_slot, psFrameInfo->last_frame_type, display_order);
 #endif
 
     if (ui32FrameIdx < ui32SlotBuf) {
-        if (ui32FrameIdx == 0)
+        if (ui32FrameIdx == 0) {
             tng_send_source_frame(ctx, 0, 0);
-        else if (ui32FrameIdx == 1) {
-            slot_num = 1;
+        } else if (ui32FrameIdx == 1) {
+            slot_index = 1;
             do {
-                tng_send_source_frame(ctx, slot_num, slot_num);
-                ++slot_num;
-            } while(slot_num < ui32SlotBuf);
+                tng_send_source_frame(ctx, slot_index, slot_index);
+                ++slot_index;
+            } while(slot_index < ui32SlotBuf);
         } else {
-            slot_num = ui32FrameIdx - 1;
-            tng_send_source_frame(ctx, slot_num, slot_num);
+            slot_index = ui32FrameIdx - 1;
+            tng_send_source_frame(ctx, slot_index, slot_index);
         }
     } else {
-        tng_send_source_frame(ctx, slot_num , display_order);
+        tng_send_source_frame(ctx, slot_index , display_order);
     }
+
     return VA_STATUS_SUCCESS;
 }
-
 
 VAStatus tng__provide_buffer_PFrames(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 {
     IMG_UINT32 ui32FrameIdx = ctx->ui32FrameCount[ui32StreamIndex];
-#ifdef _PDUMP_FUNC_
+
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: frame count = %d, SlotsInUse = %d, ui32FrameIdx = %d\n",
         __FUNCTION__, (int)ui32FrameIdx, ctx->ui8SlotsInUse, ui32FrameIdx);
-#endif
-    tng_send_codedbuf(ctx, (ui32FrameIdx&1));
-    tng_send_source_frame(ctx, (ui32FrameIdx&1), ui32FrameIdx);
 
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s: end\n", __FUNCTION__);
-#endif
+    tng_send_source_frame(ctx, ctx->ui8SlotsCoded, ui32FrameIdx);
+
+    if (ui32FrameIdx % ctx->ui32IntraCnt == 0)
+        ctx->eFrameType = IMG_INTRA_FRAME;
+    else
+        ctx->eFrameType = IMG_INTER_P;
+
+    if (ctx->ui32IdrPeriod == 0) {
+        if (ui32FrameIdx == 0)
+            ctx->eFrameType = IMG_INTRA_IDR;
+    } else {
+        if (ui32FrameIdx % (ctx->ui32IntraCnt * ctx->ui32IdrPeriod) == 0)
+            ctx->eFrameType = IMG_INTRA_IDR;
+    }
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ctx->eFrameType = %d\n", __FUNCTION__, ctx->eFrameType);
 
     return VA_STATUS_SUCCESS;
 }
@@ -1330,342 +1376,301 @@ static void tng__setup_rcdata(context_ENC_p ctx)
 {
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     PIC_PARAMS    *psPicParams = &(ctx->sPicParams);
-    IN_RC_PARAMS  *psInParams = &(ctx->sPicParams.sInParams);
-    IMG_INT32  i32FrameRate, i32TmpQp;
-    double     L1, L2, L3, L4, L5, L6, flBpp;
-    IMG_INT32  i32BufferSizeInFrames;
-    IMG_UINT32 ui32PicSize = (IMG_UINT32)(ctx->ui16PictureHeight) * (IMG_UINT32)(ctx->ui16Width);
-    IMG_UINT32 ui32QualPicsize = ui32PicSize >> 8;
+    
+    IMG_INT32 i32FrameRate, i32TmpQp;
+    double        L1, L2, L3,L4, L5, L6, flBpp;
+    IMG_INT32 i32BufferSizeInFrames;
 #ifdef _PDUMP_FUNC_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
 #endif
 
-    // If Bit Rate and Basic Units are not specified then set to default values.
+	// If Bit Rate and Basic Units are not specified then set to default values.
     if (psRCParams->ui32BitsPerSecond == 0 && !ctx->bEnableMVC) {
-        psRCParams->ui32BitsPerSecond = 640000;         // kbps
+        psRCParams->ui32BitsPerSecond = 640000;     // kbps
     }
-    if (!psRCParams->ui32BUSize)    {
-        psRCParams->ui32BUSize = ui32QualPicsize;               // BU = 1 Frame
+    
+    if (!psRCParams->ui32BUSize) {
+        psRCParams->ui32BUSize = (ctx->ui16PictureHeight>>4) * (ctx->ui16Width>>4);		// BU = 1 Frame
     }
-
-    ctx->ui32KickSize = psRCParams->ui32BUSize;
-
+    
     if (!psRCParams->ui32FrameRate) {
-        psRCParams->ui32FrameRate = 30;         // fps
+        psRCParams->ui32FrameRate = 30;		// fps
     }
 
     // Calculate Bits Per Pixel
-    i32FrameRate    = (ctx->ui16Width <= 176) ? 30 : psRCParams->ui32FrameRate;
-    flBpp = 1.0 * psRCParams->ui32BitsPerSecond / (i32FrameRate * ui32PicSize);
-    psInParams->ui8SeInitQP     = psRCParams->ui32InitialQp;
-    psInParams->ui8MBPerRow     = (ctx->ui16Width >> 4);
-    psInParams->ui16MBPerBU     = psRCParams->ui32BUSize;
-    psInParams->ui16MBPerFrm    = ui32QualPicsize;
-    psInParams->ui16BUPerFrm    = (psInParams->ui16MBPerFrm) / psRCParams->ui32BUSize;
-    psInParams->ui16IntraPeriod = psRCParams->ui32IntraFreq;
-    psInParams->ui16BFrames     = psRCParams->ui16BFrames;
-    psInParams->i32BitRate      = psRCParams->ui32BitsPerSecond;
-
-    //FIXME: Zhaohan, this should be set by testsuite?
-    psRCParams->ui32TransferBitsPerSecond = psInParams->i32BitRate;
-
-    psInParams->bFrmSkipDisable = psRCParams->bDisableFrameSkipping;
-
-    psInParams->i32BitsPerFrm   = (psRCParams->ui32BitsPerSecond + psRCParams->ui32FrameRate / 2) / psRCParams->ui32FrameRate;
-    psInParams->i32TransferRate = (psRCParams->ui32TransferBitsPerSecond + psRCParams->ui32FrameRate/2) / psRCParams->ui32FrameRate;
-    psInParams->i32BitsPerGOP   = (psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate) * psRCParams->ui32IntraFreq;
-    psInParams->i32BitsPerBU    = psInParams->i32BitsPerFrm / (4 * psInParams->ui16BUPerFrm);
-    psInParams->i32BitsPerMB    = psInParams->i32BitsPerBU / psRCParams->ui32BUSize;
-
-    psInParams->ui16AvQPVal     = psRCParams->ui32InitialQp;
-    psInParams->ui16MyInitQP    = psRCParams->ui32InitialQp;
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psRCParams->ui32BUSize = %d, i32FrameRate = %d, ui32PicSize = %d, psInParams->ui16BUPerFrm = %d\n", __FUNCTION__, psRCParams->ui32BUSize, i32FrameRate, ui32PicSize, psInParams->ui16BUPerFrm);
-#endif
-
-    psInParams->bHierarchicalMode = psRCParams->b16Hierarchical;
-    if (psInParams->i32BitsPerFrm) {
-        i32BufferSizeInFrames = (psRCParams->ui32BufferSize + (psInParams->i32BitsPerFrm / 2)) / psInParams->i32BitsPerFrm;
+    if (ctx->ui16Width <= 176 ) {
+        i32FrameRate    = 30;
     } else {
-        IMG_ASSERT(ctx->bEnableMVC && "Can happen only in MVC mode");
+        i32FrameRate	= psRCParams->ui32FrameRate;
+    }
+
+    flBpp = 1.0 * psRCParams->ui32BitsPerSecond / (i32FrameRate * ctx->ui16Width * ctx->ui16FrameHeight);
+
+    psPicParams->sInParams.ui8SeInitQP          = psRCParams->ui32InitialQp;
+    psPicParams->sInParams.ui8MBPerRow      = (ctx->ui16Width>>4);
+    psPicParams->sInParams.ui16MBPerBU       = psRCParams->ui32BUSize;
+    psPicParams->sInParams.ui16MBPerFrm     = (ctx->ui16Width>>4) * (ctx->ui16PictureHeight>>4);
+    psPicParams->sInParams.ui16BUPerFrm      = (psPicParams->sInParams.ui16MBPerFrm) / psRCParams->ui32BUSize;
+
+    psPicParams->sInParams.ui16IntraPeriod      = psRCParams->ui32IntraFreq;
+    psPicParams->sInParams.ui16BFrames         = psRCParams->ui16BFrames;
+    psPicParams->sInParams.i32BitRate             = psRCParams->ui32BitsPerSecond;
+
+    psPicParams->sInParams.bFrmSkipDisable   = psRCParams->bDisableFrameSkipping;
+    psPicParams->sInParams.i32BitsPerFrm       = (psRCParams->ui32BitsPerSecond + psRCParams->ui32FrameRate/2) / psRCParams->ui32FrameRate;
+    psPicParams->sInParams.i32BitsPerBU         = psPicParams->sInParams.i32BitsPerFrm / (4 * psPicParams->sInParams.ui16BUPerFrm);
+
+    // Codec-dependant fields
+    if (ctx->eStandard == IMG_STANDARD_H264) {
+        psPicParams->sInParams.mode.h264.i32TransferRate = (psRCParams->ui32TransferBitsPerSecond + psRCParams->ui32FrameRate/2) / psRCParams->ui32FrameRate;
+        psPicParams->sInParams.mode.h264.bHierarchicalMode =   psRCParams->b16Hierarchical;
+    } else {
+        psPicParams->sInParams.mode.other.i32BitsPerGOP      = (psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate) * psRCParams->ui32IntraFreq;
+        psPicParams->sInParams.mode.other.ui16AvQPVal         = psRCParams->ui32InitialQp;
+        psPicParams->sInParams.mode.other.ui16MyInitQP         = psRCParams->ui32InitialQp;
+    }
+
+    
+    if (psPicParams->sInParams.i32BitsPerFrm) {
+        i32BufferSizeInFrames = (psRCParams->ui32BufferSize + (psPicParams->sInParams.i32BitsPerFrm/2))/psPicParams->sInParams.i32BitsPerFrm;
+    } else {
+        IMG_ASSERT(ctx->bEnableMvc && "Can happen only in MVC mode");
         /* Asigning more or less `normal` value. To be overriden by MVC RC module */
         i32BufferSizeInFrames = 30;
     }
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ctx->eStandard = %d\n", __FUNCTION__, ctx->eStandard);
-#endif
-    // select thresholds and initial Qps etc that are codec dependent
+
+    // select thresholds and initial Qps etc that are codec dependent 
     switch (ctx->eStandard) {
-    case IMG_STANDARD_NONE:
-        break;
-
-    case IMG_STANDARD_H264:
-        L1 = 0.1;
-        L2 = 0.15;
-        L3 = 0.2;
-        psInParams->ui8MaxQPVal = 51;
-        ctx->ui32KickSize = psInParams->ui16MBPerBU;
-
-        // Setup MAX and MIN Quant Values
-        if (psRCParams->iMinQP == 0)    {
-            if (flBpp >= 0.50)
-                i32TmpQp = 4;
-            else if (flBpp > 0.133)
-                i32TmpQp = (IMG_INT32)(22 - (40 * flBpp));
-            else
-                i32TmpQp = (IMG_INT32)(30 - (100 * flBpp));
-
-            /* Adjust minQp up for small buffer size and down for large buffer size */
-            if (i32BufferSizeInFrames < 20) {
-                i32TmpQp += 2;
-            }
-            if (i32BufferSizeInFrames > 40) {
-                if (i32TmpQp >= 1)
-                    i32TmpQp -= 1;
-            }
-            /* for HD content allow a lower minQp as bitrate is more easily controlled in this case */
-            if (psInParams->ui16MBPerFrm > 2000) {
-                if (i32TmpQp >= 2)
-                    i32TmpQp -= 2;
-            }
-
-        } else
-            i32TmpQp = psRCParams->iMinQP;
-
-        psInParams->ui8MinQPVal = (i32TmpQp < 4) ? 4 : i32TmpQp;
-        // Calculate Initial QP if it has not been specified
-        i32TmpQp = psInParams->ui8SeInitQP;
-
-        if (psInParams->ui8SeInitQP == 0) {
-            L1 = 0.050568;
-            L2 = 0.202272;
-            L3 = 0.40454321;
-            L4 = 0.80908642;
-            L5 = 1.011358025;
-            if (flBpp < L1)
-                i32TmpQp = (IMG_INT32)(45 - 78.10 * flBpp);
-            else if (flBpp >= L1 && flBpp < L2)
-                i32TmpQp = (IMG_INT32)(44 - 72.51 * flBpp);
-            else if (flBpp >= L2 && flBpp < L3)
-                i32TmpQp = (IMG_INT32)(34 - 24.72 * flBpp);
-            else if (flBpp >= L3 && flBpp < L4)
-                i32TmpQp = (IMG_INT32)(32 - 19.78 * flBpp);
-            else if (flBpp >= L4 && flBpp < L5)
-                i32TmpQp = (IMG_INT32)(25 - 9.89 * flBpp);
-            else if (flBpp >= L5)
-                i32TmpQp = (IMG_INT32)(18 - 4.95 * flBpp);
-            /* Adjust ui8SeInitQP up for small buffer size or small fps */
-            /* Adjust ui8SeInitQP up for small gop size */
-            if ((i32BufferSizeInFrames < 20) || (psRCParams->ui32IntraFreq < 20)) {
-                i32TmpQp += 2;
-            }
-            /* start on a lower initial Qp for HD content as the coding is more efficient */
-            if (psInParams->ui16MBPerFrm > 2000) {
-                i32TmpQp -= 2;
-            }
-        }
-
-        if (gbLowLatency) {
-            if (i32TmpQp > 40)
-                i32TmpQp += 5;
-            else if (i32TmpQp > 35)
-                i32TmpQp += 7;
-            else if (i32TmpQp > 32)
-                i32TmpQp += 9;
-            else
-                i32TmpQp += 12;
-        }
-        if (i32TmpQp > 49) {
-            i32TmpQp = 49;
-        }
-        if (i32TmpQp < psInParams->ui8MinQPVal) {
-            i32TmpQp = psInParams->ui8MinQPVal;
-        }
-        psInParams->ui8SeInitQP = i32TmpQp;
-
-        if (flBpp <= 0.3)
-            psPicParams->ui32Flags |= ISRC_I16BIAS;
-        break;
-    case IMG_STANDARD_MPEG4:
-    case IMG_STANDARD_MPEG2:
-    case IMG_STANDARD_H263:
-        psInParams->ui8MaxQPVal  = 31;
-        if (ctx->ui16Width == 176) {
-            L1 = 0.042;
-            L2 = 0.084;
-            L3 = 0.126;
-            L4 = 0.168;
-            L5 = 0.336;
-            L6 = 0.505;
-        } else if (ctx->ui16Width == 352) {
-            L1 = 0.064;
-            L2 = 0.084;
-            L3 = 0.106;
-            L4 = 0.126;
-            L5 = 0.168;
-            L6 = 0.210;
-        } else {
-            L1 = 0.050;
-            L2 = 0.0760;
-            L3 = 0.096;
-            L4 = 0.145;
-            L5 = 0.193;
-            L6 = 0.289;
-        }
-
-        if (psInParams->ui8SeInitQP == 0) {
-            if (flBpp < L1)
-                psInParams->ui8SeInitQP = 31;
-            else if (flBpp >= L1 && flBpp < L2)
-                psInParams->ui8SeInitQP = 26;
-            else if (flBpp >= L2 && flBpp < L3)
-                psInParams->ui8SeInitQP = 22;
-            else if (flBpp >= L3 && flBpp < L4)
-                psInParams->ui8SeInitQP = 18;
-            else if (flBpp >= L4 && flBpp < L5)
-                psInParams->ui8SeInitQP = 14;
-            else if (flBpp >= L5 && flBpp < L6)
-                psInParams->ui8SeInitQP = 10;
-            else
-                psInParams->ui8SeInitQP = 8;
-
-            /* Adjust ui8SeInitQP up for small buffer size or small fps */
-            /* Adjust ui8SeInitQP up for small gop size */
-            if ((i32BufferSizeInFrames < 20) || (psRCParams->ui32IntraFreq < 20)) {
-                psInParams->ui8SeInitQP += 2;
-            }
-
-            if (psInParams->ui8SeInitQP > psInParams->ui8MaxQPVal) {
-                psInParams->ui8SeInitQP = psInParams->ui8MaxQPVal;
-            }
-            psInParams->ui16AvQPVal =  psInParams->ui8SeInitQP;
-        }
-
-        psInParams->ui8MinQPVal = 2;
-
-        /* Adjust minQp up for small buffer size and down for large buffer size */
-        if (i32BufferSizeInFrames < 20) {
-            psInParams->ui8MinQPVal += 1;
-        }
-
-        break;
-    default:
-        /* the NO RC cases will fall here */
-        break;
-    }
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ctx->sRCParams.eRCMode = %d\n", __FUNCTION__, ctx->sRCParams.eRCMode);
-#endif
-    if (ctx->sRCParams.eRCMode == IMG_RCMODE_VBR) {
-        psInParams->ui16MBPerBU = psInParams->ui16MBPerFrm;
-        psInParams->ui16BUPerFrm        = 1;
-
-        // Initialize the parameters of fluid flow traffic model.
-        psInParams->i32BufferSize = psRCParams->ui32BufferSize;
-
-        // These scale factor are used only for rate control to avoid overflow
-        // in fixed-point calculation these scale factors are decided by bit rate
-        if (psRCParams->ui32BitsPerSecond < 640000) {
-            psInParams->ui8ScaleFactor  = 2;        // related to complexity
-        } else if (psRCParams->ui32BitsPerSecond < 2000000)     {// 2 Mbits
-            psInParams->ui8ScaleFactor  = 4;
-        } else if (psRCParams->ui32BitsPerSecond < 8000000) {// 8 Mbits
-            psInParams->ui8ScaleFactor  = 6;
-        } else
-            psInParams->ui8ScaleFactor  = 8;
-    } else {
-        // Set up Input Parameters that are mode dependent
-        switch (ctx->eStandard) {
-        case IMG_STANDARD_NONE:
-        case IMG_STANDARD_JPEG:
-            break;
         case IMG_STANDARD_H264:
-            // ------------------- H264 CBR RC ------------------- //
-            // Initialize the parameters of fluid flow traffic model.
-            psInParams->i32BufferSize = psRCParams->ui32BufferSize;
+            L1 = 0.1;	L2 = 0.15;	L3 = 0.2;
+            psPicParams->sInParams.ui8MaxQPVal = 51;
+            ctx->ui32KickSize = psPicParams->sInParams.ui16MBPerBU;
 
-            // HRD consideration - These values are used by H.264 reference code.
-            if (psRCParams->ui32BitsPerSecond < 1000000)         // 1 Mbits/s
-                psInParams->ui8ScaleFactor = 0;
-            else if (psRCParams->ui32BitsPerSecond < 2000000)    // 2 Mbits/s
-                psInParams->ui8ScaleFactor = 1;
-            else if (psRCParams->ui32BitsPerSecond < 4000000)    // 4 Mbits/s
-                psInParams->ui8ScaleFactor = 2;
-            else if (psRCParams->ui32BitsPerSecond < 8000000)    // 8 Mbits/s
-                psInParams->ui8ScaleFactor = 3;
-            else
-                psInParams->ui8ScaleFactor = 4;
+            // Setup MAX and MIN Quant Values
+            if (psRCParams->iMinQP == 0) {
+                if (flBpp >= 0.50)
+                    i32TmpQp = 4;
+                else if (flBpp > 0.133)
+                    i32TmpQp = (IMG_INT32)(22 - (40*flBpp));
+                else
+                    i32TmpQp = (IMG_INT32)(30 - (100 * flBpp));
 
-            if (ctx->sRCParams.eRCMode == IMG_RCMODE_VCM) {
-                if (ctx->ui16FrameHeight >= 480) {
-                    psInParams->ui8VCMBitrateMargin = 126;
-                } else {
-                    psInParams->ui8VCMBitrateMargin = 115;
+                /* Adjust minQp up for small buffer size and down for large buffer size */
+                if (i32BufferSizeInFrames < 20) {
+                    i32TmpQp += 2;
                 }
-                if (i32BufferSizeInFrames < 15) {
-                    // when we have a very small window size we reduce the target further to avoid too much skipping
-                    psInParams->ui8VCMBitrateMargin -= 5;
+
+                if (i32BufferSizeInFrames > 40) {
+                    if(i32TmpQp>=1)
+                        i32TmpQp -= 1;
                 }
-                psInParams->i32ForceSkipMargin = 500; // start skipping MBs when within 500 bits of slice or frame limit
-                psInParams->i32BufferSize = i32BufferSizeInFrames;
+                /* for HD content allow a lower minQp as bitrate is more easily controlled in this case */
+                if (psPicParams->sInParams.ui16MBPerFrm > 2000) {
+                    if (i32TmpQp>=2)
+                        i32TmpQp -= 2;
+                }
+            } else
+                i32TmpQp = psRCParams->iMinQP;				
+			
+            if (i32TmpQp < 4) {
+                psPicParams->sInParams.ui8MinQPVal = 4;
+            } else {
+                psPicParams->sInParams.ui8MinQPVal = i32TmpQp;
             }
+
+            // Calculate Initial QP if it has not been specified
+            i32TmpQp = psPicParams->sInParams.ui8SeInitQP;
+            if (psPicParams->sInParams.ui8SeInitQP==0) {
+                L1 = 0.050568;
+                L2 = 0.202272;
+                L3 = 0.40454321;
+                L4 = 0.80908642;
+                L5 = 1.011358025;
+
+                if (flBpp < L1)
+                    i32TmpQp = (IMG_INT32)(45 - 78.10*flBpp);
+                else if (flBpp>=L1 && flBpp<L2)
+                    i32TmpQp = (IMG_INT32)(44 - 72.51*flBpp);
+                else if (flBpp>=L2 && flBpp<L3)
+                    i32TmpQp = (IMG_INT32)(34 - 24.72*flBpp);
+                else if (flBpp>=L3 && flBpp<L4)
+                    i32TmpQp = (IMG_INT32)(32 - 19.78*flBpp);
+                else if (flBpp>=L4 && flBpp<L5)
+                    i32TmpQp = (IMG_INT32)(25 - 9.89*flBpp);
+                else if (flBpp>=L5)
+                    i32TmpQp = (IMG_INT32)(18 - 4.95*flBpp);
+
+                /* Adjust ui8SeInitQP up for small buffer size or small fps */
+                /* Adjust ui8SeInitQP up for small gop size */
+                if ((i32BufferSizeInFrames < 20) || (psRCParams->ui32IntraFreq < 20)) {
+                    i32TmpQp += 2;
+                }
+                /* start on a lower initial Qp for HD content as the coding is more efficient */
+                if (psPicParams->sInParams.ui16MBPerFrm > 2000) {
+                    i32TmpQp -= 2;
+                }
+            }
+            if (i32TmpQp>49) {
+                i32TmpQp = 49;
+            }
+            if (i32TmpQp < psPicParams->sInParams.ui8MinQPVal) {
+                i32TmpQp = psPicParams->sInParams.ui8MinQPVal;
+            }
+            psPicParams->sInParams.ui8SeInitQP = i32TmpQp;
+
+            if(flBpp <= 0.3)
+                psPicParams->ui32Flags |= ISRC_I16BIAS;
+
             break;
 
         case IMG_STANDARD_MPEG4:
         case IMG_STANDARD_MPEG2:
         case IMG_STANDARD_H263:
-            flBpp  = 256 * (psRCParams->ui32BitsPerSecond / ctx->ui16Width);
-            flBpp /= (ctx->ui16FrameHeight * psRCParams->ui32FrameRate);
-
-            if ((psInParams->ui16MBPerFrm > 1024 && flBpp < 16) ||
-                (psInParams->ui16MBPerFrm <= 1024 && flBpp < 24))
-                psInParams->ui8HalfFrameRate = 1;
-            else
-                psInParams->ui8HalfFrameRate = 0;
-
-            if (psInParams->ui8HalfFrameRate >= 1)  {
-                psInParams->ui8SeInitQP = 31;
-                psInParams->ui16AvQPVal = 31;
-                psInParams->ui16MyInitQP = 31;
+            psPicParams->sInParams.ui8MaxQPVal	 = 31;
+            if (ctx->ui16Width == 176) {
+                L1 = 0.042;    L2 = 0.084;    L3 = 0.126;    L4 = 0.168;    L5 = 0.336;    L6=0.505;
+            } else if (ctx->ui16Width == 352) {	
+                L1 = 0.064;    L2 = 0.084;    L3 = 0.106;    L4 = 0.126;    L5 = 0.168;    L6=0.210;
+            } else {
+                L1 = 0.050;    L2 = 0.0760;    L3 = 0.096;   L4 = 0.145;    L5 = 0.193;    L6=0.289;
             }
 
-            psInParams->i32BufferSize = psRCParams->ui32BufferSize;
+            if (psPicParams->sInParams.ui8SeInitQP==0) {
+                if (flBpp < L1)
+                    psPicParams->sInParams.ui8SeInitQP = 31;
+                else if (flBpp>=L1 && flBpp<L2)
+                    psPicParams->sInParams.ui8SeInitQP = 26;
+                else if (flBpp>=L2 && flBpp<L3)
+                    psPicParams->sInParams.ui8SeInitQP = 22;
+                else if (flBpp>=L3 && flBpp<L4)
+                    psPicParams->sInParams.ui8SeInitQP = 18;
+                else if (flBpp>=L4 && flBpp<L5)
+                    psPicParams->sInParams.ui8SeInitQP = 14;
+                else if (flBpp>=L5 && flBpp<L6)
+                    psPicParams->sInParams.ui8SeInitQP = 10;
+                else
+                    psPicParams->sInParams.ui8SeInitQP = 8;
+
+                /* Adjust ui8SeInitQP up for small buffer size or small fps */
+                /* Adjust ui8SeInitQP up for small gop size */
+                if ((i32BufferSizeInFrames < 20) || (psRCParams->ui32IntraFreq < 20)) {
+                    psPicParams->sInParams.ui8SeInitQP += 2;
+                }
+
+                if (psPicParams->sInParams.ui8SeInitQP > psPicParams->sInParams.ui8MaxQPVal) {
+                    psPicParams->sInParams.ui8SeInitQP = psPicParams->sInParams.ui8MaxQPVal;
+                }
+                psPicParams->sInParams.mode.other.ui16AvQPVal =  psPicParams->sInParams.ui8SeInitQP;
+            }
+            psPicParams->sInParams.ui8MinQPVal = 2;
+
+            /* Adjust minQp up for small buffer size and down for large buffer size */
+            if (i32BufferSizeInFrames < 20) {
+                psPicParams->sInParams.ui8MinQPVal += 1;
+            }
             break;
+
+        default:
+            /* the NO RC cases will fall here */
+            break;
+    }
+
+    if (ctx->sRCParams.eRCMode == IMG_RCMODE_VBR) {
+        psPicParams->sInParams.ui16MBPerBU  = psPicParams->sInParams.ui16MBPerFrm;
+        psPicParams->sInParams.ui16BUPerFrm = 1;
+
+        // Initialize the parameters of fluid flow traffic model. 
+        psPicParams->sInParams.i32BufferSize   = psRCParams->ui32BufferSize;
+
+
+        // These scale factor are used only for rate control to avoid overflow
+        // in fixed-point calculation these scale factors are decided by bit rate
+        if (psRCParams->ui32BitsPerSecond < 640000) {
+            psPicParams->sInParams.ui8ScaleFactor  = 2;						// related to complexity
+        }
+        else if (psRCParams->ui32BitsPerSecond < 2000000) {
+            // 2 Mbits
+            psPicParams->sInParams.ui8ScaleFactor  = 4;
+        }
+        else if(psRCParams->ui32BitsPerSecond < 8000000) {
+            // 8 Mbits
+            psPicParams->sInParams.ui8ScaleFactor  = 6;
+        } else
+            psPicParams->sInParams.ui8ScaleFactor  = 8;
+    } else {
+        // Set up Input Parameters that are mode dependent
+        switch (ctx->eStandard) {
+            case IMG_STANDARD_H264:
+                // ------------------- H264 CBR RC ------------------- //	
+                // Initialize the parameters of fluid flow traffic model.
+                psPicParams->sInParams.i32BufferSize = psRCParams->ui32BufferSize;
+
+                // HRD consideration - These values are used by H.264 reference code.
+                if (psRCParams->ui32BitsPerSecond < 1000000) {
+                // 1 Mbits/s 
+                    psPicParams->sInParams.ui8ScaleFactor = 0;
+                } else if (psRCParams->ui32BitsPerSecond < 2000000) {
+                // 2 Mbits/s
+                    psPicParams->sInParams.ui8ScaleFactor = 1;
+                } else if (psRCParams->ui32BitsPerSecond < 4000000) {
+                // 4 Mbits/s 
+                    psPicParams->sInParams.ui8ScaleFactor = 2;
+                } else if (psRCParams->ui32BitsPerSecond < 8000000) {
+                // 8 Mbits/s
+                    psPicParams->sInParams.ui8ScaleFactor = 3;
+                } else  {
+                    psPicParams->sInParams.ui8ScaleFactor = 4; 
+                }
+
+                if (ctx->sRCParams.eRCMode == IMG_RCMODE_VCM) {
+                    psPicParams->sInParams.i32BufferSize = i32BufferSizeInFrames;
+                }
+                break;
+            case IMG_STANDARD_MPEG4:
+            case IMG_STANDARD_MPEG2:
+            case IMG_STANDARD_H263:
+                flBpp  = 256 * (psRCParams->ui32BitsPerSecond/ctx->ui16Width);
+                flBpp /= (ctx->ui16FrameHeight * psRCParams->ui32FrameRate);
+
+                if ((psPicParams->sInParams.ui16MBPerFrm > 1024 && flBpp < 16) || (psPicParams->sInParams.ui16MBPerFrm <= 1024 && flBpp < 24))
+                    psPicParams->sInParams.mode.other.ui8HalfFrameRate = 1;
+                else
+                    psPicParams->sInParams.mode.other.ui8HalfFrameRate = 0;
+
+                if (psPicParams->sInParams.mode.other.ui8HalfFrameRate >= 1) {
+                    psPicParams->sInParams.ui8SeInitQP = 31;
+                    psPicParams->sInParams.mode.other.ui16AvQPVal = 31;
+                    psPicParams->sInParams.mode.other.ui16MyInitQP = 31;
+                }
+
+                psPicParams->sInParams.i32BufferSize = psRCParams->ui32BufferSize;
+                break;
+            default:
+                break;
         }
     }
 
     if (psRCParams->bScDetectDisable)
         psPicParams->ui32Flags  |= ISSCENE_DISABLED;
 
-    psInParams->bRCIsH264VBR =
-        (ctx->eStandard == IMG_STANDARD_H264 && ctx->sRCParams.eRCMode == IMG_RCMODE_VBR);
+    psPicParams->sInParams.i32InitialDelay	= psRCParams->i32InitialDelay;
+    psPicParams->sInParams.i32InitialLevel	= psRCParams->i32InitialLevel;
+    psRCParams->ui32InitialQp				= psPicParams->sInParams.ui8SeInitQP;
 
-    psInParams->ui16MyInitQP        = psInParams->ui8SeInitQP;
-
-    /* Low Delay Buffer Constraints */
-    if (gbLowLatency) {
-        psRCParams->i32InitialLevel     = (IMG_INT32) 1.0 * psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate;
-        psRCParams->ui32BufferSize      = 3 * (psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate);
-        psRCParams->i32InitialDelay     = psRCParams->ui32BufferSize - psRCParams->i32InitialLevel;
-    }
-
-    psInParams->i32InitialDelay     = psRCParams->i32InitialDelay;
-    psInParams->i32InitialLevel     = psRCParams->i32InitialLevel;
-    psRCParams->ui32InitialQp       = psInParams->ui8SeInitQP;
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psInParams->i32BufferSize = %d, psInParams->i32InitialLevel = %d\n", __FUNCTION__, psInParams->i32BufferSize, psInParams->i32InitialLevel);
-#endif
     /* The rate control uses this value to adjust the reaction rate to larger than expected frames */
-    if (psInParams->i32BitsPerFrm) {
-        psInParams->ui32RCScaleFactor =
-            (psInParams->i32BitsPerGOP * 256) /
-            (psInParams->i32BufferSize - psInParams->i32InitialLevel);
+    if (ctx->eStandard == IMG_STANDARD_H264) {
+        if (psPicParams->sInParams.i32BitsPerFrm) {
+            const IMG_INT32 bitsPerGop = (psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate) * psRCParams->ui32IntraFreq;
+
+            psPicParams->sInParams.mode.h264.ui32RCScaleFactor = (bitsPerGop * 256) /
+                (psPicParams->sInParams.i32BufferSize - psPicParams->sInParams.i32InitialLevel);
+        } else {
+            psPicParams->sInParams.mode.h264.ui32RCScaleFactor = 0;
+        }
     } else {
-        IMG_ASSERT(psInParams->i32BitsPerGOP == 0);
-        IMG_ASSERT(psInParams->i32BufferSize == 0);
-        IMG_ASSERT(psInParams->i32InitialLevel == 0);
-        psInParams->ui32RCScaleFactor = 0;
+        psPicParams->sInParams.mode.other.ui16MyInitQP		= psPicParams->sInParams.ui8SeInitQP;
     }
+
 #ifdef _PDUMP_FUNC_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
 #endif
@@ -2100,6 +2105,215 @@ void tng__h263_generate_pic_hdr_template(context_ENC_p ctx,
 
 }
 
+void tng__trace_seq_header(context_ENC_p ctx)
+{
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ucProfile = %d\n",              __FUNCTION__, ctx->ui8ProfileIdc);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ucLevel = %d\n",                __FUNCTION__, ctx->ui8LevelIdc);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui16Width = %d\n",              __FUNCTION__, ctx->ui16Width);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui16PictureHeight = %d\n",      __FUNCTION__, ctx->ui16PictureHeight);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui32CustomQuantMask = %d\n",    __FUNCTION__, ctx->ui32CustomQuantMask);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui8FieldCount = %d\n",          __FUNCTION__, ctx->ui8FieldCount);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui8MaxNumRefFrames = %d\n",     __FUNCTION__, ctx->ui8MaxNumRefFrames);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bPpsScaling = %d\n",            __FUNCTION__, ctx->bPpsScaling);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bUseDefaultScalingList = %d\n", __FUNCTION__, ctx->bUseDefaultScalingList);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bEnableLossless = %d\n",        __FUNCTION__, ctx->bEnableLossless);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bArbitrarySO = %d\n",           __FUNCTION__, ctx->bArbitrarySO);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: vui_flag = %d\n",               __FUNCTION__, ctx->sVuiParams.vui_flag);
+}
+
+static void tng__MPEG4ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
+{
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_map(&(ps_mem->bufs_seq_header), &(ps_mem->bufs_seq_header.virtual_addr));
+#endif
+    tng__MPEG4_prepare_sequence_header(ps_mem->bufs_seq_header.virtual_addr,
+                                       IMG_FALSE,//FIXME: Zhaohan bFrame
+                                       ctx->ui8ProfileIdc,//profile
+                                       ctx->ui8LevelIdc,//ui8Profile_lvl_indication
+                                       3,//ui8Fixed_vop_time_increment
+                                       ctx->obj_context->picture_width,//ui8Fixed_vop_time_increment
+                                       ctx->obj_context->picture_height,//ui32Picture_Height_Pixels
+                                       NULL,//VBVPARAMS
+                                       ctx->ui32VopTimeResolution);
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_unmap(&(ps_mem->bufs_seq_header));
+#endif
+
+    cmdbuf->cmd_idx_saved[TNG_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
+}
+
+static void tng__H264ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
+{
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
+    H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
+#ifdef _PDUMP_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
+#endif
+
+    memset(psVuiParams, 0, sizeof(H264_VUI_PARAMS));
+
+    if (psRCParams->eRCMode != IMG_RCMODE_NONE) {
+        psVuiParams->vui_flag = 1;
+        psVuiParams->Time_Scale = psRCParams->ui32FrameRate * 2;
+        psVuiParams->bit_rate_value_minus1 = psRCParams->ui32BitsPerSecond / 64 - 1;
+        psVuiParams->cbp_size_value_minus1 = psRCParams->ui32BufferSize / 64 - 1;
+        psVuiParams->CBR = ((psRCParams->eRCMode == IMG_RCMODE_CBR) && (!psRCParams->bDisableBitStuffing))?1:0;
+        psVuiParams->initial_cpb_removal_delay_length_minus1 = BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE - 1;
+        psVuiParams->cpb_removal_delay_length_minus1 = PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE - 1;
+        psVuiParams->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
+        psVuiParams->time_offset_length = 24;
+    }
+#ifdef _PDUMP_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psVuiParams->vui_flag = %d\n", __FUNCTION__, psVuiParams->vui_flag);
+#endif
+
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_map(&(ps_mem->bufs_seq_header), &(ps_mem->bufs_seq_header.virtual_addr));
+#endif
+
+    tng__H264ES_prepare_sequence_header(
+        ps_mem->bufs_seq_header.virtual_addr,
+        &(ctx->sVuiParams),
+        &(ctx->sCropParams),
+        ctx->ui16Width,         //ui8_picture_width_in_mbs
+        ctx->ui16PictureHeight, //ui8_picture_height_in_mbs
+        ctx->ui32CustomQuantMask,    //0,  ui8_custom_quant_mask
+        ctx->ui8ProfileIdc,          //ui8_profile
+        ctx->ui8LevelIdc,            //ui8_level
+        ctx->ui8FieldCount,          //1,  ui8_field_count
+        ctx->ui8MaxNumRefFrames,     //1,  ui8_max_num_ref_frames
+        ctx->bPpsScaling,            //0   ui8_pps_scaling_cnt
+        ctx->bUseDefaultScalingList, //0,  b_use_default_scaling_list
+        ctx->bEnableLossless,        //0,  blossless
+        ctx->bArbitrarySO
+    );
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_unmap(&(ps_mem->bufs_seq_header));
+#endif
+
+    if (ctx->bEnableMVC) {
+#ifdef _TOPAZHP_VIR_ADDR_
+        psb_buffer_map(&(ps_mem->bufs_sub_seq_header), &(ps_mem->bufs_sub_seq_header.virtual_addr));
+#endif
+        tng__H264ES_prepare_mvc_sequence_header(
+            ps_mem->bufs_sub_seq_header.virtual_addr,
+            &(ctx->sCropParams),
+            ctx->ui16Width,         //ui8_picture_width_in_mbs
+            ctx->ui16PictureHeight, //ui8_picture_height_in_mbs
+            ctx->ui32CustomQuantMask,    //0,  ui8_custom_quant_mask
+            ctx->ui8ProfileIdc,          //ui8_profile
+            ctx->ui8LevelIdc,            //ui8_level
+            ctx->ui8FieldCount,          //1,  ui8_field_count
+            ctx->ui8MaxNumRefFrames,     //1,  ui8_max_num_ref_frames
+            ctx->bPpsScaling,            //0   ui8_pps_scaling_cnt
+            ctx->bUseDefaultScalingList, //0,  b_use_default_scaling_list
+            ctx->bEnableLossless,        //0,  blossless
+            ctx->bArbitrarySO
+        );
+#ifdef _TOPAZHP_VIR_ADDR_
+        psb_buffer_unmap(&(ps_mem->bufs_sub_seq_header));
+#endif
+    }
+
+    cmdbuf->cmd_idx_saved[TNG_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
+#ifdef _PDUMP_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
+#endif
+}
+
+static void tng__H264ES_send_pic_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
+{
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
+    IMG_BOOL bDepViewPPS = IMG_FALSE;
+
+    if ((ctx->bEnableMVC) && (ctx->ui16MVCViewIdx != 0) &&
+        (ctx->ui16MVCViewIdx != (IMG_UINT16)(NON_MVC_VIEW))) {
+        bDepViewPPS = IMG_TRUE;
+    }
+
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_map(&(ps_mem->bufs_pic_template), &(ps_mem->bufs_pic_template.virtual_addr));
+#endif
+
+    tng__H264ES_prepare_picture_header(
+        ps_mem->bufs_pic_template.virtual_addr,
+        ctx->bCabacEnabled,
+        ctx->bH2648x8Transform,     //IMG_BOOL    b_8x8transform,
+        ctx->bH264IntraConstrained, //IMG_BOOL    bIntraConstrained,
+        0, //IMG_INT8    i8CQPOffset,
+        0, //IMG_BOOL    bWeightedPrediction,
+        0, //IMG_UINT8   ui8WeightedBiPred,
+        bDepViewPPS, //IMG_BOOL    bMvcPPS,
+        0, //IMG_BOOL    bScalingMatrix,
+        0  //IMG_BOOL    bScalingLists
+    );
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_unmap(&(ps_mem->bufs_pic_template));
+#endif
+}
+
+static void tng__H264ES_send_hrd_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
+{
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
+    H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
+    IMG_UINT8 aui8clocktimestampflag[1];
+    aui8clocktimestampflag[0] = IMG_FALSE;
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_map(&(ps_mem->bufs_sei_header), &(ps_mem->bufs_sei_header.virtual_addr));
+#endif
+
+    if ((!ctx->bEnableMVC) || (ctx->ui16MVCViewIdx == 0)) {
+        tng__H264ES_prepare_AUD_header(ps_mem->bufs_sei_header.virtual_addr);
+    }
+    
+    tng__H264ES_prepare_SEI_buffering_period_header(
+        ps_mem->bufs_sei_header.virtual_addr + (ctx->ctx_mem_size.sei_header),
+        0,// ui8cpb_cnt_minus1,
+        psVuiParams->initial_cpb_removal_delay_length_minus1+1, //ui8initial_cpb_removal_delay_length,
+        1, //ui8NalHrdBpPresentFlag,
+        14609, // ui32nal_initial_cpb_removal_delay,
+        62533, //ui32nal_initial_cpb_removal_delay_offset,
+        0, //ui8VclHrdBpPresentFlag - CURRENTLY HARD CODED TO ZERO IN TOPAZ
+        NOT_USED_BY_TOPAZ, // ui32vcl_initial_cpb_removal_delay, (not used when ui8VclHrdBpPresentFlag = 0)
+        NOT_USED_BY_TOPAZ); // ui32vcl_initial_cpb_removal_delay_offset (not used when ui8VclHrdBpPresentFlag = 0)
+
+    tng__H264ES_prepare_SEI_picture_timing_header(
+        ps_mem->bufs_sei_header.virtual_addr + (ctx->ctx_mem_size.sei_header * 2),
+        1, //ui8CpbDpbDelaysPresentFlag,
+        psVuiParams->cpb_removal_delay_length_minus1, //cpb_removal_delay_length_minus1,
+        psVuiParams->dpb_output_delay_length_minus1, //dpb_output_delay_length_minus1,
+        20, //ui32cpb_removal_delay,
+        2, //ui32dpb_output_delay,
+        0, //ui8pic_struct_present_flag (contained in the sequence header, Topaz hard-coded default to 0)
+        NOT_USED_BY_TOPAZ, //ui8pic_struct, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //NumClockTS, (not used when ui8pic_struct_present_flag = 0)
+        aui8clocktimestampflag, //abclock_timestamp_flag, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //ui8full_timestamp_flag, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //ui8seconds_flag, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //ui8minutes_flag, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //ui8hours_flag, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //seconds_value, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //minutes_value, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //hours_value, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //ct_type (2=Unknown) See TRM Table D 2 ?Mapping of ct_type to source picture scan  (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //nuit_field_based_flag, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //counting_type (See TRM Table D 3 ?Definition of counting_type values)  (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //ui8discontinuity_flag, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //ui8cnt_dropped_flag, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //n_frames, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ, //time_offset_length, (not used when ui8pic_struct_present_flag = 0)
+        NOT_USED_BY_TOPAZ); //time_offset (not used when ui8pic_struct_present_flag = 0)
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_unmap(&(ps_mem->bufs_sei_header));
+#endif
+
+}
+
 void tng__generate_slice_params_template(
     context_ENC_p ctx,
     IMG_UINT32 slice_buf_idx,
@@ -2187,7 +2401,7 @@ void tng__generate_slice_params_template(
     }
 
 #ifdef _TOPAZHP_VIR_ADDR_
-        psb_buffer_unmap(&(ps_mem->bufs_slice_template));
+    psb_buffer_unmap(&(ps_mem->bufs_slice_template));
 #endif
 
 #ifdef _PDUMP_FUNC_
@@ -2243,6 +2457,10 @@ static VAStatus tng__prepare_templates(context_ENC_p ctx, IMG_UINT32 ui32StreamI
 	    tng__generate_slice_params_template(ctx, (IMG_UINT32)IMG_FRAME_INTER_B, (IMG_UINT32)IMG_FRAME_INTER_B, ui32StreamIndex);
 	    if (ctx->bEnableMVC)
 		tng__generate_slice_params_template(ctx, (IMG_UINT32)IMG_FRAME_INTER_P_IDR, (IMG_UINT32)IMG_FRAME_INTER_P_IDR, ui32StreamIndex);
+            tng__H264ES_send_seq_header(ctx, 0);
+            tng__H264ES_send_pic_header(ctx, 0);
+            if (ctx->bInsertHRDParams)
+                tng__H264ES_send_hrd_header(ctx, 0);
 	    break;
 	case IMG_STANDARD_H263:
 	    tng__generate_slice_params_template(ctx, (IMG_UINT32)IMG_FRAME_INTER_B, (IMG_UINT32)IMG_FRAME_INTER_B, ui32StreamIndex);
@@ -2279,41 +2497,173 @@ static VAStatus tng__prepare_templates(context_ENC_p ctx, IMG_UINT32 ui32StreamI
     return VA_STATUS_SUCCESS;
 }
 
+#if INPUT_SCALER_SUPPORTED
+static IMG_FLOAT VIDEO_CalculateBessel0 (IMG_FLOAT fX)
+{
+    IMG_FLOAT fAX, fY;
+
+    fAX = (IMG_FLOAT)IMG_FABS(fX);
+
+    if (fAX < 3.75) 	{
+        fY = (IMG_FLOAT)(fX / 3.75);
+        fY *= fY;
+
+        return (IMG_FLOAT)(1.0 + fY *
+            (3.5156229 + fY *
+            (3.0899424 + fY *
+            (1.2067492 + fY *
+            (0.2659732 + fY *
+            (0.360768e-1 + fY * 0.45813e-2))))));
+    }
+
+    fY = (IMG_FLOAT)(3.75 / fAX);
+
+    return (IMG_FLOAT)((IMG_EXP(fAX) / IMG_SQRT(fAX)) *
+        (0.39894228 + fY *
+        (0.1328592e-1 + fY *
+        (0.225319e-2 + fY *
+        (-0.157565e-2 + fY *
+        (0.916281e-2 + fY *
+        (-0.2057706e-1 + fY *
+        (0.2635537e-1 + fY *
+        (-0.1647633e-1 + fY * 0.392377e-2)))))))));
+}
+
+static IMG_FLOAT VIDEO_SincFunc (IMG_FLOAT fInput, IMG_FLOAT fScale)
+{
+    IMG_FLOAT fX;
+    IMG_FLOAT fKaiser;
+
+    /* Kaiser window */
+    fX = fInput / (4.0f / 2.0f) - 1.0f;
+    fX = (IMG_FLOAT)IMG_SQRT(1.0f - fX * fX);
+    fKaiser = VIDEO_CalculateBessel0(2.0f * fX) / VIDEO_CalculateBessel0(2.0f);
+
+    /* Sinc function */
+    fX = 4.0f / 2.0f - fInput;
+    if (fX == 0) {
+        return fKaiser;
+    }
+
+    fX *= 0.9f * fScale * 3.1415926535897f;
+
+    return fKaiser * (IMG_FLOAT)(IMG_SIN(fX) / fX);
+}
+
+static void VIDEO_CalcCoefs_FromPitch (IMG_FLOAT	fPitch, IMG_UINT8 aui8Table[4][16])
+{
+    /* Based on sim code */
+    /* The function is symmetrical, so we only need to calculate the first half of the taps, and the middle value. */
+
+    IMG_FLOAT	fScale;
+    IMG_UINT32	ui32I, ui32Tap;
+    IMG_FLOAT	afTable[4][16];
+    IMG_INT32	i32Total;
+    IMG_FLOAT	fTotal;
+    IMG_INT32	i32MiddleTap, i32MiddleI;		/* Mirrored / middle Values for I and T */
+
+    if (fPitch < 1.0f) {
+        fScale = 1.0f;
+    } else {
+        fScale = 1.0f / fPitch;
+    }
+
+    for (ui32I = 0; ui32I < 16; ui32I++) {
+        for (ui32Tap = 0; ui32Tap < 4; ui32Tap++) {
+            afTable[ui32Tap][ui32I] = VIDEO_SincFunc(((IMG_FLOAT)ui32Tap) + ((IMG_FLOAT)ui32I) / 16.0f, fScale);
+        } 
+    }
+
+    for (ui32Tap = 0; ui32Tap < 2; ui32Tap++) {
+        for (ui32I = 0; ui32I < 16; ui32I++) {
+            /* Copy the table around the centre point */
+            i32MiddleTap = (3 - ui32Tap) + (16 - ui32I) / 16;
+            i32MiddleI = (16 - ui32I) & 15;
+            if ((IMG_UINT32)i32MiddleTap < 4) {
+                afTable[i32MiddleTap][i32MiddleI] = afTable[ui32Tap][ui32I];
+            }
+        }
+    }
+
+    /* The middle value */
+    afTable[2][0] = VIDEO_SincFunc(2.0f, fScale);
+	
+    /* Normalize this interpolation point, and convert to 2.6 format, truncating the result	*/
+    for (ui32I = 0; ui32I < 16; ui32I++) {
+        fTotal = 0.0f;
+        i32Total = 0;
+
+        for (ui32Tap = 0; ui32Tap < 4; ui32Tap++) {
+            fTotal += afTable[ui32Tap][ui32I];
+        }
+
+        for (ui32Tap = 0; ui32Tap < 4; ui32Tap++) {
+            aui8Table[ui32Tap][ui32I] = (IMG_UINT8)((afTable[ui32Tap][ui32I] * 64.0f) / fTotal);
+            i32Total += aui8Table[ui32Tap][ui32I];
+        }
+
+        if (ui32I <= 8) { /* normalize any floating point errors */
+            i32Total -= 64;
+            if (ui32I == 8) {
+                i32Total /= 2;
+            }
+            /* Subtract the error from the I Point in the first tap ( this will not get
+            mirrored, as it would go off the end). */
+            aui8Table[0][ui32I] = (IMG_UINT8)(aui8Table[0][ui32I] - (IMG_UINT8)i32Total); 
+        }
+    }
+
+    /* Copy the normalised table around the centre point */
+    for (ui32Tap = 0; ui32Tap < 2; ui32Tap++) {
+        for (ui32I = 0; ui32I < 16; ui32I++) {
+            i32MiddleTap = (3 - ui32Tap) + (16 - ui32I) / 16;
+            i32MiddleI = (16 - ui32I) & 15;
+            if ((IMG_UINT32)i32MiddleTap < 4) {
+                aui8Table[i32MiddleTap][i32MiddleI] = aui8Table[ui32Tap][ui32I];
+            }
+        }
+    }
+    return ;
+}
+#endif
+
 
 static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 {
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
     IMG_MTX_VIDEO_CONTEXT* psMtxEncContext = NULL;
-
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
-#endif
-    psMtxEncContext = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
     IMG_RC_PARAMS * psRCParams = &(ctx->sRCParams);
+    //IMG_UINT16 ui16WidthInMbs = (ctx->ui16Width + 15) >> 4;
+    //IMG_UINT16 ui16FrameHeightInMbs = (ctx->ui16FrameHeight + 15) >> 4;
     IMG_INT nIndex;
     IMG_UINT8 ui8Flag;
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-
 #ifndef EXCLUDE_ADAPTIVE_ROUNDING
     IMG_INT32 i, j;
 #endif
 
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
+
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+#endif
+
+    psMtxEncContext = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
     ctx->i32PicNodes = (psRCParams->b16Hierarchical ? MAX_REF_B_LEVELS : 0) + ctx->ui8RefSpacing + 4;
     ctx->i32MVStores = (ctx->i32PicNodes * 2);
-    ctx->ui8SlotsRequired = ctx->ui8SlotsInUse = psRCParams->ui16BFrames + 2;
+    ctx->ui8SlotsInUse = psRCParams->ui16BFrames + 2;
 
     psMtxEncContext->ui32InitialQp = ctx->sRCParams.ui32InitialQp;
     psMtxEncContext->ui32BUSize = ctx->sRCParams.ui32BUSize;
     psMtxEncContext->ui16CQPOffset = (ctx->sRCParams.i8QCPOffset & 0x1f) | ((ctx->sRCParams.i8QCPOffset & 0x1f) << 8);
     psMtxEncContext->eStandard = ctx->eStandard;
-    psMtxEncContext->ui32WidthInMbs = (ctx->ui16Width + 15) >> 4;
-    psMtxEncContext->ui32PictureHeightInMbs = (ctx->ui16PictureHeight + 15) >> 4;
+    psMtxEncContext->ui32WidthInMbs = ctx->ui16Width >> 4;
+    psMtxEncContext->ui32PictureHeightInMbs = ctx->ui16PictureHeight >> 4;
     psMtxEncContext->bOutputReconstructed = ctx->bOutputReconstructed;
     psMtxEncContext->ui32VopTimeResolution = ctx->ui32VopTimeResolution;
     psMtxEncContext->ui8MaxSlicesPerPicture = ctx->ui8SlicesPerPicture;
-    psMtxEncContext->ui8NumPipes = (IMG_UINT8)(ctx->i32NumPipes);
+    psMtxEncContext->ui8NumPipes = ctx->ui8PipesToUse;
     psMtxEncContext->eFormat = ctx->eFormat;
 
     psMtxEncContext->b8IsInterlaced = ctx->bIsInterlaced;
@@ -2328,7 +2678,7 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
     psMtxEncContext->ui32DebugCRCs = ctx->ui32DebugCRCs;
 
     psMtxEncContext->ui8FirstPipe = ctx->ui8BasePipe;
-    psMtxEncContext->ui8LastPipe = ctx->ui8BasePipe + psMtxEncContext->ui8NumPipes - 1;
+    psMtxEncContext->ui8LastPipe = ctx->ui8BasePipe + ctx->ui8PipesToUse - 1;
     psMtxEncContext->ui8PipesToUseFlags = 0;
     ui8Flag = 0x1 << psMtxEncContext->ui8FirstPipe;
     for (nIndex = 0; nIndex < psMtxEncContext->ui8NumPipes; nIndex++, ui8Flag<<=1)
@@ -2339,9 +2689,9 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
         psMtxEncContext->ui8MPEG2IntraDCPrecision = ctx->ui8MPEG2IntraDCPrecision;
 
     psMtxEncContext->b16EnableMvc = ctx->bEnableMVC;
-    psMtxEncContext->ui16MvcViewIdx = ui32StreamIndex;
+    psMtxEncContext->ui16MvcViewIdx = ctx->ui16MVCViewIdx;
     if (ctx->eStandard == IMG_STANDARD_H264)
-        psMtxEncContext->bNoSequenceHeaders = ctx->bNoSequenceHeaders;
+        psMtxEncContext->b16NoSequenceHeaders = ctx->bNoSequenceHeaders;
 
     {
         IMG_UINT16 ui16SrcYStride = 0, ui16SrcUVStride = 0;
@@ -2516,7 +2866,7 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
                 if (ctx->ui32VertMVLimit)
                     ui32VertMVLimit = ctx->ui32VertMVLimit;
                 // as topaz can only cope with at most 255 (in the register field)
-                ui32VertMVLimit = MIN(255,ui32VertMVLimit);
+                ui32VertMVLimit = tng__min(255,ui32VertMVLimit);
                 // workaround for BRN 29973 and 30032
                 {
 #if defined(BRN_29973) || defined(BRN_30032)
@@ -2543,9 +2893,7 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
                             F_ENCODE(ui32VertMVLimit, TOPAZHP_CR_IPE_VECTOR_CLIPPING_Y);
                         }
                     }
-        
                     psMtxEncContext->ui32SPEMvdClipRange = F_ENCODE(0, TOPAZHP_CR_SPE_MVD_CLIP_ENABLE);
-                    psMtxEncContext->ui32JMCompControl = F_ENCODE(1, TOPAZHP_CR_JMCOMP_AC_ENABLE);
             }
             break;
             case IMG_STANDARD_H263:
@@ -2557,7 +2905,6 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
                     psMtxEncContext->ui32SPEMvdClipRange = F_ENCODE(1, TOPAZHP_CR_SPE_MVD_CLIP_ENABLE)
                         | F_ENCODE( 62, TOPAZHP_CR_SPE_MVD_POS_CLIP)
                         | F_ENCODE(-64, TOPAZHP_CR_SPE_MVD_NEG_CLIP);
-                    psMtxEncContext->ui32JMCompControl = F_ENCODE(0, TOPAZHP_CR_JMCOMP_AC_ENABLE);
                 }
                 break;
             case IMG_STANDARD_MPEG4:
@@ -2569,8 +2916,8 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
             
                     uResidualSize=(ctx->eStandard == IMG_STANDARD_MPEG4 ? 32 : 16);
             
-                    uX = MIN(128 - 1, (((1<<(ctx->sBiasTables.ui32FCode - 1)) * uResidualSize)/4) - 1);
-                    uY = MIN(104 - 1, (((1<<(ctx->sBiasTables.ui32FCode - 1)) * uResidualSize)/4) - 1);
+                    uX = tng__min(128 - 1, (((1<<(ctx->sBiasTables.ui32FCode - 1)) * uResidualSize)/4) - 1);
+                    uY = tng__min(104 - 1, (((1<<(ctx->sBiasTables.ui32FCode - 1)) * uResidualSize)/4) - 1);
             
                     //Write to register
                     psMtxEncContext->ui32IPEVectorClipping = F_ENCODE(1, TOPAZHP_CR_IPE_VECTOR_CLIPPING_ENABLED)
@@ -2578,7 +2925,6 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
                         | F_ENCODE(uY, TOPAZHP_CR_IPE_VECTOR_CLIPPING_Y);
             
                     psMtxEncContext->ui32SPEMvdClipRange = F_ENCODE(0, TOPAZHP_CR_SPE_MVD_CLIP_ENABLE);
-                    psMtxEncContext->ui32JMCompControl = F_ENCODE((ctx->eStandard == IMG_STANDARD_MPEG4 ? 1 : 0), TOPAZHP_CR_JMCOMP_AC_ENABLE);
                 }
                 break;
             case IMG_STANDARD_JPEG:
@@ -2621,18 +2967,13 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
                 (IMG_UINT64) 90000) / (IMG_UINT64) ctx->sRCParams.ui32BitsPerSecond);
     }
 
-    if (ctx->sRCParams.eRCMode != IMG_RCMODE_LLRC) {
-        for (i = 0; i < MAX_CODED_BUFFERS; i++) {
-            psMtxEncContext->aui32BytesCodedAddr[i] = 0;
-        }
-    }
     memcpy(&psMtxEncContext->sInParams, &ctx->sPicParams.sInParams, sizeof(IN_RC_PARAMS));
     // Update MV Scaling settings
     // IDR
-    //      memcpy(&psMtxEncContext->sMVSettingsIdr, &psVideo->sMVSettingsIdr, sizeof(IMG_MV_SETTINGS));
+    //      memcpy(&psMtxEncContext->sMVSettingsIdr, &ctx->sMVSettingsIdr, sizeof(IMG_MV_SETTINGS));
     // NonB (I or P)
     //      for (i = 0; i <= MAX_BFRAMES; i++)
-    //              memcpy(&psMtxEncContext->sMVSettingsNonB[i], &psVideo->sMVSettingsNonB[i], sizeof(IMG_MV_SETTINGS));
+    //              memcpy(&psMtxEncContext->sMVSettingsNonB[i], &ctx->sMVSettingsNonB[i], sizeof(IMG_MV_SETTINGS));
 
     psMtxEncContext->ui32LRITC_Cache_Chunk_Config =
         F_ENCODE(ctx->uChunksPerMb, TOPAZHP_CR_CACHE_CHUNKS_PER_MB) |
@@ -2647,6 +2988,7 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 #ifdef LTREFHEADER
     psMtxEncContext->i8SliceHeaderSlotNum = -1;
 #endif
+
     {
         memset(psMtxEncContext->aui8PicOnLevel, 0, sizeof(psMtxEncContext->aui8PicOnLevel));
 #ifdef _TOPAZHP_VIR_ADDR_
@@ -2672,6 +3014,71 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
         }
     }
 
+#if INPUT_SCALER_SUPPORTED
+    if (ctx->bEnableScaler) {
+        IMG_UINT8 sccCoeffs[4][16];
+        IMG_UINT32 ui32PitchX, ui32PitchY;
+        IMG_INT32 i32Phase, i32Tap;
+
+        ui32PitchX = (((IMG_UINT32)(psVideoParams->ui16SourceWidth - psVideoParams->ui8CropLeft - psVideoParams->ui8CropRight)) << 12) / psVideoParams->ui16Width;
+        ui32PitchY = (((IMG_UINT32)(psVideoParams->ui16SourceFrameHeight - psVideoParams->ui8CropTop - psVideoParams->ui8CropBottom)) << 12) / psVideoParams->ui16FrameHeight;
+
+        // Input size
+        psMtxEncContext->ui32ScalerInputSizeReg = F_ENCODE(psVideoParams->ui16SourceWidth - 1, TOPAZHP_EXT_CR_SCALER_INPUT_WIDTH_MIN1) |
+            F_ENCODE((psVideoParams->ui16SourceFrameHeight >> (psVideo->bIsInterlaced ? 1 : 0)) - 1, TOPAZHP_EXT_CR_SCALER_INPUT_HEIGHT_MIN1);
+
+        psMtxEncContext->ui32ScalerCropReg = F_ENCODE(psVideoParams->ui8CropLeft, TOPAZHP_EXT_CR_SCALER_INPUT_CROP_HOR) |
+            F_ENCODE(psVideoParams->ui8CropTop, TOPAZHP_EXT_CR_SCALER_INPUT_CROP_VER);
+
+        // Scale factors
+        psMtxEncContext->ui32ScalerPitchReg = 0;
+
+        if (ui32PitchX > 0x3FFF) {
+            psMtxEncContext->ui32ScalerPitchReg |= F_ENCODE(1, TOPAZHP_EXT_CR_SCALER_HOR_BILINEAR_FILTER);
+            ui32PitchX >>= 1;
+        }
+
+        if (ui32PitchX > 0x3FFF) {
+            ui32PitchX = 0x3FFF;
+        }
+
+        if (ui32PitchY > 0x3FFF) {
+            psMtxEncContext->ui32ScalerPitchReg |= F_ENCODE(1, TOPAZHP_EXT_CR_SCALER_VER_BILINEAR_FILTER);
+            ui32PitchY >>= 1;
+        }
+
+        if (ui32PitchY > 0x3FFF) {
+            ui32PitchY = 0x3FFF;
+        }
+
+        psMtxEncContext->ui32ScalerPitchReg |= F_ENCODE(ui32PitchX, TOPAZHP_EXT_CR_SCALER_INPUT_HOR_PITCH) |
+            F_ENCODE(ui32PitchY, TOPAZHP_EXT_CR_SCALER_INPUT_VER_PITCH);
+
+
+        // Coefficients
+        VIDEO_CalcCoefs_FromPitch(((IMG_FLOAT)ui32PitchX) / 4096.0f, sccCoeffs);
+
+        for (i32Phase = 0; i32Phase < 4; i32Phase++) {
+            psMtxEncContext->asHorScalerCoeffRegs[i32Phase] = 0;
+            for (i32Tap = 0; i32Tap < 4; i32Tap++) 	{
+                psMtxEncContext->asHorScalerCoeffRegs[i32Phase] |= F_ENCODE(sccCoeffs[3 - i32Tap][(i32Phase * 2) + 1], TOPAZHP_EXT_CR_SCALER_HOR_LUMA_COEFF(i32Tap));
+            }
+        }
+
+        VIDEO_CalcCoefs_FromPitch(((IMG_FLOAT)ui32PitchY) / 4096.0f, sccCoeffs);
+
+        for (i32Phase = 0; i32Phase < 4; i32Phase++) {
+            psMtxEncContext->asVerScalerCoeffRegs[i32Phase] = 0;
+            for (i32Tap = 0; i32Tap < 4; i32Tap++) {
+                psMtxEncContext->asVerScalerCoeffRegs[i32Phase] |= F_ENCODE(sccCoeffs[3 - i32Tap][(i32Phase * 2) + 1], TOPAZHP_EXT_CR_SCALER_VER_LUMA_COEFF(i32Tap));
+            }
+        }
+    } else {
+        // Disable scaling
+        psMtxEncContext->ui32ScalerInputSizeReg = 0;
+    }
+#endif // INPUT_SCALER_SUPPORTED
+
 #ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
 #endif
@@ -2691,7 +3098,6 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
     psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
 #endif
     psMtxEncContext = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
-    IMG_INT i;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
 
@@ -2718,7 +3124,7 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
     tng_cmdbuf_set_phys(psMtxEncContext->apWritebackRegions, WB_FIFO_SIZE,
         &(ctx->bufs_writeback), 0, ps_mem_size->writeback);
 
-    tng_cmdbuf_set_phys(psMtxEncContext->apAboveParams, ctx->i32NumPipes,
+    tng_cmdbuf_set_phys(psMtxEncContext->apAboveParams, (IMG_UINT32)(ctx->ui8PipesToUse),
         &(ps_mem->bufs_above_params), 0, ps_mem_size->above_params);
 
     // SEI_INSERTION
@@ -2750,14 +3156,6 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
         &(ps_mem->bufs_lt_ref_header), 0, ps_mem_size->lt_ref_header);
 #endif
 
-    if (ctx->sRCParams.eRCMode == IMG_RCMODE_LLRC) {
-        for (i = 0; i < MAX_CODED_BUFFERS; i++) {
-            //FIXME
-            //tng_cmdbuf_set_phys(&psMtxEncContext->aui32BytesCodedAddr, 0, 0);
-            psMtxEncContext->aui32BytesCodedAddr[i] = 0;
-        }
-    }
-
     tng_cmdbuf_set_phys(psMtxEncContext->apPicHdrTemplates, 4,
         &(ps_mem->bufs_pic_template), 0, ps_mem_size->pic_template);
 
@@ -2769,29 +3167,18 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
                 &(ps_mem->bufs_sub_seq_header), 0, ps_mem_size->seq_header);
     }
 
-#ifdef _TOPAZHP_OLD_LIBVA_
-    for (i = 0; i < MAX_SOURCE_SLOTS_SL; i++) {
-        psMtxEncContext->pFirstPassOutParamAddr[i] = 0;
-#ifndef EXCLUDE_BEST_MP_DECISION_DATA
-        psMtxEncContext->pFirstPassOutBestMultipassParamAddr[i] = 0;
-#endif
-    }
-#else
-    // Store the feedback memory address for all "5" slots in the context
     if (ctx->ui8EnableSelStatsFlags & ESF_FIRST_STAGE_STATS) {
-        for (i = 0; i < ctx->ui8SlotsInUse; i++) {
-            psMtxEncContext->pFirstPassOutParamAddr[i] = 0;
-        }
+        tng_cmdbuf_set_phys(psMtxEncContext->pFirstPassOutParamAddr, ctx->ui8SlotsInUse,
+            &(ps_mem->bufs_first_pass_out_params), 0, ps_mem_size->first_pass_out_params);
     }
+
 #ifndef EXCLUDE_BEST_MP_DECISION_DATA
     // Store the feedback memory address for all "5" slots in the context
     if (ctx->ui8EnableSelStatsFlags & ESF_MP_BEST_MB_DECISION_STATS
         || ctx->ui8EnableSelStatsFlags & ESF_MP_BEST_MOTION_VECTOR_STATS) {
-        for (i = 0; i < ctx->ui8SlotsInUse; i++) {
-            psMtxEncContext->pFirstPassOutBestMultipassParamAddr[i] = 0;
-        }
+        tng_cmdbuf_set_phys(psMtxEncContext->pFirstPassOutBestMultipassParamAddr, ctx->ui8SlotsInUse,
+            &(ps_mem->bufs_first_pass_out_best_multipass_param), 0, ps_mem_size->first_pass_out_best_multipass_param);
     }
-#endif
 #endif
 
     //Store the MB-Input control parameter memory for all the 5-slots in the context
@@ -2812,11 +3199,38 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 static VAStatus tng__validate_params(context_ENC_p ctx)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    IMG_UINT16 ui16WidthInMbs = (ctx->ui16Width + 15) >> 4;
+    IMG_UINT16 ui16PictureHeight = ((ctx->ui16FrameHeight >> (ctx->bIsInterlaced ? 1 : 0)) + 15) & ~15;
+    IMG_UINT16 ui16FrameHeightInMbs = (ctx->ui16FrameHeight + 15) >> 4;
+
+    if ((ctx->ui16Width & 0xf) != 0) {
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    if ((ctx->ui16FrameHeight & 0x1f) != 0) {
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    ctx->uMBspS = ui16WidthInMbs * ui16FrameHeightInMbs * ctx->sRCParams.ui32FrameRate;
+
+    if (ctx->ui32CoreRev >= MIN_36_REV) {
+        if ((ctx->ui16Width > 4096) || (ctx->ui16PictureHeight > 4096)) {
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+        if ((ui16WidthInMbs << 4) * ui16PictureHeight > 2048 * 2048) {
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+    } else {
+        if ((ctx->ui16Width > 2048) || (ui16PictureHeight > 2048)) {
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+    }
+
     if (ctx->eStandard == IMG_STANDARD_H264) {
         if ((ctx->ui8DeblockIDC == 0) && (ctx->bArbitrarySO))
             ctx->ui8DeblockIDC = 2;
 
-        if ((ctx->ui8DeblockIDC == 0) && (ctx->i32NumPipes > 1) && (ctx->ui8SlicesPerPicture > 1)) {
+        if ((ctx->ui8DeblockIDC == 0) && ((IMG_UINT32)(ctx->ui8PipesToUse) > 1) && (ctx->ui8SlicesPerPicture > 1)) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "WARNING: Full deblocking with multiple pipes will cause a mismatch between reconstructed and encoded video\n");
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Consider using -deblockIDC 2 or -deblockIDC 1 instead if matching reconstructed video is required.\n");
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "WARNING: Forcing -deblockIDC = 2 for HW verification.\n");
@@ -2844,6 +3258,19 @@ static VAStatus tng__validate_params(context_ENC_p ctx)
             ctx->ui8SlicesPerPicture = ctx->sCapsParams.ui16MaxSlices;
         else if (ctx->ui8SlicesPerPicture < ctx->sCapsParams.ui16MinSlices)
             ctx->ui8SlicesPerPicture = ctx->sCapsParams.ui16MinSlices;
+    }
+
+    if (ctx->ui32pseudo_rand_seed == UNINIT_PARAM) {
+        // When -randseed is uninitialised, initialise seed using other commandline values
+        ctx->ui32pseudo_rand_seed = (IMG_UINT32) ((ctx->sRCParams.ui32InitialQp + 
+            ctx->ui16PictureHeight + ctx->ui16Width + ctx->sRCParams.ui32BitsPerSecond) & 0xffffffff);
+        // iQP_Luma + pParams->uHeight + pParams->uWidth + pParams->uBitRate) & 0xffffffff);
+    }
+
+    if (ctx->eStandard == IMG_STANDARD_H264) {
+        ctx->ui8PipesToUse = tng__min(ctx->ui8PipesToUse, ctx->ui8SlicesPerPicture);
+    } else {
+        ctx->ui8PipesToUse = 1;
     }
 
     return vaStatus;
@@ -2903,7 +3330,7 @@ static VAStatus tng__validate_busize(context_ENC_p ctx)
         }
 
         // check if the number of BUs per pipe is greater than 200
-        ui32MaxSlicesPerPipe = (ctx->ui8SlicesPerPicture + ctx->i32NumPipes - 1) / ctx->i32NumPipes;
+        ui32MaxSlicesPerPipe = (IMG_UINT32)(ctx->ui8SlicesPerPicture + ctx->ui8PipesToUse - 1) / (IMG_UINT32)(ctx->ui8PipesToUse);
         ui32MaxMBsPerPipe = (ui32MBsperSlice * (ui32MaxSlicesPerPipe - 1)) + ui32MBsLastSlice;
         ui32MaxBUsPerPipe = (ui32MaxMBsPerPipe + ctx->ui32BasicUnit - 1) / ctx->ui32BasicUnit;
         if (ui32MaxBUsPerPipe > 200) {
@@ -2915,444 +3342,6 @@ static VAStatus tng__validate_busize(context_ENC_p ctx)
     ctx->sRCParams.ui32BUSize = ctx->ui32BasicUnit;
     return VA_STATUS_SUCCESS;
 }
-
-#ifdef _TOPAZHP_PDUMP_
-static void tng__trace_cmdbuf(tng_cmdbuf_p cmdbuf, int idx)
-{
-    IMG_UINT32 ui32CmdTmp[4];
-    IMG_UINT32 *ptmp = (IMG_UINT32 *)(cmdbuf->cmd_start);
-    IMG_UINT32 *pend = (IMG_UINT32 *)(cmdbuf->cmd_idx);
-    IMG_UINT32 ui32Len;
-
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start, stream (%d)\n", __FUNCTION__, idx);
-#endif
-
-    if(idx == 0) {
-        if ((*ptmp & 0xff) == MTX_CMDID_SW_NEW_CODEC) {
-            //skip the newcodec
-            if ((*ptmp & 0xff) != MTX_CMDID_SW_NEW_CODEC) {
-                drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: error new coded 0x%08x\n", __FUNCTION__, *ptmp);
-                return ;
-            }
-            ptmp += 4;
-
-            //skip the write register
-            if ((*ptmp & 0xff) != MTX_CMDID_SW_LEAVE_LOWPOWER) {
-                drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: error leave lowpower = 0x%08x\n", __FUNCTION__, *ptmp);
-                return ;
-             }
-            ptmp += 2;
-
-            //skip the write register
-            if ((*ptmp++ & 0xff) != MTX_CMDID_SW_WRITEREG) {
-                drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: error writereg = 0x%08x\n", __FUNCTION__, *(ptmp-1));
-                return ;
-             }
-             ui32Len = *ptmp++;
-             ptmp += (ui32Len * 3);
-
-             drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: Len(%d), cmd = 0x%08x\n", __FUNCTION__, (int)ui32Len, (unsigned int)(*ptmp));
-         }else if ((*ptmp & 0xff) == MTX_CMDID_SW_LEAVE_LOWPOWER) {
-            ptmp += 2;
-         }else {
-             drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: error analyze command buffer = 0x%08x\n", __FUNCTION__, *ptmp);
-             return ;
-         }
-    }
-
-    while ((*ptmp&0xf) == MTX_CMDID_SETVIDEO ) {
-
-        ui32CmdTmp[0] = *ptmp++;
-        ui32CmdTmp[1] = *ptmp++;
-        ui32CmdTmp[2] = *ptmp++;
-        ui32CmdTmp[3] = 0;
-
-        topazhp_dump_command((unsigned int*)ui32CmdTmp);
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: output cmd 0x%08x\n", __FUNCTION__, (int)(ui32CmdTmp[0]));
-    }
-
-    do{
-        ui32CmdTmp[0] = *ptmp++;
-        ui32CmdTmp[1] = *ptmp++;
-        ui32CmdTmp[2] = 0;
-        ui32CmdTmp[3] = 0;
-        topazhp_dump_command((unsigned int*)ui32CmdTmp);
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: output cmd 0x%08x\n", __FUNCTION__, (int)(ui32CmdTmp[0]));
-    }while (!(((ui32CmdTmp[0]&0xf) == MTX_CMDID_ENCODE_FRAME) ||
-            ((ui32CmdTmp[0]&0xf) == MTX_CMDID_SETVIDEO)));
-
-    while ((*ptmp&0xf) == MTX_CMDID_SETVIDEO ) {
-
-        ui32CmdTmp[0] = *ptmp++;
-        ui32CmdTmp[1] = *ptmp++;
-        ui32CmdTmp[2] = *ptmp++;
-        ui32CmdTmp[3] = 0;
-
-        topazhp_dump_command((unsigned int*)ui32CmdTmp);
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: output cmd 0x%08x\n", __FUNCTION__, (int)(ui32CmdTmp[0]));
-    }
-
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
-#endif
-
-    return ;
-}
-#endif
-
-/***********************************************************************************
- * Function Name      : APP_FillSliceMap
- * Inputs             : psContext
- * Outputs            :
- * Returns            :
- * Description        : Fills slice map for a given source picture
- ************************************************************************************/
-IMG_UINT16 APP_Rand(context_ENC_p ctx) 
-{
-  IMG_UINT16 ui16ret = 0;
-/*
-  psContext->ui32pseudo_rand_seed =  (IMG_UINT32) ((psContext->ui32pseudo_rand_seed * 1103515245 + 12345) & 0xffffffff); //Using mask, just in case
-  ui16ret = (IMG_UINT16)(psContext->ui32pseudo_rand_seed / 65536) % 32768; 
-*/
-  return ui16ret;
-}
-
-
-static IMG_UINT32 tng__fill_slice_map(context_ENC_p ctx, IMG_INT32 i32SlotNum, IMG_UINT32 ui32StreamIndex)
-{
-    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
-    unsigned char *pvBuffer;
-    IMG_UINT8 ui8SlicesPerPicture;
-    IMG_UINT8 ui8HalfWaySlice;
-    IMG_UINT32 ui32HalfwayBU;
-
-    ui8SlicesPerPicture = ctx->ui8SlicesPerPicture;
-    ui32HalfwayBU = 0;
-    ui8HalfWaySlice=ui8SlicesPerPicture/2;
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: slot num = %d, aso = %d\n", __FUNCTION__, i32SlotNum, ctx->bArbitrarySO);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: stream id = %d, addr = 0x%x\n", __FUNCTION__, ui32StreamIndex, ps_mem->bufs_slice_map.virtual_addr);
-#endif
-
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_map(&(ps_mem->bufs_slice_map), &(ps_mem->bufs_slice_map.virtual_addr));
-#endif
-    pvBuffer = (unsigned char*)(ps_mem->bufs_slice_map.virtual_addr + (i32SlotNum * ctx->ctx_mem_size.slice_map));
-
-    if (ctx->bArbitrarySO) {
-        IMG_UINT8 ui8Index;
-        IMG_UINT8 ui32FirstBUInSlice;
-        IMG_UINT8 ui8SizeInKicks;
-        IMG_UINT8 ui8TotalBUs;
-        IMG_UINT8 aui8SliceNumbers[MAX_SLICESPERPIC];
-
-        ui8SlicesPerPicture = APP_Rand(ctx) % ctx->ui8SlicesPerPicture + 1;
-        // Fill slice map
-        // Fill number of slices
-        * pvBuffer = ui8SlicesPerPicture;
-        pvBuffer++;
-
-        for (ui8Index = 0; ui8Index < ui8SlicesPerPicture; ui8Index++)
-            aui8SliceNumbers[ui8Index] = ui8Index;
-
-	// randomise slice numbers
-        for (ui8Index = 0; ui8Index < 20; ui8Index++) {
-            IMG_UINT8 ui8FirstCandidate;
-            IMG_UINT8 ui8SecondCandidate;
-            IMG_UINT8 ui8Temp;
-
-            ui8FirstCandidate = APP_Rand(ctx) % ui8SlicesPerPicture;
-            ui8SecondCandidate = APP_Rand(ctx) % ui8SlicesPerPicture;
-
-            ui8Temp = aui8SliceNumbers[ui8FirstCandidate];
-            aui8SliceNumbers[ui8FirstCandidate] = aui8SliceNumbers[ui8SecondCandidate];
-            aui8SliceNumbers[ui8SecondCandidate] = ui8Temp;
-        }
-
-        ui8TotalBUs = (ctx->ui16PictureHeight / 16) * (ctx->ui16Width / 16) / ctx->sRCParams.ui32BUSize;
-
-        ui32FirstBUInSlice = 0;
-
-        for (ui8Index = 0; ui8Index < ui8SlicesPerPicture - 1; ui8Index++) {
-            IMG_UINT32 ui32BUsCalc;
-            if (ui8Index==ui8HalfWaySlice) ui32HalfwayBU=ui32FirstBUInSlice;
-
-            ui32BUsCalc=(ui8TotalBUs - 1 * (ui8SlicesPerPicture - ui8Index));
-            if(ui32BUsCalc)
-                ui8SizeInKicks = APP_Rand(ctx) %ui32BUsCalc  + 1;
-            else
-                ui8SizeInKicks = 1;
-            ui8TotalBUs -= ui8SizeInKicks;
-
-            // slice number
-            * pvBuffer = aui8SliceNumbers[ui8Index];
-            pvBuffer++;
-
-            // SizeInKicks BU
-            * pvBuffer = ui8SizeInKicks;
-            pvBuffer++;
-            ui32FirstBUInSlice += (IMG_UINT32) ui8SizeInKicks;
-        }
-        ui8SizeInKicks = ui8TotalBUs;
-        // slice number
-        * pvBuffer = aui8SliceNumbers[ui8SlicesPerPicture - 1];
-        pvBuffer++;
-
-        // last BU
-        * pvBuffer = ui8SizeInKicks;
-        pvBuffer++;
-    } else {
-        // Fill standard Slice Map (non arbitrary)
-        IMG_UINT8 ui8Index;
-        IMG_UINT8 ui8SliceNumber;
-        IMG_UINT8 ui32FirstBUInSlice;
-        IMG_UINT8 ui8SizeInKicks;
-        IMG_UINT32 ui32SliceHeight;
-
-        // Fill number of slices
-        * pvBuffer = ui8SlicesPerPicture;
-        pvBuffer++;
-
-
-        ui32SliceHeight = (ctx->ui16PictureHeight / ctx->ui8SlicesPerPicture) & ~15;
-
-        ui32FirstBUInSlice = 0;
-        ui8SliceNumber = 0;
-        for (ui8Index = 0; ui8Index < ui8SlicesPerPicture - 1; ui8Index++) {
-            if (ui8Index==ui8HalfWaySlice) ui32HalfwayBU=ui32FirstBUInSlice;
-            ui8SizeInKicks = ((ui32SliceHeight / 16)*(ctx->ui16Width/16))/ctx->sRCParams.ui32BUSize;
-
-            // slice number
-            * pvBuffer = ui8SliceNumber;
-            pvBuffer++;
-            // SizeInKicks BU
-            * pvBuffer = ui8SizeInKicks;
-            pvBuffer++;
-
-            ui8SliceNumber++;
-            ui32FirstBUInSlice += (IMG_UINT32) ui8SizeInKicks;
-        }
-        ui32SliceHeight = ctx->ui16PictureHeight - ui32SliceHeight * (ctx->ui8SlicesPerPicture - 1);
-        if (ui8Index==ui8HalfWaySlice) ui32HalfwayBU=ui32FirstBUInSlice;
-            ui8SizeInKicks = ((ui32SliceHeight / 16)*(ctx->ui16Width/16))/ctx->sRCParams.ui32BUSize;
-
-            // slice number
-            * pvBuffer = ui8SliceNumber;
-            pvBuffer++;
-            // last BU
-            * pvBuffer = ui8SizeInKicks;
-            pvBuffer++;
-	}
-#ifdef _TOPAZHP_VIR_ADDR_
-        psb_buffer_unmap(&(ps_mem->bufs_slice_map));
-#endif
-
-    return ui32HalfwayBU;
-}
-
-void tng__trace_seq_header(context_ENC_p ctx)
-{
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ucProfile = %d\n",              __FUNCTION__, ctx->ui8ProfileIdc);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ucLevel = %d\n",                __FUNCTION__, ctx->ui8LevelIdc);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui16Width = %d\n",              __FUNCTION__, ctx->ui16Width);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui16PictureHeight = %d\n",      __FUNCTION__, ctx->ui16PictureHeight);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui32CustomQuantMask = %d\n",    __FUNCTION__, ctx->ui32CustomQuantMask);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui8FieldCount = %d\n",          __FUNCTION__, ctx->ui8FieldCount);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui8MaxNumRefFrames = %d\n",     __FUNCTION__, ctx->ui8MaxNumRefFrames);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bPpsScaling = %d\n",            __FUNCTION__, ctx->bPpsScaling);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bUseDefaultScalingList = %d\n", __FUNCTION__, ctx->bUseDefaultScalingList);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bEnableLossless = %d\n",        __FUNCTION__, ctx->bEnableLossless);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bArbitrarySO = %d\n",           __FUNCTION__, ctx->bArbitrarySO);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: vui_flag = %d\n",               __FUNCTION__, ctx->sVuiParams.vui_flag);
-}
-
-static VAStatus tng__H264ES_validate_params(context_ENC_p ctx)
-{
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    
-    if ((ctx->ui8DeblockIDC == 0) && (ctx->bArbitrarySO))
-        ctx->ui8DeblockIDC = 2;
-    
-    if ((ctx->ui8DeblockIDC == 0) && (ctx->i32NumPipes > 1)) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "WARNING: Full deblocking with multiple pipes will cause a mismatch between reconstructed and encoded video\n");
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Consider using -deblockIDC 2 or -deblockIDC 1 instead if matching reconstructed video is required.\n");
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "WARNING: Forcing -deblockIDC = 2 for HW verification.\n");
-        ctx->ui8DeblockIDC = 2;
-    }
-    return vaStatus;
-}
-
-static void tng__H264ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
-{
-    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
-    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
-    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
-    H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-#endif
-    tng__H264ES_validate_params(ctx);
-
-    memset(psVuiParams, 0, sizeof(H264_VUI_PARAMS));
-
-    if (psRCParams->eRCMode != IMG_RCMODE_NONE) {
-        psVuiParams->vui_flag = 1;
-        psVuiParams->Time_Scale = psRCParams->ui32FrameRate * 2;
-        psVuiParams->bit_rate_value_minus1 = psRCParams->ui32BitsPerSecond / 64 - 1;
-        psVuiParams->cbp_size_value_minus1 = psRCParams->ui32BufferSize / 64 - 1;
-        psVuiParams->CBR = ((psRCParams->eRCMode == IMG_RCMODE_CBR) && (!psRCParams->bDisableBitStuffing))?1:0;
-        psVuiParams->initial_cpb_removal_delay_length_minus1 = BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE - 1;
-        psVuiParams->cpb_removal_delay_length_minus1 = PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE - 1;
-        psVuiParams->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
-        psVuiParams->time_offset_length = 24;
-    }
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psVuiParams->vui_flag = %d\n", __FUNCTION__, psVuiParams->vui_flag);
-#endif
-
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_map(&(ps_mem->bufs_seq_header), &(ps_mem->bufs_seq_header.virtual_addr));
-#endif
-
-    tng__H264ES_prepare_sequence_header(
-        ps_mem->bufs_seq_header.virtual_addr,
-        &(ctx->sVuiParams),
-        &(ctx->sCropParams),
-        ctx->ui16Width,         //ui8_picture_width_in_mbs
-        ctx->ui16PictureHeight, //ui8_picture_height_in_mbs
-        ctx->ui32CustomQuantMask,    //0,  ui8_custom_quant_mask
-        ctx->ui8ProfileIdc,          //ui8_profile
-        ctx->ui8LevelIdc,            //ui8_level
-        ctx->ui8FieldCount,          //1,  ui8_field_count
-        ctx->ui8MaxNumRefFrames,     //1,  ui8_max_num_ref_frames
-        ctx->bPpsScaling,            //0   ui8_pps_scaling_cnt
-        ctx->bUseDefaultScalingList, //0,  b_use_default_scaling_list
-        ctx->bEnableLossless,        //0,  blossless
-        ctx->bArbitrarySO
-    );
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_unmap(&(ps_mem->bufs_seq_header));
-#endif
-
-    if (ctx->bEnableMVC) {
-#ifdef _TOPAZHP_VIR_ADDR_
-        psb_buffer_map(&(ps_mem->bufs_sub_seq_header), &(ps_mem->bufs_sub_seq_header.virtual_addr));
-#endif
-        tng__H264ES_prepare_mvc_sequence_header(
-            ps_mem->bufs_sub_seq_header.virtual_addr,
-            &(ctx->sCropParams),
-            ctx->ui16Width,         //ui8_picture_width_in_mbs
-            ctx->ui16PictureHeight, //ui8_picture_height_in_mbs
-            ctx->ui32CustomQuantMask,    //0,  ui8_custom_quant_mask
-            ctx->ui8ProfileIdc,          //ui8_profile
-            ctx->ui8LevelIdc,            //ui8_level
-            ctx->ui8FieldCount,          //1,  ui8_field_count
-            ctx->ui8MaxNumRefFrames,     //1,  ui8_max_num_ref_frames
-            ctx->bPpsScaling,            //0   ui8_pps_scaling_cnt
-            ctx->bUseDefaultScalingList, //0,  b_use_default_scaling_list
-            ctx->bEnableLossless,        //0,  blossless
-            ctx->bArbitrarySO
-        );
-#ifdef _TOPAZHP_VIR_ADDR_
-        psb_buffer_unmap(&(ps_mem->bufs_sub_seq_header));
-#endif
-    }
-
-    cmdbuf->cmd_idx_saved[TNG_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
-#endif
-}
-
-static void tng__H264ES_send_pic_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
-{
-    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
-    IMG_BOOL bDepViewPPS = IMG_FALSE;
-
-    if ((ctx->bEnableMVC) && (ctx->ui16MVCViewIdx != 0) &&
-        (ctx->ui16MVCViewIdx != (IMG_UINT16)(NON_MVC_VIEW))) {
-        bDepViewPPS = IMG_TRUE;
-    }
-
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_map(&(ps_mem->bufs_pic_template), &(ps_mem->bufs_pic_template.virtual_addr));
-#endif
-
-    tng__H264ES_prepare_picture_header(
-        ps_mem->bufs_pic_template.virtual_addr,
-        ctx->bCabacEnabled,
-        ctx->bH2648x8Transform,     //IMG_BOOL    b_8x8transform,
-        ctx->bH264IntraConstrained, //IMG_BOOL    bIntraConstrained,
-        0, //IMG_INT8    i8CQPOffset,
-        0, //IMG_BOOL    bWeightedPrediction,
-        0, //IMG_UINT8   ui8WeightedBiPred,
-        bDepViewPPS, //IMG_BOOL    bMvcPPS,
-        0, //IMG_BOOL    bScalingMatrix,
-        0  //IMG_BOOL    bScalingLists
-    );
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_unmap(&(ps_mem->bufs_pic_template));
-#endif
-}
-
-static void tng__H264ES_send_hrd_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
-{
-    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
-    H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
-    IMG_UINT8 aui8clocktimestampflag[1];
-    aui8clocktimestampflag[0] = IMG_FALSE;
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_map(&(ps_mem->bufs_sei_header), &(ps_mem->bufs_sei_header.virtual_addr));
-#endif
-
-    if ((!ctx->bEnableMVC) || (ctx->ui16MVCViewIdx == 0)) {
-        tng__H264ES_prepare_AUD_header(ps_mem->bufs_sei_header.virtual_addr);
-    }
-    
-    tng__H264ES_prepare_SEI_buffering_period_header(
-        ps_mem->bufs_sei_header.virtual_addr + (ctx->ctx_mem_size.sei_header),
-        0,// ui8cpb_cnt_minus1,
-        psVuiParams->initial_cpb_removal_delay_length_minus1+1, //ui8initial_cpb_removal_delay_length,
-        1, //ui8NalHrdBpPresentFlag,
-        14609, // ui32nal_initial_cpb_removal_delay,
-        62533, //ui32nal_initial_cpb_removal_delay_offset,
-        0, //ui8VclHrdBpPresentFlag - CURRENTLY HARD CODED TO ZERO IN TOPAZ
-        NOT_USED_BY_TOPAZ, // ui32vcl_initial_cpb_removal_delay, (not used when ui8VclHrdBpPresentFlag = 0)
-        NOT_USED_BY_TOPAZ); // ui32vcl_initial_cpb_removal_delay_offset (not used when ui8VclHrdBpPresentFlag = 0)
-
-    tng__H264ES_prepare_SEI_picture_timing_header(
-        ps_mem->bufs_sei_header.virtual_addr + (ctx->ctx_mem_size.sei_header * 2),
-        1, //ui8CpbDpbDelaysPresentFlag,
-        psVuiParams->cpb_removal_delay_length_minus1, //cpb_removal_delay_length_minus1,
-        psVuiParams->dpb_output_delay_length_minus1, //dpb_output_delay_length_minus1,
-        20, //ui32cpb_removal_delay,
-        2, //ui32dpb_output_delay,
-        0, //ui8pic_struct_present_flag (contained in the sequence header, Topaz hard-coded default to 0)
-        NOT_USED_BY_TOPAZ, //ui8pic_struct, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //NumClockTS, (not used when ui8pic_struct_present_flag = 0)
-        aui8clocktimestampflag, //abclock_timestamp_flag, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //ui8full_timestamp_flag, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //ui8seconds_flag, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //ui8minutes_flag, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //ui8hours_flag, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //seconds_value, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //minutes_value, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //hours_value, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //ct_type (2=Unknown) See TRM Table D 2 ?Mapping of ct_type to source picture scan  (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //nuit_field_based_flag, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //counting_type (See TRM Table D 3 ?Definition of counting_type values)  (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //ui8discontinuity_flag, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //ui8cnt_dropped_flag, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //n_frames, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ, //time_offset_length, (not used when ui8pic_struct_present_flag = 0)
-        NOT_USED_BY_TOPAZ); //time_offset (not used when ui8pic_struct_present_flag = 0)
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_unmap(&(ps_mem->bufs_sei_header));
-#endif
-
-}
-
 
 static VAStatus tng__cmdbuf_new_codec(context_ENC_p ctx)
 {
@@ -3371,6 +3360,21 @@ static VAStatus tng__cmdbuf_new_codec(context_ENC_p ctx)
      *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_lowpower_reg.drm_buf));
      *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_lowpower_data.drm_buf));
 
+    return vaStatus;
+}
+
+static VAStatus tng__cmdbuf_doheader(context_ENC_p ctx)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
+     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+
+    cmdbuf->cmd_idx_saved[TNG_CMDBUF_PIC_HEADER_IDX] = cmdbuf->cmd_idx;
+    tng_cmdbuf_insert_command_package(ctx->obj_context, 0,
+                                      MTX_CMDID_DO_HEADER,
+                                      0,
+                                      &(ps_mem->bufs_seq_header),
+                                      0);
     return vaStatus;
 }
 
@@ -3414,12 +3418,48 @@ static VAStatus tng__cmdbuf_setvideo(context_ENC_p ctx, IMG_UINT32 ui32StreamInd
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
     
+    
     tng__setvideo_params(ctx, ui32StreamIndex);
     tng__setvideo_cmdbuf(ctx, ui32StreamIndex);
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ui32StreamIndex,
-        MTX_CMDID_SETVIDEO, &(ps_mem->bufs_mtx_context), 0);
+    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+        MTX_CMDID_SETVIDEO, 0, &(ps_mem->bufs_mtx_context), 0);
 
+    return vaStatus;
+}
+
+static VAStatus tng__update_bitrate(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
+    IMG_UINT32 ui32CmdData = 0;
+    IMG_UINT32 ui32NewBitrate = 0;
+    IMG_UINT8 ui8NewVCMIFrameQP = 0;
+
+    if (psRCParams->bBitrateChanged == IMG_FALSE) {
+        return vaStatus;
+    }
+
+    //tng__setup_rcdata(ctx);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: ui32BitsPerSecond = %d, ui32FrameRate = %d, ui32InitialQp = %d\n",
+        __FUNCTION__, psRCParams->ui32BitsPerSecond,
+        psRCParams->ui32FrameRate, psRCParams->ui32InitialQp);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: frame_count[%d] = %d\n", __FUNCTION__,
+        ui32StreamIndex, ctx->ui32FrameCount[ui32StreamIndex]);
+
+    ui32NewBitrate = psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate;
+    ui8NewVCMIFrameQP = (IMG_UINT8)psRCParams->ui32InitialQp;
+
+    ui32CmdData = F_ENCODE(ui8NewVCMIFrameQP, MTX_MSG_RC_UPDATE_QP) |
+                F_ENCODE(ui32NewBitrate, MTX_MSG_RC_UPDATE_BITRATE);
+
+    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+        MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
+        ui32CmdData, 0, 0);
+
+    psRCParams->bBitrateChanged = IMG_FALSE;
     return vaStatus;
 }
 
@@ -3432,7 +3472,7 @@ static VAStatus tng__cmdbuf_send_picmgmt(context_ENC_p ctx, IMG_UINT32 ui32Strea
         return vaStatus;
     }
 
-    tng__setup_rcdata(ctx);
+    //tng__setup_rcdata(ctx);
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: ui32BitsPerSecond = %d, ui32FrameRate = %d, ui32InitialQp = %d\n",
         __FUNCTION__, psRCParams->ui32BitsPerSecond,
@@ -3440,9 +3480,6 @@ static VAStatus tng__cmdbuf_send_picmgmt(context_ENC_p ctx, IMG_UINT32 ui32Strea
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: frame_count[%d] = %d\n", __FUNCTION__,
         ui32StreamIndex, ctx->ui32FrameCount[ui32StreamIndex]);
-
-    tng_picmgmt_update(ctx, IMG_PICMGMT_RC_UPDATE,
-        (psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate), psRCParams->ui32InitialQp);
 
     psRCParams->bBitrateChanged = IMG_FALSE;
     return vaStatus;
@@ -3452,36 +3489,225 @@ static VAStatus tng__cmdbuf_send_picmgmt(context_ENC_p ctx, IMG_UINT32 ui32Strea
 static VAStatus tng__cmdbuf_provide_buffer(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    
+
+    tng_send_codedbuf(ctx, ctx->ui8SlotsCoded);
+
     if (ctx->sRCParams.ui16BFrames > 0)
         tng__provide_buffer_BFrames(ctx, ui32StreamIndex);
     else
         tng__provide_buffer_PFrames(ctx, ui32StreamIndex);
-
+/*
+    if (ctx->ui32LastPicture != 0) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: frame_count[%d] = %d\n", __FUNCTION__,
+            ui32StreamIndex, ctx->ui32FrameCount[ui32StreamIndex]);
+        tng_picmgmt_update(ctx,IMG_PICMGMT_EOS, ctx->ui32LastPicture);
+    }
+*/
 #ifdef _TOPAZHP_REC_
     tng_send_rec_frames(ctx, -1, 0);
     tng_send_ref_frames(ctx, 0, 0);
+    tng_send_ref_frames(ctx, 1, 0);
 #endif
- 
+
+    ctx->ui8SlotsCoded = (ctx->ui8SlotsCoded + 1) & 1;
+
+    return vaStatus;
+}
+
+VAStatus tng__set_ctx_buf(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    IMG_UINT8 ui8IsJpeg;
+    vaStatus = tng__validate_params(ctx);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "validate params");
+    }
+
+    vaStatus = tng__validate_busize(ctx);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "validate busize");
+    }
+    ctx->ctx_cmdbuf[0].ui32LowCmdCount = 0xa5a5a5a5 %  MAX_TOPAZ_CMD_COUNT;
+    ctx->ctx_cmdbuf[0].ui32HighCmdCount = 0;
+    ctx->ctx_cmdbuf[0].ui32HighWBReceived = 0;
+
+    ui8IsJpeg = (ctx->eStandard == IMG_STANDARD_JPEG) ? 1 : 0;
+    vaStatus = tng__alloc_context_buffer(ctx, ui8IsJpeg, 0);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "setup enc profile");
+    }
+    return vaStatus;
+}
+
+VAStatus tng__set_headers (context_ENC_p ctx, IMG_UINT32 ui32StreamID)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    IMG_UINT8 ui8SlotIdx = 0;
+
+    vaStatus = tng__prepare_templates(ctx, 0);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "prepare_templates\n");
+    }
+    
+    for (ui8SlotIdx = 0; ui8SlotIdx < ctx->ui8SlotsInUse; ui8SlotIdx++)
+        tng_fill_slice_map(ctx, (IMG_UINT32)ui8SlotIdx, 0);
+
+    return vaStatus;
+}
+
+VAStatus tng__set_cmd_buf(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    vaStatus = tng__cmdbuf_new_codec(ctx);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf new codec\n");
+    }
+    
+    vaStatus = tng__cmdbuf_lowpower(ctx);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf lowpower\n");
+    }
+    
+    vaStatus = tng__cmdbuf_load_bias(ctx);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf load bias\n");
+    }
+    
+    vaStatus = tng__cmdbuf_setvideo(ctx, 0);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf setvideo\n");
+    }
+    return vaStatus;
+}
+
+VAStatus tng__end_one_frame(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
+
+    /* save current settings */
+    ps_buf->previous_src_surface = ps_buf->src_surface;
+    ps_buf->previous_ref_surface = ps_buf->ref_surface;
+
+    /*Frame Skip flag in Coded Buffer of frame N determines if frame N+2
+    * should be skipped, which means sending encoding commands of frame N+1 doesn't
+    * have to wait until frame N is completed encoded. It reduces the precision of
+    * rate control but improves HD encoding performance a lot.*/
+    ps_buf->pprevious_coded_buf = ps_buf->previous_coded_buf;
+    ps_buf->previous_coded_buf = ps_buf->coded_buf;
+
+    ctx->ePreFrameType = ctx->eFrameType;
+
     return vaStatus;
 }
 
 VAStatus tng_EndPicture(context_ENC_p ctx)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    IMG_INT32 i32Ret = 0;
-    IMG_INT32 i;
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+
+#ifdef _PDUMP_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ctx->ui8SlicesPerPicture = %d, ctx->ui32FrameCount[0] = %d\n",
+         __FUNCTION__, ctx->ui8SlicesPerPicture, ctx->ui32FrameCount[0]);
+#endif
+
+    if (ctx->ui32FrameCount[0] == 0) {
+        vaStatus = tng__set_ctx_buf(ctx, 0);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "set ctx buf \n");
+        }
+        vaStatus = tng__set_headers(ctx, 0);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "set headers \n");
+        }
+
+        vaStatus = tng__set_cmd_buf(ctx, 0);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+           drv_debug_msg(VIDEO_DEBUG_ERROR, "set cmd buf \n");
+        }
+    } else {
+        vaStatus = tng__cmdbuf_lowpower(ctx);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf lowpower\n");
+        }
+    }
+
+    if (ctx->sRCParams.eRCMode == IMG_RCMODE_VCM) {
+         vaStatus = tng__update_bitrate(ctx, ctx->ui32StreamID);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "send picmgmt");
+        }
+    }
+
+    vaStatus = tng__cmdbuf_provide_buffer(ctx, ctx->ui32StreamID);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "provide buffer");
+    }
+
+    if ((ctx->sRCParams.eRCMode == IMG_RCMODE_VCM) && (ctx->bEnableAIR == IMG_TRUE)) {
+        tng_air_set_input_control(ctx, 0);
+        tng_air_set_output_control(ctx, 0);
+    }
+
+    if (ctx->eStandard == IMG_STANDARD_MPEG4) {
+        if (ctx->ui32FrameCount[0] == 0) {
+            vaStatus = tng__cmdbuf_doheader(ctx);
+            if (vaStatus != VA_STATUS_SUCCESS) {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf doheader\n");
+            }
+        }
+        tng__MPEG4ES_send_seq_header(ctx, ctx->ui32StreamID);
+    }
+
+    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+        MTX_CMDID_ENCODE_FRAME, 0, 0, 0);
+
+#ifdef _TOPAZHP_CMDBUF_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s addr = 0x%08x \n", __FUNCTION__, cmdbuf);
+    tng__trace_cmdbuf_words(cmdbuf);
+#endif
+
+#ifdef _TOPAZHP_PDUMP_
+    tng__trace_cmdbuf(cmdbuf, ctx->ui32StreamID);
+#endif
+//    tng_buffer_unmap(ctx, ctx->ui32StreamID);
+    tng_cmdbuf_mem_unmap(cmdbuf);
+
+    vaStatus = tng__end_one_frame(ctx, 0);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+       drv_debug_msg(VIDEO_DEBUG_ERROR, "setting when one frame ends\n");
+    }
+
+    if (tng_context_flush_cmdbuf(ctx->obj_context)) {
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+    }
+
+
+    ++(ctx->ui32FrameCount[ctx->ui32StreamID]);
+    ++(ctx->ui32RawFrameCount);
+    return vaStatus;
+}
+
+
+#if 0
+VAStatus tng_EndPicture(context_ENC_p ctx)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    //IMG_INT32 i32Ret = 0;
+    //IMG_INT32 i;
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
     unsigned char is_JPEG;
+    IMG_UINT8 ui8SlotIdx = 0;
 
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s: ctx->ui8SlicesPerPicture = %d, ctx->ui32StreamID = %d\n",
+    ui8SlotIdx = (IMG_UINT8)(ctx->ui32FrameCount[0] % (IMG_UINT32)(ctx->ui8SlotsInUse));
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ctx->ui8SlicesPerPicture = %d, ctx->ui32StreamID = %d\n",
          __FUNCTION__, ctx->ui8SlicesPerPicture, ctx->ui32StreamID);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ctx->ui32FrameCount[0] = %d, ctx->ui32FrameCount[1] = %d\n", __FUNCTION__, ctx->ui32FrameCount[0], ctx->ui32FrameCount[1]);
-#endif
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ctx->ui32FrameCount[0] = %d, ctx->ui32FrameCount[1] = %d\n",
+        __FUNCTION__, ctx->ui32FrameCount[0], ctx->ui32FrameCount[1]);
 
     if ((ctx->ui32FrameCount[0] == 0)&&(ctx->ui32StreamID == 0)) {
         //cmdbuf setup
@@ -3512,12 +3738,25 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         }
         
         //FIXME: Zhaohan from DDK APP_InitAdaptiveRoundingTables();
-        if (ctx->eStandard != IMG_STANDARD_H264)
-            ctx->bVPAdaptiveRoundingDisable = IMG_TRUE;
+        //if (ctx->eStandard != IMG_STANDARD_H264)
+        //    ctx->bVPAdaptiveRoundingDisable = IMG_TRUE;
 
         vaStatus = tng__validate_busize(ctx);
+        if (vaStatus != VA_STATUS_SUCCESS) { drv_debug_msg(VIDEO_DEBUG_ERROR, "validate busize");
+        }
+
+        vaStatus = tng__prepare_templates(ctx, 0);
         if (vaStatus != VA_STATUS_SUCCESS) {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "validate busize");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "prepare_templates\n");
+        }
+        //tng_air_set_input_control(ctx, 0, 0);
+        //tng_air_set_input_control(ctx, 1, 0);
+
+        if (ctx->eStandard == IMG_STANDARD_H264) {
+            tng__H264ES_send_seq_header(ctx, 0);
+            tng__H264ES_send_pic_header(ctx, 0);
+            if (ctx->bInsertHRDParams)
+                tng__H264ES_send_hrd_header(ctx, 0);
         }
 
         vaStatus = tng__cmdbuf_new_codec(ctx);
@@ -3531,26 +3770,24 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf lowpower\n");
     }
 
-    if (ctx->ui32FrameCount[0] == 0) {
-        if (ctx->eStandard == IMG_STANDARD_H264) {
-            tng__H264ES_send_seq_header(ctx, 0);
-            tng__H264ES_send_pic_header(ctx, 0);
-            if (ctx->bInsertHRDParams)
-                tng__H264ES_send_hrd_header(ctx, 0);
-        }
+    if (ctx->ui32FrameCount[0] != 0) {
+        ui8SlotIdx = (IMG_UINT8)((ctx->ui32FrameCount[0] - 1) % (IMG_UINT32)(ctx->ui8SlotsInUse));
+        tng_air_set_output_control(ctx, ui8SlotIdx);
+    }
 
+    ui8SlotIdx = (IMG_UINT8)(ctx->ui32FrameCount[0] % (IMG_UINT32)(ctx->ui8SlotsInUse));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ui8SlotIdx = %d\n", __FUNCTION__, ui8SlotIdx);
+    tng_air_set_input_control(ctx, ui8SlotIdx, 0);
+
+#if 0
         for (i = 0; i < ctx->ui8SlotsInUse; i++) {
             i32Ret = tng__fill_slice_map(ctx, i, 0);
             if (i32Ret < 0) {
                 drv_debug_msg(VIDEO_DEBUG_ERROR, "fill slice map\n");
             }
         }
-
-        vaStatus = tng__prepare_templates(ctx, 0);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "prepare_templates\n");
-        }
-
+#endif
+    if (ctx->ui32FrameCount[0] == 0) {
         vaStatus = tng__cmdbuf_load_bias(ctx);
         if (vaStatus != VA_STATUS_SUCCESS) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf load bias\n");
@@ -3563,7 +3800,7 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
     }
 
     if (ctx->sRCParams.eRCMode == IMG_RCMODE_VCM) {
-        vaStatus = tng__cmdbuf_send_picmgmt(ctx, ctx->ui32StreamID);
+        vaStatus = tng__update_bitrate(ctx, ctx->ui32StreamID);
         if (vaStatus != VA_STATUS_SUCCESS) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "send picmgmt");
         }
@@ -3579,14 +3816,14 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         tng__H264ES_send_pic_header(ctx, 1);
         if (ctx->bInsertHRDParams)
             tng__H264ES_send_hrd_header(ctx, 1);
-
+#if 0
         for (i = 0; i < ctx->ui8SlotsInUse; i++) {
             i32Ret = tng__fill_slice_map(ctx, i, 1);
             if (i32Ret < 0) {
                  drv_debug_msg(VIDEO_DEBUG_ERROR, "fill slice map\n");
             }
         }
-
+#endif
         vaStatus = tng__prepare_templates(ctx, 1);
         if (vaStatus != VA_STATUS_SUCCESS) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "prepare_templates 1 \n");
@@ -3627,10 +3864,6 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
 
     tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_ENCODE_FRAME, 0, 0);
-/*
-    tng_cmdbuf_insert_command_package(ctx->obj_context, 0,
-        MTX_CMDID_SHUTDOWN, 0, 0);
-*/
 
 #ifdef _TOPAZHP_CMDBUF_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s addr = 0x%08x \n", __FUNCTION__, cmdbuf);
@@ -3664,5 +3897,5 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
     return vaStatus;
 
 }
-
+#endif // 0
 

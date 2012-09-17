@@ -41,8 +41,9 @@
 #include "tng_jpegES.h"
 #include "tng_slotorder.h"
 
+#define tng__max(a, b) ((a)> (b)) ? (a) : (b)
+#define tng__min(a, b) ((a) < (b)) ? (a) : (b)
 
-#define MIN(a,b)  ((a)>(b)?(b):(a))
 #define F_MASK(basename)  (MASK_##basename)
 #define F_SHIFT(basename) (SHIFT_##basename)
 #define F_ENCODE(val,basename)  (((val)<<(F_SHIFT(basename)))&(F_MASK(basename)))
@@ -81,7 +82,6 @@ typedef struct context_ENC_mem_s {
     struct psb_buffer_s bufs_mv;  //apsMV[MAX_MV_ARRAYSIZE];          // two colocated vector stores
     struct psb_buffer_s bufs_interview_mv;  //apsInterViewMV[2];      
 
-    struct psb_buffer_s bufs_bytes_coded;   //apBytesCodedMem[MAX_CODED_BUFFERS];
     struct psb_buffer_s bufs_src_phy_addr;   //apSrcPhysAddr;
 
     // WEIGHTED PREDICTION
@@ -102,12 +102,12 @@ typedef struct context_ENC_mem_s {
     struct psb_buffer_s bufs_recon_buffer;  //psReconBuffer;
     struct psb_buffer_s bufs_patch_recon_buffer;  //psPatchedReconBuffer;
     
-    struct psb_buffer_s bufs_first_pass_out_params; //FirstPassOutParamBuf[MAX_SOURCE_SLOTS_SL]; //!< Output Parameters of the First Pass
+    struct psb_buffer_s bufs_first_pass_out_params; //sFirstPassOutParamBuf[MAX_SOURCE_SLOTS_SL]; //!< Output Parameters of the First Pass
 #ifndef EXCLUDE_BEST_MP_DECISION_DATA
     struct psb_buffer_s bufs_first_pass_out_best_multipass_param; //sFirstPassOutBestMultipassParamBuf[MAX_SOURCE_SLOTS_SL]; //!< Output Selectable Best MV Parameters of the First Pass
 #endif
-    struct psb_buffer_s bufs_mb_ctrl_in_params;  // sMBCtrlInParamsBuf[MAX_SOURCE_SLOTS_SL]; //!< Input Parameters to the second pass
-    struct psb_buffer_s bufs_coded_buf;
+    struct psb_buffer_s bufs_mb_ctrl_in_params;      //sMBCtrlInParamsBuf[MAX_SOURCE_SLOTS_SL]; //!< Input Parameters to the second pass
+
     struct psb_buffer_s bufs_ref_frames;
 
     //defined for dual-stream
@@ -130,7 +130,6 @@ typedef struct context_ENC_mem_size_s {
     IMG_UINT32 mv;                   //apsMV[MAX_MV_ARRAYSIZE];          // two colocated vector stores
     IMG_UINT32 interview_mv;    //apsInterViewMV[2];      
 
-    IMG_UINT32 bytes_coded;    //apBytesCodedMem[MAX_CODED_BUFFERS];
     IMG_UINT32 src_phy_addr;   //apSrcPhysAddr;
 
     // WEIGHTED PREDICTION
@@ -170,6 +169,7 @@ typedef struct context_ENC_frame_buf_s {
     object_surface_p  rec_surface;
 #ifdef _TOPAZHP_OLD_LIBVA_
     object_surface_p  ref_surface;
+    object_surface_p  ref_surface1;
 #else
     object_surface_p  ref_surface[16];
 #endif
@@ -223,6 +223,20 @@ typedef struct _H264_PICMGMT_UP_PARAMS {
     IMG_INT8 quant;
 } H264_PICMGMT_UP_PARAMS;
 
+/*! 
+ *    \ADAPTIVE_INTRA_REFRESH_INFO_TYPE
+ *    \brief Structure for parameters requierd for Adaptive intra refresh.
+ */
+typedef struct
+{
+    IMG_INT8   *pi8AIR_Table;
+    IMG_INT32   i32NumAIRSPerFrame;
+    IMG_INT16   i16AIRSkipCnt;
+    IMG_UINT16  ui16AIRScanPos;
+    IMG_INT32   i32SAD_Threshold;
+} ADAPTIVE_INTRA_REFRESH_INFO_TYPE;
+
+
 struct context_ENC_s {
     object_context_p obj_context; /* back reference */
     context_ENC_mem_size ctx_mem_size;
@@ -233,6 +247,9 @@ struct context_ENC_s {
 
     struct psb_buffer_s bufs_writeback;
 
+    IMG_FRAME_TYPE eFrameType;
+    IMG_FRAME_TYPE ePreFrameType;
+    
     IMG_CODEC eCodec;
     CARC_PARAMS  sCARCParams;
     IMG_ENC_CAPS sCapsParams;
@@ -240,8 +257,13 @@ struct context_ENC_s {
     H264_CROP_PARAMS sCropParams;
     H264_VUI_PARAMS sVuiParams;
     FRAME_ORDER_INFO sFrameOrderInfo;
+    // Adaptive Intra Refresh Control structure
+    ADAPTIVE_INTRA_REFRESH_INFO_TYPE sAirInfo;
 
     IMG_UINT32  ui32RawFrameCount;
+    IMG_UINT32  ui32HalfWayBU[NUM_SLICE_TYPES];
+    IMG_UINT32  ui32LastPicture;
+
     IMG_UINT32  ui32CoreRev;
     IMG_UINT32  ui32StreamID;
     IMG_UINT32  ui32FCode;
@@ -260,10 +282,7 @@ struct context_ENC_s {
 
     IMG_BOOL    bInsertPicHeader;
     IMG_UINT32  ui32PpsScalingCnt;
-    IMG_UINT32  ui32SourceSlotBuff;
-    IMG_UINT32  ui32SlotBuf;
-    IMG_UINT32  ui32SlotNum;
-    IMG_INT32   iFrameType;
+
     /**************** FIXME: unknown ****************/
     IMG_UINT    uiCbrBufferTenths;           //TOPAZHP_DEFAULT_uiCbrBufferTenths
 
@@ -281,19 +300,20 @@ struct context_ENC_s {
      * Description        : Video encode context
      ************************************************************************************/
     /* stream level params */
-    IMG_STANDARD  eStandard;             //!< Video standard
-    IMG_UINT16  ui16Width;               //!< target output width
-    IMG_UINT16  ui16FrameHeight;         //!< target output height
-    IMG_UINT16  ui16PictureHeight;       //!< target output height
-    IMG_UINT16  ui16BufferStride;        //!< input buffer stride
-    IMG_UINT16  ui16BufferHeight;        //!< input buffer width
+    IMG_STANDARD  eStandard;                //!< Video standard
+    IMG_UINT16  ui16SourceWidth;             //!< source frame width
+    IMG_UINT16  ui16SourceHeight;            //!< source frame height
+    IMG_UINT16  ui16Width;             //!< target output width
+    IMG_UINT16  ui16FrameHeight;  //!< target output height
+    IMG_UINT16  ui16PictureHeight;     //!< target output height
+    IMG_UINT16  ui16BufferStride;              //!< input buffer stride
+    IMG_UINT16  ui16BufferHeight;             //!< input buffer width
     IMG_UINT8   ui8FrameRate;
 
     IMG_UINT32  ui32DebugCRCs;
     IMG_FORMAT  eFormat;            //!< Pixel format of the source surface
 
     /* Numbers of array elements that will be allocated */
-    IMG_INT32   i32NumPipes;
     IMG_INT32   i32PicNodes;
     IMG_INT32   i32MVStores;
     IMG_INT32   i32CodedBuffers;
@@ -320,6 +340,7 @@ struct context_ENC_s {
     IMG_BOOL    bIsInterleaved;
     IMG_BOOL    bTopFieldFirst;
     IMG_BOOL    bArbitrarySO;
+    IMG_UINT32  ui32NextSlice;
     IMG_UINT8   ui8SlicesPerPicture;
     IMG_UINT8   ui8DeblockIDC;
     //  We want to keep track of the basic unit size, as it is needed in deciding the number of macroblocks in a kick
@@ -338,11 +359,12 @@ struct context_ENC_s {
     IMG_BOOL    b_is_mv_setting_hierar;
 
     // Source slots
-    IMG_FRAME  *apsSourceSlotBuff[MAX_SOURCE_SLOTS_SL];     // Source slots
-    IMG_UINT32 aui32SourceSlotPOC[MAX_SOURCE_SLOTS_SL];    // POCs of frames in slots
-    IMG_UINT8  ui8SlotsInUse;                              // Number of source slots used
-    IMG_UINT8  ui8SlotsRequired;                         // Number of source slots to be consumed
-    IMG_UINT8  ui8SlotsBuf;                                  // Number of source slots to be consumed
+    IMG_FRAME  *apsSourceSlotBuff[MAX_SOURCE_SLOTS_SL]; // Source slots
+    IMG_UINT32 aui32SourceSlotPOC[MAX_SOURCE_SLOTS_SL]; // POCs of frames in slots
+    IMG_UINT32 ui32pseudo_rand_seed;
+    IMG_UINT8  ui8SlotsInUse;                           // Number of source slots used
+    IMG_UINT8  ui8SlotsCoded;                          // Number of coded slots used
+
     IMG_BOOL   bSrcAllocInternally;                        // True for internal source frame allocation
 
     // Coded slots
@@ -357,15 +379,15 @@ struct context_ENC_s {
     IMG_UINT32  ui32EncodeRequested;
     IMG_UINT32  ui32FramesEncoded;
     IMG_BOOL    bEncoderIdle;       // Indicates that the encoder is waiting for data, Set to true at start of encode
+    IMG_BOOL    bAutoEncode;
+    IMG_BOOL    bSliceLevel;
     IMG_BOOL    bAborted;
 
     IMG_UINT32  ui32ReconPOC;
     IMG_UINT32  ui32NextRecon;
+    IMG_UINT32  ui32BuffersStatusReg;
 
     IMG_RC_PARAMS   sRCParams;
-    IMG_FRAME_TYPE  eFrameType;
-
-    IMG_UINT32  ui32BuffersStatusReg;
     IMG_BIAS_TABLES sBiasTables;
     IMG_BIAS_PARAMS sBiasParams;
 
@@ -385,6 +407,9 @@ struct context_ENC_s {
     IMG_INT32  i32NumAIRMBs;    //!< n = Max number of AIR MBs per frame, 0 = _ALL_ MBs over threshold will be marked as AIR Intras, -1 = Auto 10%
     IMG_INT32  i32AIRThreshold; //!< n = SAD Threshold above which a MB is a AIR MB candidate,  -1 = Auto adjusting threshold
     IMG_INT16  i16AIRSkipCnt;   //?!< n = Number of MBs to skip in AIR Table between frames, -1 = Random (0 - NumAIRMbs) skip between frames in AIR table
+    // INPUT CONTROL
+    IMG_UINT16 ui16IntraRefresh;
+    IMG_INT32  i32LastCIRIndex;
 
     IMG_BOOL   bEnableHostBias; 
     IMG_BOOL   bEnableHostQP;
@@ -411,12 +436,10 @@ struct context_ENC_s {
 
     /* Low latency stuff */
     IMG_UINT8  ui8ActiveCodedBuffer;
-    IMG_UINT8  ui8ActivePipe;
-    IMG_UINT8  ui8ExpectedSlice;
+    IMG_UINT8  ui8BasePipe;
+    IMG_UINT8  ui8PipesToUse;
     IMG_UINT32 ui32ActiveBufferBytesCoded;
     IMG_UINT32 ui32AcriveBufferPreviousBytes;
-    IMG_BOOL   abSliceFinished[MAX_SLICESPERPIC * 2];
-
 
     IMG_UINT8  ui8HighestStorageNumber;
 
@@ -427,7 +450,6 @@ struct context_ENC_s {
     IMG_BOOL   bSkipDuplicateVectors;
     IMG_BOOL   bNoOffscreenMv;
 
-    IMG_UINT8  ui8BasePipe;
     IMG_BOOL   bNoSequenceHeaders;
     IMG_BOOL   bUseFirmwareALLRC; //!< Defines if aLL RC firmware to be loaded
 
@@ -483,4 +505,10 @@ unsigned int tng__get_ipe_control(IMG_CODEC  eEncodingFormat);
 void tng__UpdateRCBitsTransmitted(context_ENC_p ctx);
 void tng__trace_in_params(IMG_MTX_VIDEO_CONTEXT* psMtxEncCtx);
 void tng__trace_mtx_context(IMG_MTX_VIDEO_CONTEXT* psMtxEncCtx);
+VAStatus tng__alloc_init_buffer(
+    psb_driver_data_p driver_data,
+    unsigned int size,
+    psb_buffer_type_t type,
+    psb_buffer_p buf);
+
 #endif  //_TNG_HOSTCODE_H_

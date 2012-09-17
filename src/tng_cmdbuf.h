@@ -104,10 +104,6 @@ struct tng_cmdbuf_s {
     unsigned int frame_mem_index;
 
     /*picuture management g_apsCmdDataInfo */
-    struct psb_buffer_s picmgmt_mem;
-    unsigned char *picmgmt_mem_p;
-    unsigned int picmgmt_mem_index;
-
     void *writeback_mem_p;
 
     /*buffer information g_apsCmdDataInfo
@@ -234,11 +230,16 @@ void tng_cmdbuf_add_relocation(tng_cmdbuf_p cmdbuf,
 #define tng_cmdbuf_insert_reg_write(topaz_reg, base, offset, value)        \
     do { *cmdbuf->cmd_idx++ = topaz_reg; *cmdbuf->cmd_idx++ = base + offset; *cmdbuf->cmd_idx++ = value; count++; } while(0)
 
-void tng_cmdbuf_insert_command_package(object_context_p obj_context,
+void tng_cmdbuf_insert_command_package_jpeg(object_context_p obj_context,
                                        IMG_UINT32 core,
                                        IMG_UINT32 cmd_id,
                                        psb_buffer_p command_data,
                                        IMG_UINT32 offset);
+
+void tng_cmdbuf_insert_command_package(
+    object_context_p obj_context, IMG_UINT32 core,
+    IMG_UINT32 cmd_id, IMG_UINT32 cmd_data,
+    psb_buffer_p data_addr, IMG_UINT32 offset);
 
 /*
  * Advances "obj_context" to the next cmdbuf

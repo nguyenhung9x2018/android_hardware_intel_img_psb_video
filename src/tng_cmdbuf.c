@@ -35,17 +35,19 @@
 #include <errno.h>
 #include <string.h>
 #include <wsbm/wsbm_manager.h>
-#ifdef ANDROID
-#include <linux/psb_drm.h>
-#else
-#include "psb_drm.h"
-#endif
 #include "psb_buffer.h"
 #include "tng_cmdbuf.h"
 #include "psb_def.h"
 #include "psb_drv_debug.h"
 #include "tng_hostcode.h"
 #include "psb_ws_driver.h"
+
+#ifdef ANDROID
+#include <linux/psb_drm.h>
+#else
+#include "psb_drm.h"
+#endif
+
 #include "tng_trace.h"
 
 /*
@@ -79,7 +81,6 @@
 void tng_cmdbuf_mem_unmap(tng_cmdbuf_p cmdbuf)
 {
     psb_buffer_unmap(&cmdbuf->frame_mem);
-    psb_buffer_unmap(&cmdbuf->picmgmt_mem);
     psb_buffer_unmap(&cmdbuf->jpeg_pic_params);
     psb_buffer_unmap(&cmdbuf->jpeg_header_mem);
     psb_buffer_unmap(&cmdbuf->jpeg_header_interface_mem);
@@ -98,10 +99,7 @@ static void tng_cmdbuf_clear(tng_cmdbuf_p cmdbuf, int flag)
         case 3:
             psb_buffer_destroy(&cmdbuf->jpeg_pic_params);
         case 2:
-            psb_buffer_unmap(&cmdbuf->picmgmt_mem);
-            psb_buffer_destroy(&cmdbuf->picmgmt_mem);
         case 1:
-            psb_buffer_unmap(&cmdbuf->frame_mem);
             psb_buffer_destroy(&cmdbuf->frame_mem);
             break;
     }
@@ -132,6 +130,8 @@ VAStatus tng_cmdbuf_create(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int size = CMD_SIZE + RELOC_SIZE;
 
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
+
     cmdbuf->size = 0;
     cmdbuf->cmd_base = NULL;
     cmdbuf->cmd_idx = NULL;
@@ -144,6 +144,7 @@ VAStatus tng_cmdbuf_create(
         cmdbuf->buffer_refs_allocated = 0;
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
+
     if (VA_STATUS_SUCCESS == vaStatus) {
         vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_only, &cmdbuf->buf);
         cmdbuf->size = size;
@@ -159,40 +160,8 @@ VAStatus tng_cmdbuf_create(
     cmdbuf->mem_size = tng_align_KB(TNG_HEADER_SIZE);
 
     /* create buffer information buffer */
-    vaStatus = psb_buffer_create(driver_data, COMM_CMD_FRAME_BUF_NUM * cmdbuf->mem_size, psb_bt_cpu_vpu, &cmdbuf->frame_mem);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: error create frame buf\n", __FUNCTION__);
-        tng_cmdbuf_clear(cmdbuf, 4);
-        return vaStatus;
-    }
-    
-    vaStatus = psb_buffer_map(&cmdbuf->frame_mem, &(cmdbuf->frame_mem_p));
-    if (vaStatus) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: map frame buf\n", __FUNCTION__);
-        psb_buffer_destroy(&(cmdbuf->frame_mem));
-        return vaStatus;
-    } else {
-        memset(cmdbuf->frame_mem_p, 0, COMM_CMD_FRAME_BUF_NUM * cmdbuf->mem_size);
-    }
-    psb_buffer_unmap(&cmdbuf->frame_mem);
+    tng__alloc_init_buffer(driver_data, COMM_CMD_FRAME_BUF_NUM * cmdbuf->mem_size, psb_bt_cpu_vpu, &cmdbuf->frame_mem);
 
-    /* create picture management information buffer */
-    vaStatus = psb_buffer_create(driver_data, COMM_CMD_PICMGMT_BUF_NUM * cmdbuf->mem_size, psb_bt_cpu_vpu, &cmdbuf->picmgmt_mem);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: error create picmgmt buf\n", __FUNCTION__);
-        tng_cmdbuf_clear(cmdbuf, 5);
-        return vaStatus;
-    }
-
-    vaStatus = psb_buffer_map(&cmdbuf->picmgmt_mem, &(cmdbuf->picmgmt_mem_p));
-    if (vaStatus) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: map picmgmt buf\n", __FUNCTION__);
-        psb_buffer_destroy(&(cmdbuf->picmgmt_mem));
-        return vaStatus;
-    } else {
-        memset(cmdbuf->picmgmt_mem_p, 0, COMM_CMD_PICMGMT_BUF_NUM * cmdbuf->mem_size);
-    }
-    psb_buffer_unmap(&cmdbuf->picmgmt_mem);
 
     /* all cmdbuf share one MTX_CURRENT_IN_PARAMS since every MB has a MTX_CURRENT_IN_PARAMS structure
      * and filling this structure for all MB is very time-consuming
@@ -218,7 +187,7 @@ VAStatus tng_cmdbuf_create(
         tng_cmdbuf_clear(cmdbuf, 4);
         return vaStatus;
     }
-
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
     return vaStatus;
 }
 
@@ -227,7 +196,23 @@ VAStatus tng_cmdbuf_create(
  */
 void tng_cmdbuf_destroy(tng_cmdbuf_p cmdbuf)
 {
-    tng_cmdbuf_clear(cmdbuf, 4);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
+
+    psb_buffer_destroy(&cmdbuf->frame_mem);
+    psb_buffer_destroy(&cmdbuf->jpeg_header_mem);
+    psb_buffer_destroy(&cmdbuf->jpeg_pic_params);
+    psb_buffer_destroy(&cmdbuf->jpeg_header_interface_mem);
+
+    if (cmdbuf->size) {
+        psb_buffer_destroy(&cmdbuf->buf);
+        cmdbuf->size = 0;
+    }
+    if (cmdbuf->buffer_refs_allocated) {
+        free(cmdbuf->buffer_refs);
+        cmdbuf->buffer_refs = NULL;
+        cmdbuf->buffer_refs_allocated = 0;
+    }
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
 }
 
 /*
@@ -373,7 +358,7 @@ void tng_cmdbuf_add_relocation(tng_cmdbuf_p cmdbuf,
 }
 
 /* Prepare one command package */
-void tng_cmdbuf_insert_command_package(
+void tng_cmdbuf_insert_command_package_jpeg(
     object_context_p obj_context,
     IMG_UINT32 stream_id,
     IMG_UINT32 cmd_id,
@@ -413,7 +398,7 @@ void tng_cmdbuf_insert_command_package(
     /* write command word into cmdbuf */
     *cmdbuf->cmd_idx++ = cmd_word;
 
-   /* Command data address */
+    /* Command data address */
     if (command_data) {
 #ifdef _TOPAZHP_OLD_LIBVA_
         tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, command_data, offset, 0);
@@ -440,6 +425,96 @@ void tng_cmdbuf_insert_command_package(
 
     return ;
 }
+
+/* Prepare one command package */
+void tng_cmdbuf_insert_command_package(
+    object_context_p obj_context,
+    IMG_UINT32 stream_id,
+    IMG_UINT32 cmd_id,
+    IMG_UINT32 cmd_data,
+    psb_buffer_p data_addr,
+    IMG_UINT32 offset)
+{
+    IMG_UINT32 cmd_word;
+    context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
+    context_ENC_cmdbuf *ps_cmd = &(ctx->ctx_cmdbuf[stream_id]);
+    tng_cmdbuf_p cmdbuf = obj_context->tng_cmdbuf;
+    psb_driver_data_p driver_data = ctx->obj_context->driver_data;
+    int interrupt_flags;
+
+    //CMD composed by user space does not generate Interrupt
+    interrupt_flags = 0;
+
+    assert(stream_id <= TOPAZHP_MAX_NUM_STREAMS);
+   
+    /* Write command to FIFO */
+    {
+        cmd_word = F_ENCODE(stream_id, MTX_MSG_CORE) |
+            F_ENCODE(cmd_id, MTX_MSG_CMD_ID);
+
+        if (cmd_id & MTX_CMDID_PRIORITY) {
+            /* increment the command counter */
+            ps_cmd->ui32HighCmdCount++;
+
+            /* Prepare high priority command */
+            cmd_word |= F_ENCODE(1, MTX_MSG_PRIORITY) |
+                F_ENCODE(((ps_cmd->ui32LowCmdCount - 1) & 0xff) |(ps_cmd->ui32HighCmdCount << 8), MTX_MSG_COUNT);
+        } else {
+            /* Prepare low priority command */
+            cmd_word |=
+            F_ENCODE(ps_cmd->ui32LowCmdCount & 0xff, MTX_MSG_COUNT);
+            ++(ps_cmd->ui32LowCmdCount);
+        }
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: cmd_id = 0x%08x\n",
+            __FUNCTION__, cmd_word);
+        *cmdbuf->cmd_idx++ = cmd_word;
+    }
+
+    /* write command word into cmdbuf */
+    *cmdbuf->cmd_idx++ = cmd_data;
+/* Command data address */
+    if (data_addr) {
+#ifdef _TOPAZHP_OLD_LIBVA_
+        tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
+#else
+        RELOC_CMDBUF_PTG(cmdbuf->cmd_idx, offset, data_addr);
+#endif
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: data_addr = 0x%08x\n",
+            __FUNCTION__, *(cmdbuf->cmd_idx));
+
+        cmdbuf->cmd_idx++;
+    } else {
+        *cmdbuf->cmd_idx++ = 0;
+    }
+
+    /* Command data address */
+    if (cmd_id == MTX_CMDID_SETVIDEO) {
+        *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ctx->bufs_writeback.drm_buf));
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: cmd_param = 0x%08x\n",
+            __FUNCTION__, *(cmdbuf->cmd_idx - 1));
+    }
+
+    if (cmd_id == MTX_CMDID_SETUP_INTERFACE) {
+        *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ctx->bufs_writeback.drm_buf));
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: cmd_param = 0x%08x\n",
+            __FUNCTION__, *(cmdbuf->cmd_idx - 1));
+    }
+
+    if (cmd_id == MTX_CMDID_SHUTDOWN) {
+        *(cmdbuf->cmd_idx)++ = ctx->eCodec;
+
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: cmd_param = 0x%08x\n",
+            __FUNCTION__, *(cmdbuf->cmd_idx - 1));
+    }
+
+    return ;
+}
+
 
 /*
  * Advances "obj_context" to the next cmdbuf
@@ -744,6 +819,9 @@ void tng_cmdbuf_set_phys(IMG_UINT32 *dest_buf, int dest_num,
 {
     int i = 0;
     IMG_UINT32 addr_phys = (IMG_UINT32)wsbmBOOffsetHint(ref_buf->drm_buf) + ref_ofs;
+
+//    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: drm_buf 0x%08x, addr_phys 0x%08x, virt addr 0x%08x\n", __FUNCTION__, ref_buf->drm_buf, addr_phys, ref_buf->virtual_addr );
+
 #ifdef _TOPAZHP_VIRTUAL_
     addr_phys = (IMG_UINT32)(ref_buf->virtual_addr);
 #endif

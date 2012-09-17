@@ -65,6 +65,82 @@
 #define MASK_GOP_REF0			(0xf << SHIFT_GOP_REF0)
 #define SHIFT_GOP_REF1			(4 + 8)
 #define MASK_GOP_REF1			(0xf << SHIFT_GOP_REF1)
+/**********************************************************************************************************/
+
+#define MTX_CMDID_PRIORITY 0x80
+#define MV_ROW_STRIDE ((sizeof(IMG_MV_SETTINGS) * MAX_BFRAMES + 63) & ~63)
+#define MV_OFFSET_IN_TABLE(BDistance, Position) ((BDistance) * MV_ROW_STRIDE + (Position) * sizeof(IMG_MV_SETTINGS))
+
+//Edward FIXME
+#define MAX_GOP_SIZE    (MAX_BFRAMES + 1)
+#define MV_ROW_STRIDE ((sizeof(IMG_MV_SETTINGS) * MAX_BFRAMES + 63) & ~63)
+#define MV_ROW2 ((MAX_BFRAMES) * (MAX_BFRAMES) + 1)
+
+/* Specific to Standard Latency */
+
+//details   Sizes for arrays that depend on reference usage pattern
+//brief      Reference usage
+#define MAX_REF_B_LEVELS       3
+#define MAX_REF_SPACING        1
+#define MAX_REF_I_OR_P_LEVELS  (MAX_REF_SPACING + 2)
+#define MAX_REF_LEVELS         (MAX_REF_B_LEVELS + MAX_REF_I_OR_P_LEVELS)
+#define MAX_PIC_NODES          (MAX_REF_LEVELS + 2)
+#define MAX_MV                 (MAX_PIC_NODES * 2)
+
+#define MAX_BFRAMES            7
+#define MAX_GOP_SIZE           (MAX_BFRAMES + 1)
+#define MAX_SOURCE_SLOTS_SL    (MAX_GOP_SIZE + 1)
+
+
+//brief      WB FIFO
+#define LOG2_WB_FIFO_SIZE      ( 5 )
+
+#define WB_FIFO_SIZE           ( 1 << (LOG2_WB_FIFO_SIZE) )
+
+#define SHIFT_WB_PRODUCER      ( 0 )
+#define MASK_WB_PRODUCER       ( ((1 << LOG2_WB_FIFO_SIZE) - 1) << SHIFT_WB_PRODUCER )
+
+#define SHIFT_WB_CONSUMER      ( 0 )
+#define MASK_WB_CONSUMER       ( ((1 << LOG2_WB_FIFO_SIZE) - 1) << SHIFT_WB_CONSUMER )
+
+/*****************************************************************************/
+#define SCALE_TBL_SZ            (8)
+#define TOPAZHP_NUM_PIPES       (3)
+#define TNG_HEADER_SIZE         (128)
+#define NUM_SLICE_TYPES         (5)
+/*****************************************************************************/
+#define SHIFT_MTX_MSG_CMD_ID          (0)
+#define MASK_MTX_MSG_CMD_ID           (0x7f << SHIFT_MTX_MSG_CMD_ID)
+#define SHIFT_MTX_MSG_PRIORITY        (7)
+#define MASK_MTX_MSG_PRIORITY         (0x1 << SHIFT_MTX_MSG_PRIORITY)
+#define SHIFT_MTX_MSG_CORE            (8)
+#define MASK_MTX_MSG_CORE             (0xff << SHIFT_MTX_MSG_CORE)
+#define SHIFT_MTX_MSG_COUNT           (16)
+#define MASK_MTX_MSG_COUNT            (0xffff << SHIFT_MTX_MSG_COUNT)
+#define SHIFT_MTX_MSG_MESSAGE_ID      (16)
+#define MASK_MTX_MSG_MESSAGE_ID       (0xff << SHIFT_MTX_MSG_MESSAGE_ID)
+/*****************************************************************************/
+#define SHIFT_MTX_MSG_PICMGMT_SUBTYPE           (0)
+#define MASK_MTX_MSG_PICMGMT_SUBTYPE            (0xff << SHIFT_MTX_MSG_PICMGMT_SUBTYPE)
+#define SHIFT_MTX_MSG_PICMGMT_DATA              (8)
+#define MASK_MTX_MSG_PICMGMT_DATA               (0xffffff << SHIFT_MTX_MSG_PICMGMT_DATA)
+
+#define SHIFT_MTX_MSG_RC_UPDATE_QP              (0)
+#define MASK_MTX_MSG_RC_UPDATE_QP               (0x3f << SHIFT_MTX_MSG_RC_UPDATE_QP)
+#define SHIFT_MTX_MSG_RC_UPDATE_BITRATE         (6)
+#define MASK_MTX_MSG_RC_UPDATE_BITRATE          (0x03ffffff << SHIFT_MTX_MSG_RC_UPDATE_BITRATE)
+
+#define SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_USE    (0)
+#define MASK_MTX_MSG_PROVIDE_REF_BUFFER_USE     (0xff << SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_USE)
+#define SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_SLOT   (8)
+#define MASK_MTX_MSG_PROVIDE_REF_BUFFER_SLOT    (0xff << SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_SLOT)
+#define SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_LT     (16)
+#define MASK_MTX_MSG_PROVIDE_REF_BUFFER_LT      (0xff << SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_LT)
+
+#define SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SLOT (0)
+#define MASK_MTX_MSG_PROVIDE_CODED_BUFFER_SLOT  (0x0f << SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SLOT)
+#define SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SIZE (4)
+#define MASK_MTX_MSG_PROVIDE_CODED_BUFFER_SIZE  (0x0fffffff << SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SLOT)
 
 
 /*!
@@ -81,24 +157,30 @@
  *
  ****************************************************************************/
 typedef enum {
-    // Common Commands
-    MTX_CMDID_NULL,                 //!< (no data)\n Null command does nothing\n
-    MTX_CMDID_SHUTDOWN,      //!< (no data)\n shutdown the MTX\n
+	// Common Commands
+    MTX_CMDID_NULL,                                        //!< (no data)\n Null command does nothing\n
+    MTX_CMDID_SHUTDOWN,                             //!< (no data)\n shutdown the MTX\n
 
     // Video Commands
-    MTX_CMDID_DO_HEADER,            //!< (data: #MTX_HEADER_PARAMS)\n Command for Sequence, Picture and Slice headers\n
-    MTX_CMDID_ENCODE_FRAME,     //!< (no data)\n Encode frame data\n
-    MTX_CMDID_SETVIDEO,               //!< (data: #IMG_MTX_VIDEO_CONTEXT)\n Set MTX Video Context\n
-    MTX_CMDID_GETVIDEO,               //!< (data: #IMG_MTX_VIDEO_CONTEXT)\n Get MTX Video Context\n
-    MTX_CMDID_PICMGMT,                //!< (data: #IMG_PICMGMT_PARAMS)\n Change encoding parameters\n
-    MTX_CMDID_PROVIDE_BUFFER,   //!< (data: #IMG_BUFFER_PARAMS)\n Transfer buffer b\w Host and Topaz\n
-    MTX_CMDID_ABORT,                     //!< (no data)\n Stop encoding and release all buffers\n
+    MTX_CMDID_DO_HEADER,                            //!< (extra data: #MTX_HEADER_PARAMS)\n Command for Sequence, Picture and Slice headers\n
+    MTX_CMDID_ENCODE_FRAME,                     //!< (no data)\n Encode frame data\n
+    MTX_CMDID_START_FRAME,                        //!< (no data)\n Prepare to encode frame\n
+    MTX_CMDID_ENCODE_SLICE,	                      //!< (no data)\n Encode slice data\n
+    MTX_CMDID_END_FRAME,                           //!< (no data)\n Complete frame encoding\n
+    MTX_CMDID_SETVIDEO,                               //!< (data: pipe number, extra data: #IMG_MTX_VIDEO_CONTEXT)\n Set MTX Video Context\n
+    MTX_CMDID_GETVIDEO,                              //!< (data: pipe number, extra data: #IMG_MTX_VIDEO_CONTEXT)\n Get MTX Video Context\n
+    MTX_CMDID_PICMGMT,                               //!< (data: subtype and parameters, extra data: #IMG_PICMGMT_CUSTOM_QUANT_DATA (optional))\n Change encoding parameters\n
+    MTX_CMDID_RC_UPDATE,                           //!< (data: QP and bitrate)\n Change encoding parameters\n
+    MTX_CMDID_PROVIDE_SOURCE_BUFFER,  //!< (extra data: #IMG_SOURCE_BUFFER_PARAMS)\n Transfer source buffer from host\n
+    MTX_CMDID_PROVIDE_REF_BUFFER,         //!< (data: buffer parameters, extra data: reference buffer)\n Transfer reference buffer from host\n
+    MTX_CMDID_PROVIDE_CODED_BUFFER,    //!< (data: slot and size, extra data: coded buffer)\n Transfer output buffer from host\n
+    MTX_CMDID_ABORT,                                   //!< (no data)\n Stop encoding and release all buffers\n
 
     // JPEG commands
-    MTX_CMDID_SETQUANT,              //!< (data: #JPEG_MTX_QUANT_TABLE)\n
-    MTX_CMDID_SETUP_INTERFACE, //!< (data: #JPEG WRITEBACK POINTERS)\n
-    MTX_CMDID_ISSUEBUFF,              //!< (data: #MTX_ISSUE_BUFFERS)\n
-    MTX_CMDID_SETUP,                     //!< (data: #JPEG_MTX_DMA_SETUP)\n\n
+    MTX_CMDID_SETQUANT,	                            //!< (extra data: #JPEG_MTX_QUANT_TABLE)\n
+    MTX_CMDID_SETUP_INTERFACE,               //!< (extra data: #JPEG WRITEBACK POINTERS)\n
+    MTX_CMDID_ISSUEBUFF,                            //!< (extra data: #MTX_ISSUE_BUFFERS)\n
+    MTX_CMDID_SETUP,                                   //!< (extra data: #JPEG_MTX_DMA_SETUP)\n\n
 
     MTX_CMDID_ENDMARKER,           //!< end marker for enum
 
@@ -118,7 +200,7 @@ typedef enum {
  ****************************************************************************/
 typedef enum
 {
-//    IMG_CODEC_NONE = 0,                 //!< There is no FW in MTX memory
+//    IMG_CODEC_NONE = 0,              //!< There is no FW in MTX memory
     IMG_CODEC_JPEG,                        //!< JPEG
     IMG_CODEC_H264_NO_RC,           //!< H264 with no rate control
     IMG_CODEC_H264_VBR,                //!< H264 variable bitrate
@@ -130,20 +212,18 @@ typedef enum
     IMG_CODEC_MPEG4_NO_RC,        //!< MPEG4 with no rate control
     IMG_CODEC_MPEG4_VBR,            //!< MPEG4 variable bitrate
     IMG_CODEC_MPEG4_CBR,            //!< MPEG4 constant bitrate
-    IMG_CODEC_MPEG2_NO_RC,       //!< MPEG2 with no rate control
+    IMG_CODEC_MPEG2_NO_RC,        //!< MPEG2 with no rate control
     IMG_CODEC_MPEG2_VBR,            //!< MPEG2 variable bitrate
     IMG_CODEC_MPEG2_CBR,            //!< MPEG2 constant bitrate
     IMG_CODEC_H264_ERC,                //!< H264 example rate control
     IMG_CODEC_H263_ERC,                //!< H263 example rate control
     IMG_CODEC_MPEG4_ERC,            //!< MPEG4 example rate control
     IMG_CODEC_MPEG2_ERC,            //!< MPEG2 example rate control
-    IMG_CODEC_H264_LLRC,              //!< H264 low-latency rate control
     IMG_CODEC_H264MVC_NO_RC,    //!< MVC H264 with no rate control
     IMG_CODEC_H264MVC_CBR,         //!< MVC H264 constant bitrate
     IMG_CODEC_H264MVC_VBR,         //!< MVC H264 variable bitrate
     IMG_CODEC_H264MVC_ERC,         //!< MVC H264 example rate control
-    IMG_CODEC_H264MVC_LLRC,       //!< MVC H264 low-latency rate control
-    IMG_CODEC_H264ALL,
+    IMG_CODEC_H264_ALL_RC,           //!< H264 with multiple rate control modes
     IMG_CODEC_NUM
 } IMG_CODEC;
 
@@ -220,41 +300,6 @@ typedef struct
     IMG_UINT32  ui32_IntraSumSatd;  //!< Sum of SATD for all Intra-MBs in the slice
     IMG_UINT32  ui32_MVOutputIndex; //!< Index into the motion vector buffers for this frame
 } CODED_DATA_HDR, *P_CODED_DATA_HDR;
-
-/**********************************************************************************************************/
-
-#define MTX_CMDID_PRIORITY 0x80
-#define MV_ROW_STRIDE ((sizeof(IMG_MV_SETTINGS) * MAX_BFRAMES + 63) & ~63)
-#define MV_OFFSET_IN_TABLE(BDistance, Position) ((BDistance) * MV_ROW_STRIDE + (Position) * sizeof(IMG_MV_SETTINGS))
-
-//Edward FIXME
-#define MAX_GOP_SIZE    (MAX_BFRAMES + 1)
-#define MV_ROW_STRIDE ((sizeof(IMG_MV_SETTINGS) * MAX_BFRAMES + 63) & ~63)
-#define MV_ROW2 ((MAX_BFRAMES) * (MAX_BFRAMES) + 1)
-
-/* Specific to Standard Latency */
-#define MAX_SOURCE_SLOTS_SL             (MAX_GOP_SIZE + 1)
-#define TOPAZHP_NUM_PIPES 3
-#define MAX_CODED_BUFFERS                           (TOPAZHP_NUM_PIPES * 3)
-#define MASK_BUFFERSREG_CODED_FIELD       (MASK_BUFFERSREG_CODED_FILLED(0) | MASK_BUFFERSREG_CODED_FILLED(1)  | MASK_BUFFERSREG_CODED_FILLED(2) | MASK_BUFFERSREG_CODED_FILLED(3))
-
-#define MAX_REF_B_LEVELS_CTXT   3
-#define MAX_REF_I_OR_P_LEVELS_CTXT      3
-
-#define MAX_REF_LEVELS_CTXT (MAX_REF_B_LEVELS_CTXT + MAX_REF_I_OR_P_LEVELS_CTXT)
-#define MAX_PIC_NODES_CTXT   (MAX_REF_LEVELS_CTXT + 2)
-#define MAX_MV_CTXT            (MAX_PIC_NODES_CTXT * 2)
-#define LOG2_WB_FIFO_SIZE  ( 5 )
-#define WB_FIFO_SIZE             (1 << (LOG2_WB_FIFO_SIZE))
-#define NUM_SLICE_TYPES     (5)
-#define SCALE_TBL_SZ            (8)
-
-//MAX_HEADERSIZEBYTES
-//MAX_HEADERSIZEWORDS
-#define TNG_HEADER_SIZE (128)
-#define MAX_REF_LEVELS_ARRAYSIZE        (MAX_REF_B_LEVELS + MAX_REF_I_OR_P_LEVELS)
-#define MAX_PIC_NODES_ARRAYSIZE (MAX_REF_LEVELS_ARRAYSIZE + 2)
-#define MAX_MV_ARRAYSIZE (MAX_PIC_NODES_ARRAYSIZE * 2)
 
 /*!
  ************************************************************
@@ -333,7 +378,6 @@ typedef enum _IMG_RCMODE_ {
     IMG_RCMODE_CBR,
     IMG_RCMODE_VBR,
     IMG_RCMODE_ERC, //Example Rate Control
-    IMG_RCMODE_LLRC,        //Low Latency Rate Control
     IMG_RCMODE_VCM
 } IMG_RCMODE;
 
@@ -376,45 +420,47 @@ typedef struct _RC_PARAMS_ {
  ****************************************************************************/
 typedef struct
 {
-    IMG_UINT16  ui16MBPerFrm;   //!< Number of MBs Per Frame
-    IMG_UINT16  ui16MBPerBU;    //!< Number of MBs Per BU
-    IMG_UINT16  ui16BUPerFrm;   //!< Number of BUs Per Frame
+    IMG_UINT16 ui16MBPerFrm;        //!< Number of MBs Per Frame
+    IMG_UINT16 ui16MBPerBU;         //!< Number of MBs Per BU
+    IMG_UINT16 ui16BUPerFrm;        //!< Number of BUs Per Frame
 
-    IMG_UINT16  ui16IntraPeriod;	//!< Intra frame frequency
-    IMG_UINT16  ui16BFrames;     //!< B frame frequency
-    IMG_BOOL16  bHierarchicalMode;  //!< Flag indicating Hierarchical B Pic or Flat mode rate control
+    IMG_UINT16 ui16IntraPeriod;       //!< Intra frame frequency
+    IMG_UINT16 ui16BFrames;         //!< B frame frequency   
 
-    IMG_INT32  i32BitsPerFrm;       //!< Bits Per Frame
-    IMG_INT32  i32BitsPerBU;		//!< Bits Per BU
-    IMG_INT32  i32BitsPerMB;        //!< Bits Per MB
+    IMG_INT32  i32BitsPerFrm;        //!< Bits Per Frame
+    IMG_INT32  i32BitsPerBU;	  //!< Bits Per BU
 
-    IMG_INT32  i32BitRate;          //!< Bit Rate (bps)
-    IMG_INT32  i32BufferSize;	     //!< Size of Buffer
-    IMG_INT32  i32InitialLevel;     //!< Initial Level of Buffer
-    IMG_INT32  i32InitialDelay;    //!< Initial Delay of Buffer
+    IMG_INT32  i32BitRate;             //!< Bit Rate (bps)
+    IMG_INT32  i32BufferSize;        //!< Size of Buffer (VCM mode: in frames; all other modes: in bits)
+    IMG_INT32  i32InitialLevel;        //!< Initial Level of Buffer
+    IMG_INT32  i32InitialDelay;       //!< Initial Delay of Buffer
 
-    IMG_INT32  i32BitsPerGOP;  //!< Bits Per GOP (MP4 only)
-    IMG_UINT16  ui16AvQPVal;  //!< Average QP in Current Picture
-    IMG_UINT16  ui16MyInitQP;  //!< Initial Quantizer
+    IMG_BOOL16 bFrmSkipDisable; //!< Disable Frame skipping	
 
-    IMG_UINT32  ui32RCScaleFactor;  //!< Constant used in rate control = (GopSize/(BufferSize-InitialLevel))*256 
-    IMG_BOOL16  bScDetectDisable;   //!< Disable Scene Change detection
-    IMG_BOOL16  bFrmSkipDisable;    //!< Disable Frame skipping
-    IMG_BOOL16  bBUSkipDisable;   //!< Disable BU skipping
-    IMG_BOOL16  bRCIsH264VBR;   //!< Flag indicating if we are doing h264 VBR rate control
+    IMG_UINT8  ui8SeInitQP;          //!< Initial QP for Sequence
+    IMG_UINT8  ui8MinQPVal;        //!< Minimum QP value to use
+    IMG_UINT8  ui8MaxQPVal;       //!< Maximum QP value to use
 
-    IMG_UINT8  ui8SeInitQP;       //!< Initial QP for Sequence
-    IMG_UINT8  ui8MinQPVal;     //!< Minimum QP value to use
-    IMG_UINT8  ui8MaxQPVal;    //!< Maximum QP value to use
-    IMG_UINT8  ui8MBPerRow;   //!< Number of MBs Per Row
+    IMG_UINT8  ui8ScaleFactor;     //!< Scale Factor used to limit the range of arithmetic with high resolutions and bitrates	
+    IMG_UINT8  ui8MBPerRow;      //!< Number of MBs Per Row
 
-    IMG_UINT8  ui8ScaleFactor;      //!< Scale Factor used to limit the range of arithmetic with high resolutions and bitrates
-    IMG_UINT8  ui8HalfFrameRate;	 //!< Half Frame Rate (MP4 only)
-    IMG_UINT8  ui8FCode;              //!< F Code (MP4 only)
-    IMG_UINT8  ui8VCMBitrateMargin; //!< Legacy VCM mode field. To be removed when possible.
-
-    IMG_INT32  i32ForceSkipMargin;    //!< The number of bits of margin to leave before forcing skipped macroblocks (VCM mode only)
-    IMG_INT32  i32TransferRate;
+    union {
+        struct {
+            IMG_INT32   i32TransferRate;    //!< Rate at which bits are sent from encoder to the output after each frame finished encoding
+            IMG_BOOL16  bScDetectDisable;   //!< Disable Scene Change detection
+            IMG_UINT32  ui32RCScaleFactor;  //!< Constant used in rate control = (GopSize/(BufferSize-InitialLevel))*256
+            IMG_BOOL16  bHierarchicalMode;  //!< Flag indicating Hierarchical B Pic or Flat mode rate control
+        } h264;
+        struct {
+            IMG_UINT8   ui8HalfFrameRate;   //!< Half Frame Rate (MP4 only)
+            IMG_UINT8   ui8FCode;           //!< F Code (MP4 only)
+            IMG_INT32   i32BitsPerGOP;	    //!< Bits Per GOP (MP4 only)
+            IMG_BOOL16  bBUSkipDisable;     //!< Disable BU skipping
+            IMG_INT32   i32BitsPerMB;       //!< Bits Per MB
+            IMG_UINT16  ui16AvQPVal;        //!< Average QP in Current Picture
+            IMG_UINT16  ui16MyInitQP;       //!< Initial Quantizer
+        } other;
+    } mode;
 } IN_RC_PARAMS;
 
 typedef enum _frame_type_ {
@@ -478,161 +524,176 @@ typedef enum {
  ************************************************************************************/
 typedef struct tag_IMG_MTX_VIDEO_CONTEXT
 {
-    IMG_UINT64  ui64ClockDivBitrate; // keep this at the top as it has alignment issues 
+    IMG_UINT64      ui64ClockDivBitrate; // keep this at the top as it has alignment issues 
 
-    IMG_UINT32  ui32WidthInMbs;				//!< target output width
-    IMG_UINT32  ui32PictureHeightInMbs;		//!< target output height
+    IMG_UINT32      ui32WidthInMbs;                         //!< target output width
+    IMG_UINT32      ui32PictureHeightInMbs;                 //!< target output height
 
 #ifdef FORCED_REFERENCE
-    IMG_UINT32  apTmpReconstructured[MAX_PIC_NODES_CTXT];
+    IMG_UINT32      apTmpReconstructured[MAX_PIC_NODES];
 #endif
-    IMG_UINT32  apReconstructured[MAX_PIC_NODES_CTXT];
-    IMG_UINT32  apColocated[MAX_PIC_NODES_CTXT];
-    IMG_UINT32  apMV[MAX_MV_CTXT];
-    IMG_UINT32  apInterViewMV[2];
+    IMG_UINT32      apReconstructured[MAX_PIC_NODES];
+    IMG_UINT32      apColocated[MAX_PIC_NODES];
+    IMG_UINT32      apMV[MAX_MV];
+    IMG_UINT32      apInterViewMV[2];
 
-    IMG_UINT32  ui32DebugCRCs;				//!< Send debug information from Register CRCs to Host with the coded buffer
-    IMG_UINT32  apWritebackRegions[WB_FIFO_SIZE];		//!< Data section
+    IMG_UINT32      ui32DebugCRCs;                          //!< Send debug information from Register CRCs to Host with the coded buffer
 
-    IMG_UINT32 ui32InitialCPBremovaldelayoffset;
-    IMG_UINT32 ui32MaxBufferMultClockDivBitrate;
-    IMG_UINT32 pSEIBufferingPeriodTemplate;
-    IMG_UINT32 pSEIPictureTimingTemplate;
+    IMG_UINT32      apWritebackRegions[WB_FIFO_SIZE];       //!< Data section
 
-    IMG_BOOL16  b16EnableMvc;
-    IMG_UINT16  ui16MvcViewIdx;
-    IMG_UINT32  apSliceParamsTemplates[5];
-    IMG_UINT32  apPicHdrTemplates[4];
+    IMG_UINT32      ui32InitialCPBremovaldelayoffset;
+    IMG_UINT32      ui32MaxBufferMultClockDivBitrate;
+    IMG_UINT32      pSEIBufferingPeriodTemplate;
+    IMG_UINT32      pSEIPictureTimingTemplate;
 
-    IMG_UINT32  aui32SliceMap[MAX_SOURCE_SLOTS_SL];               //!< Slice map of the source picture
-    
-    IMG_UINT32  ui32FlatGopStruct;               //!< Address of Flat MiniGop structure
+    IMG_BOOL16      b16EnableMvc;
+    IMG_UINT16      ui16MvcViewIdx;
+    IMG_UINT32      apSliceParamsTemplates[5];
+    IMG_UINT32      apPicHdrTemplates[4];
 
-    IMG_UINT32  apSeqHeader;
-    IMG_UINT32  apSubSetSeqHeader;
-    IMG_BOOL16  bNoSequenceHeaders;
+    IMG_UINT32      apSeqHeader;
+    IMG_UINT32      apSubSetSeqHeader;
+    IMG_BOOL16      b16NoSequenceHeaders;
 
-    IMG_BOOL8   b8WeightedPredictionEnabled;
-    IMG_UINT8   ui8MTXWeightedImplicitBiPred;
-    IMG_UINT32  aui32WeightedPredictionVirtAddr[MAX_SOURCE_SLOTS_SL];
+    IMG_UINT32      aui32SliceMap[MAX_SOURCE_SLOTS_SL];     //!< Slice map of the source picture
 
-    IMG_UINT32  ui32HierarGopStruct;            //!< Address of hierarchical MiniGop structure
+    IMG_UINT32      ui32FlatGopStruct;                      //!< Address of Flat MiniGop structure
 
-    IMG_UINT32  pFirstPassOutParamAddr[MAX_SOURCE_SLOTS_SL];      //!< Output Parameters of the First Pass
+    IMG_BOOL8       b8WeightedPredictionEnabled;
+    IMG_UINT8       ui8MTXWeightedImplicitBiPred;
+    IMG_UINT32      aui32WeightedPredictionVirtAddr[MAX_SOURCE_SLOTS_SL];
+
+    IMG_UINT32      ui32HierarGopStruct;                    //!< Address of hierarchical MiniGop structure
+
+    IMG_UINT32      pFirstPassOutParamAddr[MAX_SOURCE_SLOTS_SL];                //!< Output Parameters of the First Pass
 #ifndef EXCLUDE_BEST_MP_DECISION_DATA
-    IMG_UINT32  pFirstPassOutBestMultipassParamAddr[MAX_SOURCE_SLOTS_SL]; //!< Selectable Output Best MV Parameters data of the First Pass
+    IMG_UINT32      pFirstPassOutBestMultipassParamAddr[MAX_SOURCE_SLOTS_SL];   //!< Selectable Output Best MV Parameters data of the First Pass
 #endif
-    IMG_UINT32  pMBCtrlInParamsAddr[MAX_SOURCE_SLOTS_SL];         //!< Input Parameters to the second pass
+    IMG_UINT32      pMBCtrlInParamsAddr[MAX_SOURCE_SLOTS_SL];                   //!< Input Parameters to the second pass
 
-    IMG_UINT32  ui32InterIntraScale[SCALE_TBL_SZ];
-    IMG_UINT32  ui32SkippedCodedScale[SCALE_TBL_SZ]; 
+    IMG_UINT32      ui32InterIntraScale[SCALE_TBL_SZ];
+    IMG_UINT32      ui32SkippedCodedScale[SCALE_TBL_SZ];
 
-    IMG_UINT32  ui32PicRowStride;			//!< Strides of source Y data and chroma data
-    IMG_UINT32  aui32BytesCodedAddr[MAX_CODED_BUFFERS];
-    IMG_UINT32  apAboveParams[TOPAZHP_NUM_PIPES];  //!< Picture level parameters (supplied by driver)
+    IMG_UINT32      ui32PicRowStride;                       //!< Strides of source Y data and chroma data
 
-    IMG_UINT32  ui32IdrPeriod;
-    IMG_UINT32  ui32IntraLoopCnt;
-    IMG_UINT32  ui32BFrameCount;
-    IMG_BOOL8  b8Hierarchical;
-    IMG_UINT8   ui8MPEG2IntraDCPrecision; //!< Only used in MPEG2, 2 bit field (0 = 8 bit, 1 = 9 bit, 2 = 10 bit and 3=11 bit precision). Set to zero for other encode standards.
-    IMG_UINT8   aui8PicOnLevel[MAX_REF_LEVELS_CTXT];
+    IMG_UINT32      apAboveParams[TOPAZHP_NUM_PIPES];       //!< Picture level parameters (supplied by driver)
 
-    IMG_UINT32  ui32VopTimeResolution;
+    IMG_UINT32      ui32IdrPeriod;
+    IMG_UINT32      ui32IntraLoopCnt;
+    IMG_UINT32      ui32BFrameCount;
+    IMG_BOOL8       b8Hierarchical;
+    IMG_UINT8       ui8MPEG2IntraDCPrecision;               //!< Only used in MPEG2, 2 bit field (0 = 8 bit, 1 = 9 bit, 2 = 10 bit and 3=11 bit precision). Set to zero for other encode standards.
+    IMG_UINT8       aui8PicOnLevel[MAX_REF_LEVELS];
 
-    IMG_UINT32  ui32InitialQp;      //!< Initial QP (only field used by JPEG)
-    IMG_UINT32  ui32BUSize;         //!< Basic unit size
+    IMG_UINT32      ui32VopTimeResolution;
+
+    IMG_UINT32      ui32InitialQp;                          //!< Initial QP (only field used by JPEG)
+    IMG_UINT32      ui32BUSize;                             //!< Basic unit size
 
     IMG_MV_SETTINGS sMVSettingsIdr;
+
     IMG_MV_SETTINGS sMVSettingsNonB[MAX_BFRAMES + 1];
-    IMG_UINT32  ui32MVSettingsBTable;
-    IMG_UINT32  ui32MVSettingsHierarchical;
 
+    IMG_UINT32      ui32MVSettingsBTable;
+    IMG_UINT32      ui32MVSettingsHierarchical;
 #ifdef FIRMWARE_BIAS
-    IMG_UINT32  aui32DirectBias_P[27];
-    IMG_UINT32  aui32InterBias_P[27];
-    IMG_UINT32  aui32DirectBias_B[27];
-    IMG_UINT32  aui32InterBias_B[27];
+    IMG_UINT32      aui32DirectBias_P[27];
+    IMG_UINT32      aui32InterBias_P[27];
+
+    IMG_UINT32      aui32DirectBias_B[27];
+    IMG_UINT32      aui32InterBias_B[27];
 #endif
-    IMG_FORMAT  eFormat;            //!< Pixel format of the source surface
-    IMG_STANDARD    eStandard;		//!< Encoder standard (H264 / H263 / MPEG4 / JPEG)
-    IMG_RCMODE  eRCMode;			//!< RC flavour
 
-    IMG_BOOL8   b8FirstPic;
-    IMG_BOOL8   b8IsInterlaced;
-    IMG_BOOL8   b8TopFieldFirst;
-    IMG_BOOL8   b8ArbitrarySO;
-    
-    IMG_BOOL8   bOutputReconstructed;
-    IMG_BOOL8   b8DisableBitStuffing;
-    IMG_BOOL8   b8InsertHRDparams;
+    IMG_FORMAT      eFormat;                                //!< Pixel format of the source surface
+    IMG_STANDARD    eStandard;                              //!< Encoder standard (H264 / H263 / MPEG4 / JPEG)
+    IMG_RCMODE      eRCMode;                                //!< RC flavour
 
-    IMG_UINT8   ui8MaxSlicesPerPicture;
-    IMG_UINT8   ui8NumPipes;
+    IMG_BOOL8       b8FirstPic;
+    IMG_BOOL8       b8IsInterlaced;
+    IMG_BOOL8       b8TopFieldFirst;
+    IMG_BOOL8       b8ArbitrarySO;
+    IMG_BOOL8       bOutputReconstructed;
+
+    IMG_BOOL8       b8DisableBitStuffing;
+
+    IMG_BOOL8       b8InsertHRDparams;
+
+    IMG_UINT8       ui8MaxSlicesPerPicture;
 
     /* Contents Adaptive Rate Control parameters*/
-    IMG_BOOL16	bCARC;
-    IMG_INT32	iCARCBaseline;
-    IMG_UINT32  uCARCThreshold;
-    IMG_UINT32  uCARCCutoff;
-    IMG_UINT32  uCARCNegRange;
-    IMG_UINT32  uCARCNegScale;
-    IMG_UINT32  uCARCPosRange;
-    IMG_UINT32  uCARCPosScale;
-    IMG_UINT32  uCARCShift;
+    IMG_BOOL16      bCARC;
+    IMG_INT32       iCARCBaseline;
+    IMG_UINT32      uCARCThreshold;
+    IMG_UINT32      uCARCCutoff;
+    IMG_UINT32      uCARCNegRange;
+    IMG_UINT32      uCARCNegScale;
+    IMG_UINT32      uCARCPosRange;
+    IMG_UINT32      uCARCPosScale;
+    IMG_UINT32      uCARCShift;
 
-    IMG_UINT32  ui32MVClip_Config;			//!< Value to use for MVClip_Config  register
-    IMG_UINT32  ui32PredCombControl;		//!< Value to use for Predictor combiner register
-    IMG_UINT32  ui32LRITC_Tile_Use_Config;	//!< Value to use for LRITC_Tile_Use_Config register
-    IMG_UINT32  ui32LRITC_Cache_Chunk_Config;	//!< Value to use for LRITC_Tile_Free_Config register
-    IMG_UINT32  ui32IPEVectorClipping;		//!< Value to use for IPEVectorClipping register
-    IMG_UINT32  ui32H264CompControl;		//!< Value to use for H264CompControl register
-    IMG_UINT32  ui32H264CompIntraPredModes;	//!< Value to use for H264CompIntraPredMode register
-    IMG_UINT32  ui32IPCM_0_Config;			//!< Value to use for IPCM_0 Config register
-    IMG_UINT32  ui32IPCM_1_Config;			//!< Value to use for IPCM_1 Config register
-    IMG_UINT32  ui32SPEMvdClipRange;		//!< Value to use for SPEMvdClipRange register
-    IMG_UINT32  ui32JMCompControl;			//!< Value to use for JMCompControl register
-    IMG_UINT32  ui32MBHostCtrl;             //!< Value to use for MB_HOST_CONTROL register
-    IMG_UINT32  ui32DeblockCtrl;			//!< Value for the CR_DB_DISABLE_DEBLOCK_IDC register
-    IMG_UINT32  ui32SkipCodedInterIntra;	//!< Value for the CR_DB_DISABLE_DEBLOCK_IDC register
+    IMG_UINT32      ui32MVClip_Config;                      //!< Value to use for MVClip_Config  register
+    IMG_UINT32      ui32PredCombControl;                    //!< Value to use for Predictor combiner register
+    IMG_UINT32      ui32LRITC_Tile_Use_Config;              //!< Value to use for LRITC_Tile_Use_Config register
+    IMG_UINT32      ui32LRITC_Cache_Chunk_Config;           //!< Value to use for LRITC_Tile_Free_Config register
+    IMG_UINT32      ui32IPEVectorClipping;                  //!< Value to use for IPEVectorClipping register
+    IMG_UINT32      ui32H264CompControl;                    //!< Value to use for H264CompControl register
+    IMG_UINT32      ui32H264CompIntraPredModes;             //!< Value to use for H264CompIntraPredMode register
+    IMG_UINT32      ui32IPCM_0_Config;                      //!< Value to use for IPCM_0 Config register
+    IMG_UINT32      ui32IPCM_1_Config;                      //!< Value to use for IPCM_1 Config register
+    IMG_UINT32      ui32SPEMvdClipRange;                    //!< Value to use for SPEMvdClipRange register
+    IMG_UINT32      ui32JMCompControl;                      //!< Value to use for JMCompControl register
+    IMG_UINT32      ui32MBHostCtrl;                         //!< Value to use for MB_HOST_CONTROL register
+    IMG_UINT32      ui32DeblockCtrl;                        //!< Value for the CR_DB_DISABLE_DEBLOCK_IDC register
+    IMG_UINT32      ui32SkipCodedInterIntra;                //!< Value for the CR_DB_DISABLE_DEBLOCK_IDC register
 
-    IMG_UINT32  ui32VLCControl;
-    IMG_UINT32  ui32VLCSliceControl;		//!< Slice control register value. Configures the size of a slice 
-    IMG_UINT32  ui32VLCSliceMBControl;		//!< Slice control register value. Configures the size of a slice 
-    IMG_UINT16  ui16CQPOffset;				//!< Chroma QP offset to use (when PPS id = 0) 
-    IMG_BOOL8  b8CodedHeaderPerSlice;
+    IMG_UINT32      ui32VLCControl;
+    IMG_UINT32      ui32VLCSliceControl;                    //!< Slice control register value. Configures the size of a slice 
+    IMG_UINT32      ui32VLCSliceMBControl;                  //!< Slice control register value. Configures the size of a slice 
+    IMG_UINT16      ui16CQPOffset;                          //!< Chroma QP offset to use (when PPS id = 0) 
 
-    IMG_UINT32  ui32FirstPicFlags;
-    IMG_UINT32  ui32NonFirstPicFlags;
+    IMG_BOOL8       b8CodedHeaderPerSlice;
+
+    IMG_UINT32      ui32FirstPicFlags;
+    IMG_UINT32      ui32NonFirstPicFlags;
 
 #ifndef EXCLUDE_ADAPTIVE_ROUNDING
-    IMG_BOOL16  bMCAdaptiveRoundingDisable;
-    IMG_UINT16  ui16MCAdaptiveRoundingOffsets[18][4];
+    IMG_BOOL16      bMCAdaptiveRoundingDisable;
+    IMG_UINT16      ui16MCAdaptiveRoundingOffsets[18][4];
 #endif
 
 #ifdef FORCED_REFERENCE
-    IMG_UINT32  ui32PatchedReconAddress;	//!< Reconstructed address to allow host picture management
-    IMG_UINT32  ui32PatchedRef0Address;		//!< Reference 0 address to allow host picture management
-    IMG_UINT32  ui32PatchedRef1Address;		//!< Reference 1 address to allow host picture management
+    IMG_UINT32      ui32PatchedReconAddress;                //!< Reconstructed address to allow host picture management
+    IMG_UINT32      ui32PatchedRef0Address;                 //!< Reference 0 address to allow host picture management
+    IMG_UINT32      ui32PatchedRef1Address;                 //!< Reference 1 address to allow host picture management
 #endif
 #ifdef LTREFHEADER
-    IMG_UINT32  aui32LTRefHeader[MAX_SOURCE_SLOTS_SL];
-    IMG_INT8    i8SliceHeaderSlotNum;
+    IMG_UINT32      aui32LTRefHeader[MAX_SOURCE_SLOTS_SL];
+    IMG_INT8        i8SliceHeaderSlotNum;
 #endif
-    IMG_BOOL8   b8ReconIsLongTerm;
-    IMG_BOOL8   b8Ref0IsLongTerm;
-    IMG_BOOL8   b8Ref1IsLongTerm;
-    IMG_UINT8   ui8RefSpacing;
+    IMG_BOOL8       b8ReconIsLongTerm;
+    IMG_BOOL8       b8Ref0IsLongTerm;
+    IMG_BOOL8       b8Ref1IsLongTerm;
+    IMG_UINT8       ui8RefSpacing;
 
-    IMG_UINT8   ui8FirstPipe;
-    IMG_UINT8   ui8LastPipe;
-    IMG_UINT8   ui8PipesToUseFlags;
+#if INPUT_SCALER_SUPPORTED
+    IMG_UINT32      ui32ScalerInputSizeReg;
+    IMG_UINT32      ui32ScalerCropReg;
+    IMG_UINT32      ui32ScalerPitchReg;
+    IMG_UINT32      asHorScalerCoeffRegs[4];
+    IMG_UINT32      asVerScalerCoeffRegs[4];
+#endif
+
+    IMG_UINT8       ui8NumPipes;
+    IMG_UINT8       ui8FirstPipe;
+    IMG_UINT8       ui8LastPipe;
+    IMG_UINT8       ui8PipesToUseFlags;
+
     /*
-        The following `IN_RC_PARAMS` should newer be used by RC.
-        This is because MVC RC module is unable to alter them, thus
-        they may (and will, in case of MVC) contain incorrect values.
+    The following IN_RC_PARAMS should never be used by RC.
+    This is because MVC RC module is unable to alter them, thus
+    they may (and will, in case of MVC) contain incorrect values.
     */
-    IN_RC_PARAMS    sInParams;		
+    IN_RC_PARAMS    sInParams;
 }IMG_MTX_VIDEO_CONTEXT;
 
 typedef struct _OMX_CARC_PARAMS {
@@ -747,17 +808,17 @@ typedef struct _IMG_FIRST_STAGE_MB_PARAMS {
  *
  ****************************************************************************/
 /* @{ */
-#define ISINTERP_FLAGS					(0x00000001)
-#define ISMPEG2_FLAGS					(0x00000002)
-#define ISMPEG4_FLAGS					(0x00000004)
-#define ISH263_FLAGS					(0x00000008)
-#define ISRC_FLAGS						(0x00000010)
-#define ISRC_I16BIAS					(0x00000020)
-#define LOW_LATENCY_INTRA_ON_FLY		(0x00000040)
-#define ISINTERB_FLAGS					(0x00000080)
-#define ISSCENE_DISABLED				(0x00000100)
-#define ISMULTIREF_FLAGS				(0x00000200)
-#define SPATIALDIRECT_FLAGS				(0x00000400)
+#define ISINTERP_FLAGS                          (0x00000001)
+#define ISMPEG2_FLAGS                          (0x00000002)
+#define ISMPEG4_FLAGS                          (0x00000004)
+#define ISH263_FLAGS                              (0x00000008)
+#define ISRC_FLAGS                                 (0x00000010)
+#define ISRC_I16BIAS                                (0x00000020)
+#define LOW_LATENCY_INTRA_ON_FLY   (0x00000040)
+#define ISINTERB_FLAGS                          (0x00000080)
+#define ISSCENE_DISABLED                     (0x00000100)
+#define ISMULTIREF_FLAGS                     (0x00000200)
+#define SPATIALDIRECT_FLAGS               (0x00000400)
 /* @} */
 
 /*!

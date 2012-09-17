@@ -32,13 +32,36 @@
 #include "img_types.h"
 #include "tng_hostcode.h"
 
+
+#define SHIFT_MTX_MSG_PICMGMT_SUBTYPE                      (0)
+#define MASK_MTX_MSG_PICMGMT_SUBTYPE                      (0xff << SHIFT_MTX_MSG_PICMGMT_SUBTYPE)
+#define SHIFT_MTX_MSG_PICMGMT_DATA                             (8)
+#define MASK_MTX_MSG_PICMGMT_DATA                             (0xffffff << SHIFT_MTX_MSG_PICMGMT_DATA)
+
+#define SHIFT_MTX_MSG_RC_UPDATE_QP                             (0)
+#define MASK_MTX_MSG_RC_UPDATE_QP                             (0x3f << SHIFT_MTX_MSG_RC_UPDATE_QP)
+#define SHIFT_MTX_MSG_RC_UPDATE_BITRATE                    (6)
+#define MASK_MTX_MSG_RC_UPDATE_BITRATE                    (0x03ffffff << SHIFT_MTX_MSG_RC_UPDATE_BITRATE)
+
+#define SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_USE         (0)
+#define MASK_MTX_MSG_PROVIDE_REF_BUFFER_USE         (0xff << SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_USE)
+#define SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_SLOT       (8)
+#define MASK_MTX_MSG_PROVIDE_REF_BUFFER_SLOT       (0xff << SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_SLOT)
+#define SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_LT            (16)
+#define MASK_MTX_MSG_PROVIDE_REF_BUFFER_LT            (0xff << SHIFT_MTX_MSG_PROVIDE_REF_BUFFER_LT)
+
+#define SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SLOT  (0)
+#define MASK_MTX_MSG_PROVIDE_CODED_BUFFER_SLOT  (0x0f << SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SLOT)
+#define SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SIZE   (4)
+#define MASK_MTX_MSG_PROVIDE_CODED_BUFFER_SIZE   (0x0fffffff << SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SLOT)
+
+
 typedef enum _pic_mgmt_type_
 {
     IMG_PICMGMT_REF_TYPE=0,
     IMG_PICMGMT_GOP_STRUCT,
     IMG_PICMGMT_SKIP_FRAME,
     IMG_PICMGMT_EOS,
-    IMG_PICMGMT_RC_UPDATE,
     IMG_PICMGMT_FLUSH,
     IMG_PICMGMT_QUANT,
 } IMG_PICMGMT_TYPE;
@@ -92,7 +115,6 @@ typedef struct tag_IMG_PICMGMT_EOS_DATA {
  ************************************************************************************/
 typedef struct tag_IMG_PICMGMT_RC_UPDATE_DATA {
     IMG_UINT32  ui32BitsPerFrame;         //!< Number of bits in a frame
-    IMG_UINT8   ui8VCMBitrateMargin;    //!< VCM bitrate margin
     IMG_UINT8   ui8VCMIFrameQP;        //!< VCM I frame QP
 } IMG_PICMGMT_RC_UPDATE_DATA;
 
@@ -123,42 +145,10 @@ typedef struct tag_IMG_PICMGMT_CUSTOM_QUANT_DATA
 } IMG_PICMGMT_CUSTOM_QUANT_DATA;
 
 /*!
- ***********************************************************************************
- *
- * Description        : Data Structure for PIC_MGMT command
- *
- ************************************************************************************/
-typedef struct tag_IMG_PICMGMT_PARAMS
-{
-    IMG_PICMGMT_TYPE    eSubtype;       //!< Sybtype of the command (e.g. Skip Frame)
-    union {	
-        IMG_PICMGMT_REF_DATA     sRefType;          //!< Data for IMG_V_SetNextRefType
-        IMG_PICMGMT_GOP_DATA	 sGopStruct;       //!< Data for IMG_V_SetGopStructure
-        IMG_PICMGMT_SKIP_DATA    sSkipParams;     //!< Data for IMG_V_SkipFrame
-        IMG_PICMGMT_EOS_DATA     sEosParams;     //!< Data for IMG_V_EndOfStream
-        IMG_PICMGMT_RC_UPDATE_DATA      sRCUpdateData;      //!< Data for IMG_V_UpdateBitrate
-        IMG_PICMGMT_FLUSH_STREAM_DATA   sFlushData;             //!< Data for IMG_V_FlushStream
-        IMG_PICMGMT_CUSTOM_QUANT_DATA   sQuantData;           //!< Data for IMG_V_SetCustomScalingValues
-    };
-} IMG_PICMGMT_PARAMS;
-
-/*!
-***********************************************************************************
-@Description        : PROVIDE_BUFFER - Type of the buffer
-************************************************************************************/
-typedef enum _buffer_type_ {
-    IMG_BUFFER_SOURCE = 0,
-    IMG_BUFFER_REF0,
-    IMG_BUFFER_REF1,
-    IMG_BUFFER_RECON,
-    IMG_BUFFER_CODED,
-} IMG_BUFFER_TYPE;
-
-/*!
 ***********************************************************************************
 @Description        : PROVIDE_BUFFER - Details of the source picture buffer
 ************************************************************************************/
-typedef struct tag_IMG_BUFFER_SOURCE_DATA {
+typedef struct tag_IMG_SOURCE_BUFFER_PARAMS {
     IMG_UINT32      ui32PhysAddrYPlane_Field0;      //!< Source pic phys addr (Y plane, Field 0)
     IMG_UINT32      ui32PhysAddrUPlane_Field0;      //!< Source pic phys addr (U plane, Field 0)
     IMG_UINT32      ui32PhysAddrVPlane_Field0;      //!< Source pic phys addr (V plane, Field 0)
@@ -168,7 +158,8 @@ typedef struct tag_IMG_BUFFER_SOURCE_DATA {
     IMG_UINT32      ui32HostContext;                        //!< Host context value
     IMG_UINT8       ui8DisplayOrderNum;                     //!< Number of frames in the stream (incl. skipped)
     IMG_UINT8       ui8SlotNum;                                     //!< Number of frames in the stream (incl. skipped)
-} IMG_BUFFER_SOURCE_DATA;
+} IMG_SOURCE_BUFFER_PARAMS;
+
 
 /*!
 ***********************************************************************************
@@ -189,29 +180,22 @@ typedef struct tag_IMG_BUFFER_CODED_DATA {
 } IMG_BUFFER_CODED_DATA;
 
 /*!
-***********************************************************************************
-@Description        : PROVIDE_BUFFER - Buffer details specific to the type of the buffer
-************************************************************************************/
-typedef union tag_IMG_BUFFER_DATA {
-    IMG_BUFFER_SOURCE_DATA  sSource;                //!< Data for the source buffer
-    IMG_BUFFER_REF_DATA     sRef;                   //!< Data for the reference buffer
-    IMG_BUFFER_CODED_DATA   sCoded;                 //!< Data for the coded buffer
-} IMG_BUFFER_DATA;
+ * *****************************************************************************
+ * @details    PROVIDE_REF_BUFFER - Purpose of the reference buffer
+ * @brief      Purpose of the reference buffer
+ *****************************************************************************/
+typedef enum _buffer_type_
+{
+	IMG_BUFFER_REF0 = 0,
+	IMG_BUFFER_REF1,
+	IMG_BUFFER_RECON,
+} IMG_REF_BUFFER_TYPE;
 
-/*!
-***********************************************************************************
-@Description        : PROVIDE_BUFFER - Buffer details (general)
-************************************************************************************/
-typedef struct tag_IMG_BUFFER_PARAMS {
-    IMG_BUFFER_TYPE eBufferType;            //!< Type of the buffer (e.g. Source)
-    IMG_UINT32      ui32PhysAddr;
-    IMG_BUFFER_DATA sData;                          //!< Supplementary data (depends on the type of the buffer)
-} IMG_BUFFER_PARAMS;
 
 /***********************************************************************************
 @PICMGMT - functions
 ************************************************************************************/
-VAStatus tng_picmgmt_update(context_ENC_p ctx, int type, unsigned int ref0, unsigned int ref1);
+VAStatus tng_picmgmt_update(context_ENC_p ctx, IMG_PICMGMT_TYPE eType, unsigned int ref);
 
 /***********************************************************************************
 @PROVIDE_BUFFER - functions

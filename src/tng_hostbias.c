@@ -512,21 +512,21 @@ static void tng__H263ES_load_bias_tables(
     IMG_FRAME_TYPE eFrameType)
 {
     IMG_INT32 n;
-    IMG_UINT32 ui32Pipe,ui32RegVal;
+    IMG_UINT32 ui32RegVal;
     IMG_UINT32 count = 0, cmd_word = 0;
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     IMG_BIAS_TABLES* psBiasTables = &(ctx->sBiasTables);
     IMG_UINT32 *pCount;
+    IMG_UINT32 ui8Pipe;
 
     cmd_word = (MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT;
     *cmdbuf->cmd_idx++ = cmd_word;
     pCount = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx++;
 
-    ctx->i32NumPipes = 1;
     ctx->ui32CoreRev = 0x00030401;
 
-    for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
+    for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++)
         tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SEQUENCER_CONFIG, 0, psBiasTables->ui32SeqConfigInit);
 
     if (ctx->ui32CoreRev <= MAX_32_REV)
@@ -555,11 +555,11 @@ static void tng__H263ES_load_bias_tables(
 	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_P[n]);
     }
 
-    for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++) {
+    for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
 	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
     }
 
-    for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
+    for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++)
         tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
 
     *pCount = count;
@@ -568,21 +568,21 @@ static void tng__H263ES_load_bias_tables(
 static void tng__MPEG4_load_bias_tables(context_ENC_p ctx)
 {
     IMG_INT32 n;
-    IMG_UINT32 ui32Pipe, ui32RegVal;
+    IMG_UINT32 ui32RegVal;
     IMG_UINT32 count = 0, cmd_word = 0;
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     IMG_BIAS_TABLES* psBiasTables = &(ctx->sBiasTables);
     IMG_UINT32 *pCount;
+    IMG_UINT8 ui8Pipe;
 
     cmd_word = (MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT;
     *cmdbuf->cmd_idx++ = cmd_word;
     pCount = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx++;
 
-    ctx->i32NumPipes = 1;
     ctx->ui32CoreRev = 0x00030401;
 
-    for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
+    for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++)
         tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SEQUENCER_CONFIG, 0, psBiasTables->ui32SeqConfigInit);
 
     if (ctx->ui32CoreRev <= MAX_32_REV) {
@@ -612,14 +612,14 @@ static void tng__MPEG4_load_bias_tables(context_ENC_p ctx)
 	tng_cmdbuf_insert_reg_write(TOPAZ_MULTICORE_REG, TOPAZHP_TOP_CR_DIRECT_BIAS_TABLE, 0, psBiasTables->aui32DirectBias_P[n]);
     }
 
-    for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++) {
+    for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
 	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
 		
 	//VLC RSize is fcode - 1 and only done for mpeg4 AND mpeg2 not H263
 	tng_cmdbuf_insert_reg_write(TOPAZ_VLC_REG, TOPAZ_VLC_CR_VLC_MPEG4_CFG, 0, F_ENCODE(psBiasTables->ui32FCode - 1, TOPAZ_VLC_CR_RSIZE));
     }
 
-    for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
+    for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++)
         tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
 
     *pCount = count;
@@ -630,12 +630,12 @@ static void tng__H264ES_load_bias_tables(
     IMG_FRAME_TYPE eFrameType)
 {
     IMG_INT32 n;
-    IMG_UINT32 ui32Pipe;
     IMG_UINT32 ui32RegVal;
     IMG_BIAS_TABLES* psBiasTables = &(ctx->sBiasTables);
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     IMG_UINT32 count = 0, cmd_word = 0;
     IMG_UINT32 *pCount;
+    IMG_UINT32 ui8Pipe;
 #ifdef _PDUMP_FUNC_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s: start\n", __FUNCTION__);
 #endif
@@ -645,10 +645,9 @@ static void tng__H264ES_load_bias_tables(
     pCount = cmdbuf->cmd_idx;
     cmdbuf->cmd_idx++;
 
-    ctx->i32NumPipes = 1;
     psBiasTables->ui32SeqConfigInit = 0x40038412;
 
-    for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++)
+    for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++)
         tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SEQUENCER_CONFIG, 0, psBiasTables->ui32SeqConfigInit);
 
     ctx->ui32CoreRev = 0x00030401;
@@ -695,7 +694,7 @@ static void tng__H264ES_load_bias_tables(
     }
 
     //aui32HpCoreRegId[ui32Pipe]
-    for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++) {
+    for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
         tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
         tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_H264COMP_REJECT_THRESHOLD, 0, psBiasTables->ui32RejectThresholdH264);
     }
@@ -706,7 +705,7 @@ static void tng__H264ES_load_bias_tables(
     // now setup the LRITC chache priority
     {
         //aui32HpCoreRegId[ui32Pipe]
-        for (ui32Pipe = 0; ui32Pipe < ctx->i32NumPipes; ui32Pipe++) {
+        for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
             tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
         }
     }

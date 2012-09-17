@@ -285,7 +285,7 @@ static VAStatus tng__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
 
     //B-frames are not supported for non-H.264 streams
     ctx->sRCParams.ui16BFrames = 0;
-    ctx->ui8SlotsRequired = ctx->ui8SlotsInUse = psRCParams->ui16BFrames + 2;
+    ctx->ui8SlotsInUse = psRCParams->ui16BFrames + 2;
 
     if (psRCParams->eRCMode != IMG_RCMODE_NONE) {
     }

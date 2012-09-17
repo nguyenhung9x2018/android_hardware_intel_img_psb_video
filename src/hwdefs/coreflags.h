@@ -31,25 +31,40 @@
 extern "C" {
 #endif
 
-#if defined(ENCFMT_H264MVC) || defined(FAKE_MTX)
+
+#define SERIALIZED_PIPES 1
+
+
+#if defined(ENCFMT_H264MVC) || !defined(TOPAZ_MTX_HW)
 #	define ENCFMT_H264
 #	define _ENABLE_MVC_        /* Defined for enabling MVC specific code */
 #	define _MVC_RC_  1         /* Defined for enabling MVC rate control code, later on it will be replaced by _ENABLE_MVC_ */
 #endif
 
-#if ( defined(FAKE_MTX) || defined(ENCFMT_H264MVC) )
-#define TOPAZHP_MAX_NUM_STREAMS 2
-#else
-#define TOPAZHP_MAX_NUM_STREAMS 2
+#if defined(RCMODE_ALL) && !defined(ENCFMT_H264)
+	#		error "H264 is not defined when RCMODE is ALL."
 #endif
+
+#if defined(RCMODE_ALL) && (defined(ENCFMT_JPEG) || defined(ENCFMT_JPEG) || defined(ENCFMT_JPEG) || defined(ENCFMT_MPG4) || defined(ENCFMT_MPG2) || defined(ENCFMT_H263) || defined(ENCFMT_H264MVC))
+	#		error "RCMODE_ALL is only allowed for H264."
+#endif
+
+#if defined(RCMODE_ALL) || !defined(TOPAZ_MTX_HW)
+#	define RCMODE_CBR
+#	define RCMODE_VBR
+#	define RCMODE_VCM
+#	define __COREFLAGS_RC_ALLOWED__ 1
+#endif
+
+#define TOPAZHP_MAX_NUM_STREAMS 2
 
 /*
 	Hierarhical B picture support is disabled:
 		* for H264 VCM mode, as VCM mode is not expected to use B pictures at all
 */
-#if  defined(FAKE_MTX) || (\
-		defined(ENCFMT_H264) && !(defined(RCMODE_VCM)) \
-	)
+#if  !defined(TOPAZ_MTX_HW) || \
+		(defined(ENCFMT_H264) && !(defined(RCMODE_VCM))) \
+		|| defined(RCMODE_ALL)
 #	define INCLUDE_HIER_SUPPORT	1
 #else
 #	define INCLUDE_HIER_SUPPORT	0
@@ -57,42 +72,45 @@ extern "C" {
 
 // Add this back in for SEI inclusion
 #if !defined(RCMODE_NONE)
-#	if  (defined(FAKE_MTX) || ((defined(RCMODE_VBR) || defined(RCMODE_CBR) || defined(RCMODE_VCM) || defined(RCMODE_LLRC)) && defined(ENCFMT_H264)))
+#	if  (!defined(TOPAZ_MTX_HW) || ((defined(RCMODE_VBR) || defined(RCMODE_CBR) || defined(RCMODE_VCM) || defined(RCMODE_LLRC)) && defined(ENCFMT_H264)))
 #		define SEI_INSERTION 1  
 #	endif
 #endif
 
-#if	(defined(FAKE_MTX) || defined(ENCFMT_H264))
+#if	(!defined(TOPAZ_MTX_HW) || defined(ENCFMT_H264))
 #	define WEIGHTED_PREDICTION 1
 #	define MULTI_REF_P
 #	define LONG_TERM_REFS
 #	define CUSTOM_QUANTIZATION
 #endif
 
-#define FIRMWARE_BIAS
+// Firmware bias table control is not compatible with parallel encoding
+//#define FIRMWARE_BIAS
 
-
-#define MAX_BFRAMES	7
-
-#define MAX_REF_B_LEVELS_CTXT	3
+/* This define controls whether the hard VCM bitrate limit is applied to I frames */
+//#define TOPAZHP_IMPOSE_VCM_BITRATE_LIMIT_ON_INTRA 
 
 #if INCLUDE_HIER_SUPPORT
-#if ( defined(FAKE_MTX) || !defined(ENCFMT_H264MVC) )
-#	define MAX_REF_B_LEVELS	(MAX_REF_B_LEVELS_CTXT)
+#if ( !defined(TOPAZ_MTX_HW) || !defined(ENCFMT_H264MVC) )
+#	define MAX_REF_B_LEVELS_FW	(MAX_REF_B_LEVELS)
 #else
-#	define MAX_REF_B_LEVELS	2
+#	define MAX_REF_B_LEVELS_FW	2
 #endif
 #else
-#	define MAX_REF_B_LEVELS		0
+#	define MAX_REF_B_LEVELS_FW	0
 #endif
 
 #ifdef MULTI_REF_P
-#	define MAX_REF_I_OR_P_LEVELS	(MAX_REF_I_OR_P_LEVELS_CTXT)
+#	define MAX_REF_I_OR_P_LEVELS_FW	(MAX_REF_I_OR_P_LEVELS)
 #else
-#	define MAX_REF_I_OR_P_LEVELS	2
+#	define MAX_REF_I_OR_P_LEVELS_FW	2
 #endif
 
-#if !defined(FAKE_MTX)
+#define MAX_REF_LEVELS_FW	(MAX_REF_B_LEVELS_FW + MAX_REF_I_OR_P_LEVELS_FW)
+#define MAX_PIC_NODES_FW	(MAX_REF_LEVELS_FW + 1)
+
+
+#if defined(TOPAZ_MTX_HW)
 #	if defined(ENABLE_FORCED_INLINE)
 /*
 	__attribute__((always_inline)) should be only used when all C code is compiled by
@@ -111,45 +129,18 @@ extern "C" {
 
 	If `RCMODE_NONE` is set, block any possebility for RC sources to be included.
 */
+
+
 #if defined(RCMODE_NONE)
-#	define _RCMODE_PRESENT_
 #	define __COREFLAGS_RC_ALLOWED__	0
 #else
 #	define __COREFLAGS_RC_ALLOWED__ 1
 #endif
-#if defined(RCMODE_CBR)
-#	if defined(_RCMODE_PRESENT_)
-#		error "Two `RCMODE_` symbols set."
-#	else
-#		define _RCMODE_PRESENT_
-#	endif
-#endif
-#if defined(RCMODE_VCM)
-#	if defined(_RCMODE_PRESENT_)
-#		error "Two `RCMODE_` symbols set."
-#	else
-#		define _RCMODE_PRESENT_
-#	endif
-#endif
-#if defined(RCMODE_VBR)
-#	if defined(_RCMODE_PRESENT_)
-#		error "Two `RCMODE_` symbols set."
-#	else
-#		define _RCMODE_PRESENT_
-#	endif
-#endif
-#if defined(RCMODE_ERC)
-#	if defined(_RCMODE_PRESENT_)
-#		error "Two `RCMODE_` symbols set."
-#	endif
-#endif
-
-#undef _RCMODE_PRESENT_
 
 /* 
 	Determine possible rate control modes.
 */
-#if defined(FAKE_MTX)
+#if !defined(TOPAZ_MTX_HW)
 #	define	CBR_RC_MODE_POSSIBLE	__COREFLAGS_RC_ALLOWED__
 #	define  VCM_RC_MODE_POSSIBLE	__COREFLAGS_RC_ALLOWED__
 #	define  VBR_RC_MODE_POSSIBLE	__COREFLAGS_RC_ALLOWED__
@@ -191,6 +182,31 @@ extern "C" {
 #define RC_MODES_POSSIBLE3(M1, M2, M3) \
 	(RC_MODES_POSSIBLE2(M1, M2) || RC_MODE_POSSIBLE(M3))
 
+/*
+	Declare `CUR_ENCODE_RC_MODE` as proper function only in FAKE_MTX.
+	Alternatively, declare it as constant.
+*/
+#if defined(FAKE_MTX) || defined(RCMODE_ALL)
+#	define	CUR_ENCODE_RC_MODE (GLOBALS(g_sEncContext).eRCMode)
+#elif defined(RCMODE_NONE)
+#	define CUR_ENCODE_RC_MODE (IMG_RCMODE_NONE)
+#elif defined(RCMODE_CBR)
+#	define CUR_ENCODE_RC_MODE (IMG_RCMODE_CBR)
+#elif defined(RCMODE_VBR)
+#	define CUR_ENCODE_RC_MODE (IMG_RCMODE_VBR)
+#elif defined(RCMODE_ERC)
+#	define CUR_ENCODE_RC_MODE (IMG_RCMODE_ERC)
+#elif defined(RCMODE_LLRC)
+#	define CUR_ENCODE_RC_MODE (IMG_RCMODE_LLRC)
+#elif defined(RCMODE_VCM)
+#	define CUR_ENCODE_RC_MODE (IMG_RCMODE_VCM)
+#endif
+
+
 #define USE_VCM_HW_SUPPORT 1
+
+#define INPUT_SCALER_SUPPORTED 0	/* controls the firmwares ability to support the optional hardware input scaler */
+
+#define SECURE_MODE_POSSIBLE 1		/* controls the firmwares ability to support secure mode firmware upload */
 
 #endif  // #ifndef _COREFLAGS_H_

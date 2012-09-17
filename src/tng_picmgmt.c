@@ -33,60 +33,26 @@
 #include "hwdefs/topazhp_core_regs.h"
 #include "tng_picmgmt.h"
 #include "psb_drv_debug.h"
-//#define _TOPAZHP_PDUMP_PICMGMT_
+
+#define _TOPAZHP_PDUMP_PICMGMT_
 
 /************************* MTX_CMDID_PICMGMT *************************/
-VAStatus tng_picmgmt_update(context_ENC_p ctx, int type, unsigned int ref0, unsigned int ref1)
+VAStatus tng_picmgmt_update(context_ENC_p ctx, IMG_PICMGMT_TYPE eType, unsigned int ref)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
-    IMG_UINT32 picmgmt_mem_index = 0;
-    IMG_PICMGMT_PARAMS  * psPicMgmtParams = NULL;
+    //VAStatus vaStatus = VA_STATUS_SUCCESS;
+    IMG_UINT32 ui32CmdData = 0;
 
-    if (cmdbuf->picmgmt_mem_index >= COMM_CMD_FRAME_BUF_NUM) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Error: picmgmt_mem buffer index overflow\n", __FUNCTION__);
-        cmdbuf->picmgmt_mem_index = 0;
-    }
-
-    vaStatus = psb_buffer_map(&cmdbuf->picmgmt_mem, &(cmdbuf->picmgmt_mem_p));
-    if (vaStatus) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: map picmgmt buf\n", __FUNCTION__);
-        return vaStatus;
-    }
-
-    picmgmt_mem_index = cmdbuf->picmgmt_mem_index * cmdbuf->mem_size;
-    psPicMgmtParams = (IMG_PICMGMT_PARAMS *)(cmdbuf->picmgmt_mem_p + picmgmt_mem_index);
-    psPicMgmtParams->eSubtype = (IMG_PICMGMT_TYPE) type;
-
-    switch (psPicMgmtParams->eSubtype) {
-        //IMG_V_UpdateBitrate
-        case IMG_PICMGMT_RC_UPDATE:
-            psPicMgmtParams->sRCUpdateData.ui32BitsPerFrame = ref0;    //ui32NewBitrate;
-            psPicMgmtParams->sRCUpdateData.ui8VCMIFrameQP = ref1;   //ui8NewVCMIFrameQP;
-            break;
-        //IMG_V_SkipFrame
-        case IMG_PICMGMT_SKIP_FRAME:
-             psPicMgmtParams->sSkipParams.b8Process = ref0; //bProcess;
-            break;
-        //IMG_V_SetNextRefType
-        case IMG_PICMGMT_REF_TYPE:
-            psPicMgmtParams->sRefType.eFrameType = ref0;    //eFrameType;
-            break;
-        //IMG_V_EndOfStream
-        case IMG_PICMGMT_EOS:
-            psPicMgmtParams->sEosParams.ui32FrameCount = ref0;  //ui32FrameCount;
-            break;
-        default:
-            break;
-    }
+    //IMG_V_SetNextRefType  eFrameType
+    //IMG_V_SkipFrame       bProcess
+    //IMG_V_EndOfStream     ui32FrameCount
+    //IMG_PICMGMT_FLUSH     ui32FrameCount
+    ui32CmdData = F_ENCODE(eType, MTX_MSG_PICMGMT_SUBTYPE) |
+        F_ENCODE(ref, MTX_MSG_PICMGMT_DATA);
 
     /* Send PicMgmt Command */
     tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
-        &cmdbuf->picmgmt_mem, picmgmt_mem_index);
-
-    ++(cmdbuf->picmgmt_mem_index);
-    psb_buffer_unmap(&cmdbuf->picmgmt_mem);
+        ui32CmdData, 0, 0);
 
     return VA_STATUS_SUCCESS;
 }
@@ -363,66 +329,25 @@ IMG_UINT32 tng_send_codedbuf(
     context_ENC_p ctx,
     IMG_UINT32 ui32SlotIndex)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
-    object_context_p obj_context_p = ctx->obj_context;
     object_buffer_p object_buffer  = ps_buf->coded_buf;
-    tng_cmdbuf_p cmdbuf = obj_context_p->tng_cmdbuf;
-    IMG_UINT32 frame_mem_index = 0;
-    IMG_BUFFER_PARAMS  *psBufferParams = NULL;
+
 #ifdef _TOPAZHP_PDUMP_PICMGMT_
     char *ptmp = NULL;
     void *pxxx = NULL;
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s slot 0 = %x\n", __FUNCTION__, ui32SlotIndex);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s slot 1 = %x\n", __FUNCTION__, ui32SlotIndex);
 #endif
 
-    if (cmdbuf->frame_mem_index >= COMM_CMD_FRAME_BUF_NUM) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Error: frame_mem buffer index overflow\n", __FUNCTION__);
-        cmdbuf->frame_mem_index = 0;
-    }
-
-    vaStatus = psb_buffer_map(&cmdbuf->frame_mem, &(cmdbuf->frame_mem_p));
-    if (vaStatus) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: map frame buf\n", __FUNCTION__);
-        return vaStatus;
-    }
-
-    frame_mem_index = cmdbuf->frame_mem_index * cmdbuf->mem_size;
-    psBufferParams = (IMG_BUFFER_PARAMS *)(cmdbuf->frame_mem_p + frame_mem_index);
+    tng_cmdbuf_insert_command_package(
+        ctx->obj_context, ctx->ui32StreamID,
+        MTX_CMDID_PROVIDE_CODED_BUFFER | MTX_CMDID_PRIORITY,
+        F_ENCODE(object_buffer->size, MTX_MSG_PROVIDE_CODED_BUFFER_SIZE) |
+        F_ENCODE(ui32SlotIndex, MTX_MSG_PROVIDE_CODED_BUFFER_SLOT),
+        object_buffer->psb_buffer, 0);
 
 #ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s frame_idx = %x, frame_mem_p = 0x%08x, mem_size = %d\n", __FUNCTION__, cmdbuf->frame_mem_index, cmdbuf->frame_mem_p, cmdbuf->mem_size);
-#endif
-
-    /* Prepare ProvideBuffer data */
-    psBufferParams->eBufferType = IMG_BUFFER_CODED;
-    psBufferParams->sData.sCoded.ui8SlotNum = (IMG_UINT8)(ui32SlotIndex & 0xff);
-    psBufferParams->sData.sCoded.ui32Size = object_buffer->size;
-
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s slot 1 = %x\n", __FUNCTION__, ui32SlotIndex);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s buf 0 = 0x%08x, buf 1 = 0x%08x, 0x%08x\n", __FUNCTION__, &(psBufferParams->ui32PhysAddr), object_buffer, object_buffer->psb_buffer);
-#endif
-
-#ifdef _TOPAZHP_OLD_LIBVA_
-    tng_cmdbuf_set_phys(&(psBufferParams->ui32PhysAddr), 0,
-        object_buffer->psb_buffer, 0, 0);
-#else
-    RELOC_FRAME_PARAMS_PTG(&(psBufferParams->ui32PhysAddr), ui32SlotIndex * object_buffer->size, object_buffer->psb_buffer);
-#endif
-
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s slot 2 = %x\n", __FUNCTION__, ui32SlotIndex);
-#endif
-
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
-        MTX_CMDID_PROVIDE_BUFFER | MTX_CMDID_PRIORITY,
-        &cmdbuf->frame_mem, frame_mem_index);
-    ++(cmdbuf->frame_mem_index);
-    psb_buffer_unmap(&cmdbuf->frame_mem);
-
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s end\n", __FUNCTION__);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
 #endif
     return  VA_STATUS_SUCCESS;
 }
@@ -439,7 +364,7 @@ static VAStatus tng__set_component_offsets(
     IMG_UINT16 ui16PictureHeight;
 
 #ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s start\n", __FUNCTION__);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
 #endif
 
     if (!ctx)
@@ -453,7 +378,7 @@ static VAStatus tng__set_component_offsets(
     ui16PictureHeight = obj_surface_p->height;
     ui16Stride = obj_surface_p->psb_surface->stride;
 #ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s eFormat = %d, w = %d, h = %d, stride = %d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s eFormat = %d, w = %d, h = %d, stride = %d\n",
         __FUNCTION__, eFormat, ui16Width, ui16PictureHeight, ui16Stride);
 #endif
     // 3 Components: Y, U, V
@@ -637,7 +562,7 @@ static VAStatus tng__set_component_offsets(
         psFrame->i32Field1VOffset = psFrame->i32Field0VOffset;
     }
 #ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s i32YComponentOffset = %d, i32UComponentOffset = %d, i32VComponentOffset = %d\n",
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s i32YComponentOffset = %d, i32UComponentOffset = %d, i32VComponentOffset = %d\n",
         __FUNCTION__, (int)(psFrame->i32YComponentOffset), (int)(psFrame->i32UComponentOffset), (int)(psFrame->i32VComponentOffset));
 #endif
      return VA_STATUS_SUCCESS;
@@ -653,14 +578,17 @@ IMG_UINT32 tng_send_source_frame(
     IMG_FRAME  sSrcFrame;
     IMG_FRAME  *psSrcFrame = &sSrcFrame;
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
-
-    unsigned int frame_mem_index = 0;
-    IMG_BUFFER_PARAMS  *psBufferParams = NULL;
+    IMG_SOURCE_BUFFER_PARAMS  *psSrcBufParams = NULL;
     object_surface_p src_surface = ps_buf->src_surface;
+    unsigned int frame_mem_index = 0;
     unsigned int srf_buf_offset = src_surface->psb_surface->buf.buffer_ofs;
+
 #ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start ui32SlotIndex = %d, ui32DisplayOrder = %d\n", __FUNCTION__, ui32SlotIndex, ui32DisplayOrder);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: start ui32SlotIndex = %d, ui32DisplayOrder = %d\n",
+        __FUNCTION__, ui32SlotIndex, ui32DisplayOrder);
 #endif
+
     if (cmdbuf->frame_mem_index >= COMM_CMD_FRAME_BUF_NUM) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Error: frame_mem buffer index overflow\n", __FUNCTION__);
         cmdbuf->frame_mem_index = 0;
@@ -673,75 +601,83 @@ IMG_UINT32 tng_send_source_frame(
     }
 
     frame_mem_index = cmdbuf->frame_mem_index * cmdbuf->mem_size;
-    psBufferParams = (IMG_BUFFER_PARAMS *)(cmdbuf->frame_mem_p + frame_mem_index);
-    memset(psBufferParams, 0, sizeof(IMG_BUFFER_PARAMS));
+    psSrcBufParams = (IMG_SOURCE_BUFFER_PARAMS *)(cmdbuf->frame_mem_p + frame_mem_index);
+    memset(psSrcBufParams, 0, sizeof(IMG_SOURCE_BUFFER_PARAMS));
     memset(psSrcFrame, 0, sizeof(IMG_FRAME));
     tng__set_component_offsets(ctx, src_surface, psSrcFrame);
 
 #ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: cmdbuf->frame_mem_index = %d, cmdbuf->frame_mem_p = 0x%08x\n", __FUNCTION__, cmdbuf->frame_mem_index, cmdbuf->frame_mem_p);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: frame_mem_index = %d, psBufferParams = 0x%08x\n", __FUNCTION__, frame_mem_index, psBufferParams);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: cmdbuf->frame_mem_index = %d, frame_mem_index = 0x%08x, cmdbuf->frame_mem_p = 0x%08x\n",
+        __FUNCTION__, cmdbuf->frame_mem_index, frame_mem_index, cmdbuf->frame_mem_p);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: frame_mem_index = %d, psBufferParams = 0x%08x\n",
+        __FUNCTION__, frame_mem_index, (unsigned int)psSrcBufParams);
 #endif
 
-
-    // mark the appropriate slot as filled
-//    ctx->ui32SourceSlotBuff[ui32SlotIndex] = IMG_TRUE;
-    ctx->aui32SourceSlotPOC[ui32SlotIndex] = ctx->ui32FrameCount[ctx->ui32StreamID];
- 
     /* Prepare ProvideBuffer data */
-    psBufferParams->eBufferType = IMG_BUFFER_SOURCE;
     {
-        psBufferParams->ui32PhysAddr = 0;
-        psBufferParams->sData.sSource.ui8SlotNum = (IMG_UINT8)(ui32SlotIndex & 0xff);
-//        psBufferParams->sData.sSource.ui8DisplayOrderNum = (IMG_UINT8)(ctx->ui32FrameCount & 0xff);
-        psBufferParams->sData.sSource.ui8DisplayOrderNum = (IMG_UINT8)(ui32DisplayOrder & 0xff);
-        psBufferParams->sData.sSource.ui32HostContext = (IMG_UINT32)ctx;
+        psSrcBufParams->ui8SlotNum = (IMG_UINT8)(ui32SlotIndex & 0xff);
+        psSrcBufParams->ui8DisplayOrderNum = (IMG_UINT8)(ui32DisplayOrder & 0xff);
+        psSrcBufParams->ui32HostContext = (IMG_UINT32)ctx;
 
 #ifdef _TOPAZHP_OLD_LIBVA_
-        tng_cmdbuf_set_phys(&(psBufferParams->sData.sSource.ui32PhysAddrYPlane_Field0), 0,
+        tng_cmdbuf_set_phys(&(psSrcBufParams->ui32PhysAddrYPlane_Field0), 0,
             &(src_surface->psb_surface->buf), 
             srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field0YOffset, 0);
-        tng_cmdbuf_set_phys(&(psBufferParams->sData.sSource.ui32PhysAddrUPlane_Field0), 0,
+        tng_cmdbuf_set_phys(&(psSrcBufParams->ui32PhysAddrUPlane_Field0), 0,
             &(src_surface->psb_surface->buf), 
             srf_buf_offset + psSrcFrame->i32UComponentOffset + psSrcFrame->i32Field0UOffset, 0);
-        tng_cmdbuf_set_phys(&(psBufferParams->sData.sSource.ui32PhysAddrVPlane_Field0), 0,
+        tng_cmdbuf_set_phys(&(psSrcBufParams->ui32PhysAddrVPlane_Field0), 0,
             &(src_surface->psb_surface->buf), 
             srf_buf_offset + psSrcFrame->i32VComponentOffset + psSrcFrame->i32Field0VOffset, 0);
     
-        tng_cmdbuf_set_phys(&(psBufferParams->sData.sSource.ui32PhysAddrYPlane_Field1), 0,
+        tng_cmdbuf_set_phys(&(psSrcBufParams->ui32PhysAddrYPlane_Field1), 0,
             &(src_surface->psb_surface->buf), 
             srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field1YOffset, 0);
-        tng_cmdbuf_set_phys(&(psBufferParams->sData.sSource.ui32PhysAddrUPlane_Field1), 0,
+        tng_cmdbuf_set_phys(&(psSrcBufParams->ui32PhysAddrUPlane_Field1), 0,
             &(src_surface->psb_surface->buf), 
             srf_buf_offset + psSrcFrame->i32UComponentOffset + psSrcFrame->i32Field1UOffset, 0);
-        tng_cmdbuf_set_phys(&(psBufferParams->sData.sSource.ui32PhysAddrVPlane_Field1), 0,
+        tng_cmdbuf_set_phys(&(psSrcBufParams->ui32PhysAddrVPlane_Field1), 0,
             &(src_surface->psb_surface->buf), 
             srf_buf_offset + psSrcFrame->i32VComponentOffset + psSrcFrame->i32Field1VOffset, 0);
 #else
-        RELOC_PICMGMT_PARAMS_PTG(&psBufferParams->sData.sSource.ui32PhysAddrYPlane_Field0,
+        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrYPlane_Field0,
                                  srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field0YOffset, &src_surface->psb_surface->buf);
-        RELOC_PICMGMT_PARAMS_PTG(&psBufferParams->sData.sSource.ui32PhysAddrUPlane_Field0,
+        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrUPlane_Field0,
                                  srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field0UOffset, &src_surface->psb_surface->buf);
-        RELOC_PICMGMT_PARAMS_PTG(&psBufferParams->sData.sSource.ui32PhysAddrVPlane_Field0,
+        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrVPlane_Field0,
                                  srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field0VOffset, &src_surface->psb_surface->buf);
 
-        RELOC_PICMGMT_PARAMS_PTG(&psBufferParams->sData.sSource.ui32PhysAddrYPlane_Field1,
+        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrYPlane_Field1,
                                  srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field1YOffset, &src_surface->psb_surface->buf);
-        RELOC_PICMGMT_PARAMS_PTG(&psBufferParams->sData.sSource.ui32PhysAddrUPlane_Field1,
+        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrUPlane_Field1,
                                  srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field1UOffset, &src_surface->psb_surface->buf);
-        RELOC_PICMGMT_PARAMS_PTG(&psBufferParams->sData.sSource.ui32PhysAddrVPlane_Field1,
+        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrVPlane_Field1,
                                  srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field1VOffset, &src_surface->psb_surface->buf);
 #endif
     }
 #ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s slot_idx = %d, frame_count = %d\n", __FUNCTION__, (int)(ui32SlotIndex), (int)(ctx->ui32FrameCount[ctx->ui32StreamID]));
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s: YPlane_Field0 = 0x%08x, UPlane_Field0 = 0x%08x, VPlane_Field0 = 0x%08x\n", __FUNCTION__, (unsigned int)(psBufferParams->sData.sSource.ui32PhysAddrYPlane_Field0), (unsigned int)(psBufferParams->sData.sSource.ui32PhysAddrUPlane_Field0), (unsigned int)(psBufferParams->sData.sSource.ui32PhysAddrVPlane_Field0));
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s: YPlane_Field1 = 0x%08x, UPlane_Field1 = 0x%08x, VPlane_Field1 = 0x%08x\n", __FUNCTION__, (unsigned int)(psBufferParams->sData.sSource.ui32PhysAddrYPlane_Field1), (unsigned int)(psBufferParams->sData.sSource.ui32PhysAddrUPlane_Field1), (unsigned int)(psBufferParams->sData.sSource.ui32PhysAddrVPlane_Field1));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, 
+        "%s slot_idx = %d, frame_count = %d\n", __FUNCTION__,
+        (int)(ui32SlotIndex), (int)(ctx->ui32FrameCount[ctx->ui32StreamID]));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: YPlane_Field0 = 0x%08x, UPlane_Field0 = 0x%08x, VPlane_Field0 = 0x%08x\n",
+        __FUNCTION__, (unsigned int)(psSrcBufParams->ui32PhysAddrYPlane_Field0),
+        (unsigned int)(psSrcBufParams->ui32PhysAddrUPlane_Field0),
+        (unsigned int)(psSrcBufParams->ui32PhysAddrVPlane_Field0));
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s: YPlane_Field1 = 0x%08x, UPlane_Field1 = 0x%08x, VPlane_Field1 = 0x%08x\n",
+        __FUNCTION__, (unsigned int)(psSrcBufParams->ui32PhysAddrYPlane_Field1),
+        (unsigned int)(psSrcBufParams->ui32PhysAddrUPlane_Field1),
+        (unsigned int)(psSrcBufParams->ui32PhysAddrVPlane_Field1));
 #endif
+
     /* Send ProvideBuffer Command */
     tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
-        MTX_CMDID_PROVIDE_BUFFER | MTX_CMDID_PRIORITY,
-        &cmdbuf->frame_mem, frame_mem_index);
+        MTX_CMDID_PROVIDE_SOURCE_BUFFER | MTX_CMDID_PRIORITY,
+        0, &(cmdbuf->frame_mem), frame_mem_index);
+
     ++(cmdbuf->frame_mem_index);
     psb_buffer_unmap(&cmdbuf->frame_mem);
 
@@ -754,56 +690,21 @@ IMG_UINT32 tng_send_rec_frames(
     IMG_INT8 i8HeaderSlotNum,
     IMG_BOOL bLongTerm)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    //VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int srf_buf_offset;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
-    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     object_surface_p rec_surface = ps_buf->rec_surface;
-    IMG_UINT32 frame_mem_index = 0;
-    IMG_BUFFER_PARAMS  *psBufferParams = NULL;
-
-    if (cmdbuf->frame_mem_index >= COMM_CMD_FRAME_BUF_NUM) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Error: frame_mem buffer index overflow\n", __FUNCTION__);
-        cmdbuf->frame_mem_index = 0;
-    }
-
-    vaStatus = psb_buffer_map(&cmdbuf->frame_mem, &(cmdbuf->frame_mem_p));
-    if (vaStatus) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: map frame buf\n", __FUNCTION__);
-        return vaStatus;
-    }
-
-
-    frame_mem_index = cmdbuf->frame_mem_index * cmdbuf->mem_size;
-    psBufferParams = (IMG_BUFFER_PARAMS *)(cmdbuf->frame_mem_p + frame_mem_index);
-    memset(psBufferParams, 0, sizeof(IMG_BUFFER_PARAMS));
-
-    psBufferParams->eBufferType = IMG_BUFFER_RECON;
-#ifdef LTREFHEADER
-    psBufferParams->sData.sRef.i8HeaderSlotNum = i8HeaderSlotNum;
-#endif
-    psBufferParams->sData.sRef.b8LongTerm = bLongTerm;
+    IMG_UINT32 ui32CmdData = 0;
 
     srf_buf_offset = rec_surface->psb_surface->buf.buffer_ofs;
-#ifdef _TOPAZHP_OLD_LIBVA_
-    tng_cmdbuf_set_phys(&(psBufferParams->ui32PhysAddr), 0,
-            &(rec_surface->psb_surface->buf), srf_buf_offset, 0);
-#else
-    RELOC_PICMGMT_PARAMS_PTG(&psBufferParams->ui32PhysAddr,
-                             srf_buf_offset, &rec_surface->psb_surface->buf);
-#endif
-
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: psBufferParams->ui32PhysAddr = 0x%08x\n", __FUNCTION__, psBufferParams->ui32PhysAddr);
-#endif
     /* Send ProvideBuffer Command */
+    ui32CmdData = F_ENCODE(IMG_BUFFER_RECON, MTX_MSG_PROVIDE_REF_BUFFER_USE) |
+        F_ENCODE(i8HeaderSlotNum, MTX_MSG_PROVIDE_REF_BUFFER_SLOT) |
+        F_ENCODE(bLongTerm, MTX_MSG_PROVIDE_REF_BUFFER_LT);
+
     tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
-        MTX_CMDID_PROVIDE_BUFFER | MTX_CMDID_PRIORITY,
-        &cmdbuf->frame_mem, frame_mem_index);
-
-    ++(cmdbuf->frame_mem_index);
-    psb_buffer_unmap(&cmdbuf->frame_mem);
-
+        MTX_CMDID_PROVIDE_REF_BUFFER | MTX_CMDID_PRIORITY,
+        ui32CmdData, &(rec_surface->psb_surface->buf), 0);
 
     return 0;
 }
@@ -813,62 +714,28 @@ IMG_UINT32 tng_send_ref_frames(
     IMG_UINT32    ui32RefIndex,
     IMG_BOOL      bLongTerm)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    //VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int srf_buf_offset;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
-    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     object_surface_p ref_surface = ps_buf->ref_surface;
-    IMG_UINT32 frame_mem_index = 0;
-    IMG_BUFFER_PARAMS  *psBufferParams = NULL;
+    IMG_UINT32 ui32CmdData = 0;
 
-    if (cmdbuf->frame_mem_index >= COMM_CMD_FRAME_BUF_NUM) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Error: frame_mem buffer index overflow\n", __FUNCTION__);
-        cmdbuf->frame_mem_index = 0;
+    if (ui32RefIndex == 0) {
+        ref_surface = ps_buf->ref_surface;
+        ui32CmdData = F_ENCODE(IMG_BUFFER_REF0, MTX_MSG_PROVIDE_REF_BUFFER_USE) |
+            F_ENCODE(bLongTerm, MTX_MSG_PROVIDE_REF_BUFFER_LT);
+    } else {
+        ref_surface = ps_buf->ref_surface1;
+        ui32CmdData = F_ENCODE(IMG_BUFFER_REF1, MTX_MSG_PROVIDE_REF_BUFFER_USE) |
+        F_ENCODE(bLongTerm, MTX_MSG_PROVIDE_REF_BUFFER_LT);
     }
-
-    vaStatus = psb_buffer_map(&cmdbuf->frame_mem, &(cmdbuf->frame_mem_p));
-    if (vaStatus) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: map frame buf\n", __FUNCTION__);
-        return vaStatus;
-    }
-
-    frame_mem_index = cmdbuf->frame_mem_index * cmdbuf->mem_size;
-    psBufferParams = (IMG_BUFFER_PARAMS *)(cmdbuf->frame_mem_p + frame_mem_index);
-    memset(psBufferParams, 0, sizeof(IMG_BUFFER_PARAMS));
-
-    psBufferParams->eBufferType = (ui32RefIndex == 0) ? IMG_BUFFER_REF0 : IMG_BUFFER_REF1;
-    psBufferParams->sData.sRef.b8LongTerm = bLongTerm;
-
+    
     srf_buf_offset = ref_surface->psb_surface->buf.buffer_ofs;
-#ifdef _TOPAZHP_OLD_LIBVA_
-    tng_cmdbuf_set_phys(&(psBufferParams->ui32PhysAddr), 0,
-            &(ref_surface->psb_surface->buf), srf_buf_offset, 0);
-#else
-    RELOC_PICMGMT_PARAMS_PTG(&psBufferParams->ui32PhysAddr,
-                             srf_buf_offset, &ref_surface->psb_surface->buf);
-#endif
-
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: psBufferParams->ui32PhysAddr = 0x%08x\n", __FUNCTION__, psBufferParams->ui32PhysAddr);
-#endif
-
     /* Send ProvideBuffer Command */
     tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
-        MTX_CMDID_PROVIDE_BUFFER | MTX_CMDID_PRIORITY,
-        &cmdbuf->frame_mem, frame_mem_index);
-
-    ++(cmdbuf->frame_mem_index);
-    psb_buffer_unmap(&cmdbuf->frame_mem);
+        MTX_CMDID_PROVIDE_REF_BUFFER | MTX_CMDID_PRIORITY,
+        ui32CmdData, &(ref_surface->psb_surface->buf), 0);
 
     return VA_STATUS_SUCCESS;
 }
-
-#if 0
-void tng__picmgmt_general(context_ENC_p ctx, IMG_UINT32 ui32FrameNum)
-{
-    tng_set_next_ref_type(ctx, 0, IMG_INTRA_IDR);
-    tng_send_ref_frames(ctx, 0, 0);
-    return ;
-}
-#endif
 

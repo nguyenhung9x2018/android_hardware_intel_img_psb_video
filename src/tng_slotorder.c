@@ -62,33 +62,31 @@ static int getSlotIndex(
 {
     int i, slot_idx = 0;
     if (displaying_order == 0) {
-	for (i = 0; i < (bframes + 2); i++)  {
-	    //encoding order
-	    if (i == 0)
-			last_info->slot_consume_enc_order[0] = 0;
-	    else if (i == 1)
-			last_info->slot_consume_enc_order[bframes + 2 - 1] = 1;
-	    else
-			last_info->slot_consume_enc_order[i - 1] = i; 
-	    last_info->slot_consume_dpy_order[i] = i; //displaying order
+        for (i = 0; i < (bframes + 2); i++)  {
+            //encoding order
+            if (i == 0)
+                last_info->slot_consume_enc_order[0] = 0;
+            else if (i == 1)
+                last_info->slot_consume_enc_order[bframes + 2 - 1] = 1;
+            else
+                last_info->slot_consume_enc_order[i - 1] = i;
+            last_info->slot_consume_dpy_order[i] = i; //displaying order
 	}
-	last_info->slot_consume_dpy_order[0] = bframes + 2;
-        last_info->slot_consume_enc_order[0] = 	
-	    displayingOrder2EncodingOrder(bframes + 2,
-		    bframes, intracnt, idrcnt);
-	last_info->max_dpy_num = bframes + 2; 
+        last_info->slot_consume_dpy_order[0] = bframes + 2;
+        last_info->slot_consume_enc_order[0] = displayingOrder2EncodingOrder(bframes + 2, bframes, intracnt, idrcnt);
+        last_info->max_dpy_num = bframes + 2;
     } else {
-	for (i = 0; i < (bframes + 2); i++) {
-	    if (last_info->slot_consume_enc_order[i] == encoding_count) {
-		slot_idx = i;
-		break;
-	    }
-	}
-	last_info->max_dpy_num++;
-	last_info->slot_consume_dpy_order[slot_idx] = last_info->max_dpy_num;
-	last_info->slot_consume_enc_order[slot_idx] =
-	    displayingOrder2EncodingOrder(last_info->max_dpy_num,
-		    bframes, intracnt, idrcnt);
+        for (i = 0; i < (bframes + 2); i++) {
+            if (last_info->slot_consume_enc_order[i] == encoding_count) {
+               slot_idx = i;
+               break;
+            }
+        }
+        last_info->max_dpy_num++;
+        last_info->slot_consume_dpy_order[slot_idx] = last_info->max_dpy_num;
+        last_info->slot_consume_enc_order[slot_idx] =
+        displayingOrder2EncodingOrder(last_info->max_dpy_num,
+            bframes, intracnt, idrcnt);
     }
     
     return slot_idx;
@@ -100,41 +98,41 @@ int getFrameDpyOrder(
     int intracnt, /*Input, Intra period*/
     int idrcnt, /*INput, IDR period. 0: only one IDR; */
     FRAME_ORDER_INFO *p_last_info, /*Input & Output. Reset to 0 on first call*/
-    unsigned long long *displaying_order, /* Output. The displaying order */
-    int *frame_type, /*Output. Frame type. 0: I frame. 1: P frame. 2: B frame*/
-    int *slot) /*Output. The corresponding slot index */
+    unsigned long long *displaying_order) /* Output. The displaying order */
 {
-    int i;
+    IMG_FRAME_TYPE frame_type; /*Output. Frame type. 0: I frame. 1: P frame. 2: B frame*/
+    int slot; /*Output. The corresponding slot index */
+
+    // int i;
     unsigned long long disp_index;
     unsigned long long val;
 
     if ((intracnt % (bframes + 1)) != 0 || bframes == 0)
-	return -1;
+        return -1;
 
-    val = ((idrcnt == 0) ? encoding_count :
-	    encoding_count % (intracnt * idrcnt + 1));
+    val = ((idrcnt == 0) ? encoding_count : encoding_count % (intracnt * idrcnt + 1));
     if ((idrcnt == 0 && encoding_count == 0) ||
-	    (idrcnt != 0 && (encoding_count % (intracnt * idrcnt + 1) == 0))) {
-	   *frame_type = FRAME_IDR;
-	   disp_index = encoding_count;
+        (idrcnt != 0 && (encoding_count % (intracnt * idrcnt + 1) == 0))) {
+        frame_type = IMG_INTRA_IDR;
+        disp_index = encoding_count;
     } else if (((val - 1) % (bframes + 1)) != 0) {
-	*frame_type = FRAME_B;
-	 disp_index = encoding_count - 1;
-    } else if (p_last_info->last_frame_type == FRAME_IDR ||
-	    ((val - 1) / (bframes + 1) % (intracnt / (bframes + 1))) != 0) {
-	*frame_type = FRAME_P;
-	disp_index = encoding_count + bframes;
+        frame_type = IMG_INTER_B;
+        disp_index = encoding_count - 1;
+    } else if (p_last_info->last_frame_type == IMG_INTRA_IDR ||
+        ((val - 1) / (bframes + 1) % (intracnt / (bframes + 1))) != 0) {
+        frame_type = IMG_INTER_P;
+        disp_index = encoding_count + bframes;
     } else {
-	*frame_type = FRAME_I;
-	disp_index = encoding_count + bframes;
-    }	
+        frame_type = IMG_INTRA_FRAME;
+        disp_index = encoding_count + bframes;
+    }
 
     *displaying_order = disp_index;
-    *slot = getSlotIndex(bframes, intracnt, idrcnt,
-	    disp_index, encoding_count,
-	    p_last_info);	
-    p_last_info->last_frame_type = *frame_type; 
-    p_last_info->last_slot = *slot;
+    slot = getSlotIndex(bframes, intracnt, idrcnt,
+                 disp_index, encoding_count, p_last_info);
+
+    p_last_info->last_frame_type = frame_type;
+    p_last_info->last_slot = slot;
     return 0;
 }
 

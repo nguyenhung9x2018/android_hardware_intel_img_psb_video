@@ -55,7 +55,7 @@ static void tng__trace_cmdbuf(tng_cmdbuf_p cmdbuf)
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: error new coded\n", __FUNCTION__);
         return ;
     }
-    ptmp += 3;
+    ptmp += 6;
 
     if ((*ptmp & 0xf) != MTX_CMDID_SETUP_INTERFACE) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: error setup interface\n", __FUNCTION__);
@@ -306,7 +306,7 @@ static void IssueQmatix(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n");
     }
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command_package_jpeg(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETQUANT,
                                       &(ctx->obj_context->tng_cmdbuf->jpeg_pic_params),
@@ -429,6 +429,7 @@ static void AssignCodedDataBuffers(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
     pJPEGContext->ui32SizePerCodedBuffer =
         (pJPEGContext->jpeg_coded_buf.ui32Size - PTG_JPEG_HEADER_MAX_SIZE) /
         pJPEGContext->sScan_Encode_Info.ui8NumberOfCodedBuffers;
+    pJPEGContext->ui32SizePerCodedBuffer &= ~0xf;    
 
     memset((void *)pJPEGContext->sScan_Encode_Info.aBufferTable, 0x0,
            sizeof(TOPAZHP_JPEG_BUFFER_INFO)*pJPEGContext->sScan_Encode_Info.ui8NumberOfCodedBuffers);
@@ -471,7 +472,7 @@ static void IssueSetupInterface(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
     ASSERT(NULL != pJPEGContext->pMTXSetup);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Issue SetupInterface\n");
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command_package_jpeg(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETUP_INTERFACE,
                                       &(ctx->obj_context->tng_cmdbuf->jpeg_header_interface_mem),
@@ -500,9 +501,9 @@ static IMG_ERRORCODE SetMTXSetup(
         pJPEGContext->pMTXSetup->ComponentPlane[1].ui32Stride = pTFrame->psb_surface->stride;
         pJPEGContext->pMTXSetup->ComponentPlane[2].ui32Stride = pTFrame->psb_surface->stride;
 
-        pJPEGContext->pMTXSetup->ComponentPlane[0].ui32Height = pTFrame->height;
-        pJPEGContext->pMTXSetup->ComponentPlane[1].ui32Height = pTFrame->height / 2;
-        pJPEGContext->pMTXSetup->ComponentPlane[2].ui32Height = pTFrame->height / 2;
+        pJPEGContext->pMTXSetup->ComponentPlane[0].ui32Height = pJPEGContext->MCUComponent[0].ui32YLimit;
+        pJPEGContext->pMTXSetup->ComponentPlane[1].ui32Height = pJPEGContext->MCUComponent[0].ui32YLimit / 2;
+        pJPEGContext->pMTXSetup->ComponentPlane[2].ui32Height = pJPEGContext->MCUComponent[0].ui32YLimit / 2;
         break;
     }
 
@@ -566,7 +567,7 @@ static void IssueMTXSetup(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
                                  pJPEGContext->pMTXSetup->apWritebackRegions[i]);
     }
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command_package_jpeg(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETUP,
                                       &(ctx->obj_context->tng_cmdbuf->jpeg_header_mem),
@@ -901,7 +902,7 @@ static IMG_ERRORCODE IssueBufferToHW(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Command Data: 0x%x\n", (unsigned int)(PTG_JPEG_HEADER_MAX_SIZE + ui16BCnt * pJPEGContext->ui32SizePerCodedBuffer));
 
     // Issue buffers
-    tng_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command_package_jpeg(ctx->obj_context,
                                       0,
                                       MTX_CMDID_ISSUEBUFF,
                                       ps_buf->coded_buf->psb_buffer,
