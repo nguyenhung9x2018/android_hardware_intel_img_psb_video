@@ -108,7 +108,7 @@ LOCAL_SRC_FILES += \
     tng_VP8.c \
     tng_jpegdec.c \
     tng_cmdbuf.c tng_hostheader.c tng_hostcode.c tng_picmgmt.c tng_hostbias.c \
-    tng_H264ES.c tng_H263ES.c tng_MPEG4ES.c tng_jpegES.c tng_slotorder.c \
+    tng_H264ES.c tng_H263ES.c tng_MPEG4ES.c tng_jpegES.c tng_slotorder.c tng_hostair.c\
 LOCAL_SRC_FILES += \
     vsp_VPP.c \
     vsp_cmdbuf.c

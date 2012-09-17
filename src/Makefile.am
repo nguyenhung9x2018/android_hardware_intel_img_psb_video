@@ -37,9 +37,10 @@ pvr_drv_video_la_SOURCES = psb_drv_video.c object_heap.c psb_buffer.c psb_buffer
 		pnw_hostheader.c pnw_hostcode.c pnw_rotate.c\
 		pnw_cmdbuf.c pnw_H264ES.c pnw_H263ES.c pnw_MPEG4ES.c \
 		pnw_H264.c pnw_MPEG2.c pnw_MPEG4.c pnw_hostjpeg.c pnw_jpeg.c pnw_VC1.c tng_VP8.c \
-		tng_cmdbuf.c tng_hostheader.c tng_hostcode.c tng_picmgmt.c tng_hostbias.c \
-		tng_slotorder.c tng_H264ES.c tng_H263ES.c  tng_jpegES.c tng_trace.c tng_MPEG4ES.c \
-		psb_output.c  psb_overlay.c psb_texture.c psb_texstreaming.c\
+		tng_cmdbuf.c tng_hostheader.c tng_hostcode.c \
+		tng_picmgmt.c tng_hostbias.c tng_slotorder.c tng_hostair.c \
+		tng_H264ES.c tng_H263ES.c  tng_jpegES.c tng_trace.c tng_MPEG4ES.c \
+		psb_output.c  psb_overlay.c psb_texture.c \
 		x11/psb_x11.c x11/psb_coverlay.c x11/psb_xrandr.c x11/psb_xvva.c x11/psb_ctexture.c \
 		psb_surface_attrib.c psb_drv_debug.c tng_jpegdec.c tng_vld_dec.c
 #		vc1_ap_i.c vc1_ap_p.c vc1_ap_utils.c vc1_bitplane.c \

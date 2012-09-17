@@ -33,7 +33,11 @@
 #include <linux/types.h>
 #include <wsbm/wsbm_util.h>
 #include <wsbm/wsbm_driver.h>
+#ifdef ANDROID
 #include <linux/psb_drm.h>
+#else
+#include <psb_drm.h>
+#endif
 
 struct _PsbDrmValidateNode {
     struct _ValidateNode base;

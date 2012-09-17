@@ -40,11 +40,14 @@
 #include "psb_def.h"
 //#include "psb_drv_debug.h"
 #include "xf86drm.h"
+#ifdef ANDROID
 #include <linux/psb_drm.h>
+#endif
 #include "psb_overlay.h"
 #include "psb_texture.h"
 #include <stdint.h>
 #ifndef ANDROID
+#include <psb_drm.h>
 #include <X11/Xlibint.h>
 #include <X11/X.h>
 #include <X11/extensions/Xv.h>
@@ -77,6 +80,7 @@
 #define _TOPAZHP_OLD_LIBVA_
 #define FORCED_REFERENCE 1
 #define LTREFHEADER 1
+//#define _TP_DEBUG_MMU_
 //#define _TOPAZHP_REC_
 
 /*

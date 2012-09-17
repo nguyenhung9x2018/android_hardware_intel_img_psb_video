@@ -35,7 +35,11 @@
 #include "psb_drv_video.h"
 #include "psb_surface.h"
 #include "psb_buffer.h"
+#ifdef ANDROID
 #include <linux/psb_drm.h>
+#else
+#include "psb_drm.h"
+#endif
 
 #include <stdint.h>
 

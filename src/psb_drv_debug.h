@@ -70,6 +70,9 @@ typedef enum
     VIDEO_DECODE_DEBUG      =   0x100,
     VIDEO_ENCODE_DEBUG      =   0x200,
     VIDEO_DISPLAY_DEBUG     =   0x400,
+
+    VIDEO_ENCODE_PDUMP     =   0x1000,
+    VIDEO_ENCODE_HEADER    =   0x2000,
 } DEBUG_LEVEL;
 
 /****************************
