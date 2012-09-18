@@ -105,7 +105,7 @@
 
 /*****************************************************************************/
 #define SCALE_TBL_SZ            (8)
-#define TOPAZHP_NUM_PIPES       (3)
+#define TOPAZHP_NUM_PIPES       (2)
 #define TNG_HEADER_SIZE         (128)
 #define NUM_SLICE_TYPES         (5)
 /*****************************************************************************/
@@ -158,34 +158,35 @@
  ****************************************************************************/
 typedef enum {
 	// Common Commands
-    MTX_CMDID_NULL,                                        //!< (no data)\n Null command does nothing\n
-    MTX_CMDID_SHUTDOWN,                             //!< (no data)\n shutdown the MTX\n
+    MTX_CMDID_NULL,                   //!< (no data)\n Null command does nothing\n
+    MTX_CMDID_SHUTDOWN,               //!< (no data)\n shutdown the MTX\n
 
     // Video Commands
-    MTX_CMDID_DO_HEADER,                            //!< (extra data: #MTX_HEADER_PARAMS)\n Command for Sequence, Picture and Slice headers\n
-    MTX_CMDID_ENCODE_FRAME,                     //!< (no data)\n Encode frame data\n
-    MTX_CMDID_START_FRAME,                        //!< (no data)\n Prepare to encode frame\n
-    MTX_CMDID_ENCODE_SLICE,	                      //!< (no data)\n Encode slice data\n
-    MTX_CMDID_END_FRAME,                           //!< (no data)\n Complete frame encoding\n
-    MTX_CMDID_SETVIDEO,                               //!< (data: pipe number, extra data: #IMG_MTX_VIDEO_CONTEXT)\n Set MTX Video Context\n
-    MTX_CMDID_GETVIDEO,                              //!< (data: pipe number, extra data: #IMG_MTX_VIDEO_CONTEXT)\n Get MTX Video Context\n
-    MTX_CMDID_PICMGMT,                               //!< (data: subtype and parameters, extra data: #IMG_PICMGMT_CUSTOM_QUANT_DATA (optional))\n Change encoding parameters\n
-    MTX_CMDID_RC_UPDATE,                           //!< (data: QP and bitrate)\n Change encoding parameters\n
+    MTX_CMDID_DO_HEADER,              //!< (extra data: #MTX_HEADER_PARAMS)\n Command for Sequence, Picture and Slice headers\n
+    MTX_CMDID_ENCODE_FRAME,           //!< (no data)\n Encode frame data\n
+    MTX_CMDID_START_FRAME,            //!< (no data)\n Prepare to encode frame\n
+    MTX_CMDID_ENCODE_SLICE,           //!< (no data)\n Encode slice data\n
+    MTX_CMDID_END_FRAME,              //!< (no data)\n Complete frame encoding\n
+    MTX_CMDID_SETVIDEO,               //!< (data: pipe number, extra data: #IMG_MTX_VIDEO_CONTEXT)\n Set MTX Video Context\n
+    MTX_CMDID_GETVIDEO,               //!< (data: pipe number, extra data: #IMG_MTX_VIDEO_CONTEXT)\n Get MTX Video Context\n
+    MTX_CMDID_DO_CHANGE_PIPEWORK,     //!< (data: new pipe allocations for the context)\n Change pipe allocation for a Video Context\n
+    MTX_CMDID_PICMGMT,                //!< (data: subtype and parameters, extra data: #IMG_PICMGMT_CUSTOM_QUANT_DATA (optional))\n Change encoding parameters\n
+    MTX_CMDID_RC_UPDATE,              //!< (data: QP and bitrate)\n Change encoding parameters\n
     MTX_CMDID_PROVIDE_SOURCE_BUFFER,  //!< (extra data: #IMG_SOURCE_BUFFER_PARAMS)\n Transfer source buffer from host\n
-    MTX_CMDID_PROVIDE_REF_BUFFER,         //!< (data: buffer parameters, extra data: reference buffer)\n Transfer reference buffer from host\n
-    MTX_CMDID_PROVIDE_CODED_BUFFER,    //!< (data: slot and size, extra data: coded buffer)\n Transfer output buffer from host\n
-    MTX_CMDID_ABORT,                                   //!< (no data)\n Stop encoding and release all buffers\n
+    MTX_CMDID_PROVIDE_REF_BUFFER,     //!< (data: buffer parameters, extra data: reference buffer)\n Transfer reference buffer from host\n
+    MTX_CMDID_PROVIDE_CODED_BUFFER,   //!< (data: slot and size, extra data: coded buffer)\n Transfer output buffer from host\n
+    MTX_CMDID_ABORT,                  //!< (no data)\n Stop encoding and release all buffers\n
 
     // JPEG commands
-    MTX_CMDID_SETQUANT,	                            //!< (extra data: #JPEG_MTX_QUANT_TABLE)\n
-    MTX_CMDID_SETUP_INTERFACE,               //!< (extra data: #JPEG WRITEBACK POINTERS)\n
-    MTX_CMDID_ISSUEBUFF,                            //!< (extra data: #MTX_ISSUE_BUFFERS)\n
-    MTX_CMDID_SETUP,                                   //!< (extra data: #JPEG_MTX_DMA_SETUP)\n\n
+    MTX_CMDID_SETQUANT,	             //!< (extra data: #JPEG_MTX_QUANT_TABLE)\n
+    MTX_CMDID_SETUP_INTERFACE,       //!< (extra data: #JPEG WRITEBACK POINTERS)\n
+    MTX_CMDID_ISSUEBUFF,             //!< (extra data: #MTX_ISSUE_BUFFERS)\n
+    MTX_CMDID_SETUP,                 //!< (extra data: #JPEG_MTX_DMA_SETUP)\n\n
 
-    MTX_CMDID_ENDMARKER,           //!< end marker for enum
+    MTX_CMDID_ENDMARKER,             //!< end marker for enum
 
     /* SW Commands */
-    MTX_CMDID_PAD = 0x7a, //!< Will be ignored by kernel
+    MTX_CMDID_PAD = 0x7a,           //!< Will be ignored by kernel
     MTX_CMDID_SW_WRITEREG = 0x7b,
     MTX_CMDID_SW_LEAVE_LOWPOWER = 0x7c,
     MTX_CMDID_SW_ENTER_LOWPOWER = 0x7e,
@@ -659,6 +660,7 @@ typedef struct tag_IMG_MTX_VIDEO_CONTEXT
 #ifndef EXCLUDE_ADAPTIVE_ROUNDING
     IMG_BOOL16      bMCAdaptiveRoundingDisable;
     IMG_UINT16      ui16MCAdaptiveRoundingOffsets[18][4];
+    IMG_INT16       i16MCAdaptiveRoundingOffsetsDelta[7][4];
 #endif
 
 #ifdef FORCED_REFERENCE

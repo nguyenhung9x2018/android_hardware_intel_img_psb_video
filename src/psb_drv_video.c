@@ -1335,7 +1335,11 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
                 vaStatus = psb_buffer_reference_imr(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
             }
             else if (obj_buffer->type == VAEncCodedBufferType)
+#ifdef ANDROID
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_cached, obj_buffer->psb_buffer);
+#else
+                vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
+#endif
             else
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
             if (VA_STATUS_SUCCESS != vaStatus) {
