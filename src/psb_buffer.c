@@ -117,9 +117,9 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
         allignment = 1;
         placement = TTM_PL_FLAG_CI | WSBM_PL_FLAG_SHARED;
         break;
-    case psb_bt_rar:
+    case psb_bt_imr:
         allignment = 1;
-        placement = TTM_PL_FLAG_RAR | WSBM_PL_FLAG_SHARED;
+        placement = TTM_PL_FLAG_IMR | WSBM_PL_FLAG_SHARED;
         break;
     default:
         vaStatus = VA_STATUS_ERROR_UNKNOWN;

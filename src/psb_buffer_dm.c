@@ -224,7 +224,7 @@ static int psb_buffer_info_rar(psb_driver_data_p driver_data)
 
     driver_data->rar_phyaddr = driver_data->rar_size = 0;
 
-    arg.key = LNC_VIDEO_GETPARAM_RAR_INFO;
+    arg.key = LNC_VIDEO_GETPARAM_IMR_INFO;
     arg.value = (uint64_t)((unsigned long) & rar_info[0]);
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
@@ -261,7 +261,7 @@ static VAStatus psb_buffer_init_imr(psb_driver_data_p driver_data)
     }
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Grab whole camera device memory\n");
-    ret = psb_buffer_create(driver_data, driver_data->rar_size, psb_bt_rar, (psb_buffer_p) driver_data->rar_bo);
+    ret = psb_buffer_create(driver_data, driver_data->rar_size, psb_bt_imr, (psb_buffer_p) driver_data->rar_bo);
 
     if (ret != VA_STATUS_SUCCESS) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "Grab IMR device memory failed\n");
@@ -317,7 +317,7 @@ VAStatus psb_buffer_reference_imr(psb_driver_data_p driver_data,
     buf->buffer_ofs = imr_offset;
 
     /* reference the global IMR buffer, reset buffer type */
-    buf->type = psb_bt_rar_slice; /* don't need to IMR_release */
+    buf->type = psb_bt_imr_slice; /* don't need to IMR_release */
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Reference IMR buffer, IMR region offset =0x%08x, IMR BO GPU offset hint=0x%08x\n",
                              imr_offset, wsbmBOOffsetHint(buf->drm_buf));

@@ -428,7 +428,7 @@ static int
 psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_count, unsigned cmdBufHandle,
              unsigned cmdBufOffset, unsigned cmdBufSize,
              unsigned relocBufHandle, unsigned relocBufOffset,
-             unsigned numRelocs, drm_clip_rect_t * clipRects, int damage,
+             unsigned numRelocs, int damage,
              unsigned engine, unsigned fence_flags, struct psb_ttm_fence_rep *fence_arg)
 {
     drm_psb_cmdbuf_arg_t ca;
@@ -463,13 +463,7 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     arg_list[buffer_count-1].d.req.next = 0;
 
     ca.buffer_list = (uint64_t)((unsigned long)arg_list);
-    ca.clip_rects = (uint64_t)((unsigned long)clipRects);
     ca.fence_arg = (uint64_t)((unsigned long)fence_arg);
-
-
-    ca.oom_handle = 0;
-    ca.oom_offset = 0;
-    ca.oom_size = 0;
 
     ca.cmdbuf_handle = cmdBufHandle;
     ca.cmdbuf_offset = cmdBufOffset;
@@ -1037,7 +1031,7 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
                        0, msg_size,
                        wsbmKBufHandle(wsbmKBuf(cmdbuf->reloc_buf.drm_buf)),
                        reloc_offset, num_relocs,
-                       0 /* clipRects */, 0, PSB_ENGINE_VIDEO, fence_flags, &fence_rep);
+                       0, PSB_ENGINE_DECODE, fence_flags, &fence_rep);
     wsbmWriteUnlockKernelBO();
     UNLOCK_HARDWARE(driver_data);
 

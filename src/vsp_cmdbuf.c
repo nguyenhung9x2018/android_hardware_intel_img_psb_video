@@ -282,7 +282,7 @@ static int
 vspDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_count, unsigned cmdBufHandle,
              unsigned cmdBufOffset, unsigned cmdBufSize,
              unsigned relocBufHandle, unsigned relocBufOffset,
-             unsigned numRelocs, drm_clip_rect_t * clipRects, int damage,
+             unsigned numRelocs, int damage,
              unsigned engine, unsigned fence_flags, struct psb_ttm_fence_rep *fence_rep)
 {
 	drm_psb_cmdbuf_arg_t ca;
@@ -322,11 +322,7 @@ vspDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 	}
 	arg_list[buffer_count-1].d.req.next = 0;
 
-	ca.oom_handle = 0;
-	ca.oom_offset = 0;
-	ca.oom_size  = 0;
 	ca.buffer_list = (uint64_t)((unsigned long)arg_list);
-	ca.clip_rects = (uint64_t)((unsigned long)clipRects);
 	ca.cmdbuf_handle = cmdBufHandle;
 	ca.cmdbuf_offset = cmdBufOffset;
 	ca.cmdbuf_size = cmdBufSize;
@@ -442,7 +438,7 @@ int vsp_context_flush_cmdbuf(object_context_p obj_context)
 			   cmdbuf->buffer_refs, cmdbuf->buffer_refs_count, wsbmKBufHandle(wsbmKBuf(cmdbuf->buf.drm_buf)),
 			   0, cmdbuffer_size,/*unsigned cmdBufSize*/
 			   wsbmKBufHandle(wsbmKBuf(cmdbuf->buf.drm_buf)), reloc_offset, num_relocs,
-			   0 /* clipRects */, 0, VSP_ENGINE_VPP, fence_flags, &fence_rep);
+			   0, VSP_ENGINE_VPP, fence_flags, &fence_rep);
 	wsbmWriteUnlockKernelBO();
 	UNLOCK_HARDWARE(driver_data);
 
