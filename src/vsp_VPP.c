@@ -826,14 +826,14 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 		pipeline_caps->output_color_standards[0] = VAProcColorStandardNone;
 		pipeline_caps->num_output_color_standards = 1;
 
-		if (obj_context->picture_width < 144 || obj_context->picture_width > 1080) {
+		if (obj_context->picture_height < 96 || obj_context->picture_height > 1080) {
 			vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
 			goto err;
-		} else if (obj_context->picture_width <= 240) {
+		} else if (obj_context->picture_height <= 240) {
 			res_set = QCIF2QVGA;
-		} else if (obj_context->picture_width <= 480) {
+		} else if (obj_context->picture_height <= 480) {
 			res_set = QVGA2VGA;
-		} else if (obj_context->picture_width <= 1080) {
+		} else if (obj_context->picture_height <= 1080) {
 			res_set = VGA2HD1080P;
 		} else {
 			/* full set already, should not be here */
