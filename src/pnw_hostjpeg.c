@@ -504,7 +504,7 @@ IMG_ERRORCODE AllocateCodedDataBuffers(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext)
 }
 
 
-
+#if 0
 /***********************************************************************************
  * Function Name      : FreeCodedDataBuffers
  * Inputs             :
@@ -526,7 +526,7 @@ IMG_UINT32 FreeCodedDataBuffers(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext)
 
     return 0;
 }
-
+#endif
 
 
 
@@ -713,6 +713,8 @@ Description        : Marks the begining of a JPEG encode and sets up encoder
 
     return ReturnCode;
 } */
+
+#if 0
 /*****************************************************************************/
 /*                                                                           */
 /* Function Name : EncodeMarkerSegment                                       */
@@ -733,7 +735,6 @@ Description        : Marks the begining of a JPEG encode and sets up encoder
 /*                                                                           */
 /*                                                                           */
 /*****************************************************************************/
-
 IMG_UINT32 Legacy_EncodeMarkerSegment(LEGACY_JPEG_ENCODER_CONTEXT *pContext,
                                       IMG_UINT8 *puc_stream_buff)
 {
@@ -795,6 +796,7 @@ IMG_UINT32 Legacy_EncodeMarkerSegment(LEGACY_JPEG_ENCODER_CONTEXT *pContext,
 
     return s_streamW.Offset;
 }
+#endif
 
 /*****************************************************************************/
 /*                                                                           */
@@ -890,6 +892,7 @@ IMG_UINT32 EncodeMarkerSegment(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
     return s_streamW.Offset;
 }
 
+#if 0
 /***********************************************************************************
   Function Name      : JPGEncodeMarker
 Inputs             :    Pointer to JPEG Encoder context
@@ -916,6 +919,7 @@ IMG_UINT32 Legacy_JPGEncodeMarker(/*in */               LEGACY_JPEG_ENCODER_CONT
 
     return 0;
 }
+#endif
 
 /***********************************************************************************
   Function Name      : JPGEncodeMarker
@@ -941,7 +945,7 @@ IMG_UINT32 JPGEncodeMarker(/*in */              TOPAZSC_JPEG_ENCODER_CONTEXT *pC
     return 0;
 }
 
-
+#if 0
 /*****************************************************************************/
 /*                                                                           */
 /* Function Name : EncodeFrameHeader                                         */
@@ -1015,7 +1019,7 @@ IMG_UINT32 Legacy_EncodeFrameHeader(LEGACY_JPEGENC_ITTIAM_PARAMS *ps_jpeg_params
 
     return ps_streamW.Offset;
 }
-
+#endif
 
 /*****************************************************************************/
 /*                                                                           */
@@ -1111,7 +1115,7 @@ IMG_UINT32 EncodeFrameHeader(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
     return ps_streamW.Offset;
 }
 
-
+#if 0
 /***********************************************************************************
   Function Name      : JPGEncodeHeader
 Inputs             : Pointer to JPEG Context
@@ -1139,6 +1143,7 @@ IMG_UINT32 Legacy_JPGEncodeHeader(/*in */               LEGACY_JPEG_ENCODER_CONT
                           pui8BitStreamBuffer + *pui32BytesWritten);
     return 0;
 }
+#endif
 
 /***********************************************************************************
   Function Name      : JPGEncodeHeader
@@ -1276,7 +1281,7 @@ IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UIN
     return ReturnCode;
 }
 
-
+#if 0
 IMG_UINT32 Legacy_JPGEncodeSOSHeader(LEGACY_JPEG_ENCODER_CONTEXT *pContext, IMG_CODED_BUFFER *pCBuffer)
 {
     IMG_UINT32  ui32TableIndex ;
@@ -1329,7 +1334,7 @@ IMG_UINT32 Legacy_JPGEncodeSOSHeader(LEGACY_JPEG_ENCODER_CONTEXT *pContext, IMG_
 
     return 0;
 }
-
+#endif
 
 /***********************************************************************************
  * Function Name      : JPGEncodeSOSHeader
@@ -1381,7 +1386,7 @@ IMG_UINT32 JPGEncodeSOSHeader(/*in */           TOPAZSC_JPEG_ENCODER_CONTEXT *pC
     return 0;
 }
 
-
+#if 0
 /*****************************************************************************/
 /*                                                                           */
 /* Function Name : EncodeMJPEGAPP1Marker                                     */
@@ -1443,6 +1448,7 @@ IMG_UINT32 Insert_QT_MJPEGA_APP1Marker(IMG_CODED_BUFFER *pCBuffer, IMG_UINT8 *pu
 
     return 0;
 }
+#endif
 
 /* JPEG Start picture function. Sets up all context information, Quantization details, Header output and MTX ready for the main encode loop*/
 IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED_BUFFER *pCBuffer,  object_surface_p pTFrame)
@@ -1609,6 +1615,7 @@ IMG_ERRORCODE SetupJPEGTables(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED
     return IMG_ERR_OK;
 }
 
+#if 0
 IMG_ERRORCODE Legacy_PrepareHeader(LEGACY_JPEG_ENCODER_CONTEXT * pContext, IMG_CODED_BUFFER *pCBuffer)
 {
     IMG_ERRORCODE rc;
@@ -1638,6 +1645,7 @@ IMG_ERRORCODE Legacy_PrepareHeader(LEGACY_JPEG_ENCODER_CONTEXT * pContext, IMG_C
     return IMG_ERR_OK;
 }
 /* Send header will work for each type of header*/
+#endif
 
 /***********************************************************************************
  * Function Name      : PrepareHeader
