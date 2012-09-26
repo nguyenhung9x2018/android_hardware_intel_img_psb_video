@@ -134,12 +134,14 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     driver_data->ws_priv = ws_priv;
 
 
+#if 0
     //use client textureblit
     if (driver_data->ctexture == 1) {
         int ret = psb_ctexture_init(ctx);
         if (ret != 0)
             driver_data->ctexture = 0;
     }
+#endif
 
     /*
     //use texture streaming
@@ -156,9 +158,11 @@ VAStatus psb_deinitOutput(
 {
     INIT_DRIVER_DATA;
 
+#if 0
     //use client textureblit
     if (driver_data->ctexture == 1)
         psb_ctexture_deinit(ctx);
+#endif
 
     if (driver_data->coverlay_init) {
         psb_coverlay_deinit(ctx);

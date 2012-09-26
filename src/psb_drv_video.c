@@ -790,7 +790,6 @@ VAStatus psb_CreateSurfaces2(
     return vaStatus;
 }
 
-
 VAStatus psb_DestroySurfaces(
     VADriverContextP ctx,
     VASurfaceID *surface_list,
@@ -804,8 +803,10 @@ VAStatus psb_DestroySurfaces(
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
+#if 0
     /* Free PVR2D buffer wrapped from the surfaces */
     psb_free_surface_pvr2dbuf(driver_data);
+#endif
 
     /* Make validation happy */
     for (i = 0; i < num_surfaces; i++) {
@@ -2538,7 +2539,6 @@ VAStatus psb_GetEGLClientBufferFromSurface(
     return vaStatus;
 }
 
-
 VAStatus psb_PutSurfaceBuf(
     VADriverContextP ctx,
     VASurfaceID surface,
@@ -2565,10 +2565,12 @@ VAStatus psb_PutSurfaceBuf(
     obj_surface = SURFACE(surface);
     psb_surface = obj_surface->psb_surface;
 
+#if 0
     psb_putsurface_textureblit(ctx, data, surface, srcx, srcy, srcw, srch, destx, desty, destw, desth, 1, /* check subpicture */
                                obj_surface->width, obj_surface->height,
                                psb_surface->stride, psb_surface->buf.drm_buf,
                                psb_surface->buf.pl_flags, 1 /* wrap dst */);
+#endif
 
     DEBUG_FUNC_EXIT
     return VA_STATUS_SUCCESS;
@@ -2801,8 +2803,10 @@ VAStatus psb_Terminate(VADriverContextP ctx)
 
     /* Clean up left over surfaces */
 
+#if 0
     /* Free PVR2D buffer wrapped from the surfaces */
     psb_free_surface_pvr2dbuf(driver_data);
+#endif
     obj_surface = (object_surface_p) object_heap_first(&driver_data->surface_heap, &iter);
     while (obj_surface) {
         drv_debug_msg(VIDEO_DEBUG_INIT, "vaTerminate: surfaceID %08x still allocated, destroying\n", obj_surface->base.id);
@@ -3019,7 +3023,9 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->hd_decode_supported = 1;
     }
 
+#if 0
     psb_init_surface_pvr2dbuf(driver_data);
+#endif
 
     struct dri_state *dri_state = (struct dri_state *)ctx->dri_state;
     if (dri_state->driConnectedFlag == VA_DRI1 ||
