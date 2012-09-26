@@ -178,6 +178,7 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
         return vaStatus;
     }
 
+#if PSB_MFLD_DUMMY_CODE
     /* current assume it is NV12 */
     if (IS_MRST(driver_data))
         vaStatus = psb_surface_create_camera(driver_data, width, height, buf_stride, size, psb_surface, 1, buf_offset);
@@ -200,6 +201,10 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         }
     }
+#else
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+#endif
+
 
     if (VA_STATUS_SUCCESS != vaStatus) {
         free(psb_surface);

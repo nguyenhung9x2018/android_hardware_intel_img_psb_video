@@ -124,6 +124,8 @@
 #define MAX_SLICES_PER_PICTURE 72
 #define MAX_MB_ERRORS 72
 
+/* Some funtions aren't used but we'd like to keep them as reference code in future */
+#define PSB_MFLD_DUMMY_CODE     0
 
 typedef struct object_config_s *object_config_p;
 typedef struct object_context_s *object_context_p;

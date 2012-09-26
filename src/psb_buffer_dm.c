@@ -37,6 +37,7 @@
 #include "psb_def.h"
 #include "psb_drv_debug.h"
 
+#if PSB_MFLD_DUMMY_CODE
 static VAStatus psb_buffer_offset_camerav4l2(psb_driver_data_p driver_data,
         psb_buffer_p buf,
         unsigned int v4l2_buf_offset,
@@ -215,6 +216,7 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
 
     return VA_STATUS_SUCCESS;
 }
+#endif
 
 static int psb_buffer_info_rar(psb_driver_data_p driver_data)
 {

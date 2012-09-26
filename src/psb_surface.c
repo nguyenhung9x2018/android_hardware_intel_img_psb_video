@@ -192,7 +192,7 @@ VAStatus psb_surface_create_from_kbuf(
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }
 
-
+#if PSB_MFLD_DUMMY_CODE
 /* id_or_ofs: it is frame ID or frame offset in camear device memory
  *     for CI frame: it it always frame offset currently
  *     for v4l2 buf: it is offset used in V4L2 buffer mmap
@@ -265,7 +265,7 @@ VAStatus psb_surface_create_camera_from_ub(psb_driver_data_p driver_data,
 
     return VA_STATUS_SUCCESS;
 }
-
+#endif
 
 /*
  * Temporarily map surface and set all chroma values of surface to 'chroma'

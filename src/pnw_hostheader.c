@@ -2081,6 +2081,7 @@ static void H263_writebits_GOBSliceHeader(
 //}
 
 // SEI_INSERTION
+#if PSB_MFLD_DUMMY_CODE
 static void pnw__H264_writebits_AUD_header(
     MTX_HEADER_PARAMS *pMTX_Header,
     MTX_HEADER_ELEMENT **aui32ElementPointers)
@@ -2113,7 +2114,7 @@ static void pnw__H264_writebits_AUD_header(
                                   aui32ElementPointers, 0x80, 8);
     return;
 }
-
+#endif
 #define SEI_NOT_USE_TOKEN_ALIGN
 
 static void pnw__H264_writebits_SEI_buffering_period_header(
@@ -2518,7 +2519,7 @@ static void pnw__H264_writebits_SEI_FPA_header(
 }
 
 
-
+#if PSB_MFLD_DUMMY_CODE
 void pnw__H264_prepare_AUD_header(MTX_HEADER_PARAMS * pMTX_Header)
 {
     // Essential we initialise our header structures before building
@@ -2532,7 +2533,7 @@ void pnw__H264_prepare_AUD_header(MTX_HEADER_PARAMS * pMTX_Header)
 
     pMTX_Header->Elements++; //Has been used as an index, so need to add 1 for a valid element count
 }
-
+#endif
 
 void pnw__H264_prepare_SEI_buffering_period_header(
     MTX_HEADER_PARAMS * pMTX_Header,
@@ -2636,6 +2637,7 @@ void pnw__H264_prepare_SEI_picture_timing_header(
     return;
 }
 
+#if PSB_MFLD_DUMMY_CODE
 void pnw__H264_prepare_SEI_FPA_header(
         MTX_HEADER_PARAMS * pMTX_Header,
         char* sei_data_buf,
@@ -2656,8 +2658,7 @@ void pnw__H264_prepare_SEI_FPA_header(
     //Has been used as an index, so need to add 1 for a valid element count
     return;
 }
-
-
+#endif
 
 
 void pnw__H264_prepare_sequence_header(

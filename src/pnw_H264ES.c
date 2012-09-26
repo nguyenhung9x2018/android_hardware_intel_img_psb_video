@@ -495,6 +495,7 @@ static VAStatus pnw__H264ES_insert_SEI_pic_timing(context_ENC_p ctx)
     return VA_STATUS_SUCCESS;
 }
 
+#if PSB_MFLD_DUMMY_CODE
 static VAStatus pnw__H264ES_insert_SEI_FPA_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -529,6 +530,7 @@ static VAStatus pnw__H264ES_insert_SEI_FPA_data(context_ENC_p ctx, object_buffer
 
     return VA_STATUS_SUCCESS;
 }
+#endif
 
 static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
@@ -1087,6 +1089,7 @@ static VAStatus pnw_H264ES_RenderPicture(
                 vaStatus = pnw__H264ES_process_misc_param(ctx, obj_buffer);
                 DEBUG_FAILURE;
                 break;
+#if PSB_MFLD_DUMMY_CODE
             case VAEncPackedHeaderParameterBufferType:
                 drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264_RenderPicture got VAEncPackedHeaderParameterBufferType\n");
                 vaStatus = pnw__H264ES_insert_SEI_FPA_param(ctx, obj_buffer);
@@ -1097,6 +1100,7 @@ static VAStatus pnw_H264ES_RenderPicture(
                 vaStatus = pnw__H264ES_insert_SEI_FPA_data(ctx, obj_buffer);
                 DEBUG_FAILURE;
                 break;
+#endif
 				
             default:
                 vaStatus = VA_STATUS_ERROR_UNKNOWN;

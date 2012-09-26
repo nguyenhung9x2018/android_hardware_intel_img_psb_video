@@ -159,6 +159,7 @@ int psb_codedbuf_map_mangle(
  */
 int psb_buffer_unmap(psb_buffer_p buf);
 
+#if PSB_MFLD_DUMMY_CODE
 /*
  * Create buffer from camera device memory
  */
@@ -178,7 +179,7 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
         int id_or_ofs,
         int size,
         const unsigned long * user_ptr);
-
+#endif
 VAStatus psb_buffer_reference_imr(psb_driver_data_p driver_data,
                                   uint32_t imr_offset,
                                   psb_buffer_p buf
