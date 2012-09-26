@@ -111,3 +111,23 @@ int gralloc_init(void)
     return 0;
 }
 
+
+int gralloc_getdisplaystatus(buffer_handle_t handle,  int* status)
+{
+    int err;
+    int (*get_display_status)(gralloc_module_t*, buffer_handle_t, int*);
+
+    get_display_status = (int (*)(gralloc_module_t*, buffer_handle_t, int*))(mAllocMod->reserved_proc[0]);
+    if (get_display_status == NULL) {
+        LOGE("can't get gralloc_getdisplaystatus(...) \n");
+        return -1;
+    }
+    err = (*get_display_status)(mAllocMod, handle, status);
+
+    if (err){
+        LOGE("gralloc_getdisplaystatus(...) failed %d (%s).\n", err, strerror(-err));
+        return -1;
+    }
+
+    return err;
+}

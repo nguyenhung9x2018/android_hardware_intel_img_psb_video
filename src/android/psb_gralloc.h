@@ -43,6 +43,7 @@ int gralloc_unlock(buffer_handle_t handle);
 
 int gralloc_init(void);
 
+int gralloc_getdisplaystatus(buffer_handle_t handle,  int* status);
 #ifdef __cplusplus
 }
 #endif
