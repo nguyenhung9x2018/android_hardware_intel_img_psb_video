@@ -564,56 +564,45 @@ void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
         unsigned int start;
         unsigned int end;
         char *name;
-    } msvdx_regs[11] = {{0x04800000, 0x048003FF, "MTX_MTX"},
-        {0x04800400, 0x0480047F, "VDMC_MTX"},
-        {0x04800480, 0x048004FF, "VDEB_MTX"},
-        {0x04800500, 0x048005FF, "DMAC_MTX"},
-        {0x04800600, 0x048006FF, "SYS_MTX"},
-        {0x04800700, 0x048007FF, "VEC_IQRAM_MTX"},
-        {0x04800800, 0x04800FFF, "VEC_MTX"},
-        {0x04801000, 0x04801FFF, "CMD_MTX"},
-        {0x04802000, 0x04802FFF, "VEC_RAM_MTX"},
-        {0x04803000, 0x04804FFF, "VEC_VLC_M"},
-        {0x04805000, 0xFFFFFFFF, "OUT_OF_RANGE"}
+    } msvdx_regs[11] = {{0x00000000, 0x000003FF, "MTX_MTX"},
+        {0x00000400, 0x0000047F, "VDMC_MTX"},
+        {0x00000480, 0x000004FF, "VDEB_MTX"},
+        {0x00000500, 0x000005FF, "DMAC_MTX"},
+        {0x00000600, 0x000006FF, "SYS_MTX"},
+        {0x00000700, 0x000007FF, "VEC_IQRAM_MTX"},
+        {0x00000800, 0x00000FFF, "VEC_MTX"},
+        {0x00001000, 0x00001FFF, "CMD_MTX"},
+        {0x00002000, 0x00002FFF, "VEC_RAM_MTX"},
+        {0x00003000, 0x00004FFF, "VEC_VLC_M"},
+        {0x00005000, 0xFFFFFFFF, "OUT_OF_RANGE"}
     };
 
     DBH("CMD BUFFER [%08x] - [%08x], %08x bytes, %08x dwords\n", (uint32_t) cmd_idx, cmd_end, cmd_size_in_bytes, cmd_size);
     while (cmd_idx < cmd_end) {
         uint32_t cmd = *cmd_idx;
         /* What about CMD_MAGIC_BEGIN ?*/
+
         switch (cmd & CMD_MASK) {
         case CMD_NOP: {
             DB("CMD_NOPE\n", cmd_idx);
             cmd_idx++;
             break;
         }
-
-        case CMD_HEADER: {
-            uint32_t context = cmd & CMD_HEADER_CONTEXT_MASK;
-            DB("CMD_HEADER context = %08x\n", cmd_idx, context);
-            cmd_idx++;
-            DB("StatusBufferAddress\n", cmd_idx);
-            cmd_idx++;
-            DB("PreloadSave\n", cmd_idx);
-            cmd_idx++;
-            DB("PreloadRestore\n", cmd_idx);
-            cmd_idx++;
-            break;
-        }
         case CMD_REGVALPAIR_WRITE: {
-            uint32_t count = (cmd & CMD_REGVALPAIR_COUNT_MASK) >> CMD_REGVALPAIR_COUNT_SHIFT;
-            DB("CMD_REGVALPAIR_WRITE count = %08x\n", cmd_idx, count);
+            uint32_t count = (cmd & 0xfff0000) >> 16;
+            uint32_t reg = cmd & 0xffff;
+            DB("CMD_REGVALPAIR_WRITE count = 0x%08x\n", cmd_idx, count);
             cmd_idx++;
 
             while (count--) {
                 int i;
                 for (i = 0; i < 10; i++) {
-                    if ((*cmd_idx >= msvdx_regs[i].start) &&
-                        (*cmd_idx <= msvdx_regs[i].end))
+                    if ((reg >= msvdx_regs[i].start) &&
+                        (reg <= msvdx_regs[i].end))
                         break;
                 }
-                DB("%s_%04x\n", cmd_idx, msvdx_regs[i].name, *cmd_idx & 0xffff);
-                cmd_idx++;
+                psb__trace_message("%s_%04x\n", msvdx_regs[i].name, reg);
+                reg += 4;
                 DB("value\n", cmd_idx);
                 cmd_idx++;
             }
@@ -654,6 +643,21 @@ void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
 
             break;
         }
+        case CMD_RENDEC_BLOCK: {
+            uint32_t count = (cmd & 0xff0000) >> 16;
+            uint32_t rendec = cmd & 0xffff;
+            DB("CMD_RENDEC_BLOCK count = 0x%08x\n", cmd_idx, count);
+            cmd_idx++;
+
+            while (count--) {
+                psb__trace_message("%04x\n", rendec);
+                rendec += 4;
+                DB("value\n", cmd_idx);
+                cmd_idx++;
+            }
+            break;
+        }
+
         case CMD_COMPLETION: {
             if (*cmd_idx == PSB_RELOC_MAGIC) {
                 DB("CMD_(S)LLDMA (assumed)\n", cmd_idx);
@@ -668,13 +672,36 @@ void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
             }
             break;
         }
-        case CMD_LLDMA: {
-            DB("CMD_LLDMA\n", cmd_idx);
+        case CMD_HEADER: {
+            uint32_t context = cmd & CMD_HEADER_CONTEXT_MASK;
+            DB("CMD_HEADER context = %08x\n", cmd_idx, context);
+            cmd_idx++;
+            DB("StatusBufferAddress\n", cmd_idx);
+            cmd_idx++;
+            DB("PreloadSave\n", cmd_idx);
+            cmd_idx++;
+            DB("PreloadRestore\n", cmd_idx);
             cmd_idx++;
             break;
         }
-        case CMD_SLLDMA: {
-            DB("CMD_SLLDMA\n", cmd_idx);
+        case CMD_CONDITIONAL_SKIP: {
+            DB("CMD_CONDITIONAL_SKIP\n", cmd_idx);
+            cmd_idx++;
+            DB("vlc table address\n", cmd_idx);
+            break;
+        }
+        case CMD_CTRL_ALLOC_HEADER: {
+            psb__trace_message("CMD_CTRL_ALLOC_HEADER count = 0x%08x\n", sizeof(CTRL_ALLOC_HEADER));
+            uint32_t count = sizeof(CTRL_ALLOC_HEADER)/4;
+            while (count) {
+                    DB("value\n", cmd_idx);
+                    cmd_idx++;
+                    count--;
+            }
+            break;
+        }
+        case CMD_LLDMA: {
+            DB("CMD_LLDMA\n", cmd_idx);
             cmd_idx++;
             break;
         }
@@ -685,6 +712,17 @@ void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
             cmd_idx++;
             DB("size in bytes\n", cmd_idx);
             cmd_idx++;
+            break;
+        }
+        case CMD_SLLDMA: {
+            DB("CMD_SLLDMA\n", cmd_idx);
+            cmd_idx++;
+            break;
+        }
+        case CMD_DMA: {
+            DB("CMD_DMA\n", cmd_idx);
+            cmd_idx++;
+            DB("cmd dma address\n", cmd_idx);
             break;
         }
         default:
