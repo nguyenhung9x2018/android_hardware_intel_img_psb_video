@@ -57,6 +57,8 @@ static void Show_Bits(
     IMG_UINT32 ByteStartBit,
     IMG_UINT32 Bits)
 {
+    return ;
+#if 0
     char Txt[1024];
     IMG_UINT32 uiByteSize;
     IMG_UINT32 uiLp, uiBt, Bcnt;
@@ -78,6 +80,7 @@ static void Show_Bits(
     }
 
     printf("\n\n");
+#endif
 }
 #endif
 
@@ -87,6 +90,8 @@ static void Show_Elements(
     MTX_HEADER_PARAMS *mtx_hdr,
     MTX_HEADER_ELEMENT **aui32ElementPointers)
 {
+    return ;
+#if 0
     IMG_UINT8 f;
     IMG_UINT32 TotalByteSize;
     IMG_UINT32 RTotalByteSize;
@@ -157,6 +162,7 @@ static void Show_Elements(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, ("\nCombined ELEMENTS Stream:\n");
     Show_Bits((IMG_UINT8 *) mtx_hdr->asElementStream, 0, RTotalByteSize);
 #endif
+#endif //0
 }
 #endif
 
