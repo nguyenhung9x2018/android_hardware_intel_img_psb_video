@@ -50,6 +50,19 @@
 
 #define ALIGN_TO_128(value) ((value + 128 - 1) & ~(128 - 1))
 
+/**
+ * The number of supported filter is 5:
+ * VAProcFilterDeblocking
+ * VAProcFilterNoiseReduction
+ * VAProcFilterSharpening
+ * VAProcFilterColorBalance
+ * VAProcFilterFrameRateConversion
+ */
+#define VSP_SUPPORTED_FILTERS_NUM 5
+
+/* The size of supported color standard */
+#define COLOR_STANDARDS_NUM 1
+
 enum resolution_set {
 	VGA2HD1080P = 0,
 	QVGA2VGA,
@@ -443,7 +456,11 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		cur_output_surf = SURFACE(pipeline_param->forward_references[i]);
 		if (cur_output_surf == NULL)
 			continue;
-		vsp_cmdbuf_buffer_ref(cmdbuf, &cur_output_surf->psb_surface->buf);
+		if (vsp_cmdbuf_buffer_ref(cmdbuf, &cur_output_surf->psb_surface->buf) < 0) {
+			drv_debug_msg(VIDEO_DEBUG_ERROR, "vsp_cmdbuf_buffer_ref() failed\n");
+			vaStatus = VA_STATUS_ERROR_UNKNOWN;
+			goto out;
+		}
 	}
 
 out:
@@ -541,8 +558,10 @@ static VAStatus vsp_VPP_EndPicture(
 		cmdbuf->frc_param_p = NULL;
 	}
 
-	if (vsp_context_flush_cmdbuf(ctx->obj_context))
+	if (vsp_context_flush_cmdbuf(ctx->obj_context)) {
 		drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VPP: flush deblock cmdbuf error\n");
+		return VA_STATUS_ERROR_UNKNOWN;
+	}
 
 	return VA_STATUS_SUCCESS;
 }
@@ -600,11 +619,19 @@ VAStatus vsp_QueryVideoProcFilters(
 		goto err;
 	}
 
-	/* check if filters is valid */
-	/* check if num_filters is valid */
+	/* check if filters and num_filters is valid */
 	if (NULL == num_filters || NULL == filters) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "invalide input parameter num_filters %p, filters %p\n", num_filters, filters);
 		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+		goto err;
+	}
+
+	/* check if the filter array size is valid */
+	if (*num_filters < VSP_SUPPORTED_FILTERS_NUM) {
+		drv_debug_msg(VIDEO_DEBUG_ERROR, "The filters array size(%d) is NOT valid! Supported filters num is %d\n",
+				*num_filters, VSP_SUPPORTED_FILTERS_NUM);
+		vaStatus = VA_STATUS_ERROR_MAX_NUM_EXCEEDED;
+		*num_filters = VSP_SUPPORTED_FILTERS_NUM;
 		goto err;
 	}
 
@@ -704,8 +731,8 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 			if (*num_filter_caps < VSP_COLOR_ENHANCE_FEATURES) {
 				drv_debug_msg(VIDEO_DEBUG_ERROR, "filter cap num is should big than %d(%d)\n",
 					      VSP_COLOR_ENHANCE_FEATURES, *num_filter_caps);
-				vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-				*num_filter_caps = 0;
+				vaStatus = VA_STATUS_ERROR_MAX_NUM_EXCEEDED;
+				*num_filter_caps = VSP_COLOR_ENHANCE_FEATURES;
 				goto err;
 			}
 			color_balance_cap = filter_caps;
@@ -807,24 +834,35 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 		pipeline_caps->num_forward_references = VSP_FORWARD_REF_NUM;
 		pipeline_caps->num_backward_references = 0;
 
-		if (pipeline_caps->num_input_color_standards < 1) {
+		/* check the input color standard */
+		if (pipeline_caps->input_color_standards == NULL){
+			drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid input color standard array!\n");
+			vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+			goto err;
+		}
+		if (pipeline_caps->num_input_color_standards < COLOR_STANDARDS_NUM) {
 			drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid num_input_color_standards %d\n", pipeline_caps->num_input_color_standards);
-			vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+			vaStatus = VA_STATUS_ERROR_MAX_NUM_EXCEEDED;
+			pipeline_caps->num_input_color_standards = COLOR_STANDARDS_NUM;
 			goto err;
 		}
-
-		/* not supported yet */
 		pipeline_caps->input_color_standards[0] = VAProcColorStandardNone;
-		pipeline_caps->num_input_color_standards = 1;
+		pipeline_caps->num_input_color_standards = COLOR_STANDARDS_NUM;
 
-		if (pipeline_caps->num_output_color_standards < 1) {
-			drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid num_output_color_standards %d\n", pipeline_caps->num_output_color_standards);
+		/* check the output color standard */
+		if (pipeline_caps->output_color_standards == NULL){
+			drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid output color standard array!\n");
 			vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 			goto err;
 		}
-			
+		if (pipeline_caps->num_output_color_standards < COLOR_STANDARDS_NUM) {
+			drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid num_output_color_standards %d\n", pipeline_caps->num_output_color_standards);
+			vaStatus = VA_STATUS_ERROR_MAX_NUM_EXCEEDED;
+			pipeline_caps->num_output_color_standards = COLOR_STANDARDS_NUM;
+			goto err;
+		}
 		pipeline_caps->output_color_standards[0] = VAProcColorStandardNone;
-		pipeline_caps->num_output_color_standards = 1;
+		pipeline_caps->num_output_color_standards = COLOR_STANDARDS_NUM;
 
 		if (obj_context->picture_height < 96 || obj_context->picture_height > 1080) {
 			vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
@@ -854,6 +892,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 			switch (base->type) {
 			case VAProcFilterDeblocking:
 				if (vpp_chain_caps[res_set].deblock_enabled != FILTER_ENABLED) {
+					drv_debug_msg(VIDEO_DEBUG_ERROR, "The deblock is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
 				}
@@ -861,6 +900,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 
 			case VAProcFilterNoiseReduction:
 				if (vpp_chain_caps[res_set].denoise_enabled != FILTER_ENABLED) {
+					drv_debug_msg(VIDEO_DEBUG_ERROR, "The denoise is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
 				}
@@ -868,6 +908,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 
 			case VAProcFilterSharpening:
 				if (vpp_chain_caps[res_set].sharpen_enabled != FILTER_ENABLED) {
+					drv_debug_msg(VIDEO_DEBUG_ERROR, "The sharpen is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
 				}
@@ -885,18 +926,22 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 					} else if (balance->attrib == VAProcColorBalanceAutoBrightness && balance->value == 1) {
 						enabled_brightness = 1;
 					} else {
+						drv_debug_msg(VIDEO_DEBUG_ERROR, "The color_banlance do NOT support this attrib %d\n",
+							      balance->attrib);
 						vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
 						goto err;
 					}
 				}
 
 				if (enabled_saturation != enabled_brightness) {
+					drv_debug_msg(VIDEO_DEBUG_ERROR, "The color saturation and brightness should be set\n");
 					vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
 					goto err;
 				}
 
 				/* check filter chain */
 				if (vpp_chain_caps[res_set].color_balance_enabled != FILTER_ENABLED) {
+					drv_debug_msg(VIDEO_DEBUG_ERROR, "The color_balance is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
 				}
@@ -910,18 +955,22 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 				ratio = frc->output_fps / (float)frc->input_fps;
 
 				if (!((ratio == 2 || ratio == 2.5 || ratio == 4) && frc->output_fps <= 60)) {
+					drv_debug_msg(VIDEO_DEBUG_ERROR, "The FRC do NOT support the ration(%f) and fps(%d)\n",
+						      ratio, frc->output_fps);
 					vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
 					goto err;
 				}
 
 				/* check the chain */
 				if (vpp_chain_caps[res_set].frc_enabled != FILTER_ENABLED) {
+					drv_debug_msg(VIDEO_DEBUG_ERROR, "The FRC is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
 				}
 
 				break;
 			default:
+				drv_debug_msg(VIDEO_DEBUG_ERROR, "Do NOT support the filter type %d\n", base->type);
 				vaStatus = VA_STATUS_ERROR_UNKNOWN;
 				goto err;
 			}

@@ -69,14 +69,47 @@ typedef struct context_VPP_s *context_VPP_p;
 
 extern struct format_vtable_s vsp_VPP_vtable;
 
-extern VAStatus vsp_QueryVideoProcFilters(
+/**
+ * Queries video processing filters.
+ *
+ * This function returns the list of video processing filters supported
+ * by the driver. The filters array is allocated by the user and
+ * num_filters shall be initialized to the number of allocated
+ * elements in that array. Upon successful return, the actual number
+ * of filters will be overwritten into num_filters. Otherwise,
+ * VA_STATUS_ERROR_MAX_NUM_EXCEEDED is returned and num_filters
+ * is adjusted to the number of elements that would be returned if enough
+ * space was available.
+ *
+ * The list of video processing filters supported by the driver shall
+ * be ordered in the way they can be iteratively applied. This is needed
+ * for both correctness, i.e. some filters would not mean anything if
+ * applied at the beginning of the pipeline; but also for performance
+ * since some filters can be applied in a single pass (e.g. noise
+ * reduction + deinterlacing).
+ *
+ */
+VAStatus vsp_QueryVideoProcFilters(
         VADriverContextP    ctx,
         VAContextID         context,
         VAProcFilterType   *filters,
         unsigned int       *num_filters
 	);
 
-extern VAStatus vsp_QueryVideoProcFilterCaps(
+/**
+ * Queries video filter capabilities.
+ *
+ * This function returns the list of capabilities supported by the driver
+ * for a specific video filter. The filter_caps array is allocated by
+ * the user and num_filter_caps shall be initialized to the number
+ * of allocated elements in that array. Upon successful return, the
+ * actual number of filters will be overwritten into num_filter_caps.
+ * Otherwise, VA_STATUS_ERROR_MAX_NUM_EXCEEDED is returned and
+ * num_filter_caps is adjusted to the number of elements that would be
+ * returned if enough space was available.
+ *
+ */
+VAStatus vsp_QueryVideoProcFilterCaps(
         VADriverContextP    ctx,
         VAContextID         context,
         VAProcFilterType    type,
@@ -84,7 +117,23 @@ extern VAStatus vsp_QueryVideoProcFilterCaps(
         unsigned int       *num_filter_caps
 	);
 
-extern VAStatus vsp_QueryVideoProcPipelineCaps(
+/**
+ * Queries video processing pipeline capabilities.
+ *
+ * This function returns the video processing pipeline capabilities. The
+ * filters array defines the video processing pipeline and is an array
+ * of buffers holding filter parameters.
+ *
+ * Note: the VAProcPipelineCaps structure contains user-provided arrays.
+ * If non-NULL, the corresponding num_* fields shall be filled in on
+ * input with the number of elements allocated. Upon successful return,
+ * the actual number of elements will be overwritten into the num_*
+ * fields. Otherwise, VA_STATUS_ERROR_MAX_NUM_EXCEEDED is returned
+ * and num_* fields are adjusted to the number of elements that would
+ * be returned if enough space was available.
+ *
+ */
+VAStatus vsp_QueryVideoProcPipelineCaps(
 	VADriverContextP    ctx,
         VAContextID         context,
         VABufferID         *filters,
