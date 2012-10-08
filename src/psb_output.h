@@ -47,7 +47,7 @@
 #define LOG_TAG "pvr_drv_video"
 #endif
 
-#define PSB_MAX_IMAGE_FORMATS      3 /* sizeof(psb__CreateImageFormat)/sizeof(VAImageFormat) */
+#define PSB_MAX_IMAGE_FORMATS      4 /* sizeof(psb__CreateImageFormat)/sizeof(VAImageFormat) */
 #define PSB_MAX_SUBPIC_FORMATS     3 /* sizeof(psb__SubpicFormat)/sizeof(VAImageFormat) */
 #define PSB_MAX_DISPLAY_ATTRIBUTES 14     /* sizeof(psb__DisplayAttribute)/sizeof(VADisplayAttribute) */
 
