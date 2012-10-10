@@ -1073,10 +1073,6 @@ VAStatus psb_CreateContext(
     }
 
     /* initialize cmdbuf */
-    for (i = 0; i < LNC_MAX_CMDBUFS_ENCODE; i++) {
-        obj_context->lnc_cmdbuf_list[i] = NULL;
-    }
-
     for (i = 0; i < PNW_MAX_CMDBUFS_ENCODE; i++) {
         obj_context->pnw_cmdbuf_list[i] = NULL;
     }
@@ -1185,7 +1181,6 @@ VAStatus psb_CreateContext(
 
     obj_context->cmdbuf_current = -1;
     obj_context->cmdbuf = NULL;
-    obj_context->lnc_cmdbuf = NULL;
     obj_context->pnw_cmdbuf = NULL;
     obj_context->tng_cmdbuf = NULL;
 #ifdef PSBVIDEO_MRFL_VPP
@@ -1207,11 +1202,6 @@ VAStatus psb_CreateContext(
         if (cmdbuf_num > LNC_MAX_CMDBUFS_ENCODE)
             cmdbuf_num = LNC_MAX_CMDBUFS_ENCODE;
         for (i = 0; i < cmdbuf_num; i++) {
-            if (obj_context->lnc_cmdbuf_list[i]) {
-                lnc_cmdbuf_destroy(obj_context->lnc_cmdbuf_list[i]);
-                free(obj_context->lnc_cmdbuf_list[i]);
-                obj_context->lnc_cmdbuf_list[i] = NULL;
-            }
             if (obj_context->pnw_cmdbuf_list[i]) {
                 pnw_cmdbuf_destroy(obj_context->pnw_cmdbuf_list[i]);
                 free(obj_context->pnw_cmdbuf_list[i]);
@@ -1239,7 +1229,6 @@ VAStatus psb_CreateContext(
         }
 
         obj_context->cmdbuf = NULL;
-        obj_context->lnc_cmdbuf = NULL;
 #ifdef PSBVIDEO_MRFL_VPP
         obj_context->vsp_cmdbuf = NULL;
 #endif
@@ -1456,14 +1445,6 @@ static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p
     }
 
     for (i = 0; i < LNC_MAX_CMDBUFS_ENCODE; i++) {
-        if (obj_context->lnc_cmdbuf_list[i]) {
-            lnc_cmdbuf_destroy(obj_context->lnc_cmdbuf_list[i]);
-            free(obj_context->lnc_cmdbuf_list[i]);
-            obj_context->lnc_cmdbuf_list[i] = NULL;
-        }
-    }
-
-    for (i = 0; i < LNC_MAX_CMDBUFS_ENCODE; i++) {
         if (obj_context->pnw_cmdbuf_list[i]) {
             pnw_cmdbuf_destroy(obj_context->pnw_cmdbuf_list[i]);
             free(obj_context->pnw_cmdbuf_list[i]);
@@ -1497,7 +1478,6 @@ static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p
         }
     }
     obj_context->cmdbuf = NULL;
-    obj_context->lnc_cmdbuf = NULL;
 #ifdef PSBVIDEO_MRFL_VPP
     obj_context->vsp_cmdbuf = NULL;
 #endif
