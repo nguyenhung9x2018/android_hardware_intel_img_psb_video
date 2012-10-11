@@ -231,6 +231,8 @@ VAStatus psb_putsurface_coverlay(
     return vaStatus;
 }
 #endif
+
+#if 0
 static int psb_update_destbox(
     VADriverContextP ctx
 )
@@ -264,7 +266,9 @@ static int psb_update_destbox(
 
     return vaStatus;
 }
+#endif
 
+#if 0
 static int psb_check_outputmethod(
     VADriverContextP ctx,
     VASurfaceID surface,
@@ -443,6 +447,7 @@ static int psb_check_outputmethod(
 
     return 0;
 }
+#endif
 
 VAStatus psb_PutSurface(
     VADriverContextP ctx,

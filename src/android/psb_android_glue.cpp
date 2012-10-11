@@ -100,6 +100,7 @@ int psb_android_is_extvideo_mode(void* output) {
 
 unsigned int update_forced;
 
+#if 0
 int psb_android_surfaceflinger_status(void** android_isurface, int *sf_compositioin, int *rotation, int *widi)
 {
     return 0;
@@ -108,6 +109,7 @@ int psb_android_surfaceflinger_status(void** android_isurface, int *sf_compositi
 void psb_android_get_destbox(short* destx, short* desty, unsigned short* destw, unsigned short* desth)
 {
 }
+#endif
 
 int psb_android_surfaceflinger_rotate(void* native_window, int *rotation)
 {

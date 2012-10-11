@@ -220,6 +220,7 @@ static void I830StopVideo(VADriverContextP ctx)
     }
 }
 
+#if 0
 static void I830SwitchPipe(VADriverContextP ctx , int overlayId, int pipeId)
 {
     INIT_DRIVER_DATA;
@@ -267,6 +268,7 @@ static void I830SwitchPipe(VADriverContextP ctx , int overlayId, int pipeId)
     regs.overlay.b_wait_vblank = 1;
     drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
 }
+#endif
 
 static int
 i830_swidth(unsigned int offset, unsigned int width, unsigned int mask, int shift)
@@ -1430,7 +1432,7 @@ VAStatus psb_putsurface_overlay(
     INIT_DRIVER_DATA;
     object_surface_p obj_surface = SURFACE(surface);
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
-
+#if 0
     if ((overlayId == OVERLAY_A) && (pPriv->overlayA_pipeId != pipeId)) {
         pPriv->overlayA_pipeId = pipeId;
         I830SwitchPipe(ctx, OVERLAY_A, pipeId);
@@ -1440,6 +1442,7 @@ VAStatus psb_putsurface_overlay(
         I830SwitchPipe(ctx, OVERLAY_C, pipeId);
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "OverlayC switch pipe to %d, stop overlayC first.\n", pipeId);
     }
+#endif
     I830PutImage(ctx, surface, srcx, srcy, srcw, srch,
                  destx, desty, destw, desth,
                  VA_FOURCC_NV12, flags, overlayId, pipeId);

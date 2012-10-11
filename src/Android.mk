@@ -30,7 +30,6 @@ include $(CLEAR_VARS)
 PSBVIDEO_LOG_ENABLE := true
 
 LOCAL_SRC_FILES :=		\
-    lnc_cmdbuf.c            \
     object_heap.c           \
     psb_buffer.c            \
     psb_buffer_dm.c         \
@@ -40,7 +39,6 @@ LOCAL_SRC_FILES :=		\
     psb_surface_attrib.c    \
     psb_output.c		\
     android/psb_output_android.c            \
-    android/psb_HDMIExtMode.c               \
     android/psb_android_glue.cpp            \
     android/psb_surface_gralloc.c         \
     android/psb_gralloc.cpp            \
