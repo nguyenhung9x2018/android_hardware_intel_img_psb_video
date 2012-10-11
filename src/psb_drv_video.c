@@ -887,6 +887,7 @@ int psb_rm_context(psb_driver_data_p driver_data)
     return ret;
 }
 
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
 unsigned long psb__tile_stride_log2_256(int w)
 {
     int stride_mode = 0;
@@ -902,6 +903,7 @@ unsigned long psb__tile_stride_log2_256(int w)
 
     return stride_mode;
 }
+#endif
 
 VAStatus psb_CreateContext(
     VADriverContextP ctx,

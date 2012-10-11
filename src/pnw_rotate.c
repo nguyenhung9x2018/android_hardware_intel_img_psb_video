@@ -242,7 +242,7 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_p
        }
     }
 }
-
+#if 0
 /*
  * Detach a surface from obj_surface
  */
@@ -269,7 +269,7 @@ VAStatus psb_DestroyRotateSurface(
 
     return vaStatus;
 }
-
+#endif
 /*
  * Create and attach a rotate surface to obj_surface
  */

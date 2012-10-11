@@ -260,6 +260,7 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
     return VA_STATUS_SUCCESS;
 }
 
+#if 0
 /*
  * buffer setstatus
  *
@@ -278,7 +279,7 @@ int psb_buffer_setstatus(psb_buffer_p buf, uint32_t set_placement, uint32_t clr_
 
     return ret;
 }
-
+#endif
 
 VAStatus psb_buffer_reference(psb_driver_data_p driver_data,
                               psb_buffer_p buf,

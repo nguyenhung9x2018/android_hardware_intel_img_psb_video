@@ -104,6 +104,7 @@ VAStatus psb_surface_create_from_ub(
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }
 
+#if 0
 VAStatus psb_CreateSurfaceFromV4L2Buf(
     VADriverContextP ctx,
     int v4l2_fd,         /* file descriptor of V4L2 device */
@@ -230,7 +231,7 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
 
     return vaStatus;
 }
-
+#endif
 
 
 VAStatus psb_CreateSurfacesForUserPtr(

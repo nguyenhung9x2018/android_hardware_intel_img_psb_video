@@ -47,7 +47,7 @@
  */
 #define USE_CLIP_FUNC 0
 #define USE_SCALE_FUNC 1
-#define USE_ROTATION_FUNC 1
+#define USE_ROTATION_FUNC 0
 
 #define Success 0
 

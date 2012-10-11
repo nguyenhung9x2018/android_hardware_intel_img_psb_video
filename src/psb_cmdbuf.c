@@ -619,38 +619,6 @@ static void psb_cmdbuf_close_segment(psb_cmdbuf_p cmdbuf)
 #endif
 }
 
-int psb_context_submit_deblock(object_context_p obj_context)
-{
-    psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
-    uint32_t msg_size = FW_VA_DEBLOCK_SIZE;
-    uint32_t *msg = (uint32_t *)cmdbuf->MTX_msg;
-    DEBLOCKPARAMS* pdbParams;
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Send two pass deblock cmd\n");
-    if (cmdbuf->cmd_count) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "two pass deblock cmdbuf has render msg!\n");
-        return 1;
-    }
-
-    cmdbuf->deblock_count++;
-    memset(msg, 0, msg_size);
-
-    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE, 16); /* Deblock message size is 16 bytes */
-    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID, VA_MSGID_DEBLOCK);
-
-    MEMIO_WRITE_FIELD(msg, FW_VA_DEBLOCK_CONTEXT, obj_context->msvdx_context);
-    MEMIO_WRITE_FIELD(msg, FW_VA_DEBLOCK_FLAGS, FW_VA_RENDER_HOST_INT);
-
-    pdbParams = (DEBLOCKPARAMS*)(msg + 16 / sizeof(uint32_t));
-
-    pdbParams->handle = wsbmKBufHandle(wsbmKBuf(cmdbuf->regio_buf.drm_buf));
-    /* printf("regio buffer size is 0x%x\n", cmdbuf->regio_size); */
-    pdbParams->buffer_size = cmdbuf->regio_size;
-    pdbParams->ctxid = (obj_context->msvdx_context & 0xfff);
-
-    return 0;
-}
-
 /* Issue deblock cmd, HW will do deblock instead of host */
 int psb_context_submit_hw_deblock(object_context_p obj_context,
                                   psb_buffer_p buf_a,
@@ -702,52 +670,7 @@ int psb_context_submit_hw_deblock(object_context_p obj_context,
     return 0;
 }
 
-int psb_context_submit_oold(object_context_p obj_context,
-                            psb_buffer_p src_buf,
-                            psb_buffer_p dst_buf,
-                            psb_buffer_p colocate_buffer,
-                            uint32_t picture_width_in_mb,
-                            uint32_t frame_height_in_mb,
-                            uint32_t field_type,
-                            uint32_t chroma_offset)
-{
-    psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
-    uint32_t msg_size = FW_VA_OOLD_SIZE;
-    uint32_t *msg = (uint32_t *)(cmdbuf->MTX_msg + cmdbuf->cmd_count * FW_VA_RENDER_SIZE);
-    FW_VA_OOLD_MSG *oold_msg;
-
-    if (NULL == src_buf || NULL == dst_buf || NULL == colocate_buffer) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalide src_buf, dst_buf or colocate_buffer\n",
-                           __FUNCTION__, __LINE__);
-        return VA_STATUS_ERROR_INVALID_BUFFER;
-    }
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Send out of loop deblock cmd\n");
-
-    cmdbuf->oold_count++;
-    memset(msg, 0, msg_size);
-    oold_msg = (FW_VA_OOLD_MSG *) msg;
-
-    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE, FW_VA_OOLD_SIZE);
-    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID, VA_MSGID_OOLD);
-    MEMIO_WRITE_FIELD(msg, FW_VA_DEBLOCK_CONTEXT, obj_context->msvdx_context);
-
-    MEMIO_WRITE_FIELD(msg, FW_VA_OOLD_OPERATING_MODE, obj_context->operating_mode);
-    MEMIO_WRITE_FIELD(msg, FW_VA_OOLD_FRAME_HEIGHT_MBS, frame_height_in_mb);
-    MEMIO_WRITE_FIELD(msg, FW_VA_OOLD_PIC_WIDTH_MBS, picture_width_in_mb);
-
-    RELOC_MSG(oold_msg->SOURCE_LUMA_BUFFER_ADDRESS, src_buf->buffer_ofs, src_buf);
-    RELOC_MSG(oold_msg->SOURCE_CHROMA_BUFFER_ADDRESS, src_buf->buffer_ofs + chroma_offset, src_buf);
-    RELOC_MSG(oold_msg->TARGET_LUMA_BUFFER_ADDRESS, dst_buf->buffer_ofs, dst_buf);
-    RELOC_MSG(oold_msg->TARGET_CHROMA_BUFFER_ADDRESS, dst_buf->buffer_ofs + chroma_offset, dst_buf);
-
-    RELOC_MSG(oold_msg->SOURCE_MB_PARAM_ADDRESS, colocate_buffer->buffer_ofs, colocate_buffer);
-
-    MEMIO_WRITE_FIELD(msg, FW_VA_OOLD_SLICE_FIELD_TYPE, field_type);
-
-    return 0;
-}
-
+#ifdef PSBVIDEO_MSVDX_EC
 int psb_context_submit_host_be_opp(object_context_p obj_context,
                                   psb_buffer_p buf_a,
                                   psb_buffer_p buf_b,
@@ -792,7 +715,7 @@ int psb_context_submit_host_be_opp(object_context_p obj_context,
     cmdbuf->deblock_count++;
     return 0;
 }
-
+#endif
 /*
  * Submits the current cmdbuf
  *
