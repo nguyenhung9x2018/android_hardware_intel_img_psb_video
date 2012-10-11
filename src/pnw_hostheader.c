@@ -809,6 +809,7 @@ static void pnw__H264_writebits_sequence_header(
                                       7);
 #endif
     } else {
+#if PSB_MFLD_DUMMY_CODE
         // Byte aligned (bit 40)
         // profile_idc = 8 bits = 66 for BP (PROFILE_IDC_BP), 77 for MP (PROFILE_IDC_MP)
         pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 100, 8);
@@ -860,6 +861,7 @@ static void pnw__H264_writebits_sequence_header(
         // log2_max_pic_order_cnt_Isb_minus4 = 2
 
         // Bytes aligned (bit 72)
+#endif
     }
     // max_num_ref_frames. long term reference isn't used.
     //pnw__generate_u(pMTX_Header, aui32ElementPointers, pSHParams->max_num_ref_frames);
@@ -959,175 +961,6 @@ static void pnw__H264_writebits_slice_header(
 }
 
 
-//static void pnw__H264_writebits_endofsequence_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//MTX_HEADER_ELEMENT **elt_p)
-//{
-///* GENERATES THE FIRST ELEMENT OF THE H264_ENDOFSEQUENCE_HEADER() STRUCTURE */
-//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
-//
-///* Byte aligned (bit 32) */
-//pnw__write_upto9bits_elements(
-//mtx_hdr,
-//elt_p,
-//(0 << 7) |/* forbidden_zero_bit=0 */
-//(0 << 5) |/* nal_ref_idc=0 for nal_unit_type=10 */
-//(10),/* nal_unit_type=10 */
-//8);
-//}
-
-
-//static void pnw__H264_writebits_SEI_rbspheader(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//MTX_HEADER_ELEMENT **elt_p,
-//IMG_UINT32 Initial_cpb_removal_delay)
-//{
-///*  Byte aligned (bit 32) */
-//pnw__H264_writebits_startcode_prefix_element(
-//mtx_hdr, elt_p, 4);/* 32 bit start code prefix    */
-//
-//pnw__write_upto8bits_elements(
-//mtx_hdr,
-//elt_p,
-//(0 << 7) |/* forbidden_zero_bit */
-//(1 << 5) |/* nal_ref_idc (2 bits) = 1 */
-//(6),/* nal_unit_tpye (5 bits) = 6 (SEI packet) */
-//8);
-//
-///* last_payload_type_byte (8 bits) = 0 for buffering period     */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-//
-///* last_payload_size_byte (8 bits) = 41 as SEI_message length is 41-bit */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 41, 8);
-//
-///* sequence_parameter_set_id  ue(0) = 1b sequence_parameter_set_id=0 in Topaz */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-//
-///* Initial_cpb_removal_delay (20 bits)        x is initial cpb delay of each sequence     */
-//pnw__write_upto32bits_elements(mtx_hdr, elt_p, Initial_cpb_removal_delay, 20);
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
-//
-///* Initial_cpb_removal_delay_offset (20 bits) 0x10101 (It won't be used in Topaz) */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 5, 4);
-//
-///* Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point) */
-//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_H264);
-//}
-
-
-//static void pnw__H264_writebits_endofstream_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//MTX_HEADER_ELEMENT **elt_p)
-//{
-///* GENERATES THE FIRST ELEMENT OF THE H264_ENDOFSTREAM_HEADER() STRUCTURE */
-//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
-///* Byte aligned (bit 32) */
-//pnw__write_upto8bits_elements(
-//mtx_hdr,
-//elt_p,
-//(0 << 7) |/* forbidden_zero_bit=0 */
-//(0 << 5) |/* nal_ref_idc=0 for nal_unit_type=11 */
-//(11),/* nal_unit_type=11 */
-//8);
-//}
-
-/*
- * High level functions to call when a H264 header is required
- */
-//static void pnw__H264_getelements_skip_B_slice(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//H264_SLICE_HEADER_PARAMS *pSlHParams,
-//IMG_UINT8 MB_No_In_Slice)
-//{
-///* Skipped P-Slice
-//* Ensure pSlHParams is filled with appropriate parameters for a P-slice
-//* Essential we initialise our header structures before building
-//*/
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-///* Not sure if this will be required in the final spec
-//* pnw__insert_element_token(mtx_hdr, ELEMENT_STARTCOUNTER);
-//*/
-//pnw__H264_writebits_slice_header(mtx_hdr, elt_p, pSlHParams);
-//
-///* mb_skip_run = mb_no_in_slice */
-//pnw__generate_ue(mtx_hdr, elt_p, MB_No_In_Slice);
-//
-///* Tell MTX to insert the byte align field
-//* (we don't know final stream size for alignment at this point)
-//*/
-//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_INSERTBYTEALIGN_H264);
-//
-///* Has been used as an index, so need to add 1 for a valid element count */
-//mtx_hdr->Elements++;
-//}
-
-//static void pnw__H264_getelements_backward_zero_B_slice(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//IMG_UINT8 MB_No_In_Slice)
-//{
-///* Skipped P-Slice
-//* Ensure pSlHParams is filled with appropriate parameters for a P-slice
-//* Essential we initialise our header structures before building
-//*/
-//IMG_UINT8 Lp;
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//for (Lp=0;Lp<MB_No_In_Slice;Lp++)
-//{
-///* mb_skip_run = ue(0) = 1b */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1,1);
-///* backward_zero_B_mb() - all static         */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 15,5);
-//}
-//
-///* Tell MTX to insert the byte align field
-//* (we don't know final stream size for alignment at this point)
-//*/
-//pnw__insert_element_token(
-//mtx_hdr,
-//elt_p,
-//ELEMENT_INSERTBYTEALIGN_H264);
-//
-///* Has been used as an index, so need to add 1 for a valid element count */
-//mtx_hdr->Elements++;
-//}
-
-
-//static void pnw__H264_getelements_rbsp_ATE_only(MTX_HEADER_PARAMS *mtx_hdr)
-//{
-///* Skipped P-Slice
-//* Ensure pSlHParams is filled with appropriate parameters for a P-slice
-//* Essential we initialise our header structures before building
-//*/
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-///* Tell MTX to insert the byte align field
-//* (we don't know final stream size for alignment at this point)
-//*/
-//pnw__insert_element_token(
-//mtx_hdr,
-//elt_p,
-//ELEMENT_INSERTBYTEALIGN_H264);
-//
-///* Has been used as an index, so need to add 1 for a valid element count */
-//mtx_hdr->Elements++;
-//}
-
-
 static void pnw__H264_getelements_skip_P_slice(
     MTX_HEADER_PARAMS *mtx_hdr,
     H264_SLICE_HEADER_PARAMS *pSlHParams,
@@ -1175,21 +1008,6 @@ static void pnw__H264_getelements_sequence_header(
 }
 
 
-//static void pnw__H264_getelements_picture_header(MTX_HEADER_PARAMS *mtx_hdr)
-//{
-///* Builds a sequence, picture and slice header with from the given inputs parameters (start of new frame)
-//* Essential we initialise our header structures before building
-//*/
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//pnw__H264_writebits_picture_header(mtx_hdr, elt_p);
-//mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
-//}
-
 
 static void pnw__H264_getelements_slice_header(
     MTX_HEADER_PARAMS *mtx_hdr,
@@ -1213,39 +1031,6 @@ static void pnw__H264_getelements_slice_header(
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
 
-
-//static void pnw__H264_getelements_endofsequence_header(
-//MTX_HEADER_PARAMS *mtx_hdr)
-//{
-///* Builds a single endofsequence header from the given parameters (mid frame) */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//pnw__H264_writebits_endofsequence_header(mtx_hdr, elt_p);
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
-
-
-//static void pnw__H264_getelements_endofstream_header(MTX_HEADER_PARAMS *mtx_hdr)
-//{
-///* Builds a single endofstream header from the given parameters (mid frame) */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//pnw__H264_writebits_endofstream_header(mtx_hdr, elt_p);
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
 
 static IMG_UINT8 Bits2Code(IMG_UINT32 CodeVal)
 {
@@ -1613,179 +1398,7 @@ static void pnw__MPEG4_writebits_VOP_header(
     }
 }
 
-
-/* MPEG 4 Video Packet (Slice) Header */
-//static void pnw__MPEG4_writebits_videopacket_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//MTX_HEADER_ELEMENT **elt_p,
-//VOP_CODING_TYPE eVop_Coding_Type,
-//IMG_UINT8 Fcode,
-//IMG_UINT32 MBNumber,
-//IMG_UINT32 MBNumberlength,
-//IMG_BOOL bHeader_Extension_Code,
-//IMG_UINT8 VOP_Time_Increment,
-//SEARCH_RANGE_TYPE sSearch_range)
-//{
-///* Essential we insert the element before we try to fill it! */
-//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA);
-//
-//if (eVop_Coding_Type == I_FRAME)
-//{
-///* resync_marker      = 17 bit        =0x1    17-bit for I-frame */
-//pnw__write_upto32bits_elements(mtx_hdr, elt_p, 1, 17);
-//}
-//else
-//{
-///* resync_marker = 17 bit     =0x1    (16+fcode) bits for P-frame */
-//pnw__write_upto32bits_elements(mtx_hdr, elt_p, 1, 16+Fcode);
-//}
-//
-///* macroblock_number = 1-14 bits      = ?????? */
-//pnw__write_upto32bits_elements(mtx_hdr, elt_p, MBNumber, MBNumberlength);
-//
-///* quant_scale = 5 bits       =1-32   VP (Slice) Q_scale
-//* pnw__write_upto8bits_elements(mtx_hdr, elt_p, VP_Slice_Q_Scale, 5);
-//*/
-//pnw__insert_element_token(
-//mtx_hdr, elt_p,
-//ELEMENT_SLICEQSCALE); /* Insert token to tell MTX to insert rate-control value */
-//
-//pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_RAWDATA); /* Begin writing rawdata again */
-//
-//if (bHeader_Extension_Code)
-//{
-///* header_extension_code = 1bit = 1   picture header parameters are repeated */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-//
-///* modulo_time_base = 1 bit = 0       The same as it is in the current picture header */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-//
-///* marker_bit = 1 bit         = 1 */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-//
-///* vop_time_increment = 5 bits        = 0-30  The same as it is in the current picture header */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, VOP_Time_Increment, 5);
-//
-///* marker_bit = 1 bit         = 1      */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
-//
-///* vop_coding_type= 2 bits    = 0/1 The same as it is in the current picture header */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, eVop_Coding_Type, 2);
-//
-///* intra_dc_vlc_thr = 3 bits  = 0 The same as it is in the current picture header */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 3);
-//
-//if (eVop_Coding_Type == P_FRAME)
-//{
-///* vop_fcode_forward = 3 bits = 2/3 The same as it is in the current picture header */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, sSearch_range, 3);
-//}
-//}
-//else
-//{
-///* header_extension_code = 1 bits =0  picture header parameters are NOT repeated */
-//pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);
-//}
-//}
-
-/*
- * High level functions to call when a MPEG4 header is required - HOST ROUTINES
- */
-//static void pnw__MPEG4_getelements_sequence_header (
-//MTX_HEADER_PARAMS *mtx_hdr,
-//IMG_BOOL bBFrame,
-//MPEG4_PROFILE_TYPE sProfile,
-//IMG_UINT8 Profile_and_level_indication,
-//FIXED_VOP_TIME_TYPE sFixed_vop_time_increment,
-//IMG_UINT32 Picture_Width_Pixels,
-//IMG_UINT32 Picture_Height_Pixels,
-//VBVPARAMS *sVBVParams,
-//IMG_UINT32 VopTimeResolution) /* NULL pointer if there are no VBVParams */
-//{
-///* Builds a single MPEG4 video sequence header from the given parameters */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//pnw__MPEG4_writebits_sequence_header(
-//mtx_hdr,
-//elt_p,
-//bBFrame, sProfile,
-//Profile_and_level_indication,
-//sFixed_vop_time_increment,
-//Picture_Width_Pixels,
-//Picture_Height_Pixels,
-//sVBVParams,VopTimeResolution);
-//
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
-
-/* MPEG 4 VOP (Picture) Header */
-//static void pnw__MPEG4_getelements_VOP_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//IMG_BOOL      bIsVOP_coded,
-//IMG_UINT8     VOP_time_increment,
-//SEARCH_RANGE_TYPE sSearch_range,
-//VOP_CODING_TYPE sVopCodingType,
-//IMG_UINT32 VopTimeResolution)
-//{
-///* Builds a single MPEG4 VOP (picture) header from the given parameters */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-///* Frame QScale no longer written here as it is inserted by MTX later
-//* (add as parameter to MTX_Send_Elements_To_VLC)
-//*/
-//pnw__MPEG4_writebits_VOP_header(
-//mtx_hdr, elt_p, bIsVOP_coded,
-//VOP_time_increment,
-//sSearch_range,
-//sVopCodingType,VopTimeResolution);
-//
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
-
-//static void pnw_MPEG4_getelements_video_packet_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//VOP_CODING_TYPE eVop_Coding_Type,
-//IMG_UINT8 Fcode,
-//IMG_UINT32 MBNumber,
-//IMG_UINT32 MBNumberlength,
-//IMG_BOOL bHeader_Extension_Code,
-//IMG_UINT8 VOP_Time_Increment,
-//SEARCH_RANGE_TYPE sSearch_range)
-//{
-///* Builds a single MPEG4 video packet (slice) header from the given parameters */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-///* Slice QScale no longer written here as it is inserted by MTX later
-//* (add as parameter when sending to VLC)
-//*/
-//pnw__MPEG4_writebits_videopacket_header(
-//mtx_hdr, elt_p, eVop_Coding_Type,
-//Fcode, MBNumber, MBNumberlength,
-//bHeader_Extension_Code, VOP_Time_Increment, sSearch_range);
-//
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
+#if PSB_MFLD_DUMMY_CODE
 /*
  * Intermediary functions to build H263 headers
  */
@@ -1825,6 +1438,8 @@ static void H263_writebits_VideoSequenceHeader(
 
     return;
 }
+#endif
+
 
 static void H263_writebits_VideoPictureHeader(
     MTX_HEADER_PARAMS *mtx_hdr,
@@ -2017,68 +1632,6 @@ static void H263_writebits_GOBSliceHeader(
 /*
  * High level functions to call when a H263 header is required - HOST ROUTINES
  */
-//static void pnw__H263_getelements_videosequence_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//IMG_UINT8 Profile_and_level_indication)
-//{
-///* Builds a single H263 video sequence header from the given parameters */
-//
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//H263_writebits_VideoSequenceHeader(mtx_hdr, elt_p, Profile_and_level_indication);
-//
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
-//static void pnw__H263_getelements_videopicture_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//IMG_UINT8 Temporal_Ref,
-//H263_PICTURE_CODING_TYPE PictureCodingType,
-//H263_SOURCE_FORMAT_TYPE SourceFormatType,
-//IMG_UINT8 FrameRate,
-//IMG_UINT16 PictureWidth,
-//IMG_UINT16 PictureHeigth)
-//{
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//H263_writebits_VideoPictureHeader(
-//mtx_hdr, elt_p,
-//Temporal_Ref,
-//PictureCodingType,
-//SourceFormatType,
-//FrameRate,
-//PictureWidth,
-//PictureHeigth);
-//
-//mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
-//}
-
-//static void pnw__H263_getelements_GOBslice_header(
-//MTX_HEADER_PARAMS *mtx_hdr,
-//IMG_UINT8 GOBNumber,
-//IMG_UINT8 GOBFrameId)
-//{
-///* Essential we initialise our header structures before building */
-//MTX_HEADER_ELEMENT *This_Element;
-//MTX_HEADER_ELEMENT *elt_p[MAXNUMBERELEMENTS];
-//mtx_hdr->Elements=ELEMENTS_EMPTY;
-//This_Element=(MTX_HEADER_ELEMENT *) mtx_hdr->asElementStream;
-//elt_p[0]=This_Element;
-//
-//H263_writebits_GOBSliceHeader(mtx_hdr, elt_p, GOBNumber, GOBFrameId);
-//
-//mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
-//}
 
 // SEI_INSERTION
 #if PSB_MFLD_DUMMY_CODE
@@ -2837,35 +2390,6 @@ void pnw__H264_prepare_slice_header(
 
 }
 
-//void pnw__H264_prepare_eodofstream_header(IMG_UINT32 *pHeaderMemory)
-//{
-//MTX_HEADER_PARAMS *mtx_hdr;
-//
-///* Route output elements to memory provided */
-//mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
-//
-//pnw__H264_getelements_endofstream_header(mtx_hdr);
-//}
-
-//void pnw__H264_prepare_endofpicture_header(IMG_UINT32 *pHeaderMemory)
-//{
-//MTX_HEADER_PARAMS *mtx_hdr;
-//
-///* Route output elements to memory provided */
-//mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
-//
-///* H264_GetElements_EndOfPicture_Header(MTX_Header); */
-//}
-
-//void pnw__H264_prepare_endofsequence_header(IMG_UINT32 *pHeaderMemory)
-//{
-//MTX_HEADER_PARAMS *mtx_hdr;
-//
-///* Route output elements to memory provided */
-//mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
-//
-//pnw__H264_getelements_endofsequence_header(mtx_hdr);
-//}
 
 void pnw__MPEG4_prepare_sequence_header(
     unsigned char *pHeaderMemory,
@@ -2939,6 +2463,8 @@ void pnw__MPEG4_prepare_vop_header(
 
 }
 
+
+#if PSB_MFLD_DUMMY_CODE
 void pnw__H263_prepare_sequence_header(
     unsigned char *pHeaderMem,
     IMG_UINT8 Profile_and_level_indication)
@@ -2961,6 +2487,7 @@ void pnw__H263_prepare_sequence_header(
     mtx_hdr->Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 
 }
+#endif
 
 void pnw__H263_prepare_picture_header(
     unsigned char *pHeaderMem,
@@ -3013,7 +2540,7 @@ void pnw__H263_prepare_GOBslice_header(
     H263_writebits_GOBSliceHeader(mtx_hdr, elt_p, GOBNumber, GOBFrameId);
 
     mtx_hdr->Elements++; //Has been used as an index, so need to add 1 for a valid element count
-
+    
     /*
     (void)pnw__H264_writebits_SEI_rbspheader;
     (void)pnw__H264_getelements_skip_B_slice;

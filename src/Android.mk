@@ -35,7 +35,6 @@ LOCAL_SRC_FILES :=		\
     psb_buffer.c            \
     psb_buffer_dm.c         \
     psb_cmdbuf.c            \
-    psb_deblock.c           \
     psb_drv_video.c         \
     psb_drv_debug.c         \
     psb_surface_attrib.c    \
@@ -53,7 +52,6 @@ LOCAL_SRC_FILES :=		\
     pnw_H263ES.c		\
     pnw_H264.c		\
     pnw_H264ES.c		\
-    pnw_MPEG2.c		\
     pnw_MPEG4.c		\
     pnw_MPEG4ES.c		\
     pnw_VC1.c           \

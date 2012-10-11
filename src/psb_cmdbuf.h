@@ -198,11 +198,6 @@ int psb_context_submit_hw_deblock(object_context_p obj_context,
                                   uint32_t chroma_offset_b,
                                   uint32_t is_oold);
 
-int psb_context_submit_frame_info(object_context_p obj_context, psb_buffer_p dst_buf,
-                                  uint32_t stride, uint32_t size,
-                                  uint32_t picture_width_mb,
-                                  uint32_t size_mb);
-
 int psb_context_submit_hw_deblock(object_context_p obj_context,
                                   psb_buffer_p buf_a,
                                   psb_buffer_p buf_b,
@@ -238,12 +233,6 @@ int psb_context_flush_cmdbuf(object_context_p obj_context);
  *
  * TODO: Return something
  */
-void psb_cmdbuf_lldma_write_bitstream(psb_cmdbuf_p cmdbuf,
-                                      psb_buffer_p bitstream_buf,
-                                      uint32_t buffer_offset,
-                                      uint32_t size_in_bytes,
-                                      uint32_t offset_in_bits,
-                                      uint32_t flags);
 
 void psb_cmdbuf_dma_write_bitstream(psb_cmdbuf_p cmdbuf,
                                       psb_buffer_p bitstream_buf,
@@ -251,28 +240,6 @@ void psb_cmdbuf_dma_write_bitstream(psb_cmdbuf_p cmdbuf,
                                       uint32_t size_in_bytes,
                                       uint32_t offset_in_bits,
                                       uint32_t flags);
-
-/* Chain a bitstream buffer to the last one */
-void psb_cmdbuf_lldma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
-        psb_buffer_p bitstream_buf,
-        uint32_t size_in_bytes);
-
-
-/* Write a LLDMA_CMD to the cmdbuf */
-void psb_cmdbuf_lldma_write_cmdbuf(psb_cmdbuf_p cmdbuf,
-                                   psb_buffer_p bitstream_buf,
-                                   uint32_t buffer_offset,
-                                   uint32_t size,
-                                   uint32_t dest_offset,
-                                   LLDMA_TYPE cmd);
-
-/* Create a LLDMA record and return the offset to LLDMA record in bytes relative to the start of cmdbuf */
-uint32_t psb_cmdbuf_lldma_create(psb_cmdbuf_p cmdbuf,
-                                 psb_buffer_p bitstream_buf,
-                                 uint32_t buffer_offset,
-                                 uint32_t size,
-                                 uint32_t dest_offset,
-                                 LLDMA_TYPE cmd);
 
 /*
  * Create a command to set registers
@@ -297,16 +264,7 @@ void psb_cmdbuf_reg_end_block(psb_cmdbuf_p cmdbuf);
 /*
  * Create a RENDEC command block
  */
-void psb_cmdbuf_rendec_start_block(psb_cmdbuf_p cmdbuf);
-
-/*
- * Create a RENDEC command block
- */
 void psb_cmdbuf_rendec_start(psb_cmdbuf_p cmdbuf, uint32_t dest_address);
-/*
- * Start a new chunk in a RENDEC command block
- */
-void psb_cmdbuf_rendec_start_chunk(psb_cmdbuf_p cmdbuf, uint32_t dest_address);
 
 #define psb_cmdbuf_rendec_write( cmdbuf, val ) \
     do { *cmdbuf->cmd_idx++ = val; } while(0)
@@ -318,26 +276,6 @@ void psb_cmdbuf_rendec_write_block(psb_cmdbuf_p cmdbuf,
 void psb_cmdbuf_rendec_write_address(psb_cmdbuf_p cmdbuf,
                                      psb_buffer_p buffer,
                                      uint32_t buffer_offset);
-
-/*
- * Finish a RENDEC chunk
- */
-void psb_cmdbuf_rendec_end_chunk(psb_cmdbuf_p cmdbuf);
-
-/*
- * Finish a RENDEC block
- */
-void psb_cmdbuf_rendec_end_block(psb_cmdbuf_p cmdbuf);
-
-/*
- * Returns the number of words left in the current segment
- */
-uint32_t psb_cmdbuf_segment_space(psb_cmdbuf_p cmdbuf);
-
-/*
- * Forwards the command buffer index to the next segment
- */
-void psb_cmdbuf_next_segment(psb_cmdbuf_p cmdbuf);
 
 typedef enum {
     SKIP_ON_CONTEXT_SWITCH = 1,

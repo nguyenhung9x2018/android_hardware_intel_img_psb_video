@@ -88,14 +88,6 @@
 #define CMD_MARGIN            (0x0400)
 #define LLDMA_MARGIN          (0x0400)
 
-static void psb_cmdbuf_lldma_create_internal(psb_cmdbuf_p cmdbuf,
-        LLDMA_CMD *pLLDMACmd,
-        psb_buffer_p bitstream_buf,
-        uint32_t buffer_offset,
-        uint32_t size,
-        uint32_t dest_offset,
-        LLDMA_TYPE cmd);
-
 /*
  * Create command buffer
  */
@@ -573,6 +565,7 @@ out:
     return ret;
 }
 
+#if 0
 int psb_fence_destroy(struct _WsbmFenceObject *pFence)
 {
     wsbmFenceUnreference(&pFence);
@@ -605,12 +598,14 @@ psb_fence_wait(psb_driver_data_p driver_data,
 
     return fence;
 }
+#endif
 
 /*
  * Closes the last segment
  */
 static void psb_cmdbuf_close_segment(psb_cmdbuf_p cmdbuf)
 {
+#if 0
     uint32_t bytes_used = ((unsigned char *) cmdbuf->cmd_idx - cmdbuf->cmd_start) % MTX_SEG_SIZE;
     unsigned char *segment_start = (unsigned char *) cmdbuf->cmd_idx - bytes_used;
     uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf,
@@ -621,6 +616,7 @@ static void psb_cmdbuf_close_segment(psb_cmdbuf_p cmdbuf)
     uint32_t cmd = CMD_NEXT_SEG;
     RELOC_SHIFT4(*cmdbuf->last_next_segment_cmd, lldma_record_offset, cmd, &(cmdbuf->buf));
     *(cmdbuf->last_next_segment_cmd + 1) = bytes_used;
+#endif
 }
 
 int psb_context_submit_deblock(object_context_p obj_context)
@@ -794,35 +790,6 @@ int psb_context_submit_host_be_opp(object_context_p obj_context,
 
     deblock_msg->mb_param_address = wsbmKBufHandle(wsbmKBuf(buf_a->drm_buf));
     cmdbuf->deblock_count++;
-    return 0;
-}
-
-int psb_context_submit_frame_info(object_context_p obj_context, psb_buffer_p dst_buf,
-                                  uint32_t stride, uint32_t size,
-                                  uint32_t picture_width_mb,
-                                  uint32_t size_mb)
-{
-    FRAME_INFO_PARAMS* frame_info;
-    psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
-    uint32_t msg_size = FW_VA_FRAME_INFO_SIZE;
-
-    uint32_t *msg = (uint32_t *)cmdbuf->MTX_msg;
-
-    /* drv_debug_msg(VIDEO_DEBUG_GENERAL, "Send frame info cmd\n"); */
-
-    cmdbuf->frame_info_count++;
-    memset(msg, 0, msg_size);
-    /*first word is used to store message id and message size*/
-    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_SIZE, FW_VA_FRAME_INFO_SIZE); /* Deblock message size is 16 bytes */
-    MEMIO_WRITE_FIELD(msg, FWRK_GENMSG_ID, VA_MSGID_FRAME_INFO);
-
-    frame_info = (FRAME_INFO_PARAMS*)(msg + 4 / sizeof(uint32_t));
-
-    frame_info->handle = wsbmKBufHandle(wsbmKBuf(dst_buf->drm_buf));
-    frame_info->buffer_size = size;
-    frame_info->buffer_stride = stride;
-    frame_info->picture_width_mb = picture_width_mb;
-    frame_info->size_mb = size_mb;
     return 0;
 }
 
@@ -1318,19 +1285,6 @@ static const DMA_DETAIL_LOOKUP DmaDetailLookUp[] = {
 
 #define MAX_DMA_LEN     ( 0xffff )
 
-
-void psb_cmdbuf_lldma_write_cmdbuf(psb_cmdbuf_p cmdbuf,
-                                   psb_buffer_p bitstream_buf,
-                                   uint32_t buffer_offset,
-                                   uint32_t size,
-                                   uint32_t dest_offset,
-                                   LLDMA_TYPE cmd)
-{
-    LLDMA_CMD *pLLDMACmd = (LLDMA_CMD*) cmdbuf->cmd_idx++;
-    psb_cmdbuf_lldma_create_internal(cmdbuf, pLLDMACmd, bitstream_buf, buffer_offset, size,
-                                     dest_offset, cmd);
-}
-
 void *psb_cmdbuf_alloc_space(psb_cmdbuf_p cmdbuf, uint32_t byte_size)
 {
     void *pos = (void *)cmdbuf->cmd_idx;
@@ -1372,59 +1326,6 @@ void psb_cmdbuf_dma_write_cmdbuf(psb_cmdbuf_p cmdbuf,
     RELOC(dma_cmd->ui32DevVirtAdd, buffer_offset, bitstream_buf);
 }
 
-uint32_t psb_cmdbuf_lldma_create(psb_cmdbuf_p cmdbuf,
-                                 psb_buffer_p bitstream_buf,
-                                 uint32_t buffer_offset,
-                                 uint32_t size,
-                                 uint32_t dest_offset,
-                                 LLDMA_TYPE cmd)
-{
-    uint32_t lldma_record_offset = (((unsigned char *)cmdbuf->lldma_idx) - ((unsigned char *) cmdbuf->cmd_base));
-    psb_cmdbuf_lldma_create_internal(cmdbuf, 0, bitstream_buf, buffer_offset, size,
-                                     dest_offset, cmd);
-    return lldma_record_offset;
-}
-
-/*
- * Write a CMD_SR_SETUP referencing a bitstream buffer to the command buffer
- */
-void psb_cmdbuf_lldma_write_bitstream(psb_cmdbuf_p cmdbuf,
-                                      psb_buffer_p bitstream_buf,
-                                      uint32_t buffer_offset,
-                                      uint32_t size_in_bytes,
-                                      uint32_t offset_in_bits,
-                                      uint32_t flags)
-{
-    /*
-     * We use byte alignment instead of 32bit alignment.
-     * The third frame of sa10164.vc1 results in the following bitstream
-     * patttern:
-     * [0000] 00 00 03 01 76 dc 04 8d
-     * with offset_in_bits = 0x1e
-     * This causes an ENTDEC failure because 00 00 03 is a start code
-     * By byte aligning the datastream the start code will be eliminated.
-     */
-//don't need to change the offset_in_bits, size_in_bytes and buffer_offset
-#if 0
-#define ALIGNMENT        sizeof(uint8_t)
-    uint32_t bs_offset_in_dwords    = ((offset_in_bits / 8) / ALIGNMENT);
-    size_in_bytes                   -= bs_offset_in_dwords * ALIGNMENT;
-    offset_in_bits                  -= bs_offset_in_dwords * 8 * ALIGNMENT;
-    buffer_offset                   += bs_offset_in_dwords * ALIGNMENT;
-#endif
-
-    *cmdbuf->cmd_idx++ = CMD_SR_SETUP | flags;
-    *cmdbuf->cmd_idx++ = offset_in_bits;
-    cmdbuf->cmd_bitstream_size = cmdbuf->cmd_idx;
-    *cmdbuf->cmd_idx++ = size_in_bytes;
-
-    psb_cmdbuf_lldma_write_cmdbuf(cmdbuf, bitstream_buf, buffer_offset,
-                                  size_in_bytes, 0, LLDMA_TYPE_BITSTREAM);
-
-    //if (psb_video_trace_fp && (psb_video_trace_level & AUXBUF_TRACE))
-        //psb__debug_schedule_hexdump("Bitstream", bitstream_buf, buffer_offset, size_in_bytes);
-}
-
 /*
  * Write a CMD_SR_SETUP referencing a bitstream buffer to the command buffer
  */
@@ -1461,28 +1362,6 @@ void psb_cmdbuf_dma_write_bitstream(psb_cmdbuf_p cmdbuf,
     RELOC(*cmdbuf->cmd_idx++, buffer_offset, bitstream_buf);
 }
 
-
-/*
- * Chain a LLDMA bitstream command to the previous one
- */
-void psb_cmdbuf_lldma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
-        psb_buffer_p bitstream_buf,
-        uint32_t size_in_bytes)
-{
-    DMA_sLinkedList* pasDmaList = (DMA_sLinkedList*) cmdbuf->lldma_last;
-    uint32_t lldma_record_offset = psb_cmdbuf_lldma_create(cmdbuf, bitstream_buf, bitstream_buf->buffer_ofs,
-                                   size_in_bytes, 0, LLDMA_TYPE_BITSTREAM);
-    /* Update WD7 of last LLDMA record to point to this one */
-    RELOC_SHIFT4(pasDmaList->ui32Word_7, lldma_record_offset, 0, &(cmdbuf->buf));
-    /* This touches WD1 */
-    MEMIO_WRITE_FIELD(pasDmaList, DMAC_LL_LIST_FIN, 0);
-
-    //if (psb_video_trace_fp && (psb_video_trace_level & AUXBUF_TRACE)) {
-        //psb__debug_schedule_hexdump("Bitstream (chained)", bitstream_buf, 0, size_in_bytes);
-
-    *(cmdbuf->cmd_bitstream_size) += size_in_bytes;
-}
-
 /*
  * Chain a LLDMA bitstream command to the previous one
  */
@@ -1494,100 +1373,6 @@ void psb_cmdbuf_dma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
     RELOC(*cmdbuf->cmd_idx++, bitstream_buf->buffer_ofs, bitstream_buf);
 
     *(cmdbuf->cmd_bitstream_size) += size_in_bytes;
-}
-
-static void psb_cmdbuf_lldma_create_internal(psb_cmdbuf_p cmdbuf,
-        LLDMA_CMD *pLLDMACmd,
-        psb_buffer_p bitstream_buf,
-        uint32_t buffer_offset,
-        uint32_t size,
-        uint32_t dest_offset,
-        LLDMA_TYPE cmd)
-{
-    const DMA_DETAIL_LOOKUP* pDmaDetail;
-    IMG_UINT32 ui32DMACount, ui32LLDMA_Offset, ui32DMADestAddr, ui32Cmd;
-    DMA_sLinkedList* pasDmaList;
-    static IMG_UINT32 lu[] = {4, 2, 1};
-
-    /* See if we will fit */
-    ASSERT(cmdbuf->lldma_idx + sizeof(DMA_sLinkedList) < LLDMA_END(cmdbuf));
-
-    pDmaDetail = &DmaDetailLookUp[cmd];
-
-    ui32DMACount = size / lu[pDmaDetail->ePeripheralWidth];
-
-    /* DMA list must be 16byte alligned if it is done in Hw */
-    pasDmaList = (DMA_sLinkedList*)(cmdbuf->lldma_idx) ;
-    // psaDmaList = (DMA_sLinkedList*) ((( cmdbuf->lldma_idx )+0x0f) & ~0x0f );
-
-    /* Offset of LLDMA record in cmdbuf */
-    ui32LLDMA_Offset = (IMG_UINT32)(((IMG_UINT8*)pasDmaList) - ((IMG_UINT8*) cmdbuf->cmd_base));
-
-    ASSERT(0 == (ui32LLDMA_Offset & 0xf));
-
-    ui32DMADestAddr = pDmaDetail->ui32DevDestAddr + dest_offset;
-
-    /* Write the header */
-    if (pLLDMACmd) {
-        ui32Cmd = ((pDmaDetail->bSynchronous) ? CMD_SLLDMA : CMD_LLDMA);
-        RELOC_SHIFT4(pLLDMACmd->ui32CmdAndDevLinAddr, ui32LLDMA_Offset, ui32Cmd, &(cmdbuf->buf));
-    }
-
-    while (ui32DMACount) {
-        memset(pasDmaList , 0 , sizeof(DMA_sLinkedList));
-
-        DMA_LL_SET_WD2(pasDmaList, ui32DMADestAddr);
-
-        /* DMA_LL_SET_WD6 with relocation */
-        ASSERT(DMAC_LL_SA_SHIFT == 0);
-
-        RELOC(pasDmaList->ui32Word_6, buffer_offset, bitstream_buf);
-
-        if (ui32DMACount > MAX_DMA_LEN) {
-            ui32LLDMA_Offset += sizeof(DMA_sLinkedList);
-
-            /* DMA_LL_SET_WD7 with relocation */
-            ASSERT(DMAC_LL_LISTPTR_SHIFT == 0);
-            RELOC_SHIFT4(pasDmaList->ui32Word_7, ui32LLDMA_Offset, 0, &(cmdbuf->buf));
-            /* This touches WD1 */
-            MEMIO_WRITE_FIELD(pasDmaList, DMAC_LL_LIST_FIN, 0);
-
-            DMA_LL_SET_WD1(pasDmaList, pDmaDetail->ePeriphIncr, pDmaDetail->ePeriphIncrSize, MAX_DMA_LEN);     /* size */
-
-            ui32DMACount -= MAX_DMA_LEN;
-
-            if (pDmaDetail->ePeriphIncr == DMA_PERIPH_INCR_ON) {
-                /* Update Destination pointers */
-                ui32DMADestAddr += ((MAX_DMA_LEN) * lu[pDmaDetail->ePeriphIncrSize]);
-            }
-
-            /* Update Source Pointer */
-            buffer_offset += ((MAX_DMA_LEN) * lu[pDmaDetail->ePeripheralWidth]);
-        } else {
-            /* This also set LIST_FIN in WD1 to 1*/
-            DMA_LL_SET_WD7(pasDmaList, IMG_NULL);                // next linked list
-            DMA_LL_SET_WD1(pasDmaList, pDmaDetail->ePeriphIncr, pDmaDetail->ePeriphIncrSize, ui32DMACount);    /* size */
-
-            ui32DMACount = 0;
-        }
-
-        /* Keep pointer in case we need to chain another LLDMA command */
-        cmdbuf->lldma_last = (unsigned char *) pasDmaList;
-
-        DMA_LL_SET_WD0(pasDmaList, DMA_BSWAP_NO_SWAP,
-                       (pDmaDetail->eDMADir == HOST_TO_MSVDX) ? DMA_DIR_MEM_TO_PERIPH : DMA_DIR_PERIPH_TO_MEM ,
-                       pDmaDetail->ePeripheralWidth);
-
-        DMA_LL_SET_WD3(pasDmaList, DMA_ACC_DEL_0, pDmaDetail->eDMA_eBurst, pDmaDetail->eMMUGroup);
-        DMA_LL_SET_WD4(pasDmaList, DMA_MODE_2D_OFF, 0);    // 2d
-        DMA_LL_SET_WD5(pasDmaList, 0, 0);                    // 2d
-
-
-        pasDmaList++;
-    }
-
-    /* there can be up to 3 Bytes of padding after header */
-    cmdbuf->lldma_idx    = (unsigned char *)pasDmaList;
 }
 
 void psb_cmdbuf_reg_start_block(psb_cmdbuf_p cmdbuf, uint32_t flags)
@@ -1650,37 +1435,6 @@ typedef enum {
 } RENDEC_CHUNK_OFFSETS;
 
 /*
- * Create a RENDEC command block
- */
-void psb_cmdbuf_rendec_start_block(psb_cmdbuf_p cmdbuf)
-{
-    ASSERT(NULL == cmdbuf->rendec_block_start); /* Can't have both */
-    cmdbuf->rendec_block_start = cmdbuf->cmd_idx;
-
-    cmdbuf->rendec_block_start[RENDEC_SL_HDR] = 0;
-    REGIO_WRITE_FIELD_LITE(cmdbuf->rendec_block_start[RENDEC_SL_HDR], RENDEC_SLICE_INFO, SL_HDR_CK_START, SL_ROUTING_INFO,      1);
-    REGIO_WRITE_FIELD_LITE(cmdbuf->rendec_block_start[RENDEC_SL_HDR], RENDEC_SLICE_INFO, SL_HDR_CK_START, SL_ENCODING_METHOD,   3);
-    REGIO_WRITE_FIELD_LITE(cmdbuf->rendec_block_start[RENDEC_SL_HDR], RENDEC_SLICE_INFO, SL_HDR_CK_START, SL_NUM_SYMBOLS_LESS1, 1);
-
-    cmdbuf->rendec_block_start[RENDEC_SL_NULL] = 0; /* empty */
-
-    cmdbuf->cmd_idx += RENDEC_CK_HDR;
-}
-
-/*
- * Start a new chunk in a RENDEC command block
- */
-void psb_cmdbuf_rendec_start_chunk(psb_cmdbuf_p cmdbuf, uint32_t dest_address)
-{
-    ASSERT(NULL != cmdbuf->rendec_block_start); /* Must have a RENDEC block open */
-    cmdbuf->rendec_chunk_start = cmdbuf->cmd_idx++;
-
-    *cmdbuf->rendec_chunk_start = 0;
-    REGIO_WRITE_FIELD_LITE(*cmdbuf->rendec_chunk_start, RENDEC_SLICE_INFO, CK_HDR, CK_ENCODING_METHOD, 3);
-    REGIO_WRITE_FIELD_LITE(*cmdbuf->rendec_chunk_start, RENDEC_SLICE_INFO, CK_HDR, CK_START_ADDRESS, (dest_address >> 2));
-}
-
-/*
  * Start a new rendec block of another format
  */
 void psb_cmdbuf_rendec_start(psb_cmdbuf_p cmdbuf, uint32_t dest_address)
@@ -1710,24 +1464,6 @@ void psb_cmdbuf_rendec_write_address(psb_cmdbuf_p cmdbuf,
 }
 
 /*
- * Finish a RENDEC chunk
- */
-void psb_cmdbuf_rendec_end_chunk(psb_cmdbuf_p cmdbuf)
-{
-    ASSERT(NULL != cmdbuf->rendec_block_start); /* Must have an open RENDEC block */
-    ASSERT(NULL != cmdbuf->rendec_chunk_start); /* Must have an open RENDEC chunk */
-    uint32_t dword_count = (cmdbuf->cmd_idx - cmdbuf->rendec_chunk_start) - 1;
-
-    REGIO_WRITE_FIELD_LITE(*cmdbuf->rendec_chunk_start,
-                           RENDEC_SLICE_INFO,
-                           CK_HDR,
-                           CK_NUM_SYMBOLS_LESS1,
-                           (2 * dword_count) - 1);        /* Number of 16-bit symbols, minus 1.*/
-
-    cmdbuf->rendec_chunk_start = NULL;
-}
-
-/*
  * Finish a RENDEC block
  */
 void psb_cmdbuf_rendec_end(psb_cmdbuf_p cmdbuf)
@@ -1739,56 +1475,6 @@ void psb_cmdbuf_rendec_end(psb_cmdbuf_p cmdbuf)
 
     *cmdbuf->rendec_chunk_start += ((dword_count - 1) << 16);
     cmdbuf->rendec_chunk_start = NULL;
-}
-
-/*
- * Finish a RENDEC block
- */
-void psb_cmdbuf_rendec_end_block(psb_cmdbuf_p cmdbuf)
-{
-    ASSERT(NULL != cmdbuf->rendec_block_start); /* Must have an open RENDEC block */
-    ASSERT(NULL == cmdbuf->rendec_chunk_start); /* All chunks must be closed */
-
-    uint32_t block_size = cmdbuf->cmd_idx - cmdbuf->rendec_block_start;  /* Include separator but not mtx block header*/
-
-    /* Write separator (footer-type thing)    */
-    *cmdbuf->cmd_idx = 0;
-    REGIO_WRITE_FIELD(*cmdbuf->cmd_idx, RENDEC_SLICE_INFO, SLICE_SEPARATOR, SL_SEP_SUFFIX, 7);
-    cmdbuf->cmd_idx++;
-
-    /* Write CMD Header    */
-    cmdbuf->rendec_block_start[MTX_CTRL_HEADER] = CMD_RENDEC_WRITE | block_size;
-
-    cmdbuf->rendec_block_start = NULL;
-}
-
-/*
- * Returns the number of words left in the current segment
- */
-uint32_t psb_cmdbuf_segment_space(psb_cmdbuf_p cmdbuf)
-{
-    uint32_t bytes_used = (unsigned char *) cmdbuf->cmd_idx - cmdbuf->cmd_start;
-    return (MTX_SEG_SIZE - (bytes_used % MTX_SEG_SIZE)) / sizeof(uint32_t);
-}
-
-/*
- * Forwards the command buffer index to the next segment
- */
-void psb_cmdbuf_next_segment(psb_cmdbuf_p cmdbuf)
-{
-    uint32_t *next_segment_cmd = cmdbuf->cmd_idx;
-    cmdbuf->cmd_idx += 2;
-    uint32_t words_free = psb_cmdbuf_segment_space(cmdbuf);
-
-    if (cmdbuf->last_next_segment_cmd) {
-        psb_cmdbuf_close_segment(cmdbuf);
-    } else {
-        cmdbuf->first_segment_size = (unsigned char *) cmdbuf->cmd_idx - cmdbuf->cmd_start;
-    }
-
-    cmdbuf->cmd_idx += words_free; /* move pui32CmdBuffer to start of next segment */
-
-    cmdbuf->last_next_segment_cmd = next_segment_cmd;
 }
 
 /*

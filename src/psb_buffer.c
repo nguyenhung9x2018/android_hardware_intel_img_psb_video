@@ -685,18 +685,3 @@ int psb_codedbuf_map_mangle(
     return 0;
 }
 
-int psb_buffer_sync(psb_buffer_p buf)
-{
-    int ret;
-
-    ASSERT(buf);
-    ASSERT(buf->driver_data);
-
-    ret = wsbmBOSyncForCpu(buf->drm_buf, buf->wsbm_synccpu_flag);
-    if (ret) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "faild to sync bo for cpu\n");
-        return VA_STATUS_ERROR_UNKNOWN;
-    }
-
-    return VA_STATUS_SUCCESS;
-}
