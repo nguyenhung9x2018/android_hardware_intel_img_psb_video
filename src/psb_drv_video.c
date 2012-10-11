@@ -2630,8 +2630,10 @@ static VAStatus psb__initTTM(VADriverContextP ctx)
     const char lncvideo_getparam_ext[] = "lnc_video_getparam";
     union drm_psb_extension_arg lncvideo_getparam_arg;
 
-    /* init wsbm */
-    ret = wsbmInit(wsbmNullThreadFuncs(), psbVNodeFuncs());
+    /* init wsbm
+     * WSBM node is not used in driver, thus can pass NULL Node callback
+     */
+    ret = wsbmInit(wsbmNullThreadFuncs(), NULL/*psbVNodeFuncs()*/);
     if (ret) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "failed initializing libwsbm.\n");
         return VA_STATUS_ERROR_UNKNOWN;

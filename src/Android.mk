@@ -44,7 +44,6 @@ LOCAL_SRC_FILES :=		\
     android/psb_gralloc.cpp            \
     psb_surface.c           \
     psb_overlay.c		\
-    psb_ws_driver.c         \
     vc1_idx.c           	\
     vc1_vlc.c		\
     pnw_H263ES.c		\
