@@ -46,15 +46,6 @@
 #endif
 #include "psb_surface.h"
 
-#ifdef PSBVIDEO_MRST
-#include "psb_MPEG2.h"
-#include "psb_MPEG4.h"
-#include "psb_H264.h"
-#include "psb_VC1.h"
-#include "lnc_MPEG4ES.h"
-#include "lnc_H264ES.h"
-#include "lnc_H263ES.h"
-#endif
 //#include "pnw_MPEG2.h"
 #include "pnw_MPEG4.h"
 #include "pnw_H264.h"
@@ -187,8 +178,7 @@ VAStatus psb_QueryConfigProfiles(
     } else if (IS_MFLD(driver_data)) {
         profile_list[i++] = VAProfileH263Baseline;
         profile_list[i++] = VAProfileJPEGBaseline;
-    } else if (IS_MRST(driver_data))
-        profile_list[i++] = VAProfileH263Baseline;
+    }
     profile_list[i++] = VAProfileH264ConstrainedBaseline;
 
     /* If the assert fails then PSB_MAX_PROFILES needs to be bigger */
@@ -1107,10 +1097,6 @@ VAStatus psb_CreateContext(
             if (IS_MFLD(obj_context->driver_data))
                 cmdbuf = calloc(1, sizeof(struct pnw_cmdbuf_s));
 #endif
-#ifdef PSBVIDEO_MRST
-            if (IS_MRST(obj_context->driver_data))
-                cmdbuf = calloc(1, sizeof(struct lnc_cmdbuf_s));
-#endif
         } else if (proc) { /* VSP VPP context */
 #ifdef PSBVIDEO_MRFL_VPP
             if (IS_MRFL(obj_context->driver_data))
@@ -1134,10 +1120,6 @@ VAStatus psb_CreateContext(
 #ifdef PSBVIDEO_MFLD
             if (IS_MFLD(obj_context->driver_data))
                 vaStatus = pnw_cmdbuf_create(obj_context, driver_data, (pnw_cmdbuf_p)cmdbuf);
-#endif
-#ifdef PSBVIDEO_MRST
-            if (IS_MRST(obj_context->driver_data))
-                vaStatus = lnc_cmdbuf_create(obj_context, driver_data, (lnc_cmdbuf_p)cmdbuf);
 #endif
         } else if (proc) { /* VSP VPP context */
 #ifdef PSBVIDEO_MRFL_VPP
@@ -1167,10 +1149,6 @@ VAStatus psb_CreateContext(
 #ifdef PSBVIDEO_MFLD
             if (IS_MFLD(obj_context->driver_data))
                 obj_context->pnw_cmdbuf_list[i] = (pnw_cmdbuf_p)cmdbuf;
-#endif
-#ifdef PSBVIDEO_MRST
-            if (IS_MRST(obj_context->driver_data))
-                obj_context->lnc_cmdbuf_list[i] = (lnc_cmdbuf_p)cmdbuf;
 #endif
         } else if (proc) { /* VSP VPP context */
 #ifdef PSBVIDEO_MRFL_VPP
@@ -2245,23 +2223,7 @@ VAStatus psb_SyncSurface(
     /* report any error of decode for Android */
     psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
 
-    if (decode && IS_MRST(driver_data)) {
-        struct drm_lnc_video_getparam_arg arg;
-        uint32_t ret, handle, fw_status = 0;
-        handle = wsbmKBufHandle(wsbmKBuf(obj_surface->psb_surface->buf.drm_buf));
-        arg.key = IMG_VIDEO_DECODE_STATUS;
-        arg.arg = (uint64_t)((unsigned long) & handle);
-        arg.value = (uint64_t)((unsigned long) & fw_status);
-        ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
-                                  &arg, sizeof(arg));
-        if (ret == 0) {
-            if (fw_status != 0)
-                vaStatus = VA_STATUS_ERROR_DECODING_ERROR;
-        } else {
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "IMG_VIDEO_DECODE_STATUS ioctl return failed.\n");
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        }
-    } else if (proc && IS_MRFL(driver_data)) {
+    if (proc && IS_MRFL(driver_data)) {
         /* FIXME: does it need a new surface sync mechanism for FRC? */
     }
 //    psb__dump_NV_buffers(obj_surface, 0, 0, obj_surface->width, obj_surface->height);
@@ -2322,9 +2284,6 @@ VAStatus psb_QuerySurfaceStatus(
     /* try to get frameskip flag for encode */
     psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
     if (encode && rc_enable) {
-        if (IS_MRST(driver_data))
-            lnc_surface_get_frameskip(driver_data, obj_surface->psb_surface, &frame_skip);
-        else
             pnw_surface_get_frameskip(driver_data, obj_surface->psb_surface, &frame_skip);
 
         if (frame_skip == 1) {
@@ -2372,7 +2331,7 @@ VAStatus psb_QuerySurfaceError(
 #ifdef PSBVIDEO_MSVDX_EC
     if (driver_data->ec_enabled == 0) {
 #else
-    if (!IS_MRST(driver_data) || (driver_data->ec_enabled == 0)) {
+    {
 #endif
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "error concealment is not supported for this profile.\n");
         error_info = NULL;
@@ -3086,34 +3045,6 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &pnw_H264_vtable;
     }
 #endif
-#ifdef PSBVIDEO_MRST
-    if (IS_MRST(driver_data)) {
-    driver_data->profile2Format[VAProfileMPEG2Main][VAEntrypointVLD] = &psb_MPEG2_vtable;
-    driver_data->profile2Format[VAProfileMPEG2Main][VAEntrypointMoComp] = &psb_MPEG2MC_vtable;
-
-    driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointVLD] = &psb_MPEG4_vtable;
-    driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointVLD] = &psb_MPEG4_vtable;
-
-    driver_data->profile2Format[VAProfileH264Baseline][VAEntrypointVLD] = &psb_H264_vtable;
-    driver_data->profile2Format[VAProfileH264Main][VAEntrypointVLD] = &psb_H264_vtable;
-    driver_data->profile2Format[VAProfileH264High][VAEntrypointVLD] = &psb_H264_vtable;
-    driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &psb_H264_vtable;
-
-    driver_data->profile2Format[VAProfileVC1Simple][VAEntrypointVLD] = &psb_VC1_vtable;
-    driver_data->profile2Format[VAProfileVC1Main][VAEntrypointVLD] = &psb_VC1_vtable;
-    driver_data->profile2Format[VAProfileVC1Advanced][VAEntrypointVLD] = &psb_VC1_vtable;
-    driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &psb_H264_vtable;
-
-    if(driver_data->encode_supported) {
-
-        driver_data->profile2Format[VAProfileH263Baseline][VAEntrypointEncSlice] = &lnc_H263ES_vtable;
-        driver_data->profile2Format[VAProfileH264Baseline][VAEntrypointEncSlice] = &lnc_H264ES_vtable;
-        driver_data->profile2Format[VAProfileH264Main][VAEntrypointEncSlice] = &lnc_H264ES_vtable;
-        driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointEncSlice] = &lnc_MPEG4ES_vtable;
-        driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointEncSlice] = &lnc_MPEG4ES_vtable;
-    }
-}
-#endif
     result = object_heap_init(&driver_data->config_heap, sizeof(struct object_config_s), CONFIG_ID_OFFSET);
     ASSERT(result == 0);
 
@@ -3205,30 +3136,14 @@ static int psb_get_device_info(VADriverContextP ctx)
     driver_data->dev_id = pci_device;
     drv_debug_msg(VIDEO_DEBUG_INIT, "Retrieve Device ID 0x%08x\n", driver_data->dev_id);
 
-    if ((IS_MRST(driver_data) && (pci_device != 0x4101)) ||
-        IS_MFLD(driver_data) || IS_MRFL(driver_data))
+    if (IS_MFLD(driver_data) || IS_MRFL(driver_data))
         driver_data->encode_supported = 1;
     else /* 0x4101 or other device hasn't encode support */
         driver_data->encode_supported = 0;
 
-    if (IS_MRST(driver_data)) {
-        driver_data->decode_supported = !(video_capability & 0x2);
-        driver_data->hd_decode_supported = !(video_capability & 0x3);
-        driver_data->hd_encode_supported = !(video_capability & 0x4);
-
-        drv_debug_msg(VIDEO_DEBUG_INIT, "video capability: decode %s, HD decode %s\n",
-                                 driver_data->decode_supported ? "support" : "not support",
-                                 driver_data->hd_decode_supported ? "support" : "not support");
-
-        drv_debug_msg(VIDEO_DEBUG_INIT, "video capability: encode %s, HD encode %s\n",
-                                 driver_data->encode_supported ? "support" : "not support",
-                                 driver_data->hd_encode_supported ? "support" : "not support");
-
-    } else {
-        driver_data->decode_supported = 1;
-        driver_data->hd_decode_supported = 1;
-        driver_data->hd_encode_supported = 1;
-    }
+    driver_data->decode_supported = 1;
+    driver_data->hd_decode_supported = 1;
+    driver_data->hd_encode_supported = 1;
 
     return ret;
 }

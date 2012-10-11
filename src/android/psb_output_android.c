@@ -179,7 +179,7 @@ static VAStatus psb_putsurface_ctexture(
 
     return VA_STATUS_SUCCESS;
 }
-
+#if 0
 VAStatus psb_putsurface_coverlay(
     VADriverContextP ctx,
     VASurfaceID surface,
@@ -230,7 +230,7 @@ VAStatus psb_putsurface_coverlay(
 
     return vaStatus;
 }
-
+#endif
 static int psb_update_destbox(
     VADriverContextP ctx
 )
@@ -513,16 +513,6 @@ VAStatus psb_PutSurface(
     psb_surface_set_displaying(driver_data, obj_surface->width,
                                obj_surface->height_origin,
                                obj_surface->psb_surface);
-
-    /* exit MRST path at first */
-    if (IS_MRST(driver_data)) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Force overlay to display\n");
-        vaStatus = psb_putsurface_coverlay(ctx, surface,
-                                           srcx, srcy, srcw, srch,
-                                           destx, desty, destw, desth,
-                                           flags);
-        return vaStatus;
-    }
 
     /* local video playback */
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "MIPI: Use overlay to display.\n");

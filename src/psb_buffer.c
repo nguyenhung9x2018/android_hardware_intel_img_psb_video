@@ -499,20 +499,6 @@ int psb_codedbuf_map_mangle(
     memset(obj_buffer->codedbuf_mapinfo, 0, sizeof(obj_buffer->codedbuf_mapinfo));
 
     *pbuf = p = &obj_buffer->codedbuf_mapinfo[0];
-#ifdef PSBVIDEO_MRST
-    if (IS_MRST(driver_data)) {
-        /* one segment */
-        p->size = *((unsigned long *) raw_codedbuf); /* 1st DW is the size */
-        p->status = *((unsigned long *) raw_codedbuf + 1); /* 2nd DW
-                                                        * is rc status */
-        p->reserved = 0;
-        p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 4); /* skip 4DWs */
-        lnc_H264_append_aux_info(obj_context,
-                                 obj_buffer,
-                                 (unsigned char *)p->buf,
-                                 &(p->size));
-    }
-#endif
 #ifdef PSBVIDEO_MRFL
     if (IS_MRFL(driver_data)) {
         object_config_p obj_config = CONFIG(obj_context->config_id);

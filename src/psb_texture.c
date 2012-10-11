@@ -564,8 +564,6 @@ void psb_putsurface_textureblit(
     if (wrap_dst == 0) {
 
         pDstMeminfo = (PPVR2DMEMINFO)dst;
-        if (IS_MRST(driver_data))
-            sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 32);
         if (IS_MFLD(driver_data))
             sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 8);
         sBltVP.sDst.Format = PVR2D_ARGB8888;

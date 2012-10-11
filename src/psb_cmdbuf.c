@@ -852,8 +852,6 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
 
 #ifdef PSBVIDEO_MSVDX_EC
         if (driver_data->ec_enabled)
-#else
-        if (driver_data->ec_enabled && IS_MRST(driver_data))
 #endif
             flags |= FW_ERROR_DETECTION_AND_RECOVERY;
 
@@ -877,9 +875,6 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
 
     /* Assume deblock message is following render messages and no more render message behand deblock message */
     for (i = 1; i <= cmdbuf->deblock_count; i++) {
-        if (IS_MRST(driver_data))
-            msg_size += FW_VA_DEBLOCK_SIZE;
-        else
             msg_size += sizeof(FW_VA_DEBLOCK_MSG);
     }
 
