@@ -409,7 +409,7 @@ int psb_buffer_map(psb_buffer_p buf, unsigned char **address /* out */)
         }
     }
 
-    if ((buf->type == psb_bt_user_buffer) || buf->handle)
+    if (buf->user_ptr) /* user mode buffer */
         *address = buf->user_ptr;
     else
         *address = wsbmBOMap(buf->drm_buf, buf->wsbm_synccpu_flag);
