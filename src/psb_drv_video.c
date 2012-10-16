@@ -2222,7 +2222,27 @@ VAStatus psb_SyncSurface(
 
     /* report any error of decode for Android */
     psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
-
+#if 0
+    if (decode && IS_MRST(driver_data)) {
+        struct drm_lnc_video_getparam_arg arg;
+        uint32_t ret, handle, fw_status = 0;
+        handle = wsbmKBufHandle(wsbmKBuf(obj_surface->psb_surface->buf.drm_buf));
+        arg.key = IMG_VIDEO_DECODE_STATUS;
+        arg.arg = (uint64_t)((unsigned long) & handle);
+        arg.value = (uint64_t)((unsigned long) & fw_status);
+        ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
+                                  &arg, sizeof(arg));
+        if (ret == 0) {
+            if (fw_status != 0)
+                vaStatus = VA_STATUS_ERROR_DECODING_ERROR;
+        } else {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "IMG_VIDEO_DECODE_STATUS ioctl return failed.\n");
+            vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        }
+    } else if (proc && IS_MRFL(driver_data)) {
+        /* FIXME: does it need a new surface sync mechanism for FRC? */
+    }
+#endif
     if (proc && IS_MRFL(driver_data)) {
         /* FIXME: does it need a new surface sync mechanism for FRC? */
     }

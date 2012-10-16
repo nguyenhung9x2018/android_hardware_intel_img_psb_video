@@ -852,8 +852,8 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
 
 #ifdef PSBVIDEO_MSVDX_EC
         if (driver_data->ec_enabled)
-#endif
             flags |= FW_ERROR_DETECTION_AND_RECOVERY;
+#endif
 
         MEMIO_WRITE_FIELD(msg, FW_DEVA_DECODE_FLAGS, flags);
 
