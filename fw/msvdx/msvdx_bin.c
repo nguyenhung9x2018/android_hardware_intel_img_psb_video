@@ -59,6 +59,7 @@ int main()
     fw_DE3 = sFirmware_FS; /* VXD3xx_DEVA_DDK_3_2_4 */
     fw_DE3 = sFirmware_SS; /* VXD3xx_DEVA_DDK_3_2_4 */
     //fw_DE3 = sFirmware0000_SS; /* 1366based, for VP only, be able to disable WDT in Csim */
+    fw_DE3 = sFirmware_SS_DE3_3_20;
 
     fw.ver = 0x0496;
     fw.text_size = fw_DE3.uiTextSize / 4;
@@ -92,7 +93,6 @@ int main()
         exit(-1);
     }
 
-
     unsigned int buf[(MTX_SIZE + sizeof(fw))/4];
     fread(buf, 1, LINKED_LIST_SIZE, fp_ll_dma);
     fwrite(buf, 1, LINKED_LIST_SIZE, ptr);
@@ -118,4 +118,3 @@ int main()
 
     return 0;
 }
-

@@ -425,7 +425,13 @@ static VAStatus pnw_H264_CreateContext(
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
     }
 
-
+    if (vaStatus == VA_STATUS_SUCCESS) {
+        vaStatus = psb_buffer_create(obj_context->driver_data,
+                                     AUX_LINE_BUFFER_VLD_SIZE,
+                                     psb_bt_cpu_vpu,
+                                     &ctx->dec_ctx.aux_line_buffer_vld);
+        DEBUG_FAILURE;
+    }
     // TODO
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = psb_buffer_create(obj_context->driver_data,
@@ -485,6 +491,7 @@ static void pnw_H264_DestroyContext(
     psb_buffer_destroy(&ctx->reference_cache);
     psb_buffer_destroy(&ctx->preload_buffer);
     psb_buffer_destroy(&ctx->vlc_packed_table);
+    psb_buffer_destroy(&ctx->dec_ctx.aux_line_buffer_vld);
 
     if (ctx->pic_params) {
         free(ctx->pic_params);
@@ -1651,6 +1658,17 @@ static VAStatus pnw_H264_EndPicture(
         free(ctx->iq_matrix);
         ctx->iq_matrix = NULL;
     }
+
+/*
+    obj_context->msvdx_rotate = 1;
+    driver_data->msvdx_rotate_want = 1;
+    if (CONTEXT_ROTATE(obj_context))
+    {
+        vld_dec_yuv_rotate(obj_context,
+                ctx->picture_width_mb * 16,
+                ctx->picture_height_mb * 16);
+    }
+*/
 
     return VA_STATUS_SUCCESS;
 }

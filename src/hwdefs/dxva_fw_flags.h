@@ -55,5 +55,5 @@
 #define FW_VA_RENDER_HOST_INT                                                           0x00004000
 #define FW_DEVA_DEBLOCK_ENABLE                                              0x00000400
 #define FW_VA_RENDER_VC1_BITPLANE_PRESENT                                   0x00008000
-
+#define FW_INTERNAL_CONTEXT_SWITCH                                          0x00000040
 #endif /*_VA_FW_FLAGS_H_*/

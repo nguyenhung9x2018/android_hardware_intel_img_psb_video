@@ -337,7 +337,7 @@ void drv_debug_msg(DEBUG_LEVEL debug_level, const char *msg, ...)
 }
 
 void psb__dump_NV_buffers(
-    object_surface_p obj_surface,
+    psb_surface_p psb_surface,
     short srcx,
     short srcy,
     unsigned short srcw,
@@ -346,16 +346,16 @@ void psb__dump_NV_buffers(
     void *mapped_buffer;
     void *mapped_buffer1, *mapped_buffer2;
     if (psb_dump_yuvbuf_fp) {
-        psb_buffer_map(&obj_surface->psb_surface->buf, &mapped_buffer);
+        psb_buffer_map(&psb_surface->buf, &mapped_buffer);
 
         int j,k;
-        mapped_buffer1 = mapped_buffer +obj_surface->psb_surface->stride * srcy;
-        mapped_buffer2= mapped_buffer + obj_surface->psb_surface->stride * (obj_surface->height + srcy / 2);
+        mapped_buffer1 = mapped_buffer + psb_surface->stride * srcy;
+        mapped_buffer2= mapped_buffer + psb_surface->stride * (srch + srcy / 2);
         mapped_buffer=mapped_buffer2;
         for(j = 0; j < srch; ++j)
         {
             fwrite(mapped_buffer1,  srcw, 1, psb_dump_yuvbuf_fp);
-            mapped_buffer1 += obj_surface->psb_surface->stride;
+            mapped_buffer1 += psb_surface->stride;
         }
         for(j = 0 ; j < srch /2; ++j)
         {
@@ -364,7 +364,7 @@ void psb__dump_NV_buffers(
                 if((k%2) == 0)fwrite(mapped_buffer2, 1, 1, psb_dump_yuvbuf_fp);
                 mapped_buffer2++;
             }
-            mapped_buffer2 += obj_surface->psb_surface->stride-srcw;
+            mapped_buffer2 += psb_surface->stride-srcw;
         }
         mapped_buffer2=mapped_buffer;
         for(j = 0 ; j < srch /2; ++j)
@@ -374,9 +374,9 @@ void psb__dump_NV_buffers(
                 if((k%2) == 1)fwrite(mapped_buffer2, 1, 1, psb_dump_yuvbuf_fp);
                 mapped_buffer2++;
             }
-            mapped_buffer2 += obj_surface->psb_surface->stride-srcw;
+            mapped_buffer2 += psb_surface->stride-srcw;
         }
-        psb_buffer_unmap(&obj_surface->psb_surface->buf);
+        psb_buffer_unmap(&psb_surface->buf);
     }
 }
 

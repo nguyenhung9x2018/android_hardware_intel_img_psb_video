@@ -56,6 +56,7 @@ void vld_dec_FE_state(object_context_p obj_context, psb_buffer_p buf)
     cmd_header->ui32SliceParams = 0;
 
     ctx->slice_first_pic_last = &cmd_header->uiSliceFirstMbYX_uiPicLastMbYX;
+    *ctx->slice_first_pic_last = 0;
 
     ctx->p_range_mapping_base0 = &cmd_header->ui32AltOutputAddr[0];
     ctx->p_range_mapping_base1 = &cmd_header->ui32AltOutputAddr[1];
@@ -104,12 +105,14 @@ void vld_dec_setup_alternative_frame(object_context_p obj_context)
     }
 
     if (obj_context->profile == VAProfileVP8Version0_3 ||
-        obj_context->profile == VAProfileJPEGBaseline) {
+        obj_context->profile == VAProfileJPEGBaseline || ctx->yuv_ctx) {
         psb_cmdbuf_rendec_start(cmdbuf, (REG_MSVDX_CMD_OFFSET + MSVDX_CMDS_AUX_LINE_BUFFER_BASE_ADDRESS_OFFSET));
         psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->aux_line_buffer_vld, ctx->aux_line_buffer_vld.buffer_ofs);
         psb_cmdbuf_rendec_end(cmdbuf);
 
         REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION, USE_AUX_LINE_BUF, 1);
+        if (ctx->yuv_ctx)
+            REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 1);
     }
 
     /* Set the rotation registers */
@@ -432,4 +435,29 @@ VAStatus vld_dec_RenderPicture(
     }
 
     return vaStatus;
+}
+
+void vld_dec_yuv_rotate(object_context_p obj_context, uint32_t width, uint32_t height)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    struct format_vtable_s *vtable = &tng_yuv_processor_vtable;
+    struct surface_param_s surface_param;
+    struct object_buffer_s buffer;
+    object_buffer_p buffer_p = &buffer;
+
+    surface_param.display_width = width;
+    surface_param.coded_width = width;
+    surface_param.display_height = height;
+    surface_param.coded_height = height;
+
+    buffer.num_elements = 1;
+    buffer.type = YUVProcessorSurfaceType;
+    buffer.size = sizeof(struct surface_param_s);
+    buffer.buffer_data = &surface_param;
+
+    vtable->createContext(obj_context, NULL);
+    vtable->beginPicture(obj_context);
+    vtable->renderPicture(obj_context, &buffer_p, 1);
+    vtable->endPicture(obj_context);
+    vtable->destroyContext(obj_context);
 }

@@ -218,6 +218,7 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
 }
 #endif
 
+#ifdef ANDROID
 static int psb_buffer_info_rar(psb_driver_data_p driver_data)
 {
     struct drm_lnc_video_getparam_arg arg;
@@ -243,7 +244,7 @@ static int psb_buffer_info_rar(psb_driver_data_p driver_data)
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "RAR region get size failed\n");
     return ret;
 }
-
+#endif
 
 static VAStatus psb_buffer_init_imr(psb_driver_data_p driver_data)
 {
@@ -257,11 +258,15 @@ static VAStatus psb_buffer_init_imr(psb_driver_data_p driver_data)
         goto exit_error;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Init IMR device\n");
+#ifdef ANDROID
     if (psb_buffer_info_rar(driver_data)) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "Get IMR region size failed\n");
         goto exit_error;
     }
-
+#else
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "NON ANDROID:Get IMR region size failed\n");
+    goto exit_error;
+#endif
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Grab whole camera device memory\n");
     ret = psb_buffer_create(driver_data, driver_data->rar_size, psb_bt_imr, (psb_buffer_p) driver_data->rar_bo);
 

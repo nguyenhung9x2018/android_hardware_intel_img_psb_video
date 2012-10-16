@@ -29,6 +29,7 @@
  */
 #include "psb_cmdbuf.h"
 #include "psb_surface.h"
+#include "tng_yuv_processor.h"
 
 struct context_DEC_s {
     object_context_p obj_context; /* back reference */
@@ -64,6 +65,7 @@ struct context_DEC_s {
     struct psb_buffer_s *colocated_buffers;
     int colocated_buffers_size;
     int colocated_buffers_idx;
+    context_yuv_processor_p yuv_ctx;
 };
 
 typedef struct context_DEC_s *context_DEC_p;
@@ -80,3 +82,5 @@ void vld_dec_write_kick(object_context_p);
 VAStatus vld_dec_RenderPicture( object_context_p, object_buffer_p *, int);
 
 #define AUX_LINE_BUFFER_VLD_SIZE        (1024*152)
+
+void vld_dec_yuv_rotate(object_context_p, uint32_t, uint32_t);

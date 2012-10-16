@@ -40,7 +40,7 @@ pvr_drv_video_la_SOURCES = psb_drv_video.c object_heap.c psb_buffer.c psb_buffer
 		tng_H264ES.c tng_H263ES.c  tng_jpegES.c tng_trace.c tng_MPEG4ES.c \
 		psb_output.c  psb_overlay.c psb_texture.c \
 		x11/psb_x11.c x11/psb_coverlay.c x11/psb_xrandr.c x11/psb_xvva.c x11/psb_ctexture.c \
-		psb_surface_attrib.c psb_drv_debug.c tng_jpegdec.c tng_vld_dec.c
+		psb_surface_attrib.c psb_drv_debug.c tng_jpegdec.c tng_vld_dec.c tng_yuv_processor.c
 #		vc1_ap_i.c vc1_ap_p.c vc1_ap_utils.c vc1_bitplane.c \
 #		vc1_shiftreg.c vc1_spmp.c vc1_utils.c
 

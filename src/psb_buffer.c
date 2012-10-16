@@ -117,10 +117,12 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
         allignment = 1;
         placement = TTM_PL_FLAG_CI | WSBM_PL_FLAG_SHARED;
         break;
+#ifdef ANDROID
     case psb_bt_imr:
         allignment = 1;
         placement = TTM_PL_FLAG_IMR | WSBM_PL_FLAG_SHARED;
         break;
+#endif
     default:
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         DEBUG_FAILURE;
@@ -142,6 +144,7 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
     if(!(placement & WSBM_PL_FLAG_SYSTEM)) {
         //drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: buffer->pl_flags 0x%08x\n", __func__, placement);
         placement &= ~WSBM_PL_MASK_MEM;
+        placement &= ~WSBM_PL_FLAG_NO_EVICT;
         placement |= TTM_PL_FLAG_VRAM;
         //drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: repleace buffer->pl_flags 0x%08x\n", __func__, placement);
     }

@@ -2226,7 +2226,8 @@ VAStatus psb_SyncSurface(
     if (proc && IS_MRFL(driver_data)) {
         /* FIXME: does it need a new surface sync mechanism for FRC? */
     }
-//    psb__dump_NV_buffers(obj_surface, 0, 0, obj_surface->width, obj_surface->height);
+    //psb__dump_NV_buffers(obj_surface->psb_surface, 0, 0, obj_surface->width, obj_surface->height);
+    //psb__dump_NV_buffers(obj_surface->psb_surface_rotate, 0, 0, obj_surface->height, ((obj_surface->width + 0x1f) & (~0x1f)));
     DEBUG_FAILURE;
     DEBUG_FUNC_EXIT
     return vaStatus;

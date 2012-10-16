@@ -194,4 +194,17 @@ typedef struct _CTRL_ALLOC_HEADER_TAG
         IMG_UINT32 ui32AltOutputFlags;
 } CTRL_ALLOC_HEADER;
 
+#define CMD_DEBLOCK                                                             (0x70000000)
+#define CMD_DEBLOCK_TYPE_STD                                    (0x00000000)
+#define CMD_DEBLOCK_TYPE_OOLD                                   (0x00000001)
+#define CMD_DEBLOCK_TYPE_SKIP                                   (0x00000002)
+typedef struct _DEBLOCK_CMD_TAG
+{
+        IMG_UINT32 ui32Cmd;                                     /* 0x70000000 */
+        IMG_UINT32 ui32SourceMbData;
+        IMG_UINT32 ui16PicWidthMbs;
+        IMG_UINT32 ui16FrameHeightMbs;
+        IMG_UINT32 ui32AddressA[2];
+} DEBLOCK_CMD;
+
 #endif
