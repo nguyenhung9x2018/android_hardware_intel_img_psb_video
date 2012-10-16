@@ -46,7 +46,7 @@
 #endif
 #include "psb_surface.h"
 
-//#include "pnw_MPEG2.h"
+#include "pnw_MPEG2.h"
 #include "pnw_MPEG4.h"
 #include "pnw_H264.h"
 #include "pnw_VC1.h"
@@ -160,7 +160,7 @@ VAStatus psb_QueryConfigProfiles(
     profile_list[i++] = VAProfileNone;
 #endif
 //    profile_list[i++] = VAProfileMPEG2Simple;
-//    profile_list[i++] = VAProfileMPEG2Main;
+    profile_list[i++] = VAProfileMPEG2Main;
     profile_list[i++] = VAProfileMPEG4Simple;
     profile_list[i++] = VAProfileMPEG4AdvancedSimple;
 //    profile_list[i++] = VAProfileMPEG4Main;
@@ -3053,7 +3053,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointEncSlice] = &pnw_MPEG4ES_vtable;
         driver_data->profile2Format[VAProfileJPEGBaseline][VAEntrypointEncPicture] = &pnw_JPEG_vtable;
 
-//        driver_data->profile2Format[VAProfileMPEG2Main][VAEntrypointVLD] = &pnw_MPEG2_vtable;
+        driver_data->profile2Format[VAProfileMPEG2Main][VAEntrypointVLD] = &pnw_MPEG2_vtable;
 
         driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointVLD] = &pnw_MPEG4_vtable;
         driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointVLD] = &pnw_MPEG4_vtable;

@@ -50,6 +50,7 @@ LOCAL_SRC_FILES :=		\
     pnw_H264.c		\
     pnw_H264ES.c		\
     pnw_MPEG4.c		\
+    pnw_MPEG2.c         \
     pnw_MPEG4ES.c		\
     pnw_VC1.c           \
     pnw_cmdbuf.c		\
