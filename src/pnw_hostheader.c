@@ -644,12 +644,14 @@ static void pnw__H264_writebits_slice_header1(
         pSlHParams->Picture_Num_DO,
         6);  pic_order_cnt_lsb (6 bits) - picture no in display order */
 
+#if 0
     if (pSlHParams->SliceFrame_Type == SLHP_B_SLICEFRAME_TYPE)
         pnw__write_upto8bits_elements(
             mtx_hdr,
             elt_p,
             0,
             1);/* direct_spatial_mv_pred_flag (1 bit) = 0, spatial direct mode not supported in Topaz */
+#endif
 
     if (pSlHParams->SliceFrame_Type == SLHP_P_SLICEFRAME_TYPE || pSlHParams->SliceFrame_Type == SLHP_B_SLICEFRAME_TYPE)
         pnw__write_upto8bits_elements(
@@ -660,6 +662,7 @@ static void pnw__H264_writebits_slice_header1(
 
     if (pSlHParams->SliceFrame_Type != SLHP_I_SLICEFRAME_TYPE &&
         pSlHParams->SliceFrame_Type != SLHP_IDR_SLICEFRAME_TYPE) {
+        /*
         if (pSlHParams->UsesLongTermRef) {
             // ref_pic_list_ordering_flag_I0 (1 bit) = 1, L0 reference picture ordering
             pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);
@@ -670,6 +673,7 @@ static void pnw__H264_writebits_slice_header1(
             // modification_of_pic_nums_idc = 3
             pnw__generate_ue(mtx_hdr, elt_p, 3);
         } else
+        */
             pnw__write_upto8bits_elements(
                 mtx_hdr,
                 elt_p,
@@ -677,12 +681,14 @@ static void pnw__H264_writebits_slice_header1(
                 1);/* ref_pic_list_ordering_flag_I0 (1 bit) = 0 */
     }
 
+#if 0    
     if (pSlHParams->SliceFrame_Type == SLHP_B_SLICEFRAME_TYPE)
         pnw__write_upto8bits_elements(
             mtx_hdr,
             elt_p,
             0,
             1); /* ref_pic_list_ordering_flag_I1 (1 bit) = 0, no reference picture ordering in Topaz */
+#endif
 
     if (pSlHParams->SliceFrame_Type == SLHP_IDR_SLICEFRAME_TYPE) {
         /* no_output_of_prior_pics_flag (1 bit) = 0 */
@@ -690,7 +696,9 @@ static void pnw__H264_writebits_slice_header1(
         /* long_term_reference_flag (1 bit)*/
         pnw__write_upto8bits_elements(mtx_hdr, elt_p,
                                       pSlHParams->IsLongTermRef ? 1 : 0, 1);
-    } else if (pSlHParams->UsesLongTermRef) {
+    } 
+#if 0
+    else if (pSlHParams->UsesLongTermRef) {
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);/* long_term_reference_flag (1 bit) = 0 */
         // Allow a single long-term reference
         pnw__generate_ue(mtx_hdr, elt_p, 4);
@@ -705,7 +713,9 @@ static void pnw__H264_writebits_slice_header1(
 
         // End
         pnw__generate_ue(mtx_hdr, elt_p, 0);
-    } else {
+    } 
+#endif
+    else {
         pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 1);/* adaptive_ref_pic_marking_mode_flag (1 bit) = 0 */
     }
 }
@@ -881,9 +891,11 @@ static void pnw__H264_writebits_sequence_header(
     pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, pSHParams->ucFrame_mbs_only_flag, 1);
     // frame_mb_only_flag 1=frame encoding, 0=field encoding
 
+#if 0
     if (!pSHParams->ucFrame_mbs_only_flag) // in the case of interlaced encoding
         pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
     // mb_adaptive_frame_field_flag = 0 in Topaz(field encoding at the sequence level)
+#endif
 
     pnw__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
     // direct_8x8_inference_flag=1 in Topaz
@@ -947,10 +959,12 @@ static void pnw__H264_writebits_slice_header(
 
     pnw__H264_writebits_slice_header1(mtx_hdr, elt_p, pSlHParams, uiIdrPicId);
 
+#if 0
     if (bCabacEnabled && ((SLHP_P_SLICEFRAME_TYPE == pSlHParams->SliceFrame_Type) ||
                           (SLHP_B_SLICEFRAME_TYPE == pSlHParams->SliceFrame_Type))) {
         pnw__generate_ue(mtx_hdr, elt_p, 0);    /* hard code cabac_init_idc value of 0 */
     }
+#endif
 
     pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_SQP); /* MTX fills this value in */
 
