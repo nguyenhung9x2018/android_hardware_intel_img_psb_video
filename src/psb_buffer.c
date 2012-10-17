@@ -482,10 +482,7 @@ int psb_codedbuf_map_mangle(
     unsigned int next_buf_off;
     int i;
 
-    if (NULL == pbuf) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(pbuf == NULL);
 
     if (NULL == obj_context) {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;

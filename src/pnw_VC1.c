@@ -363,17 +363,9 @@ static VAStatus psb__VC1_check_legal_picture(object_context_p obj_context, objec
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONTEXT(obj_context);
 
-    if (NULL == obj_config) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONFIG(obj_config);
 
     /* MSVDX decode capability for VC-1:
      *     SP@ML
@@ -435,11 +427,8 @@ static VAStatus pnw_VC1_CreateContext(
     }
 
     ctx = (context_VC1_p) malloc(sizeof(struct context_VC1_s));
-    if (NULL == ctx) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(ctx);
+
     memset(ctx, 0, sizeof(struct context_VC1_s));
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
@@ -708,12 +697,8 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     ASSERT(obj_buffer->num_elements == 1);
     ASSERT(obj_buffer->size == sizeof(VAPictureParameterBufferVC1));
 
-    if ((obj_buffer->num_elements != 1) ||
-        (obj_buffer->size != sizeof(VAPictureParameterBufferVC1))) {
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM((obj_buffer->num_elements != 1) ||
+        (obj_buffer->size != sizeof(VAPictureParameterBufferVC1)));
 
     /* Transfer ownership of VAPictureParameterBufferVC1 data */
     pic_params = (VAPictureParameterBufferVC1 *) obj_buffer->buffer_data;
@@ -744,11 +729,7 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
         ctx->decoded_surface = ctx->obj_context->current_render_target;
     } else {
         ctx->decoded_surface = SURFACE(pic_params->inloop_decoded_picture);
-        if (NULL == ctx->decoded_surface) {
-            vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
+        CHECK_SURFACE(ctx->decoded_surface);
     }
 
     //SET_SURFACE_INFO_picture_coding_type(ctx->decoded_surface->psb_surface, pic_params->picture_fields.bits.frame_coding_mode);
@@ -809,10 +790,7 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->decoded_surface, colocated_size);
     vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->obj_context->current_render_target, colocated_size);
 
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
     /* TODO: Store top_field_first and frame_coding_mode (or even all of pic_params) for the current frame
      * so that it can be referenced when the same frame is used as reference frame
@@ -1280,13 +1258,8 @@ static VAStatus psb__VC1_process_bitplane(context_VC1_p ctx, object_buffer_p obj
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     ASSERT(obj_buffer->type == VABitPlaneBufferType);
     ASSERT(ctx->pic_params);
-
-    if ((NULL == obj_buffer->psb_buffer) ||
-        (0 == obj_buffer->size)) {
-        /* We need to have data in the bitplane buffer */
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        return vaStatus;
-    }
+    /* We need to have data in the bitplane buffer */
+    CHECK_INVALID_PARAM((NULL == obj_buffer->psb_buffer) || (0 == obj_buffer->size));
 
     ctx->bitplane_buffer = obj_buffer->psb_buffer;
     ctx->has_bitplane = TRUE;

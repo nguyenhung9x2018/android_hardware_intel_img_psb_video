@@ -140,11 +140,8 @@ VAStatus psb_CreateSurfaceFromV4L2Buf(
 
     surfaceID = object_heap_allocate(&driver_data->surface_heap);
     obj_surface = SURFACE(surfaceID);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(obj_surface);
+
     MEMSET_OBJECT(obj_surface, struct object_surface_s);
 
     width = v4l2_fmt->fmt.pix.width;
@@ -269,17 +266,8 @@ VAStatus psb_CreateSurfacesForUserPtr(
                              luma_stride, chroma_u_stride, chroma_v_stride,
                              luma_offset, chroma_u_offset, chroma_v_offset);
 
-    if (num_surfaces <= 0) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (NULL == surface_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(num_surfaces <= 0);
+    CHECK_SURFACE(surface_list);
 
     /* We only support one format */
     if ((VA_RT_FORMAT_YUV420 != format)
@@ -297,22 +285,15 @@ VAStatus psb_CreateSurfacesForUserPtr(
     }
     /*
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
     */
-    if ((size < width * height * 1.5) ||
+
+    CHECK_INVALID_PARAM((size < width * height * 1.5) ||
         (luma_stride < width) ||
         (chroma_u_stride * 2 < width) ||
         (chroma_v_stride * 2 < width) ||
         (chroma_u_offset < luma_offset + width * height) ||
-        (chroma_v_offset < luma_offset + width * height)) {
-
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+        (chroma_v_offset < luma_offset + width * height));
 
     height_origin = height;
 
@@ -436,11 +417,7 @@ VAStatus  psb_CreateSurfaceFromKBuf(
                              luma_stride, chroma_u_stride, chroma_v_stride,
                              luma_offset, chroma_u_offset, chroma_v_offset);
 
-    if (NULL == surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(surface);
 
     /* We only support one format */
     if ((VA_RT_FORMAT_YUV420 != format)
@@ -459,22 +436,15 @@ VAStatus  psb_CreateSurfaceFromKBuf(
     }
     /*
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
     */
-    if ((size < width * height * 1.5) ||
+
+    CHECK_INVALID_PARAM((size < width * height * 1.5) ||
         (luma_stride < width) ||
         (chroma_u_stride * 2 < width) ||
         (chroma_v_stride * 2 < width) ||
         (chroma_u_offset < luma_offset + width * height) ||
-        (chroma_v_offset < luma_offset + width * height)) {
-
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+        (chroma_v_offset < luma_offset + width * height));
 
     int surfaceID;
     object_surface_p obj_surface;
@@ -482,11 +452,8 @@ VAStatus  psb_CreateSurfaceFromKBuf(
 
     surfaceID = object_heap_allocate(&driver_data->surface_heap);
     obj_surface = SURFACE(surfaceID);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(obj_surface);
+
     MEMSET_OBJECT(obj_surface, struct object_surface_s);
 
     obj_surface->surface_id = surfaceID;
@@ -641,11 +608,7 @@ VAStatus psb_CreateSurfacesWithAttribute(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i, height_origin;
 
-    if (attribute_tpi == NULL) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(attribute_tpi == NULL);
 
     switch (attribute_tpi->type) {
     case VAExternalMemoryNULL:
@@ -670,8 +633,7 @@ VAStatus psb_CreateSurfacesWithAttribute(
                 attribute_tpi->luma_stride, attribute_tpi->chroma_u_stride,
                 attribute_tpi->chroma_v_stride, attribute_tpi->luma_offset,
                 attribute_tpi->chroma_u_offset, attribute_tpi->chroma_v_offset);
-            if (vaStatus != VA_STATUS_SUCCESS)
-                return vaStatus;
+            CHECK_VASTATUS();
         }
         return vaStatus;
     case VAExternalMemoryAndroidGrallocBuffer:

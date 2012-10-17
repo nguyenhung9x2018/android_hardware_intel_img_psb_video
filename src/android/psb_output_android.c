@@ -476,18 +476,8 @@ VAStatus psb_PutSurface(
     obj_surface = SURFACE(surface);
 
 //    psb__dump_NV_buffers(obj_surface,srcx,srcy,srcw,srch);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-
-    if ((NULL == cliprects) && (0 != number_cliprects)) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
+    CHECK_INVALID_PARAM((NULL == cliprects) && (0 != number_cliprects));
 
     if ((srcx < 0) || (srcx > obj_surface->width) || (srcw > (obj_surface->width - srcx)) ||
         (srcy < 0) || (srcy > obj_surface->height_origin) || (srch > (obj_surface->height_origin - srcy))) {

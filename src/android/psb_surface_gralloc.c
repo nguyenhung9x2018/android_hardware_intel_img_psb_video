@@ -89,16 +89,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
     format = format & (~VA_RT_FORMAT_PROTECTED);
     driver_data->protected = protected;
 
-    if (num_surfaces <= 0) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == surface_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(num_surfaces <= 0);
+    CHECK_SURFACE(surface_list);
 
     external_buffers = attribute_tpi;
 
@@ -112,29 +104,20 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
     /*
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
     */
     /* Adjust height to be a multiple of 32 (height of macroblock in interlaced mode) */
     height_origin = height;
     height = (height + 0x1f) & ~0x1f;
 
-    if(external_buffers == NULL) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(external_buffers == NULL);
+
     /* get native window from the reserved field */
     driver_data->native_window = (void *)external_buffers->reserved[0];
         
     tmp_nativebuf_handle = calloc(1, size);
-    if (tmp_nativebuf_handle == NULL) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(tmp_nativebuf_handle);
+
     memcpy(tmp_nativebuf_handle, external_buffers->buffers, size);
     
     for (i = 0; i < num_surfaces; i++) {

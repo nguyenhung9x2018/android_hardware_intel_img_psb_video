@@ -137,9 +137,7 @@ static VAStatus pnw_jpeg_CreateContext(
     ctx->ParallelCores = 2;
     ctx->NumCores = 2;
     ctx->jpeg_ctx = (TOPAZSC_JPEG_ENCODER_CONTEXT *)calloc(1, sizeof(TOPAZSC_JPEG_ENCODER_CONTEXT));
-
-    if (NULL == ctx->jpeg_ctx)
-        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+    CHECK_ALLOCATION(ctx->jpeg_ctx);
 
     jpeg_ctx_p = ctx->jpeg_ctx;
     jpeg_ctx_p->eFormat = ctx->eFormat;

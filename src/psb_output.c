@@ -255,16 +255,9 @@ VAStatus psb_QueryImageFormats(
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (NULL == format_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == num_formats) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(format_list == NULL);
+    CHECK_INVALID_PARAM(num_formats == NULL);
+
     memcpy(format_list, psb__CreateImageFormat, sizeof(psb__CreateImageFormat));
     *num_formats = PSB_MAX_IMAGE_FORMATS;
 
@@ -302,17 +295,11 @@ VAStatus psb_CreateImage(
     if (img_fmt == NULL)
         return VA_STATUS_ERROR_UNKNOWN;
 
-    if (NULL == image) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(image == NULL);
 
     imageID = object_heap_allocate(&driver_data->image_heap);
     obj_image = IMAGE(imageID);
-    if (NULL == obj_image) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(obj_image);
 
     MEMSET_OBJECT(obj_image, struct object_image_s);
 
@@ -486,16 +473,8 @@ VAStatus psb_DeriveImage(
     unsigned int fourcc, fourcc_index = ~0, i;
     uint32_t srf_buf_ofs = 0;
 
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (NULL == image) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
+    CHECK_INVALID_PARAM(image == NULL);
 
     if (IS_MFLD(driver_data) && (psb_CheckIEDStatus(ctx) == 1)) {
         vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
@@ -518,10 +497,7 @@ VAStatus psb_DeriveImage(
     /* create the image */
     imageID = object_heap_allocate(&driver_data->image_heap);
     obj_image = IMAGE(imageID);
-    if (NULL == obj_image) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(obj_image);
 
     MEMSET_OBJECT(obj_image, struct object_image_s);
 
@@ -613,11 +589,7 @@ VAStatus psb__destroy_image(psb_driver_data_p driver_data, object_image_p obj_im
 
     if (obj_surface == NULL) { /* destroy the buffer */
         object_buffer_p obj_buffer = BUFFER(obj_image->image.buf);
-        if (NULL == obj_buffer) {
-            vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
+        CHECK_BUFFER(obj_buffer);
         psb__suspend_buffer(driver_data, obj_buffer);
     } else {
         object_buffer_p obj_buffer = BUFFER(obj_image->image.buf);
@@ -639,11 +611,7 @@ VAStatus psb_DestroyImage(
     object_image_p obj_image;
 
     obj_image = IMAGE(image);
-    if (NULL == obj_image) {
-        vaStatus = VA_STATUS_ERROR_INVALID_IMAGE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_IMAGE(obj_image);
     return psb__destroy_image(driver_data, obj_image);
 }
 
@@ -662,11 +630,7 @@ VAStatus psb_SetImagePalette(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     object_image_p obj_image = IMAGE(image);
-    if (NULL == obj_image) {
-        vaStatus = VA_STATUS_ERROR_INVALID_IMAGE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_IMAGE(obj_image);
 
     if (obj_image->image.format.fourcc != VA_FOURCC_AI44) {
         /* only support AI44 palette */
@@ -754,13 +718,7 @@ VAStatus psb_GetImage(
     (void)lnc_unpack_topaz_rec;
 
     object_image_p obj_image = IMAGE(image_id);
-    if (NULL == obj_image) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalidate Image\n");
-
-        vaStatus = VA_STATUS_ERROR_INVALID_IMAGE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_IMAGE(obj_image);
 
     if (IS_MFLD(driver_data) && (psb_CheckIEDStatus(ctx) == 1)) {
         vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
@@ -774,11 +732,7 @@ VAStatus psb_GetImage(
     }
 
     object_surface_p obj_surface = SURFACE(surface);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
     psb__VAImageCheckRegion(obj_surface, &obj_image->image, &src_x, &src_y, &dest_x, &dest_y,
                             (int *)&width, (int *)&height);
@@ -791,11 +745,7 @@ VAStatus psb_GetImage(
     }
 
     object_buffer_p obj_buffer = BUFFER(obj_image->image.buf);
-    if (NULL == obj_buffer) {
-        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_BUFFER(obj_buffer);
 
     unsigned char *image_data;
     ret = psb_buffer_map(obj_buffer->psb_buffer, &image_data);
@@ -884,18 +834,10 @@ static VAStatus psb_PutImage2(
     int ret;
 
     object_image_p obj_image = IMAGE(image_id);
-    if (NULL == obj_image) {
-        vaStatus = VA_STATUS_ERROR_INVALID_IMAGE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_IMAGE(obj_image);
 
     object_surface_p obj_surface = SURFACE(surface);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
     if (obj_image->image.format.fourcc != VA_FOURCC_NV12) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "target VAImage fourcc should be NV12 or IYUV\n");
@@ -914,11 +856,7 @@ static VAStatus psb_PutImage2(
     }
 
     object_buffer_p obj_buffer = BUFFER(obj_image->image.buf);
-    if (NULL == obj_buffer) {
-        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_BUFFER(obj_buffer);
 
     unsigned char *image_data;
     ret = psb_buffer_map(obj_buffer->psb_buffer, &image_data);
@@ -1058,11 +996,7 @@ VAStatus psb_PutImage(
     }
 
     object_image_p obj_image = IMAGE(image_id);
-    if (NULL == obj_image) {
-        vaStatus = VA_STATUS_ERROR_INVALID_IMAGE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_IMAGE(obj_image);
 
     if (obj_image->image.format.fourcc != VA_FOURCC_NV12) {
         /* only support NV12 getImage/putImage */
@@ -1071,11 +1005,7 @@ VAStatus psb_PutImage(
     }
 
     object_surface_p obj_surface = SURFACE(surface);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
     psb__VAImageCheckRegion2(obj_surface, &obj_image->image,
                              &src_x, &src_y, &src_width, &src_height,
@@ -1089,11 +1019,7 @@ VAStatus psb_PutImage(
     }
 
     object_buffer_p obj_buffer = BUFFER(obj_image->image.buf);
-    if (NULL == obj_buffer) {
-        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_BUFFER(obj_buffer);
 
     unsigned char *image_data;
     ret = psb_buffer_map(obj_buffer->psb_buffer, &image_data);
@@ -1376,21 +1302,10 @@ VAStatus psb_QuerySubpictureFormats(
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (NULL == format_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == flags) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == num_formats) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(format_list == NULL);
+    CHECK_INVALID_PARAM(flags == NULL);
+    CHECK_INVALID_PARAM(num_formats == NULL);
+
     memcpy(format_list, psb__SubpicFormat, sizeof(psb__SubpicFormat));
     *num_formats = PSB_MAX_SUBPIC_FORMATS;
     *flags = PSB_SUPPORTED_SUBPIC_FLAGS;
@@ -1413,17 +1328,8 @@ VAStatus psb_CreateSubpicture(
     VAImageFormat *img_fmt;
 
     obj_image = IMAGE(image);
-
-    if (NULL == subpicture) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SUBPICTURE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (NULL == obj_image) {
-        vaStatus = VA_STATUS_ERROR_INVALID_IMAGE;
-        return vaStatus;
-    }
+    CHECK_IMAGE(obj_image);
+    CHECK_SUBPICTURE(subpicture);
 
     img_fmt = psb__VAImageCheckFourCC(&obj_image->image.format, psb__SubpicFormat,
                                       sizeof(psb__SubpicFormat) / sizeof(VAImageFormat));
@@ -1432,10 +1338,8 @@ VAStatus psb_CreateSubpicture(
 
     subpicID = object_heap_allocate(&driver_data->subpic_heap);
     obj_subpic = SUBPIC(subpicID);
-    if (NULL == obj_subpic) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(obj_subpic);
+
     MEMSET_OBJECT(obj_subpic, struct object_subpic_s);
 
     obj_subpic->subpic_id = subpicID;
@@ -1485,11 +1389,7 @@ VAStatus psb_DestroySubpicture(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     obj_subpic = SUBPIC(subpicture);
-    if (NULL == obj_subpic) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SUBPICTURE;
-        return vaStatus;
-    }
-
+    CHECK_SUBPICTURE(obj_subpic);
 
     return psb__destroy_subpicture(driver_data, obj_subpic);
 }
@@ -1508,22 +1408,15 @@ VAStatus psb_SetSubpictureImage(
     VAImageFormat *img_fmt;
 
     obj_image = IMAGE(image);
-    if (NULL == obj_image) {
-        vaStatus = VA_STATUS_ERROR_INVALID_IMAGE;
-        return vaStatus;
-    }
+    CHECK_IMAGE(obj_image);
 
     img_fmt = psb__VAImageCheckFourCC(&obj_image->image.format,
                                       psb__SubpicFormat,
                                       sizeof(psb__SubpicFormat) / sizeof(VAImageFormat));
-    if (img_fmt == NULL)
-        return VA_STATUS_ERROR_INVALID_IMAGE;
+    CHECK_IMAGE(img_fmt);
 
     obj_subpic = SUBPIC(subpicture);
-    if (NULL == obj_subpic) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SUBPICTURE;
-        return vaStatus;
-    }
+    CHECK_SUBPICTURE(obj_subpic);
 
     object_image_p old_obj_image = IMAGE(obj_subpic->image_id);
     if (old_obj_image) {
@@ -1542,10 +1435,7 @@ VAStatus psb_SetSubpictureImage(
         subpic_surface = (subpic_surface_s *)obj_subpic->surfaces;
         do {
             object_surface_p obj_surface = SURFACE(subpic_surface->surface_id);
-            if (NULL == obj_surface) {
-                vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-                return vaStatus;
-            }
+            CHECK_SURFACE(obj_surface);
 
             psb__LinkSubpictIntoSurface(driver_data, obj_surface, obj_subpic,
                                         0, 0, 0, 0, 0, 0, 0, 0,
@@ -1635,24 +1525,11 @@ VAStatus psb__AssociateSubpicture(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i;
 
-    if (num_surfaces <= 0) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(num_surfaces <= 0);
 
     obj_subpic = SUBPIC(subpicture);
-    if (NULL == obj_subpic) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SUBPICTURE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (NULL == target_surfaces) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SUBPICTURE(obj_subpic);
+    CHECK_SURFACE(target_surfaces);
 
     if (flags & ~PSB_SUPPORTED_SUBPIC_FLAGS) {
 #ifdef VA_STATUS_ERROR_FLAG_NOT_SUPPORTED
@@ -1672,11 +1549,7 @@ VAStatus psb__AssociateSubpicture(
     /* Validate input params */
     for (i = 0; i < num_surfaces; i++) {
         object_surface_p obj_surface = SURFACE(target_surfaces[i]);
-        if (NULL == obj_surface) {
-            vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
+        CHECK_SURFACE(obj_surface);
     }
 
     VASurfaceID *surfaces = target_surfaces;
@@ -1689,10 +1562,7 @@ VAStatus psb__AssociateSubpicture(
             if (VA_STATUS_SUCCESS == vaStatus) {
                 vaStatus = psb__LinkSurfaceIntoSubpict(obj_subpic, *surfaces);
             }
-            if (VA_STATUS_SUCCESS != vaStatus) { /* failed with malloc */
-                DEBUG_FAILURE;
-                return vaStatus;
-            }
+            CHECK_VASTATUS();/* failed with malloc */
         } else {
             /* Should never get here */
             drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid surfaces,SurfaceID=0x%x\n", *surfaces);
@@ -1747,24 +1617,11 @@ VAStatus psb_DeassociateSubpicture(
     object_image_p obj_image;
     int i;
 
-    if (num_surfaces <= 0) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(num_surfaces <= 0);
 
     obj_subpic = SUBPIC(subpicture);
-    if (NULL == obj_subpic) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SUBPICTURE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (NULL == target_surfaces) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SUBPICTURE(obj_subpic);
+    CHECK_SURFACE(target_surfaces);
 
     VASurfaceID *surfaces = target_surfaces;
     for (i = 0; i < num_surfaces; i++) {
@@ -1926,16 +1783,9 @@ VAStatus psb_QueryDisplayAttributes(
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (NULL == attr_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == num_attributes) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(attr_list == NULL);
+    CHECK_INVALID_PARAM(num_attributes == NULL);
+
     *num_attributes = min(*num_attributes, PSB_MAX_DISPLAY_ATTRIBUTES);
     memcpy(attr_list, psb__DisplayAttribute, (*num_attributes)*sizeof(VADisplayAttribute));
     return VA_STATUS_SUCCESS;
@@ -1958,15 +1808,8 @@ VAStatus psb_GetDisplayAttributes(
     int i;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (NULL == attr_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (num_attributes <= 0) {
-        return VA_STATUS_ERROR_INVALID_PARAMETER;
-    }
+    CHECK_INVALID_PARAM(attr_list == NULL);
+    CHECK_INVALID_PARAM(num_attributes <= 0);
 
     for (i = 0; i < num_attributes; i++) {
         switch (p->type) {
@@ -2072,11 +1915,7 @@ VAStatus psb_SetDisplayAttributes(
     PsbPortPrivPtr overlay_priv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
     int j, k;
 
-    if (NULL == attr_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(attr_list == NULL);
 
     VADisplayAttribute *p = attr_list;
     int i, update_coeffs = 0;

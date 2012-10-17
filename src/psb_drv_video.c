@@ -146,16 +146,9 @@ VAStatus psb_QueryConfigProfiles(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     INIT_DRIVER_DATA
 
-    if (NULL == profile_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == num_profiles) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(profile_list == NULL);
+    CHECK_INVALID_PARAM(num_profiles == NULL);
+
 #ifdef PSBVIDEO_MRFL_VPP
     profile_list[i++] = VAProfileNone;
 #endif
@@ -201,16 +194,8 @@ VAStatus psb_QueryConfigEntrypoints(
     int entrypoints = 0;
     int i;
 
-    if (NULL == entrypoint_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == num_entrypoints || profile >= PSB_MAX_PROFILES) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(entrypoint_list == NULL);
+    CHECK_INVALID_PARAM((num_entrypoints == NULL) || (profile >= PSB_MAX_PROFILES));
 
     for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
 #ifdef PSBVIDEO_MRFL_VPP
@@ -282,14 +267,9 @@ VAStatus psb_GetConfigAttributes(
     if (NULL == format_vtable) {
         return psb__error_unsupported_profile_entrypoint(driver_data, profile, entrypoint);
     }
-    if (NULL == attrib_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (num_attribs <= 0) {
-        return VA_STATUS_ERROR_INVALID_PARAMETER;
-    }
+
+    CHECK_INVALID_PARAM(attrib_list == NULL);
+    CHECK_INVALID_PARAM(num_attribs <= 0);
 
     /* Generic attributes */
     for (i = 0; i < num_attribs; i++) {
@@ -425,27 +405,15 @@ VAStatus psb_CreateConfig(
         }
     }
 
-    if (NULL == config_id) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        return vaStatus;
-    }
-
-    if (num_attribs < 0) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-    }
-
-    if (NULL == attrib_list) {
-        vaStatus =  VA_STATUS_ERROR_INVALID_PARAMETER;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(config_id == NULL);
+    CHECK_INVALID_PARAM(num_attribs < 0);
+    CHECK_INVALID_PARAM(attrib_list == NULL);
 
     if (NULL == format_vtable) {
         vaStatus = psb__error_unsupported_profile_entrypoint(driver_data, profile, entrypoint);
     }
 
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
     if ((IS_MFLD(driver_data)) &&
         ((VAEntrypointEncPicture == entrypoint)
@@ -472,11 +440,7 @@ VAStatus psb_CreateConfig(
 
     configID = object_heap_allocate(&driver_data->config_heap);
     obj_config = CONFIG(configID);
-    if (NULL == obj_config) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        return vaStatus;
-    }
-
+    CHECK_ALLOCATION(obj_config);
 
     MEMSET_OBJECT(obj_config, struct object_config_s);
 
@@ -538,11 +502,7 @@ VAStatus psb_DestroyConfig(
     object_config_p obj_config;
 
     obj_config = CONFIG(config_id);
-    if (NULL == obj_config) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONFIG(obj_config);
 
     object_heap_free(&driver_data->config_heap, (object_base_p) obj_config);
     DEBUG_FUNC_EXIT
@@ -564,32 +524,13 @@ VAStatus psb_QueryConfigAttributes(
     object_config_p obj_config;
     int i;
 
-    if (NULL == profile) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == entrypoint) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == attrib_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == num_attribs) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(profile == NULL);
+    CHECK_INVALID_PARAM(entrypoint == NULL);
+    CHECK_INVALID_PARAM(attrib_list == NULL);
+    CHECK_INVALID_PARAM(num_attribs == NULL);
+
     obj_config = CONFIG(config_id);
-    if (NULL == obj_config) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONFIG(obj_config);
 
     *profile = obj_config->profile;
     *entrypoint = obj_config->entrypoint;
@@ -659,16 +600,9 @@ VAStatus psb_CreateSurfaces2(
     unsigned int flags = 0;
 
     format = format & (~VA_RT_FORMAT_PROTECTED);
-    if (num_surfaces <= 0) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == surface_list) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+
+    CHECK_INVALID_PARAM(num_surfaces <= 0);
+    CHECK_SURFACE(surface_list);
 
     if ((attrib_list != NULL) && (num_attribs > 0)) {
         for (i = 0; i < num_attribs; i++, attrib_list++) {
@@ -692,10 +626,7 @@ VAStatus psb_CreateSurfaces2(
     }
 
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
     /* Adjust height to be a multiple of 32 (height of macroblock in interlaced mode) */
     height_origin = height;
@@ -915,43 +846,20 @@ VAStatus psb_CreateContext(
     drv_debug_msg(VIDEO_DEBUG_INIT, "CreateContext config_id:%d, pic_w:%d, pic_h:%d, flag:%d, num_render_targets:%d.\n",
         config_id, picture_width, picture_height, flag, num_render_targets);
 
-    if (num_render_targets <= 0) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(num_render_targets <= 0);
 
-    if (NULL == render_targets) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(render_targets);
+    CHECK_CONTEXT(context);
 
     vaStatus = psb__checkSurfaceDimensions(driver_data, picture_width, picture_height);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
     obj_config = CONFIG(config_id);
-    if (NULL == obj_config) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONFIG(obj_config);
 
     int contextID = object_heap_allocate(&driver_data->context_heap);
     object_context_p obj_context = CONTEXT(contextID);
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(obj_context);
 
     *context = contextID;
 
@@ -1243,10 +1151,8 @@ static VAStatus psb__allocate_malloc_buffer(object_buffer_p obj_buffer, int size
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     obj_buffer->buffer_data = realloc(obj_buffer->buffer_data, size);
-    if (NULL == obj_buffer->buffer_data) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-    }
+    CHECK_ALLOCATION(obj_buffer->buffer_data);
+
     return vaStatus;
 }
 
@@ -1493,11 +1399,7 @@ VAStatus psb_DestroyContext(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_context_p obj_context = CONTEXT(context);
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONTEXT(obj_context);
 
     psb__destroy_context(driver_data, obj_context);
 
@@ -1585,11 +1487,7 @@ VAStatus psb__CreateBuffer(
     } else {
         bufferID = object_heap_allocate(&driver_data->buffer_heap);
         obj_buffer = BUFFER(bufferID);
-        if (NULL == obj_buffer) {
-            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
+        CHECK_ALLOCATION(obj_buffer);
 
         MEMSET_OBJECT(obj_buffer, struct object_buffer_s);
 
@@ -1690,11 +1588,7 @@ VAStatus psb_CreateBuffer(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (num_elements <= 0) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(num_elements <= 0);
 
     switch (type) {
     case VABitPlaneBufferType:
@@ -1730,16 +1624,8 @@ VAStatus psb_CreateBuffer(
     }
 
     object_context_p obj_context = CONTEXT(context);
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == buf_desc) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONTEXT(obj_context);
+    CHECK_INVALID_PARAM(buf_desc == NULL);
 
     vaStatus = psb__CreateBuffer(driver_data, obj_context, type, size, num_elements, data, buf_desc);
 
@@ -1761,11 +1647,7 @@ VAStatus psb_BufferInfo(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     object_buffer_p obj_buffer = BUFFER(buf_id);
-    if (NULL == obj_buffer) {
-        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_BUFFER(obj_buffer);
 
     *type = obj_buffer->type;
     *size = obj_buffer->size;
@@ -1785,11 +1667,7 @@ VAStatus psb_BufferSetNumElements(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = BUFFER(buf_id);
-    if (NULL == obj_buffer) {
-        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_BUFFER(obj_buffer);
 
     if ((num_elements <= 0) || (num_elements > obj_buffer->max_num_elements)) {
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -1812,24 +1690,12 @@ VAStatus psb_MapBuffer(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = BUFFER(buf_id);
-    if (NULL == obj_buffer) {
-        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_BUFFER(obj_buffer);
 
-
-    if (NULL == pbuf) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(pbuf == NULL);
 
     vaStatus = psb__map_buffer(obj_buffer);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
     if (NULL != obj_buffer->buffer_data) {
         *pbuf = obj_buffer->buffer_data;
@@ -1856,11 +1722,7 @@ VAStatus psb_UnmapBuffer(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = BUFFER(buf_id);
-    if (NULL == obj_buffer) {
-        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_BUFFER(obj_buffer);
 
     vaStatus = psb__unmap_buffer(obj_buffer);
     DEBUG_FUNC_EXIT
@@ -1877,12 +1739,7 @@ VAStatus psb_DestroyBuffer(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = BUFFER(buffer_id);
-
-    if (NULL == obj_buffer) {
-        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_BUFFER(obj_buffer);
 
     psb__suspend_buffer(driver_data, obj_buffer);
     DEBUG_FUNC_EXIT
@@ -1904,21 +1761,13 @@ VAStatus psb_BeginPicture(
     object_config_p obj_config;
 
     obj_context = CONTEXT(context);
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONTEXT(obj_context);
     
     /* Must not be within BeginPicture / EndPicture already */
     ASSERT(obj_context->current_render_target == NULL);
 
     obj_surface = SURFACE(render_target);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
     obj_context->current_render_surface_id = render_target;
     obj_context->current_render_target = obj_surface;
@@ -1980,11 +1829,7 @@ VAStatus psb_BeginPicture(
         psb_surface_p psb_surface = obj_surface->psb_surface;
 
         psb_surface->in_loop_buf = calloc(1, sizeof(struct psb_buffer_s));
-        if (NULL == psb_surface->in_loop_buf) {
-            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
+        CHECK_ALLOCATION(psb_surface->in_loop_buf);
 
         /* FIXME: For RAR surface, need allocate RAR buffer  */
         vaStatus = psb_buffer_create(obj_context->driver_data,
@@ -2023,24 +1868,11 @@ VAStatus psb_RenderPicture(
     int i;
 
     obj_context = CONTEXT(context);
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONTEXT(obj_context);
 
-    if (num_buffers <= 0) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (NULL == buffers) {
-        /* Don't crash on NULL pointers */
-        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(num_buffers <= 0);
+    /* Don't crash on NULL pointers */
+    CHECK_BUFFER(buffers);
     /* Must be within BeginPicture / EndPicture */
     ASSERT(obj_context->current_render_target != NULL);
 
@@ -2061,11 +1893,8 @@ VAStatus psb_RenderPicture(
         /* Lookup buffer references */
         for (i = 0; i < num_buffers; i++) {
             object_buffer_p obj_buffer = BUFFER(buffers[i]);
-            if (NULL == obj_buffer) {
-                vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
-                DEBUG_FAILURE;
-                return vaStatus;
-            }
+            CHECK_BUFFER(obj_buffer);
+
             buffer_list[i] = obj_buffer;
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Render buffer %08x type %s\n", obj_buffer->base.id,
                                      buffer_type_to_string(obj_buffer->type));
@@ -2100,11 +1929,7 @@ VAStatus psb_EndPicture(
     object_context_p obj_context;
 
     obj_context = CONTEXT(context);
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONTEXT(obj_context);
 
     vaStatus = obj_context->format_vtable->endPicture(obj_context);
 
@@ -2188,11 +2013,7 @@ VAStatus psb_SyncSurface(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_SyncSurface: 0x%08x\n", render_target);
 
     obj_surface = SURFACE(render_target);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
     /* The cur_displaying_surface indicates the surface being displayed by overlay.
      * The diaplay_timestamp records the time point of put surface, which would
@@ -2268,17 +2089,9 @@ VAStatus psb_QuerySurfaceStatus(
     int frame_skip = 0, encode = 0, decode = 0, rc_enable = 0, proc = 0;
 
     obj_surface = SURFACE(render_target);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-    if (NULL == status) {
-        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
+    CHECK_INVALID_PARAM(status == NULL);
     vaStatus = psb_surface_query_status(obj_surface->psb_surface, &surface_status);
 
     /* The cur_displaying_surface indicates the surface being displayed by overlay.
@@ -2343,11 +2156,7 @@ VAStatus psb_QuerySurfaceError(
     uint32_t i;
 
     obj_surface = SURFACE(render_target);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
 #ifdef PSBVIDEO_MSVDX_EC
     if (driver_data->ec_enabled == 0) {
@@ -2418,11 +2227,7 @@ VAStatus psb_LockSurface(
 
     object_surface_p obj_surface = SURFACE(surface);
     psb_surface_p psb_surface;
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
     psb_surface = obj_surface->psb_surface;
     if (buffer_name)
@@ -2463,11 +2268,7 @@ VAStatus psb_UnlockSurface(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     object_surface_p obj_surface = SURFACE(surface);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
     psb_surface_p psb_surface = obj_surface->psb_surface;
 
@@ -2488,11 +2289,7 @@ VAStatus psb_GetEGLClientBufferFromSurface(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     object_surface_p obj_surface = SURFACE(surface);
-    if (NULL == obj_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(obj_surface);
 
     psb_surface_p psb_surface = obj_surface->psb_surface;
     *buffer = (unsigned char *)psb_surface->bc_buffer;

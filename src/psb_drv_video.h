@@ -679,4 +679,84 @@ unsigned long psb_tile_stride_mode(int w);
 int LOCK_HARDWARE(psb_driver_data_p driver_data);
 int UNLOCK_HARDWARE(psb_driver_data_p driver_data);
 
+#define CHECK_SURFACE(obj_surface) \
+    do { \
+        if (NULL == obj_surface) { \
+            vaStatus = VA_STATUS_ERROR_INVALID_SURFACE; \
+            DEBUG_FAILURE; \
+            return vaStatus; \
+        } \
+    } while (0)
+
+#define CHECK_CONFIG(obj_config) \
+    do { \
+        if (NULL == obj_config) { \
+            vaStatus = VA_STATUS_ERROR_INVALID_CONFIG; \
+            DEBUG_FAILURE; \
+            return vaStatus; \
+        } \
+    } while (0)
+
+#define CHECK_CONTEXT(obj_context) \
+    do { \
+        if (NULL == obj_context) { \
+            vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT; \
+            DEBUG_FAILURE; \
+            return vaStatus; \
+        } \
+    } while (0)
+
+#define CHECK_BUFFER(obj_buffer) \
+    do { \
+        if (NULL == obj_buffer) { \
+            vaStatus = VA_STATUS_ERROR_INVALID_BUFFER; \
+            DEBUG_FAILURE; \
+            return vaStatus; \
+        } \
+    } while (0)
+
+#define CHECK_IMAGE(obj_image) \
+    do { \
+        if (NULL == obj_image) { \
+            vaStatus = VA_STATUS_ERROR_INVALID_IMAGE; \
+            DEBUG_FAILURE; \
+            return vaStatus; \
+        } \
+    } while (0)
+
+#define CHECK_SUBPICTURE(obj_subpic) \
+    do { \
+        if (NULL == obj_subpic) { \
+            vaStatus = VA_STATUS_ERROR_INVALID_SUBPICTURE; \
+            DEBUG_FAILURE; \
+            return vaStatus; \
+        } \
+    } while (0)
+
+#define CHECK_ALLOCATION(buf) \
+    do { \
+        if (buf == NULL) { \
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED; \
+            DEBUG_FAILURE; \
+            return vaStatus; \
+        } \
+    } while (0)
+
+#define CHECK_VASTATUS() \
+    do { \
+        if (VA_STATUS_SUCCESS != vaStatus) { \
+            DEBUG_FAILURE; \
+            return vaStatus; \
+        } \
+    } while (0)
+
+#define CHECK_INVALID_PARAM(param) \
+    do { \
+        if (param) { \
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER; \
+            DEBUG_FAILURE; \
+            return vaStatus; \
+        } \
+    } while (0)
+
 #endif /* _PSB_DRV_VIDEO_H_ */

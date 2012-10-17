@@ -324,17 +324,9 @@ static VAStatus psb__H264_check_legal_picture(object_context_p obj_context, obje
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONTEXT(obj_context);
 
-    if (NULL == obj_config) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONFIG(obj_config);
 
     /* MSVDX decode capability for H.264:
      *     BP@L3
@@ -383,17 +375,11 @@ static VAStatus pnw_H264_CreateContext(
     /* Validate flag */
     /* Validate picture dimensions */
     //vaStatus = psb__H264_check_legal_picture(obj_context, obj_config);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
     ctx = (context_H264_p) calloc(1, sizeof(struct context_H264_s));
-    if (NULL == ctx) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(ctx);
+
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
     ctx->pic_params = NULL;
@@ -581,10 +567,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     uint32_t colocated_size = ((ctx->size_mb + 100) * 128 + 0xfff) & ~0xfff;
 
     vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->obj_context->current_render_target, colocated_size);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
     ctx->raw_mb_bits = 256 * ctx->bit_depth_l + 2 * ctx->mb_width_c * ctx->mb_height_c * ctx->bit_depth_c;      /* (7-5) */
 
@@ -670,10 +653,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
 
     if (pic_params->seq_fields.bits.chroma_format_idc == 0) {
         vaStatus = psb_surface_set_chroma(target_surface, 128);
-        if (VA_STATUS_SUCCESS != vaStatus) {
-            DEBUG_FAILURE;
-            return vaStatus;
-        }
+        CHECK_VASTATUS();
     }
 
     psb_CheckInterlaceRotate(ctx->obj_context, (unsigned char *)pic_params);

@@ -503,11 +503,7 @@ VAStatus pnw_CreateContext(
     width = obj_context->picture_width;
     height = obj_context->picture_height;
     ctx = (context_ENC_p) calloc(1, sizeof(struct context_ENC_s));
-    if (NULL == ctx) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(ctx);
 
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
@@ -763,18 +759,10 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
     */
 
     src_surface = ctx->src_surface;
-    if (NULL == src_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(src_surface);
 
     rec_surface = ctx->dest_surface;
-    if (NULL == rec_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(rec_surface);
 
     /*The fisrt frame always is I frame and the content of reference frame wouldn't be used.
      * But the heights of ref and dest frame should be the same.
@@ -783,11 +771,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
         ctx->ref_surface = ctx->dest_surface;
 
     ref_surface = ctx->ref_surface;
-    if (NULL == ref_surface) {
-        vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_SURFACE(rec_surface);
 
     /* clear frameskip flag */
     CLEAR_SURFACE_INFO_skipped_flag(rec_surface->psb_surface);

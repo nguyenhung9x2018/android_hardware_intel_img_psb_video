@@ -1194,17 +1194,9 @@ static VAStatus psb__MPEG4_check_legal_picture(object_context_p obj_context, obj
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONTEXT(obj_context);
 
-    if (NULL == obj_config) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONFIG(obj_config);
 
     /* MSVDX decode capability for MPEG4:
      *     SP@L3
@@ -1243,17 +1235,11 @@ static VAStatus pnw_MPEG4_CreateContext(
     /* Validate flag */
     /* Validate picture dimensions */
     vaStatus = psb__MPEG4_check_legal_picture(obj_context, obj_config);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
     ctx = (context_MPEG4_p) calloc(1, sizeof(struct context_MPEG4_s));
-    if (NULL == ctx) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(ctx);
+
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
     ctx->pic_params = NULL;
@@ -1449,15 +1435,10 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
     uint32_t colocated_size = ((mbInPic * 200) + 0xfff) & ~0xfff;
 
     vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->obj_context->current_render_target, colocated_size);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
+
     vaStatus = vld_dec_allocate_colocated_buffer(&ctx->dec_ctx, ctx->forward_ref_surface, colocated_size);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
     ctx->FEControl = 0;
     REGIO_WRITE_FIELD_LITE(ctx->FEControl ,
@@ -1565,18 +1546,14 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
             ctx->data_partition_buffer0 = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
             size = (size + 0xfff) & (~0xfff);
             vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, ctx->data_partition_buffer0);
-            if (VA_STATUS_SUCCESS != vaStatus) {
-                return vaStatus;
-            }
+            CHECK_VASTATUS();
         }
         if(!ctx->data_partition_buffer1) {
             int size = 16 * ctx->size_mb;
             ctx->data_partition_buffer1 = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
             size = (size + 0xfff) & (~0xfff);
             vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, ctx->data_partition_buffer1);
-            if (VA_STATUS_SUCCESS != vaStatus) {
-                return vaStatus;
-            }
+            CHECK_VASTATUS();
         }
     }
 

@@ -551,17 +551,8 @@ static VAStatus psb__MPEG2_check_legal_picture(object_context_p obj_context, obj
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (NULL == obj_config) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_CONTEXT(obj_context);
+    CHECK_CONFIG(obj_config);
 
     /* MSVDX decode capability for MPEG2:
      *     MP@HL
@@ -608,22 +599,12 @@ static VAStatus pnw_MPEG2_CreateContext(
     /* Validate flag */
     /* Validate picture dimensions */
     vaStatus = psb__MPEG2_check_legal_picture(obj_context, obj_config);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_VASTATUS();
 
-    if (obj_context->num_render_targets < 1) {
-        vaStatus = VA_STATUS_ERROR_UNKNOWN;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_INVALID_PARAM(obj_context->num_render_targets < 1);
+
     ctx = (context_MPEG2_p) calloc(1, sizeof(struct context_MPEG2_s));
-    if (NULL == ctx) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(ctx);
 
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
