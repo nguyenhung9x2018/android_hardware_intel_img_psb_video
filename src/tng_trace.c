@@ -278,8 +278,8 @@ static void JPEG_MTX_DMA_dump(JPEG_MTX_DMA_SETUP *data)
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui32TableA =%d\n", data->ui32TableA);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16DataInterleaveStatus =%d\n", data->ui16DataInterleaveStatus);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	ui16MaxPipes =%d\n", data->ui16MaxPipes);
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	apWritebackRegions  {");
-    PRINT_ARRAY(	apWritebackRegions, WB_FIFO_SIZE);
+    //drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	apWritebackRegions  {");
+    //PRINT_ARRAY(	apWritebackRegions, WB_FIFO_SIZE);
 }
 
 static void ISSUE_BUFFER_dump(MTX_ISSUE_BUFFERS *data)

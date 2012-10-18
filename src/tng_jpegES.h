@@ -95,9 +95,12 @@ typedef struct {
     IMG_UINT32      ui32TableA;                         //!< Quantisation table for Luma component
     IMG_UINT16      ui16DataInterleaveStatus;           //!< Source component interleave status (0, C_INTERLEAVE, LC_UVINTERLEAVE or LC_VUINTERLEAVE)
     IMG_UINT16      ui16MaxPipes;                       //!< Maximum number of pipes to use in the encode
-    IMG_UINT32  apWritebackRegions[WB_FIFO_SIZE];       //!< Data section
-
 } JPEG_MTX_DMA_SETUP;
+
+typedef struct
+{
+	IMG_UINT32	apWritebackRegions[WB_FIFO_SIZE];       //!< Data section
+} JPEG_MTX_WRITEBACK_MEMORY;
 
 typedef struct {
     IMG_UINT32  ui32BytesUsed;      //!<
@@ -158,6 +161,9 @@ typedef struct {
     void *pMemInfoMTXSetup;
     JPEG_MTX_DMA_SETUP*    pMTXSetup;
 
+    void *pMemInfoWritebackMemory;
+    JPEG_MTX_WRITEBACK_MEMORY *pMTXWritebackMemory;
+ 
     void *pMemInfoTableBlock;
     JPEG_MTX_QUANT_TABLE   *psTablesBlock;
 
@@ -171,10 +177,6 @@ typedef struct {
     IMG_CODED_BUFFER jpeg_coded_buf;
     IMG_UINT32 ui32SizePerCodedBuffer;
     MCUCOMPONENT MCUComponent[MTX_MAX_COMPONENTS];
-
-    void *pMemInfoMTXSetupInterface;
-    JPEG_MTX_DMA_SETUP *pMTXSetupInterface;
-
 } TOPAZHP_JPEG_ENCODER_CONTEXT;
 
 #define PTG_JPEG_MAX_SCAN_NUM 7

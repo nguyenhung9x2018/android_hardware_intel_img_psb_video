@@ -306,9 +306,10 @@ static void IssueQmatix(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n");
     }
 
-    tng_cmdbuf_insert_command_package_jpeg(ctx->obj_context,
+    tng_cmdbuf_insert_command_package(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETQUANT,
+                                      0,
                                       &(ctx->obj_context->tng_cmdbuf->jpeg_pic_params),
                                       0);
 }
@@ -425,7 +426,6 @@ static void InitializeJpegEncode(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
 static void AssignCodedDataBuffers(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
 {
     IMG_UINT8 ui8Loop;
-
     pJPEGContext->ui32SizePerCodedBuffer =
         (pJPEGContext->jpeg_coded_buf.ui32Size - PTG_JPEG_HEADER_MAX_SIZE) /
         pJPEGContext->sScan_Encode_Info.ui8NumberOfCodedBuffers;
@@ -459,22 +459,27 @@ static void SetSetupInterface(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
     context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
 
-    tng_cmdbuf_set_phys(pJPEGContext->pMTXSetupInterface->apWritebackRegions, WB_FIFO_SIZE,
+    tng_cmdbuf_set_phys(pJPEGContext->pMTXWritebackMemory->apWritebackRegions, WB_FIFO_SIZE,
                         &(ctx->bufs_writeback), 0, ps_mem_size->writeback);
-
-    pJPEGContext->pMTXSetupInterface->ui32ComponentsInScan = MTX_MAX_COMPONENTS;
 }
 
 static void IssueSetupInterface(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
 {
+    int i;
     context_ENC_p ctx = (context_ENC_p)pJPEGContext->ctx;
 
     ASSERT(NULL != pJPEGContext->pMTXSetup);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Issue SetupInterface\n");
 
-    tng_cmdbuf_insert_command_package_jpeg(ctx->obj_context,
+    for (i = 0; i < WB_FIFO_SIZE; i++) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "apWritebackRegions[%d]: 0x%x\n", i,
+                                 pJPEGContext->pMTXWritebackMemory->apWritebackRegions[i]);
+    }
+
+    tng_cmdbuf_insert_command_package(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETUP_INTERFACE,
+                                      0,
                                       &(ctx->obj_context->tng_cmdbuf->jpeg_header_interface_mem),
                                       0);
 }
@@ -488,9 +493,6 @@ static IMG_ERRORCODE SetMTXSetup(
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
     context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
-
-    tng_cmdbuf_set_phys(pJPEGContext->pMTXSetup->apWritebackRegions, WB_FIFO_SIZE,
-                        &(ctx->bufs_writeback), 0, ps_mem_size->writeback);
 
     pJPEGContext->pMTXSetup->ui32ComponentsInScan = MTX_MAX_COMPONENTS;
 
@@ -531,7 +533,7 @@ static IMG_ERRORCODE SetMTXSetup(
 
     pJPEGContext->pMTXSetup->ui32TableA = 0;
     pJPEGContext->pMTXSetup->ui16DataInterleaveStatus = ISCHROMAINTERLEAVED(pJPEGContext->eFormat);
-    pJPEGContext->pMTXSetup->ui16MaxPipes = pJPEGContext->NumCores;
+    pJPEGContext->pMTXSetup->ui16MaxPipes = (IMG_UINT16)pJPEGContext->NumCores;
 
     return IMG_ERR_OK;
 }
@@ -562,14 +564,10 @@ static void IssueMTXSetup(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui16DataInterleaveStatus: %d\n", pJPEGContext->pMTXSetup->ui16DataInterleaveStatus);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui16MaxPipes: %d\n", pJPEGContext->pMTXSetup->ui16MaxPipes);
 
-    for (i = 0; i < WB_FIFO_SIZE; i++) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "apWritebackRegions[%d]: 0x%x\n", i,
-                                 pJPEGContext->pMTXSetup->apWritebackRegions[i]);
-    }
-
-    tng_cmdbuf_insert_command_package_jpeg(ctx->obj_context,
+    tng_cmdbuf_insert_command_package(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETUP,
+                                      0,
                                       &(ctx->obj_context->tng_cmdbuf->jpeg_header_mem),
                                       0);
 
@@ -884,16 +882,17 @@ static IMG_ERRORCODE IssueBufferToHW(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui16ScansInImage: %d\n", pJPEGContext->sScan_Encode_Info.ui16ScansInImage);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui16ScanNumber: %d\n", pJPEGContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui32NumberMCUsToEncodePerScan: %d\n", pJPEGContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan);
-
+		
     psBufferCmd->ui32MCUCntAndResetFlag = (ui32NoMCUsToEncode << 1) | 0x1;
+
     psBufferCmd->ui32MCUPositionOfScanAndPipeNo =
-        ((pJPEGContext->sScan_Encode_Info.ui16ScansInImage -
+        (((pJPEGContext->sScan_Encode_Info.ui16ScansInImage -
           pJPEGContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber) *
-         pJPEGContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan) << 1;
+         pJPEGContext->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan)<<2)&(~2);
 
     ASSERT(0 == i8PipeNumber);
-    if (i8PipeNumber == 1)
-        psBufferCmd->ui32MCUPositionOfScanAndPipeNo |= 0x1;
+    if (i8PipeNumber <= 3)
+        psBufferCmd->ui32MCUPositionOfScanAndPipeNo |= i8PipeNumber;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui32MCUPositionOfScanAndPipeNo: 0x%x\n", psBufferCmd->ui32MCUPositionOfScanAndPipeNo);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui32MCUCntAndResetFlag: 0x%x\n", psBufferCmd->ui32MCUCntAndResetFlag);
@@ -902,9 +901,10 @@ static IMG_ERRORCODE IssueBufferToHW(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Command Data: 0x%x\n", (unsigned int)(PTG_JPEG_HEADER_MAX_SIZE + ui16BCnt * pJPEGContext->ui32SizePerCodedBuffer));
 
     // Issue buffers
-    tng_cmdbuf_insert_command_package_jpeg(ctx->obj_context,
+    tng_cmdbuf_insert_command_package(ctx->obj_context,
                                       0,
                                       MTX_CMDID_ISSUEBUFF,
+                                      0,
                                       ps_buf->coded_buf->psb_buffer,
                                       PTG_JPEG_HEADER_MAX_SIZE + ui16BCnt * pJPEGContext->ui32SizePerCodedBuffer);
 
@@ -1109,9 +1109,9 @@ static VAStatus tng_jpeg_BeginPicture(
         psb_buffer_unmap(&cmdbuf->jpeg_header_mem);
         return vaStatus;
     }
-    jpeg_ctx_p->pMemInfoMTXSetupInterface = cmdbuf->jpeg_header_interface_mem_p;
-    jpeg_ctx_p->pMTXSetupInterface = (JPEG_MTX_DMA_SETUP*)jpeg_ctx_p->pMemInfoMTXSetupInterface;
-    memset(jpeg_ctx_p->pMTXSetupInterface, 0x0, ctx->jpeg_header_interface_mem_size);
+    jpeg_ctx_p->pMemInfoWritebackMemory = cmdbuf->jpeg_header_interface_mem_p;
+    jpeg_ctx_p->pMTXWritebackMemory = (JPEG_MTX_WRITEBACK_MEMORY*)jpeg_ctx_p->pMemInfoWritebackMemory;
+    memset(jpeg_ctx_p->pMemInfoWritebackMemory, 0x0, ctx->jpeg_header_interface_mem_size);
 
 
     /* Map quantization table buffer */
@@ -1195,7 +1195,7 @@ static VAStatus ProcessPictureParam(context_ENC_p ctx, object_buffer_p obj_buffe
     TOPAZHP_JPEG_ENCODER_CONTEXT *jpeg_ctx = ctx->jpeg_ctx;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
     IMG_ERRORCODE rc;
-
+    
     /* Check the input buffer */
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
     if ((obj_buffer->num_elements != 1) ||
@@ -1242,7 +1242,7 @@ static VAStatus ProcessPictureParam(context_ENC_p ctx, object_buffer_p obj_buffe
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Coded buffer total size is %d,"
                              "coded segment size per scan is %d\n",
-                             ps_buf->coded_buf->size, jpeg_ctx->ui32SizePerCodedBuffer);
+                             jpeg_ctx->jpeg_coded_buf.ui32Size, jpeg_ctx->ui32SizePerCodedBuffer);
 
 
     /* Write JPEG headers to coded buffer */

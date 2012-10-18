@@ -192,7 +192,7 @@ static VAStatus tng__alloc_context_buffer(context_ENC_p ctx, IMG_UINT8 ui8IsJpeg
     if (0 != ui8IsJpeg) {
         ctx->jpeg_pic_params_size = (sizeof(JPEG_MTX_QUANT_TABLE) + 0x3f) & (~0x3f);
         ctx->jpeg_header_mem_size = (sizeof(JPEG_MTX_DMA_SETUP) + 0x3f) & (~0x3f);
-        ctx->jpeg_header_interface_mem_size = ctx->jpeg_header_mem_size;
+        ctx->jpeg_header_interface_mem_size = (sizeof(JPEG_MTX_WRITEBACK_MEMORY) + 0x3f) & (~0x3f);
 
         //write back region
         ps_mem_size->writeback = tng_align_KB(COMM_WB_DATA_BUF_SIZE);
