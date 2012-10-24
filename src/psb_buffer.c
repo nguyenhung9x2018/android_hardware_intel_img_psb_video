@@ -512,54 +512,59 @@ int psb_codedbuf_map_mangle(
             return vaStatus;
         }
 
+        if (VAProfileJPEGBaseline != obj_config->profile
+            && (*((unsigned long *) raw_codedbuf + 1) & SKIP_NEXT_FRAME) != 0) {
+            /*Set frame skip flag*/
+            tng_set_frame_skip_flag(obj_context);
+        }
         switch (obj_config->profile) {
-        case VAProfileMPEG4Simple:
-        case VAProfileMPEG4AdvancedSimple:
-        case VAProfileMPEG4Main:
+            case VAProfileMPEG4Simple:
+            case VAProfileMPEG4AdvancedSimple:
+            case VAProfileMPEG4Main:
 
-        case VAProfileH264Baseline:
-        case VAProfileH264Main:
-        case VAProfileH264High:
-        case VAProfileH264StereoHigh:
-        case VAProfileH264ConstrainedBaseline:
-        case VAProfileH263Baseline:
-            /* 1st segment */
-            p->size = *((unsigned long *) raw_codedbuf);
-            p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 16); /* skip 16DWs */
-            p->next = NULL;
+            case VAProfileH264Baseline:
+            case VAProfileH264Main:
+            case VAProfileH264High:
+            case VAProfileH264StereoHigh:
+            case VAProfileH264ConstrainedBaseline:
+            case VAProfileH263Baseline:
+                /* 1st segment */
+                p->size = *((unsigned long *) raw_codedbuf);
+                p->buf = (unsigned char *)((unsigned long *) raw_codedbuf + 16); /* skip 16DWs */
+                p->next = NULL;
 #ifdef _MRFL_DEBUG_CODED_
-            psb__trace_coded((unsigned int*)raw_codedbuf);
+                psb__trace_coded((unsigned int*)raw_codedbuf);
 #endif
-            break;
+                break;
 
-        case VAProfileJPEGBaseline:
-            /* 3~6 segment */
-            tng_jpeg_AppendMarkers(obj_context, raw_codedbuf);
-            next_buf_off = 0;
-            /*Max resolution 4096x4096 use 6 segments*/
-            for (i = 0; i < PTG_JPEG_MAX_SCAN_NUM + 1; i++) {
-                p->size = *(unsigned long *)((unsigned long)raw_codedbuf + next_buf_off);  /* ui32BytesUsed in HEADER_BUFFER*/
-                p->buf = (unsigned char *)((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 4);  /* skip 4DWs (HEADER_BUFFER) */
-                next_buf_off = *((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 3);  /* ui32Reserved3 in HEADER_BUFFER*/
+            case VAProfileJPEGBaseline:
+                /* 3~6 segment */
+                tng_jpeg_AppendMarkers(obj_context, raw_codedbuf);
+                next_buf_off = 0;
+                /*Max resolution 4096x4096 use 6 segments*/
+                for (i = 0; i < PTG_JPEG_MAX_SCAN_NUM + 1; i++) {
+                    p->size = *(unsigned long *)((unsigned long)raw_codedbuf + next_buf_off);  /* ui32BytesUsed in HEADER_BUFFER*/
+                    p->buf = (unsigned char *)((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 4);  /* skip 4DWs (HEADER_BUFFER) */
+                    next_buf_off = *((unsigned long *)((unsigned long)raw_codedbuf + next_buf_off) + 3);  /* ui32Reserved3 in HEADER_BUFFER*/
 
-                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG coded buffer segment %d size: %d\n", i, p->size);
-                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG coded buffer next segment %d offset: %d\n", i + 1, next_buf_off);
+                    drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG coded buffer segment %d size: %d\n", i, p->size);
+                    drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG coded buffer next segment %d offset: %d\n", i + 1, next_buf_off);
 
-                if (next_buf_off == 0) {
-                    p->next = NULL;
-                    break;
-                } else
-                    p->next = &p[1];
-                p++;
-            }
-            break;
+                    if (next_buf_off == 0) {
+                        p->next = NULL;
+                        break;
+                    } else
+                        p->next = &p[1];
+                    p++;
+                }
+                break;
 
-        default:
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "unexpected case\n");
+            default:
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "unexpected case\n");
 
-            psb_buffer_unmap(obj_buffer->psb_buffer);
-            obj_buffer->buffer_data = NULL;
-            break;
+                psb_buffer_unmap(obj_buffer->psb_buffer);
+                obj_buffer->buffer_data = NULL;
+                break;
         }
     }
 #endif

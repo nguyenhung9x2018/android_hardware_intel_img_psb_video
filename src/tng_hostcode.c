@@ -883,6 +883,8 @@ VAStatus tng_BeginPicture(context_ENC_p ctx)
     ctx->ui32StreamID = 0;
 
 #ifdef _TOPAZHP_OLD_LIBVA_
+    if (ctx->ui32RawFrameCount != 0)
+        ps_buf->previous_src_surface = ps_buf->src_surface;
     ps_buf->src_surface = ctx->obj_context->current_render_target;
 #endif
 
@@ -3898,4 +3900,5 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
 
 }
 #endif // 0
+
 

@@ -735,6 +735,21 @@ int tng_surface_get_frameskip(psb_driver_data_p driver_data,
     return 0;
 }
 
+VAStatus tng_set_frame_skip_flag(object_context_p obj_context)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
+    context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
+
+    if (ctx && ps_buf->previous_src_surface) {
+        SET_SURFACE_INFO_skipped_flag(ps_buf->previous_src_surface->psb_surface, 1);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Detected a skipped frame for surface 0x%08x.\n",
+            ps_buf->previous_src_surface->psb_surface);
+    }
+
+    return vaStatus;
+}
+
 
 /*
  * Flushes all cmdbufs
