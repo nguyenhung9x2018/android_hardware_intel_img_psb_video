@@ -1866,6 +1866,7 @@ static void pnw__H264_writebits_SEI_picture_timing_header(
         ui8PayloadSizeBits += ui32cpb_removal_delay_length_minus1
                               + 1 + ui32dpb_output_delay_length_minus1 + 1;
 
+#if 0
     if (ui8pic_struct_present_flag) {
         ui8PayloadSizeBits += 4;
         for (ui8Tmp = 0; ui8Tmp < ui8NumClockTS ; ui8Tmp++) {
@@ -1892,6 +1893,7 @@ static void pnw__H264_writebits_SEI_picture_timing_header(
             }
         }
     }
+#endif
 
     pnw__write_upto8bits_elements(pMTX_Header,
                                   aui32ElementPointers,
@@ -1920,6 +1922,7 @@ static void pnw__H264_writebits_SEI_picture_timing_header(
 #endif
     }
 
+#if 0
     if (ui8pic_struct_present_flag) {
         pnw__insert_element_token(pMTX_Header,
                                   aui32ElementPointers,
@@ -2013,6 +2016,7 @@ static void pnw__H264_writebits_SEI_picture_timing_header(
             }
         }
     }
+#endif
 
 #ifdef SEI_NOT_USE_TOKEN_ALIGN
     // Pad to end of byte
