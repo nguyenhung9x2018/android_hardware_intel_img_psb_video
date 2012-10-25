@@ -2118,9 +2118,11 @@ VAStatus psb_QuerySurfaceStatus(
     /* try to get frameskip flag for encode */
     psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
     if (encode && rc_enable) {
+#ifdef PSBVIDEO_MRFL
         if (IS_MRFL(driver_data))
             tng_surface_get_frameskip(driver_data, obj_surface->psb_surface, &frame_skip);
         else
+#endif
             pnw_surface_get_frameskip(driver_data, obj_surface->psb_surface, &frame_skip);
 
         if (frame_skip == 1) {
