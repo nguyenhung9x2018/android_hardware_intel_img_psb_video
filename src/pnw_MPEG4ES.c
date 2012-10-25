@@ -227,6 +227,22 @@ static VAStatus pnw__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
 
     ctx->sRCParams.Slices = 1;
     ctx->sRCParams.QCPOffset = 0;/* FIXME */
+
+    if (ctx->sRCParams.IntraFreq != seq_params->intra_period
+            && ctx->raw_frame_count != 0
+            && ctx->sRCParams.IntraFreq != 0
+            && ((ctx->obj_context->frame_count + 1) % ctx->sRCParams.IntraFreq) != 0
+            && (!ctx->sRCParams.bDisableFrameSkipping)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,
+                "Changing intra period value in the middle of a GOP is\n"
+                "not allowed if frame skip isn't disabled.\n"
+                "it can cause I frame been skipped\n");
+        free(seq_params);
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+    else
+        ctx->sRCParams.IntraFreq = seq_params->intra_period;
+
     ctx->sRCParams.IntraFreq = seq_params->intra_period;
 
     frame_size = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;

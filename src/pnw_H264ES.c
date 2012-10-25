@@ -257,6 +257,7 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
                 "Changing intra period value in the middle of a GOP is\n"
                 "not allowed if frame skip isn't disabled.\n"
                 "it can cause I frame been skipped\n");
+        free(pSequenceParams);
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
     else
@@ -513,7 +514,7 @@ static VAStatus pnw__H264ES_insert_SEI_FPA_param(context_ENC_p ctx, object_buffe
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Insert SEI frame packing arrangement message. \n");
     ctx->sei_pic_data_size = sei_param_buf->bit_length/8;
-    
+
     return VA_STATUS_SUCCESS;
 }
 
@@ -886,7 +887,8 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
 
     if (ctx->eCodec != IMG_CODEC_H264_VCM
             && (pBuffer->type != VAEncMiscParameterTypeHRD
-                && pBuffer->type != VAEncMiscParameterTypeRateControl)) {
+                && pBuffer->type != VAEncMiscParameterTypeRateControl
+                && pBuffer->type != VAEncMiscParameterTypeFrameRate)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Buffer type %d isn't supported in none VCM mode.\n",
                 pBuffer->type);
         free(obj_buffer->buffer_data);
@@ -897,7 +899,7 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     switch (pBuffer->type) {
         case VAEncMiscParameterTypeFrameRate:
             frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
-            
+
             if (frame_rate_param->framerate < 1 || frame_rate_param->framerate > 65535) {
                 vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
                 break;
@@ -914,7 +916,6 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
 
             ctx->sRCParams.FrameRate = (frame_rate_param->framerate < 1) ? 1 :
                 ((65535 < frame_rate_param->framerate) ? 65535 : frame_rate_param->framerate);
-            
             break;
 
         case VAEncMiscParameterTypeRateControl:
@@ -923,11 +924,14 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
             /* Currently, none VCM mode only supports frame skip and bit stuffing
              * disable flag and doesn't accept other parameters in
              * buffer of VAEncMiscParameterTypeRateControl type */
-            if (rate_control_param->rc_flags.value != 0) {
+            if (rate_control_param->rc_flags.value != 0 || ctx->raw_frame_count == 0) {
                 if (rate_control_param->rc_flags.bits.disable_frame_skip)
                     ctx->sRCParams.bDisableFrameSkipping = IMG_TRUE;
                 if (rate_control_param->rc_flags.bits.disable_bit_stuffing)
                     ctx->sRCParams.bDisableBitStuffing = IMG_TRUE;
+                drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                        "bDisableFrameSkipping is %d and bDisableBitStuffing is %d\n",
+                        ctx->sRCParams.bDisableFrameSkipping, ctx->sRCParams.bDisableBitStuffing);
             }
 
             if (rate_control_param->initial_qp > 51 ||
@@ -939,40 +943,67 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
                 break;
             }
 
-            if (rate_control_param->window_size > 65535) {
+            if (rate_control_param->window_size > 2000) {
                 drv_debug_msg(VIDEO_DEBUG_ERROR, "window_size is too much!\n");
                 vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
                 break;
             }
 
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "rate control changed from %d to %d\n",
-                    ctx->sRCParams.BitsPerSecond,
-                    rate_control_param->bits_per_second);
-
-            if ((rate_control_param->bits_per_second == ctx->sRCParams.BitsPerSecond) &&
+            if ((rate_control_param->bits_per_second == 0 ||
+                        rate_control_param->bits_per_second == ctx->sRCParams.BitsPerSecond) &&
                     (rate_control_param->window_size != 0) &&
                     (ctx->sRCParams.BufferSize == ctx->sRCParams.BitsPerSecond / 1000 * rate_control_param->window_size) &&
                     (ctx->sRCParams.MinQP == rate_control_param->min_qp) &&
-                    (ctx->sRCParams.InitialQp == rate_control_param->initial_qp))
+                    (ctx->sRCParams.InitialQp == rate_control_param->initial_qp) &&
+                    (rate_control_param->basic_unit_size == 0 ||
+                     ctx->sRCParams.BUSize == rate_control_param->basic_unit_size))
                 break;
-            else
+            else if (ctx->raw_frame_count != 0 || ctx->eCodec == IMG_CODEC_H264_VCM)
                 ctx->sRCParams.bBitrateChanged = IMG_TRUE;
 
+            /* The initial target bitrate is set by Sequence parameter buffer.
+               Here is for changed bitrate only */
             if (rate_control_param->bits_per_second > TOPAZ_H264_MAX_BITRATE) {
-                ctx->sRCParams.BitsPerSecond = TOPAZ_H264_MAX_BITRATE;
-                drv_debug_msg(VIDEO_DEBUG_GENERAL, " bits_per_second(%d) exceeds \
+                drv_debug_msg(VIDEO_DEBUG_ERROR, " bits_per_second(%d) exceeds \
                         the maximum bitrate, set it with %d\n",
                         rate_control_param->bits_per_second,
                         TOPAZ_H264_MAX_BITRATE);
-            } else if (rate_control_param->bits_per_second != 0)
-                ctx->sRCParams.BitsPerSecond = rate_control_param->bits_per_second;
+                break;
+            }
 
-            if (rate_control_param->window_size != 0)
-                ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond * rate_control_param->window_size / 1000;
-            if (rate_control_param->initial_qp != 0)
-                ctx->sRCParams.InitialQp = rate_control_param->initial_qp;
-            if (rate_control_param->min_qp != 0)
-                ctx->sRCParams.MinQP = rate_control_param->min_qp;
+            /* The initial target bitrate is set by Sequence parameter buffer.
+               Here is for changed bitrate only */
+            if (rate_control_param->bits_per_second != 0 &&
+                    ctx->raw_frame_count != 0) {
+                drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                        "bitrate is changed from %d to %d on frame %d\n",
+                        ctx->sRCParams.BitsPerSecond,
+                        rate_control_param->bits_per_second,
+                        ctx->raw_frame_count);
+                ctx->sRCParams.BitsPerSecond = rate_control_param->bits_per_second;
+            }
+
+            /* except VCM, the following parameters aren't allowed to be
+               changed during encoding */
+            if (ctx->raw_frame_count == 0 || ctx->eCodec == IMG_CODEC_H264_VCM) {
+                if (rate_control_param->window_size != 0)
+                    ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond * rate_control_param->window_size / 1000;
+                if (rate_control_param->initial_qp != 0)
+                    ctx->sRCParams.InitialQp = rate_control_param->initial_qp;
+                if (rate_control_param->min_qp != 0)
+                    ctx->sRCParams.MinQP = rate_control_param->min_qp;
+                if (rate_control_param->basic_unit_size != 0)
+                    ctx->sRCParams.BUSize = rate_control_param->basic_unit_size;
+
+                drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                        "Set Misc parameters(frame %d): window_size %d, initial qp %d\n" \
+                        "\tmin qp %d, bunit size %d\n",
+                        ctx->raw_frame_count,
+                        rate_control_param->window_size,
+                        rate_control_param->initial_qp,
+                        rate_control_param->min_qp,
+                        rate_control_param->basic_unit_size);
+            }
             break;
 
         case VAEncMiscParameterTypeMaxSliceSize:
