@@ -1394,7 +1394,7 @@ static void tng__setup_rcdata(context_ENC_p ctx)
     if (!psRCParams->ui32BUSize) {
         psRCParams->ui32BUSize = (ctx->ui16PictureHeight>>4) * (ctx->ui16Width>>4);		// BU = 1 Frame
     }
-    
+
     if (!psRCParams->ui32FrameRate) {
         psRCParams->ui32FrameRate = 30;		// fps
     }
@@ -1526,6 +1526,7 @@ static void tng__setup_rcdata(context_ENC_p ctx)
             break;
 
         case IMG_STANDARD_MPEG4:
+	    ctx->ui32KickSize = psRCParams->ui32BUSize;
         case IMG_STANDARD_MPEG2:
         case IMG_STANDARD_H263:
             psPicParams->sInParams.ui8MaxQPVal	 = 31;
