@@ -59,11 +59,8 @@ static VAStatus tng_yuv_processor_CreateContext(
     context_yuv_processor_p ctx;
 
     ctx = (context_yuv_processor_p) malloc(sizeof(struct context_yuv_processor_s));
-    if (NULL == ctx) {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
+    CHECK_ALLOCATION(ctx);
+
     dec_ctx->yuv_ctx = ctx;
 
     return vaStatus;
@@ -74,8 +71,10 @@ static void tng_yuv_processor_DestroyContext(
 {
     context_DEC_p dec_ctx = (context_DEC_p) obj_context->format_data;
 
-    free(dec_ctx->yuv_ctx);
-    dec_ctx->yuv_ctx = NULL;
+    if (dec_ctx->yuv_ctx) {
+        free(dec_ctx->yuv_ctx);
+        dec_ctx->yuv_ctx = NULL;
+    }
 }
 
 static VAStatus tng_yuv_processor_BeginPicture(
