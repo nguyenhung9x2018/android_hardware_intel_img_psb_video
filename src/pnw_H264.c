@@ -582,6 +582,8 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     ctx->picture_height_map_units = 1 + ctx->picture_height_mb / (2 - pic_params->seq_fields.bits.frame_mbs_only_flag);
     ctx->picture_size_map_units = ctx->picture_width_mb * ctx->picture_height_map_units;/* (7-14) */
 
+    pic_params->seq_fields.bits.mb_adaptive_frame_field_flag = (pic_params->seq_fields.bits.mb_adaptive_frame_field_flag &&
+								!pic_params->pic_fields.bits.field_pic_flag);
     /* record just what type of picture we are */
     if (pic_params->pic_fields.bits.field_pic_flag) {
         if (pic_params->CurrPic.flags & VA_PICTURE_H264_BOTTOM_FIELD) {
