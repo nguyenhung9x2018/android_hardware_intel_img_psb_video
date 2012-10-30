@@ -44,11 +44,24 @@
 #define MB (KB * KB)
 #define VSP_PROC_CONTEXT_SIZE (8*MB)
 
+#define MAX_VPP_PARAM (100)
+#define MIN_VPP_PARAM (0)
+#define STEP_VPP_PARAM (33)
+#define MAX_VPP_AUTO_PARAM (1)
+#define MIN_VPP_AUTO_PARAM (0)
+#define STEP_VPP_AUTO_PARAM (1)
+
 #define VSP_FORWARD_REF_NUM 3
 
 #define VSP_COLOR_ENHANCE_FEATURES 2
 
 #define ALIGN_TO_128(value) ((value + 128 - 1) & ~(128 - 1))
+
+#define QVGA_AREA (320 * 240)
+#define VGA_AREA (640 * 480)
+#define SD_AREA (720 * 576)
+#define HD720P_AREA (1280 * 720)
+#define HD1080P_AREA (1920 * 1080)
 
 /**
  * The number of supported filter is 5:
@@ -64,9 +77,12 @@
 #define COLOR_STANDARDS_NUM 1
 
 enum resolution_set {
-	VGA2HD1080P = 0,
-	QVGA2VGA,
-	QCIF2QVGA,
+	NOT_SUPPORTED_RESOLUTION = -1,
+	QCIF_TO_QVGA = 0,
+	QVGA_TO_VGA,
+	VGA_TO_SD,
+	SD_TO_720P,
+	HD720P_TO_1080P,
 	RESOLUTION_SET_NUM
 };
 
@@ -84,16 +100,109 @@ enum filter_status {
 };
 
 struct vpp_chain_capability vpp_chain_caps[RESOLUTION_SET_NUM] = {
-	[VGA2HD1080P] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED, FILTER_DISABLED, FILTER_DISABLED},
-	[QVGA2VGA] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED},
-	[QCIF2QVGA] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED, FILTER_ENABLED}
+	[HD720P_TO_1080P] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED, FILTER_DISABLED, FILTER_DISABLED},
+	[SD_TO_720P] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED, FILTER_DISABLED, FILTER_DISABLED},
+	[VGA_TO_SD] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED, FILTER_DISABLED, FILTER_DISABLED},
+	[QVGA_TO_VGA] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED},
+	[QCIF_TO_QVGA] = {FILTER_ENABLED, FILTER_ENABLED, FILTER_ENABLED, FILTER_DISABLED, FILTER_ENABLED}
+};
+
+struct filter_strength {
+	struct VssProcDenoiseParameterBuffer denoise_deblock[RESOLUTION_SET_NUM];
+	struct VssProcColorEnhancementParameterBuffer enhancer[RESOLUTION_SET_NUM];
+	struct VssProcSharpenParameterBuffer sharpen[RESOLUTION_SET_NUM];
+};
+	
+enum filter_strength_type {
+	INVALID_STRENGTH = -1,
+	LOW_STRENGTH = 0,
+	MEDIUM_STRENGTH,
+	HIGH_STRENGTH,
+	STRENGTH_NUM
+};
+
+#define SHARPEN_ON (1)
+
+struct filter_strength vpp_strength[STRENGTH_NUM] = {
+	[LOW_STRENGTH] = {
+		/* structure: type, value_thr, cnt_thr, coef, temp_thr1, temp_thr2 */
+		.denoise_deblock = {
+			[QCIF_TO_QVGA] = {1, 15, 47, 35, 0, 0},
+			[QVGA_TO_VGA] = {1, 7, 48, 47, 0, 0},
+			[VGA_TO_SD] = {1, 10, 8, 9, 1, 3},
+			[SD_TO_720P] = {0, 10, 48, 47, 0, 0},
+			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0}
+		},
+		/* structure: temp_detect, temp_correct, clip_thr, mid_thr, luma_amm, chroma_amm */
+		.enhancer = {
+			[QCIF_TO_QVGA] = {200, 100, 1, 42, 40, 60},
+			[QVGA_TO_VGA] = {220, 180, 1, 42, 40, 60},
+			[VGA_TO_SD] = {220, 200, 1, 42, 40, 60},
+			[SD_TO_720P] = {100, 100, 5, 33, 0, 0},
+			[HD720P_TO_1080P] = {100, 100, 5, 33, 0, 0}
+		},
+		.sharpen = {
+			[QCIF_TO_QVGA] = { .quality = SHARPEN_ON },
+			[QVGA_TO_VGA] = { .quality = SHARPEN_ON },
+			[VGA_TO_SD] = { .quality = SHARPEN_ON },
+			[SD_TO_720P] = { .quality = SHARPEN_ON },
+			[HD720P_TO_1080P] = { .quality = SHARPEN_ON }
+		}
+	},
+	[MEDIUM_STRENGTH] = {
+		.denoise_deblock = {
+			[QCIF_TO_QVGA] = {1, 25, 47, 12, 0, 0},
+			[QVGA_TO_VGA] = {1, 10, 48, 47, 0, 0},
+			[VGA_TO_SD] = {1, 20, 8, 9, 2, 4},
+			[SD_TO_720P] = {0, 10, 48, 47, 0, 0},
+			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0}
+		},
+		.enhancer = {
+			[QCIF_TO_QVGA] = {100, 100, 1, 33, 100, 100},
+			[QVGA_TO_VGA] = {100, 180, 1, 33, 100, 100},
+			[VGA_TO_SD] = {100, 200, 1, 33, 100, 100},
+			[SD_TO_720P] = {100, 100, 5, 33, 0, 0},
+			[HD720P_TO_1080P] = {100, 100, 5, 33, 0, 0}
+		},
+		.sharpen = {
+			[QCIF_TO_QVGA] = { .quality = SHARPEN_ON },
+			[QVGA_TO_VGA] = { .quality = SHARPEN_ON },
+			[VGA_TO_SD] = { .quality = SHARPEN_ON },
+			[SD_TO_720P] = { .quality = SHARPEN_ON },
+			[HD720P_TO_1080P] = { .quality = SHARPEN_ON }
+		}
+	},
+	[HIGH_STRENGTH] = {
+		.denoise_deblock = {
+			[QCIF_TO_QVGA] = {1, 30, 40, 10, 0, 0},
+			[QVGA_TO_VGA] = {1, 15, 45, 25, 0, 0},
+			[VGA_TO_SD] = {1, 20, 7, 5, 3, 6},
+			[SD_TO_720P] = {0, 10, 48, 47, 0, 0},
+			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0}
+		},
+		.enhancer = {
+			[QCIF_TO_QVGA] = {100, 100, 5, 33, 150, 200},
+			[QVGA_TO_VGA] = {100, 180, 5, 33, 150, 200},
+			[VGA_TO_SD] = {100, 200, 5, 33, 100, 150},
+			[SD_TO_720P] = {100, 100, 5, 33, 0, 0},
+			[HD720P_TO_1080P] = {100, 100, 5, 33, 0, 0}
+		},
+		.sharpen = {
+			[QCIF_TO_QVGA] = { .quality = SHARPEN_ON },
+			[QVGA_TO_VGA] = { .quality = SHARPEN_ON },
+			[VGA_TO_SD] = { .quality = SHARPEN_ON },
+			[SD_TO_720P] = { .quality = SHARPEN_ON },
+			[HD720P_TO_1080P] = { .quality = SHARPEN_ON }
+		}
+	}
 };
 
 static void vsp_VPP_DestroyContext(object_context_p obj_context);
 static VAStatus vsp_set_pipeline(context_VPP_p ctx);
 static VAStatus vsp_set_filter_param(context_VPP_p ctx);
-	
 static VAStatus vsp__VPP_check_legal_picture(object_context_p obj_context, object_config_p obj_config);
+static int check_resolution(int width, int height);
+static int check_vpp_strength(int value);
 
 static void vsp_VPP_QueryConfigAttributes(
 	VAProfile profile,
@@ -228,6 +337,10 @@ static VAStatus vsp_VPP_CreateContext(
 			break;
 		}
 	}
+
+	bzero(&ctx->denoise_deblock_param, sizeof(ctx->denoise_deblock_param));
+	bzero(&ctx->enhancer_param, sizeof(ctx->enhancer_param));
+	bzero(&ctx->sharpen_param, sizeof(ctx->sharpen_param));
 
 	return vaStatus;
 out:
@@ -703,27 +816,27 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 		switch (type) {
 		case VAProcFilterNoiseReduction:
 			denoise_cap = filter_caps;
-			denoise_cap->range.min_value = 0;
-			denoise_cap->range.max_value = 100;
-			denoise_cap->range.default_value = 50;
-			denoise_cap->range.step = 1;
+			denoise_cap->range.min_value = MIN_VPP_PARAM;
+			denoise_cap->range.max_value = MAX_VPP_PARAM;
+			denoise_cap->range.default_value = MIN_VPP_PARAM;
+			denoise_cap->range.step = STEP_VPP_PARAM;
 			*num_filter_caps = 1;
 			break;
 		case VAProcFilterDeblocking:
 			deblock_cap = filter_caps;
-			deblock_cap->range.min_value = 0;
-			deblock_cap->range.max_value = 100;
-			deblock_cap->range.default_value = 50;
-			deblock_cap->range.step = 1;
+			deblock_cap->range.min_value = MIN_VPP_PARAM;
+			deblock_cap->range.max_value = MAX_VPP_PARAM;
+			deblock_cap->range.default_value = MIN_VPP_PARAM;
+			deblock_cap->range.step = STEP_VPP_PARAM;
 			*num_filter_caps = 1;
 			break;
 
 		case VAProcFilterSharpening:
 			sharpen_cap = filter_caps;
-			sharpen_cap->range.min_value = 0;
-			sharpen_cap->range.max_value = 100;
-			sharpen_cap->range.default_value = 50;
-			sharpen_cap->range.step = 1;
+			sharpen_cap->range.min_value = MIN_VPP_PARAM;
+			sharpen_cap->range.max_value = MAX_VPP_PARAM;
+			sharpen_cap->range.default_value = MIN_VPP_PARAM;
+			sharpen_cap->range.step = STEP_VPP_PARAM;
 			*num_filter_caps = 1;
 			break;
 
@@ -737,17 +850,17 @@ VAStatus vsp_QueryVideoProcFilterCaps(
 			}
 			color_balance_cap = filter_caps;
 			color_balance_cap->type = VAProcColorBalanceAutoSaturation;
-			color_balance_cap->range.min_value = 0;
-			color_balance_cap->range.max_value = 1;
-			color_balance_cap->range.default_value = 1;
-			color_balance_cap->range.step = 1;
+			color_balance_cap->range.min_value = MIN_VPP_AUTO_PARAM;
+			color_balance_cap->range.max_value = MAX_VPP_AUTO_PARAM;
+			color_balance_cap->range.default_value = MIN_VPP_AUTO_PARAM;
+			color_balance_cap->range.step = STEP_VPP_AUTO_PARAM;
 
 			color_balance_cap++;
 			color_balance_cap->type = VAProcColorBalanceAutoBrightness;
-			color_balance_cap->range.min_value = 0;
-			color_balance_cap->range.max_value = 1;
-			color_balance_cap->range.default_value = 1;
-			color_balance_cap->range.step = 1;
+			color_balance_cap->range.min_value = MIN_VPP_AUTO_PARAM;
+			color_balance_cap->range.max_value = MAX_VPP_AUTO_PARAM;
+			color_balance_cap->range.default_value = MIN_VPP_AUTO_PARAM;
+			color_balance_cap->range.step = STEP_VPP_AUTO_PARAM;
 
 			*num_filter_caps = 2;
 			break;
@@ -798,6 +911,9 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 	uint32_t enabled_brightness, enabled_saturation;
 	float ratio;
 	int res_set;
+	int strength;
+	context_VPP_p vpp_ctx;
+	int no_combination_check;
 
 	/* check if ctx is right */
 	obj_context = CONTEXT(context);
@@ -806,6 +922,8 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 		vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
 		goto err;
 	}
+
+	vpp_ctx = (context_VPP_p) obj_context->format_data;
 
 	obj_config = CONFIG(obj_context->config_id);
 	if (NULL == obj_config) {
@@ -864,23 +982,18 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 		pipeline_caps->output_color_standards[0] = VAProcColorStandardNone;
 		pipeline_caps->num_output_color_standards = COLOR_STANDARDS_NUM;
 
-		if (obj_context->picture_height < 96 || obj_context->picture_height > 1080) {
-			vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
-			goto err;
-		} else if (obj_context->picture_height <= 240) {
-			res_set = QCIF2QVGA;
-		} else if (obj_context->picture_height <= 480) {
-			res_set = QVGA2VGA;
-		} else if (obj_context->picture_height <= 1080) {
-			res_set = VGA2HD1080P;
-		} else {
-			/* full set already, should not be here */
+		/* check the resolution */
+		res_set = check_resolution(obj_context->picture_width,
+					   obj_context->picture_height);
+		if (res_set == NOT_SUPPORTED_RESOLUTION) {
 			vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
 			goto err;
 		}
 
 		if (getenv("VSP_NO_PIPELINE_CHECK") != NULL)
-			goto err;
+			no_combination_check = 1;
+		else
+			no_combination_check = 0;
 
 		/* FIXME: should check filter value settings here */
 		for (i = 0; i < num_filters; ++i) {
@@ -891,26 +1004,63 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 			/* check filter buffer setting */
 			switch (base->type) {
 			case VAProcFilterDeblocking:
-				if (vpp_chain_caps[res_set].deblock_enabled != FILTER_ENABLED) {
+				deblock = (VAProcFilterParameterBuffer *)base;
+
+				if (!no_combination_check &&
+				    vpp_chain_caps[res_set].deblock_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The deblock is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
+				} else {
+					/* check if the value is right */
+					strength = check_vpp_strength(deblock->value);
+					if (strength == INVALID_STRENGTH) {
+						vaStatus = VA_STATUS_ERROR_INVALID_VALUE;
+						goto err;
+					}
+					memcpy(&vpp_ctx->denoise_deblock_param,
+					       &vpp_strength[strength].denoise_deblock[res_set],
+					       sizeof(vpp_ctx->denoise_deblock_param));
 				}
 				break;
 
 			case VAProcFilterNoiseReduction:
-				if (vpp_chain_caps[res_set].denoise_enabled != FILTER_ENABLED) {
+				denoise = (VAProcFilterParameterBuffer *)base;
+
+				if (!no_combination_check &&
+				    vpp_chain_caps[res_set].denoise_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The denoise is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
+				} else {
+					strength = check_vpp_strength(denoise->value);
+					if (strength == INVALID_STRENGTH) {
+						vaStatus = VA_STATUS_ERROR_INVALID_VALUE;
+						goto err;
+					}
+					memcpy(&vpp_ctx->denoise_deblock_param,
+					       &vpp_strength[strength].denoise_deblock[res_set],
+					       sizeof(vpp_ctx->denoise_deblock_param));
 				}
 				break;
 
 			case VAProcFilterSharpening:
-				if (vpp_chain_caps[res_set].sharpen_enabled != FILTER_ENABLED) {
+				sharpen = (VAProcFilterParameterBuffer *)base;
+
+				if (!no_combination_check &&
+				    vpp_chain_caps[res_set].sharpen_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The sharpen is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
+				} else {
+					strength = check_vpp_strength(sharpen->value);
+					if (strength == INVALID_STRENGTH) {
+						vaStatus = VA_STATUS_ERROR_INVALID_VALUE;
+						goto err;
+					}
+					memcpy(&vpp_ctx->sharpen_param,
+					      &vpp_strength[strength].sharpen[res_set],
+					       sizeof(vpp_ctx->sharpen_param));
 				}
 				break;
 
@@ -921,9 +1071,11 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 				enabled_saturation = 0;
 
 				for (j = 0; j < buf->num_elements; ++j, ++balance) {
-					if (balance->attrib == VAProcColorBalanceAutoSaturation && balance->value == 1) {
+					if (balance->attrib == VAProcColorBalanceAutoSaturation &&
+					    balance->value == MAX_VPP_AUTO_PARAM) {
 						enabled_saturation = 1;
-					} else if (balance->attrib == VAProcColorBalanceAutoBrightness && balance->value == 1) {
+					} else if (balance->attrib == VAProcColorBalanceAutoBrightness &&
+						   balance->value == MAX_VPP_AUTO_PARAM) {
 						enabled_brightness = 1;
 					} else {
 						drv_debug_msg(VIDEO_DEBUG_ERROR, "The color_banlance do NOT support this attrib %d\n",
@@ -933,17 +1085,21 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 					}
 				}
 
-				if (enabled_saturation != enabled_brightness) {
-					drv_debug_msg(VIDEO_DEBUG_ERROR, "The color saturation and brightness should be set\n");
-					vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
-					goto err;
-				}
-
 				/* check filter chain */
-				if (vpp_chain_caps[res_set].color_balance_enabled != FILTER_ENABLED) {
+				if (!no_combination_check &&
+				    vpp_chain_caps[res_set].color_balance_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The color_balance is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
+				} else {
+					strength = MEDIUM_STRENGTH;
+					memcpy(&vpp_ctx->enhancer_param,
+					       &vpp_strength[strength].enhancer[res_set],
+					       sizeof(vpp_ctx->enhancer_param));
+					if (!enabled_saturation)
+						vpp_ctx->enhancer_param.chroma_amm = 0;
+					if (!enabled_brightness)
+						vpp_ctx->enhancer_param.luma_amm = 0;
 				}
 
 				break;
@@ -962,7 +1118,8 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 				}
 
 				/* check the chain */
-				if (vpp_chain_caps[res_set].frc_enabled != FILTER_ENABLED) {
+				if (!no_combination_check &&
+				    vpp_chain_caps[res_set].frc_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The FRC is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
 					goto err;
@@ -1080,45 +1237,53 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 	for (i = 0; i < ctx->num_filters; ++i) {
 		cur_param = (VAProcFilterParameterBufferBase *)ctx->filter_buf[i]->buffer_data;
 		switch (cur_param->type) {
-			/* FIXME: how to set deblocking filter */
 		case VAProcFilterDeblocking:
+			memcpy(cell_denoiser_param,
+			       &ctx->denoise_deblock_param,
+			       sizeof(ctx->denoise_deblock_param));
 			cell_denoiser_param->type = VssProcDeblock;
-			cell_denoiser_param->value_thr = 20;
-			cell_denoiser_param->cnt_thr   = 8;
-			cell_denoiser_param->coef      = 9;
-			cell_denoiser_param->temp_thr1 = 2;
-			cell_denoiser_param->temp_thr2 = 4;
-			vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcDenoiseParameterCommand,
-						  ctx->denoise_param_offset, sizeof(struct VssProcDenoiseParameterBuffer));
+
+			vsp_cmdbuf_insert_command(cmdbuf,
+						  &cmdbuf->param_mem,
+						  VssProcDenoiseParameterCommand,
+						  ctx->denoise_param_offset,
+						  sizeof(struct VssProcDenoiseParameterBuffer));
 			break;
 
 		case VAProcFilterNoiseReduction:
+			memcpy(cell_denoiser_param,
+			       &ctx->denoise_deblock_param,
+			       sizeof(ctx->denoise_deblock_param));
 			cell_denoiser_param->type = VssProcDegrain;
-			cell_denoiser_param->value_thr = 20;
-			cell_denoiser_param->cnt_thr   = 8;
-			cell_denoiser_param->coef      = 9;
-			cell_denoiser_param->temp_thr1 = 2;
-			cell_denoiser_param->temp_thr2 = 4;
-			vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcDenoiseParameterCommand,
-						  ctx->denoise_param_offset, sizeof(struct VssProcDenoiseParameterBuffer));
+
+			vsp_cmdbuf_insert_command(cmdbuf,
+						  &cmdbuf->param_mem,
+						  VssProcDenoiseParameterCommand,
+						  ctx->denoise_param_offset,
+						  sizeof(struct VssProcDenoiseParameterBuffer));
 			break;
 
 		case VAProcFilterSharpening:
-			cell_sharpen_param->quality = 50;
-			vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcSharpenParameterCommand,
-						  ctx->sharpen_param_offset, sizeof(struct VssProcSharpenParameterBuffer));
+			memcpy(cell_sharpen_param,
+			       &ctx->sharpen_param,
+			       sizeof(ctx->sharpen_param));
+
+			vsp_cmdbuf_insert_command(cmdbuf,
+						  &cmdbuf->param_mem,
+						  VssProcSharpenParameterCommand,
+						  ctx->sharpen_param_offset,
+						  sizeof(struct VssProcSharpenParameterBuffer));
 			break;
 
 		case VAProcFilterColorBalance:
-			/* FIXME: check if it's possible to just enable auto brightness or saturation */
-			cell_enhancer_param->temp_detect  = 100;
-			cell_enhancer_param->temp_correct = 100;
-			cell_enhancer_param->clip_thr     = 5;
-			cell_enhancer_param->mid_thr      = 33;
-			cell_enhancer_param->luma_amm     = 100;
-			cell_enhancer_param->chroma_amm   = 100;
-			vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcColorEnhancementParameterCommand,
-						  ctx->enhancer_param_offset, sizeof(struct VssProcColorEnhancementParameterBuffer));
+			memcpy(cell_enhancer_param,
+			       &ctx->enhancer_param,
+			       sizeof(ctx->enhancer_param));
+			vsp_cmdbuf_insert_command(cmdbuf,
+						  &cmdbuf->param_mem,
+						  VssProcColorEnhancementParameterCommand,
+						  ctx->enhancer_param_offset,
+						  sizeof(struct VssProcColorEnhancementParameterBuffer));
 
 			break;
 
@@ -1126,13 +1291,13 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			ctx->frc_buf = ctx->filter_buf[i];
 
 			frc_param = (VAProcFilterParameterBufferFrameRateConversion *)ctx->filter_buf[i]->buffer_data;
-			/* FIXME: check if the input fps is in the range of HW capability */
 			ratio = frc_param->output_fps / (float)frc_param->input_fps;
 
 			/* fixed to use medium quality */
 			cell_proc_frc_param->quality = VssFrcMediumQuality;
 			/* cell_proc_frc_param->quality = VssFrcHighQuality; */
 			
+			/* check if the input fps is in the range of HW capability */
 			if (ratio == 2)
 				cell_proc_frc_param->conversion_rate = VssFrc2xConversionRate;
 			else if (ratio == 2.5)
@@ -1145,8 +1310,11 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 				goto out;
 			}
 
-			vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcFrcParameterCommand,
-						  ctx->frc_param_offset, sizeof(struct VssProcFrcParameterBuffer));
+			vsp_cmdbuf_insert_command(cmdbuf,
+						  &cmdbuf->param_mem,
+						  VssProcFrcParameterCommand,
+						  ctx->frc_param_offset,
+						  sizeof(struct VssProcFrcParameterBuffer));
 			break;
 		default: 
 			vaStatus = VA_STATUS_ERROR_UNKNOWN;
@@ -1155,4 +1323,53 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 	}
 out:
 	return vaStatus;
+}
+
+static int check_resolution(int width, int height)
+{
+	int ret;
+	int image_area;
+
+	if (height < 96 || height > 1080)
+		return NOT_SUPPORTED_RESOLUTION;
+
+	image_area = height * width;
+
+	if (image_area <= QVGA_AREA)
+		ret = QCIF_TO_QVGA;
+	else if (image_area <= VGA_AREA)
+		ret = QVGA_TO_VGA;
+	else if (image_area <= SD_AREA)
+		ret = VGA_TO_SD;
+	else if (image_area <= HD720P_AREA)
+		ret = SD_TO_720P;
+	else if (image_area <= HD1080P_AREA)
+		ret = HD720P_TO_1080P;
+	else
+		ret = NOT_SUPPORTED_RESOLUTION;
+
+	return ret;
+}
+
+/*
+ * The strength area is:
+ *
+ * 0______33______66______100
+ *   LOW     MED     HIGH
+ *
+ * MIN=0; MAX=100; STEP=33
+ */
+static int check_vpp_strength(int value)
+{
+	if (value < MIN_VPP_PARAM || value > MAX_VPP_PARAM)
+		return INVALID_STRENGTH;
+
+	if (value >= MIN_VPP_PARAM &&
+	    value < MIN_VPP_PARAM + STEP_VPP_PARAM)
+		return LOW_STRENGTH;
+	else if (value >= MIN_VPP_PARAM + STEP_VPP_PARAM &&
+		 value < MIN_VPP_PARAM + 2 * STEP_VPP_PARAM)
+		return MEDIUM_STRENGTH;
+	else
+		return HIGH_STRENGTH;
 }

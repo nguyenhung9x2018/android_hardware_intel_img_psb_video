@@ -63,6 +63,10 @@ struct context_VPP_s {
 	unsigned int sharpen_param_offset;
 	unsigned int frc_param_sz;
 	unsigned int frc_param_offset;
+
+	struct VssProcDenoiseParameterBuffer denoise_deblock_param;
+	struct VssProcColorEnhancementParameterBuffer enhancer_param;
+	struct VssProcSharpenParameterBuffer sharpen_param;
 };
 
 typedef struct context_VPP_s *context_VPP_p;
