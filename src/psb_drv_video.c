@@ -2131,6 +2131,7 @@ VAStatus psb_QuerySurfaceStatus(
                     __FUNCTION__, render_target);
         }
     } else if (decode) {
+#ifdef ANDROID
         buffer_handle_t handle = obj_surface->psb_surface->buf.handle;
         int display_status;
         int err;
@@ -2151,7 +2152,7 @@ VAStatus psb_QuerySurfaceStatus(
                 surface_status = VASurfaceDisplaying;
             }
         }
-
+#endif
     } else if (proc) {
         /* FIXME: does it need a new surface sync mechanism for FRC? */
     }
