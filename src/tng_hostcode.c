@@ -2801,8 +2801,8 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
         | F_ENCODE(ctx->ui16UseCustomScalingLists & 0x80 ? 1 : 0, TOPAZHP_CR_H264COMP_CUSTOM_QUANT_8X8_INTER_LUMA_ENABLE);
 
     psMtxEncContext->ui32H264CompControl |=
-           F_ENCODE(ctx->bEnableLossless ? 1 : 0, TOPAZHP_CR_H264COMP_LOSSLESS)
-        | F_ENCODE(ctx->bLossless8x8Prefilter ? 1 : 0, TOPAZHP_CR_H264COMP_LOSSLESS_8X8_PREFILTER);
+           F_ENCODE(ctx->bEnableLossless ? 1 : 0, INTEL_H264_LL)
+        | F_ENCODE(ctx->bLossless8x8Prefilter ? 1 : 0, INTEL_H264_LL8X8P);
 
     psMtxEncContext->ui32H264CompIntraPredModes = 0x3ffff;// leave at default for now.
     psMtxEncContext->ui32PredCombControl = ctx->ui32PredCombControl;
@@ -2979,9 +2979,9 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
     //              memcpy(&psMtxEncContext->sMVSettingsNonB[i], &ctx->sMVSettingsNonB[i], sizeof(IMG_MV_SETTINGS));
 
     psMtxEncContext->ui32LRITC_Cache_Chunk_Config =
-        F_ENCODE(ctx->uChunksPerMb, TOPAZHP_CR_CACHE_CHUNKS_PER_MB) |
-        F_ENCODE(ctx->uMaxChunks, TOPAZHP_CR_CACHE_CHUNKS_MAX) |
-        F_ENCODE(ctx->uMaxChunks - ctx->uPriorityChunks, TOPAZHP_CR_CACHE_CHUNKS_PRIORITY);
+        F_ENCODE(ctx->uChunksPerMb, INTEL_CH_PM) |
+        F_ENCODE(ctx->uMaxChunks, INTEL_CH_MX) |
+        F_ENCODE(ctx->uMaxChunks - ctx->uPriorityChunks, INTEL_CH_PY);
 
 
     //they would be set in function tng__prepare_templates()

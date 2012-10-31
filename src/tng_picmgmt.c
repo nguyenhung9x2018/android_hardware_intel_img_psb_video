@@ -30,11 +30,26 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <memory.h>
-#include "hwdefs/topazhp_core_regs.h"
 #include "tng_picmgmt.h"
 #include "psb_drv_debug.h"
 
+#define MASK_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_Q_0 0x0000007F
+#define SHIFT_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_Q_0 0
+#define MASK_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_Q_1 0x00007F00
+#define SHIFT_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_Q_1 8
+#define MASK_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_Q_2 0x007F0000
+#define SHIFT_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_Q_2 16
+#define MASK_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_Q_3 0x7F000000
+#define SHIFT_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_Q_3 24
+
+#define MASK_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_SP_0 0x00003FFF
+#define SHIFT_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_SP_0 0
+#define MASK_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_SP_1 0x3FFF0000
+#define SHIFT_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_SP_1 16
+
+#ifdef _TOPAZHP_PDUMP_ALL_
 #define _TOPAZHP_PDUMP_PICMGMT_
+#endif
 
 /************************* MTX_CMDID_PICMGMT *************************/
 VAStatus tng_picmgmt_update(context_ENC_p ctx, IMG_PICMGMT_TYPE eType, unsigned int ref)

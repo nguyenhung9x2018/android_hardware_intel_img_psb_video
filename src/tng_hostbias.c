@@ -217,9 +217,9 @@ tng__MPEG4ES_generate_bias_tables(
     IMG_UINT32 uDirectVecBias,iInterMBBias,iIntra16Bias;
     IMG_BIAS_PARAMS *psBiasParams = &(ctx->sBiasParams);
 
-    ctx->sBiasTables.ui32LritcCacheChunkConfig = F_ENCODE(ctx->uChunksPerMb, TOPAZHP_CR_CACHE_CHUNKS_PER_MB) |
-						 F_ENCODE(ctx->uMaxChunks, TOPAZHP_CR_CACHE_CHUNKS_MAX) |
-						 F_ENCODE(ctx->uMaxChunks - ctx->uPriorityChunks, TOPAZHP_CR_CACHE_CHUNKS_PRIORITY);
+    ctx->sBiasTables.ui32LritcCacheChunkConfig = F_ENCODE(ctx->uChunksPerMb, INTEL_CH_PM) |
+						 F_ENCODE(ctx->uMaxChunks, INTEL_CH_MX) |
+						 F_ENCODE(ctx->uMaxChunks - ctx->uPriorityChunks, INTEL_CH_PY);
 
  
     for(n=31;n>=1;n--)
@@ -286,9 +286,9 @@ tng__H263ES_generate_bias_tables(
     IMG_UINT32 uDirectVecBias,iInterMBBias,iIntra16Bias;
     IMG_BIAS_PARAMS * psBiasParams = &(ctx->sBiasParams);
 
-    ctx->sBiasTables.ui32LritcCacheChunkConfig = F_ENCODE(ctx->uChunksPerMb, TOPAZHP_CR_CACHE_CHUNKS_PER_MB) |
-						 F_ENCODE(ctx->uMaxChunks, TOPAZHP_CR_CACHE_CHUNKS_MAX) |
-						 F_ENCODE(ctx->uMaxChunks - ctx->uPriorityChunks, TOPAZHP_CR_CACHE_CHUNKS_PRIORITY);
+    ctx->sBiasTables.ui32LritcCacheChunkConfig = F_ENCODE(ctx->uChunksPerMb, INTEL_CH_PM) |
+						 F_ENCODE(ctx->uMaxChunks, INTEL_CH_MX) |
+						 F_ENCODE(ctx->uMaxChunks - ctx->uPriorityChunks, INTEL_CH_PY);
 
     for(n=31;n>=1;n--)
     {
@@ -359,9 +359,9 @@ static void tng__H264ES_generate_bias_tables(context_ENC_p ctx)
     };
 
     ctx->sBiasTables.ui32LritcCacheChunkConfig = 
-        F_ENCODE(ctx->uChunksPerMb, TOPAZHP_CR_CACHE_CHUNKS_PER_MB) |
-        F_ENCODE(ctx->uMaxChunks, TOPAZHP_CR_CACHE_CHUNKS_MAX) |
-        F_ENCODE(ctx->uMaxChunks - ctx->uPriorityChunks, TOPAZHP_CR_CACHE_CHUNKS_PRIORITY);
+        F_ENCODE(ctx->uChunksPerMb, INTEL_CH_PM) |
+        F_ENCODE(ctx->uMaxChunks, INTEL_CH_MX) |
+        F_ENCODE(ctx->uMaxChunks - ctx->uPriorityChunks, INTEL_CH_PY);
 
     uIntra8Scale = 0;
     for (n = 51; n >= 0; n--) {
@@ -451,11 +451,11 @@ static void tng__H264ES_generate_bias_tables(context_ENC_p ctx)
         ctx->sBiasTables.ui32SpeZeroThreshold = psBiasParams->uiSpeZeroThld;
 
     if (psBiasParams->bZeroDetectionDisable) {
-        ctx->sBiasTables.ui32RejectThresholdH264 = F_ENCODE(0, TOPAZHP_CR_H264COMP_4X4_REJECT_THRSHLD)
-                | F_ENCODE(0, TOPAZHP_CR_H264COMP_8X8_REJECT_THRSHLD);
+        ctx->sBiasTables.ui32RejectThresholdH264 = F_ENCODE(0, INTEL_H264_4X4RT)
+                | F_ENCODE(0, INTEL_H264_8X8RT);
     } else {
-        ctx->sBiasTables.ui32RejectThresholdH264 = F_ENCODE(psBiasParams->uZeroBlock4x4Threshold, TOPAZHP_CR_H264COMP_4X4_REJECT_THRSHLD)
-                | F_ENCODE(psBiasParams->uZeroBlock8x8Threshold, TOPAZHP_CR_H264COMP_8X8_REJECT_THRSHLD);
+        ctx->sBiasTables.ui32RejectThresholdH264 = F_ENCODE(psBiasParams->uZeroBlock4x4Threshold, INTEL_H264_4X4RT)
+                | F_ENCODE(psBiasParams->uZeroBlock8x8Threshold, INTEL_H264_8X8RT);
     }
 }
 
@@ -556,11 +556,11 @@ static void tng__H263ES_load_bias_tables(
     }
 
     for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
-	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
+	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_SZ, 0, psBiasTables->ui32SpeZeroThreshold);
     }
 
     for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++)
-        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_CHCF, 0, psBiasTables->ui32LritcCacheChunkConfig);
 
     *pCount = count;
 }
@@ -613,14 +613,14 @@ static void tng__MPEG4_load_bias_tables(context_ENC_p ctx)
     }
 
     for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
-	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
+	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_SZ, 0, psBiasTables->ui32SpeZeroThreshold);
 		
 	//VLC RSize is fcode - 1 and only done for mpeg4 AND mpeg2 not H263
 	tng_cmdbuf_insert_reg_write(TOPAZ_VLC_REG, TOPAZ_VLC_CR_VLC_MPEG4_CFG, 0, F_ENCODE(psBiasTables->ui32FCode - 1, TOPAZ_VLC_CR_RSIZE));
     }
 
     for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++)
-        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_CHCF, 0, psBiasTables->ui32LritcCacheChunkConfig);
 
     *pCount = count;
 }
@@ -695,8 +695,8 @@ static void tng__H264ES_load_bias_tables(
 
     //aui32HpCoreRegId[ui32Pipe]
     for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
-        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_SPE_ZERO_THRESH, 0, psBiasTables->ui32SpeZeroThreshold);
-        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_H264COMP_REJECT_THRESHOLD, 0, psBiasTables->ui32RejectThresholdH264);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_SZ, 0, psBiasTables->ui32SpeZeroThreshold);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_H264_RT, 0, psBiasTables->ui32RejectThresholdH264);
     }
 
 //    tng_cmdbuf_insert_reg_write(TOPAZHP_TOP_CR_FIRMWARE_REG_1, (MTX_SCRATCHREG_TOMTX<<2), ui32BuffersReg);
@@ -706,7 +706,7 @@ static void tng__H264ES_load_bias_tables(
     {
         //aui32HpCoreRegId[ui32Pipe]
         for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
-            tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, TOPAZHP_CR_LRITC_CACHE_CHUNK_CONFIG, 0, psBiasTables->ui32LritcCacheChunkConfig);
+            tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_CHCF, 0, psBiasTables->ui32LritcCacheChunkConfig);
         }
     }
 #ifdef _PDUMP_FUNC_

@@ -46,7 +46,6 @@
 #include "psb_drv_debug.h"
 
 #include "hwdefs/coreflags.h"
-#include "hwdefs/topazhp_core_regs.h"
 #include "hwdefs/topaz_vlc_regs.h"
 #include "hwdefs/topaz_db_regs.h"
 #include "hwdefs/topazhp_default_params.h"
