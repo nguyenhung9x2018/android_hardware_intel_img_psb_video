@@ -1136,24 +1136,31 @@ static void pnw__setup_busize(context_ENC_p ctx)
             drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too large, must be less than number of macroblocks in the last slice\n");
             ctx->sRCParams.BUSize = 0; /* need repatch */;
         }
-        BUs = MBsperSlice / ctx->sRCParams.BUSize;
-        if ((BUs * ctx->sRCParams.BUSize) != MBsperSlice)   {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size not an integer divisor of MB's in a slice");
-            ctx->sRCParams.BUSize = 0; /* need repatch */;
+
+        if (ctx->sRCParams.BUSize != 0) {
+            BUs = MBsperSlice / ctx->sRCParams.BUSize;
+            if ((BUs * ctx->sRCParams.BUSize) != MBsperSlice)   {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size not an integer divisor of MB's in a slice");
+                ctx->sRCParams.BUSize = 0; /* need repatch */;
+            }
         }
-        BUs = MBsLastSlice / ctx->sRCParams.BUSize;
-        if ((BUs * ctx->sRCParams.BUSize) != MBsLastSlice)   {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size not an integer divisor of MB's in a slice");
-            ctx->sRCParams.BUSize = 0; /* need repatch */;
+        if (ctx->sRCParams.BUSize != 0) {
+            BUs = MBsLastSlice / ctx->sRCParams.BUSize;
+            if ((BUs * ctx->sRCParams.BUSize) != MBsLastSlice)   {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size not an integer divisor of MB's in a slice");
+                ctx->sRCParams.BUSize = 0; /* need repatch */;
+            }
         }
 
-        // check if the number of BUs per pipe is greater than 200
-        MaxSlicesPerPipe = (slices + ctx->ParallelCores - 1) / ctx->ParallelCores;
-        MaxMBsPerPipe = (MBsperSlice * (MaxSlicesPerPipe - 1)) + MBsLastSlice;
-        MaxBUsPerPipe = (MaxMBsPerPipe + ctx->sRCParams.BUSize - 1) / ctx->sRCParams.BUSize;
-        if (MaxBUsPerPipe > 200) {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too small. There must be less than 200 basic units per slice");
-            ctx->sRCParams.BUSize = 0; /* need repatch */;
+        if (ctx->sRCParams.BUSize != 0) {
+            // check if the number of BUs per pipe is greater than 200
+            MaxSlicesPerPipe = (slices + ctx->ParallelCores - 1) / ctx->ParallelCores;
+            MaxMBsPerPipe = (MBsperSlice * (MaxSlicesPerPipe - 1)) + MBsLastSlice;
+            MaxBUsPerPipe = (MaxMBsPerPipe + ctx->sRCParams.BUSize - 1) / ctx->sRCParams.BUSize;
+            if (MaxBUsPerPipe > 200) {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Basic unit size too small. There must be less than 200 basic units per slice");
+                ctx->sRCParams.BUSize = 0; /* need repatch */;
+            }
         }
     }
 
