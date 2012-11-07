@@ -24,11 +24,17 @@
  */
 
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <linux/ion.h>
 #include <va/va_tpi.h>
 #include "psb_drv_video.h"
 #include "psb_drv_debug.h"
 #include "psb_surface.h"
 #include "psb_surface_attrib.h"
+
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 
@@ -595,6 +601,126 @@ VAStatus  psb_CreateSurfaceFromUserspace(
     return vaStatus;
 }
 
+VAStatus  psb_CreateSurfaceFromION(
+        VADriverContextP ctx,
+        int width,
+        int height,
+        int format,
+        int num_surfaces,
+        VASurfaceID *surface_list,        /* out */
+        VASurfaceAttributeTPI *attribute_tpi
+)
+{
+    INIT_DRIVER_DATA;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    unsigned int *vaddr = NULL;
+    unsigned long fourcc;
+    int surfaceID;
+    object_surface_p obj_surface;
+    psb_surface_p psb_surface;
+    int i;
+    unsigned int source_size = 0;
+    int ion_fd = 0;
+    int ion_ret = 0;
+    struct ion_fd_data ion_source_share;
+
+    switch (format) {
+    case VA_RT_FORMAT_YUV422:
+        fourcc = VA_FOURCC_YV16;
+        break;
+    case VA_RT_FORMAT_YUV420:
+    default:
+        fourcc = VA_FOURCC_NV12;
+        break;
+    }
+
+    ion_fd = open("/dev/ion", O_RDWR);
+    if (ion_fd < 0) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Fail to open the ion device!\n", __FUNCTION__);
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
+
+    for (i=0; i < num_surfaces; i++) {
+        ion_source_share.handle = NULL;
+        ion_source_share.fd = (int)(attribute_tpi->buffers[i]);
+        ion_ret = ioctl(ion_fd, ION_IOC_IMPORT, &ion_source_share);
+            if ((ion_ret < 0) || (NULL == ion_source_share.handle)) {
+            close(ion_fd);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Fail to import the ion fd!\n", __FUNCTION__);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+
+        if (VA_FOURCC_NV12 == fourcc)
+            source_size = attribute_tpi->width * attribute_tpi->height * 1.5;
+        else
+            source_size = attribute_tpi->width * attribute_tpi->height * 2;
+
+        vaddr = mmap(NULL, source_size, PROT_READ|PROT_WRITE, MAP_SHARED, ion_source_share.fd, 0);
+        if (MAP_FAILED == vaddr) {
+            close(ion_fd);
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Fail to mmap the ion buffer!\n", __FUNCTION__);
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+
+        surfaceID = object_heap_allocate(&driver_data->surface_heap);
+        obj_surface = SURFACE(surfaceID);
+        if (NULL == obj_surface) {
+            close(ion_fd);
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            DEBUG_FAILURE;
+            break;
+        }
+        MEMSET_OBJECT(obj_surface, struct object_surface_s);
+
+        obj_surface->surface_id = surfaceID;
+        surface_list[i] = surfaceID;
+        obj_surface->context_id = -1;
+        obj_surface->width = attribute_tpi->width;
+        obj_surface->height = attribute_tpi->height;
+        obj_surface->width_r = attribute_tpi->width;
+        obj_surface->height_r = attribute_tpi->height;
+
+        psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
+        if (NULL == psb_surface) {
+            object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
+            obj_surface->surface_id = VA_INVALID_SURFACE;
+            close(ion_fd);
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            DEBUG_FAILURE;
+            break;
+        }
+
+        vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
+                attribute_tpi, psb_surface, vaddr, 0);
+        obj_surface->psb_surface = psb_surface;
+
+        if (VA_STATUS_SUCCESS != vaStatus) {
+            free(psb_surface);
+            object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
+            obj_surface->surface_id = VA_INVALID_SURFACE;
+            close(ion_fd);
+            DEBUG_FAILURE;
+            break;
+        }
+        /* by default, surface fourcc is NV12 */
+        memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
+        psb_surface->extra_info[4] = fourcc;
+        obj_surface->psb_surface = psb_surface;
+
+        /* Error recovery */
+        if (VA_STATUS_SUCCESS != vaStatus) {
+            object_surface_p obj_surface = SURFACE(surfaceID);
+            psb__destroy_surface(driver_data, obj_surface);
+            close(ion_fd);
+        }
+
+        vaddr = NULL;
+    }
+
+    close(ion_fd);
+    return vaStatus;
+}
+
 VAStatus psb_CreateSurfacesWithAttribute(
     VADriverContextP ctx,
     int width,
@@ -622,7 +748,6 @@ VAStatus psb_CreateSurfacesWithAttribute(
         vaStatus = psb_CreateSurfaceFromUserspace(ctx, width, height,
                                                  format, num_surfaces, surface_list,
                                                  attribute_tpi);
-
         return vaStatus;
     case VAExternalMemoryKernelDRMBufffer:
         for (i=0; i < num_surfaces; i++) {
@@ -638,6 +763,11 @@ VAStatus psb_CreateSurfacesWithAttribute(
         return vaStatus;
     case VAExternalMemoryAndroidGrallocBuffer:
         vaStatus = psb_CreateSurfacesFromGralloc(ctx, width, height,
+                                                 format, num_surfaces, surface_list,
+                                                 attribute_tpi);
+        return vaStatus;
+    case VAExternalMemoryIONSharedFD:
+        vaStatus = psb_CreateSurfaceFromION(ctx, width, height,
                                                  format, num_surfaces, surface_list,
                                                  attribute_tpi);
         return vaStatus;
