@@ -575,8 +575,12 @@ VAStatus  psb_CreateSurfaceFromUserspace(
             break;
         }
 
-        vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
-                attribute_tpi, psb_surface, vaddr, 0);
+        if (attribute_tpi->type == VAExternalMemoryNoneCacheUserPointer)
+            vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
+                    attribute_tpi, psb_surface, vaddr, PSB_USER_BUFFER_UNCACHED);
+        else
+            vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
+                    attribute_tpi, psb_surface, vaddr, 0);
         obj_surface->psb_surface = psb_surface;
 
         if (VA_STATUS_SUCCESS != vaStatus) {
@@ -744,6 +748,7 @@ VAStatus psb_CreateSurfacesWithAttribute(
                                      attribute_tpi->chroma_v_stride, attribute_tpi->luma_offset,
                                      attribute_tpi->chroma_u_offset, attribute_tpi->chroma_v_offset);
         return vaStatus;
+    case VAExternalMemoryNoneCacheUserPointer:
     case VAExternalMemoryUserPointer:
         vaStatus = psb_CreateSurfaceFromUserspace(ctx, width, height,
                                                  format, num_surfaces, surface_list,
