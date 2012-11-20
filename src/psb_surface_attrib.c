@@ -740,6 +740,8 @@ VAStatus psb_CreateSurfacesWithAttribute(
 
     CHECK_INVALID_PARAM(attribute_tpi == NULL);
 
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create %d surface(%dx%d) with type %d\n",
+            num_surfaces, width, height, attribute_tpi->type);
     switch (attribute_tpi->type) {
     case VAExternalMemoryNULL:
         vaStatus = psb_CreateSurfacesForUserPtr(ctx, width, height, format, num_surfaces, surface_list,

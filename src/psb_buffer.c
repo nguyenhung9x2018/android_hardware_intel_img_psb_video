@@ -362,6 +362,8 @@ VAStatus psb_kbuffer_reference(psb_driver_data_p driver_data,
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
     buf->pl_flags = wsbmBOPlacementHint(buf->drm_buf);
+    buf->type = psb_bt_surface;
+    buf->status = psb_bs_ready;
 
     return VA_STATUS_SUCCESS;
 }
