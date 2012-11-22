@@ -55,7 +55,17 @@ VAStatus psb_DestroySurfaceGralloc(object_surface_p obj_surface)
     if (!gralloc_lock(handle, usage, 0, 0,
                       obj_surface->width, obj_surface->height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])){
         if (vaddr[GRALLOC_SUB_BUFFER1] == obj_surface->share_info) {
+            int metadata_rotate = obj_surface->share_info->metadata_rotate;
+            int surface_protected = obj_surface->share_info->surface_protected;
+            int force_output_method = obj_surface->share_info->force_output_method;
+            int bob_deinterlace = obj_surface->share_info->bob_deinterlace;
+
             memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
+            /* Still need to keep these info so that hwc can get them after suspend/resume cycle */
+            obj_surface->share_info->metadata_rotate = metadata_rotate;
+            obj_surface->share_info->surface_protected = surface_protected;
+            obj_surface->share_info->force_output_method = force_output_method;
+            obj_surface->share_info->bob_deinterlace = bob_deinterlace;
         }
         gralloc_unlock(handle);
     }
