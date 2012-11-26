@@ -205,6 +205,7 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     H264_CROP_PARAMS sCrop;
     int i;
     unsigned int frame_size;
+    unsigned int max_bps;
 
     ASSERT(obj_buffer->type == VAEncSequenceParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
@@ -238,11 +239,31 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
                 the maximum bitrate, set it with %d\n",
                 pSequenceParams->bits_per_second,
                 TOPAZ_H264_MAX_BITRATE);
-    } else
+    }
+
+    /* According to Table A-1 Level limits, if resolution is bigger than 625SD,
+       min compression ratio is 4, otherwise min compression ratio is 2 */
+    max_bps =  (ctx->Width * ctx->Height * 3 / 2 ) * 8 * ctx->sRCParams.FrameRate;
+    if (ctx->Width > 720)
+        max_bps /= 4;
+    else
+        max_bps /= 2;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, " width %d height %d, frame rate %d\n",
+            ctx->Width, ctx->Height, ctx->sRCParams.FrameRate);
+    if (pSequenceParams->bits_per_second > max_bps) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,
+                "Invalid bitrate %d, violate ITU-T Rec. H.264 (03/2005) A.3.1"
+                "\n clip to %d bps\n", pSequenceParams->bits_per_second, max_bps);
+        ctx->sRCParams.BitsPerSecond = max_bps;
+    } else {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Bitrate is set to %d\n",
+                pSequenceParams->bits_per_second);
         ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
+    }
 
     /*if (ctx->sRCParams.IntraFreq != pSequenceParams->intra_period)
-        ctx->sRCParams.bBitrateChanged = IMG_TRUE;*/
+      ctx->sRCParams.bBitrateChanged = IMG_TRUE;*/
     ctx->sRCParams.IDRFreq = pSequenceParams->intra_idr_period;
 
     ctx->sRCParams.Slices = ctx->Slices;
@@ -877,6 +898,7 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     VAEncMiscParameterFrameRate *frame_rate_param;
     VAEncMiscParameterHRD *hrd_param;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    unsigned int max_bps;
 
     ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
 
@@ -970,7 +992,6 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
                         TOPAZ_H264_MAX_BITRATE);
                 break;
             }
-
             /* The initial target bitrate is set by Sequence parameter buffer.
                Here is for changed bitrate only */
             if (rate_control_param->bits_per_second != 0 &&
@@ -980,7 +1001,24 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
                         ctx->sRCParams.BitsPerSecond,
                         rate_control_param->bits_per_second,
                         ctx->raw_frame_count);
-                ctx->sRCParams.BitsPerSecond = rate_control_param->bits_per_second;
+                max_bps =  (ctx->Width * ctx->Height * 3 / 2 ) * 8 * ctx->sRCParams.FrameRate;
+                if (ctx->Width > 720)
+                    max_bps /= 4;
+                else
+                    max_bps /= 2;
+
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, " width %d height %d, frame rate %d\n",
+                        ctx->Width, ctx->Height, ctx->sRCParams.FrameRate);
+                if (rate_control_param->bits_per_second > max_bps) {
+                    drv_debug_msg(VIDEO_DEBUG_ERROR,
+                            "Invalid bitrate %d, violate ITU-T Rec. H.264 (03/2005) A.3.1"
+                            "\n clip to %d bps\n", rate_control_param->bits_per_second, max_bps);
+                    ctx->sRCParams.BitsPerSecond = max_bps;
+                } else {
+                    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Bitrate is set to %d\n",
+                            rate_control_param->bits_per_second);
+                    ctx->sRCParams.BitsPerSecond = rate_control_param->bits_per_second;
+                }
             }
 
             /* except VCM, the following parameters aren't allowed to be

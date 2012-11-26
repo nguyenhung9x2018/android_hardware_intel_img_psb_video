@@ -1280,8 +1280,14 @@ static void pnw__update_rcdata(
         else if (flBpp >= L4 && flBpp < L5)
             psPicParams->sInParams.SeInitQP = (IMG_UINT8)(27 - 9.89 * flBpp);
 
-        else if (flBpp >= L5)
+        else if (flBpp >= L5 && flBpp < 4)
             psPicParams->sInParams.SeInitQP = (IMG_UINT8)(20 - 4.95 * flBpp);
+        else
+            psPicParams->sInParams.SeInitQP = psPicParams->sInParams.MinQPVal;
+
+        if (psPicParams->sInParams.SeInitQP < psPicParams->sInParams.MinQPVal)
+            psPicParams->sInParams.SeInitQP = psPicParams->sInParams.MinQPVal;
+
         break;
 
     case IMG_CODEC_MPEG4_CBR:
@@ -1471,6 +1477,11 @@ static void pnw__update_rcdata(
     psPicParams->sInParams.InitialDelay = psRCParams->InitialDelay;
     psPicParams->sInParams.InitialLevel = psRCParams->InitialLevel;
     psRCParams->InitialQp = psPicParams->sInParams.SeInitQP;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "InitQP %d, minQP %d, maxQP %d\n",
+            psPicParams->sInParams.SeInitQP,
+            psPicParams->sInParams.MinQPVal,
+            psPicParams->sInParams.MaxQPVal);
 
     /* The rate control uses this value to adjust the reaction rate
        to larger than expected frames in long GOPS*/
