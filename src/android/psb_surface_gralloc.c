@@ -50,7 +50,7 @@ enum {
 VAStatus psb_DestroySurfaceGralloc(object_surface_p obj_surface)
 {
     void *vaddr[GRALLOC_SUB_BUFFER_MAX];
-    int usage = GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
+    int usage = GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
     buffer_handle_t handle = obj_surface->psb_surface->buf.handle;
     if (!gralloc_lock(handle, usage, 0, 0,
                       obj_surface->width, obj_surface->height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])){
@@ -165,7 +165,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
         }
 
         /*hard code the gralloc buffer usage*/
-        usage = GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
+        usage = GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
         handle = (unsigned int)external_buffers->buffers[i];
         if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
