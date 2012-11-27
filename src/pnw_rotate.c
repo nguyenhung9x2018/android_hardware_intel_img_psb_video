@@ -338,9 +338,9 @@ VAStatus psb_CreateRotateSurface(
     }
 
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
-    psb__information_message("attempt to update tile context\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "attempt to update tile context\n");
     if (GET_SURFACE_INFO_tiling(psb_surface)) {
-        psb__information_message("update tile context\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "update tile context\n");
         object_context_p obj_context = CONTEXT(obj_surface->context_id);
         unsigned long msvdx_tile = psb__tile_stride_log2_256(obj_surface->width_r);
         obj_context->msvdx_tile &= 0xf; /* clear rotate tile */

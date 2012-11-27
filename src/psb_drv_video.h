@@ -428,9 +428,7 @@ struct psb_surface_share_info_s {
     unsigned int renderStatus;
     unsigned int used_by_widi;
     int bob_deinterlace;
-#ifdef PSBVIDEO_MSVDX_DEC_TILING
     int tiling;
-#endif
     unsigned int width;
     unsigned int height;
     unsigned int luma_stride;

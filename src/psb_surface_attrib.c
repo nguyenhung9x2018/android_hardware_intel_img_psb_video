@@ -742,6 +742,8 @@ VAStatus psb_CreateSurfacesWithAttribute(
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create %d surface(%dx%d) with type %d\n",
             num_surfaces, width, height, attribute_tpi->type);
+
+    attribute_tpi->tiling = 0; /* FIXME libmix doesn't clear this flag */
     switch (attribute_tpi->type) {
     case VAExternalMemoryNULL:
         vaStatus = psb_CreateSurfacesForUserPtr(ctx, width, height, format, num_surfaces, surface_list,

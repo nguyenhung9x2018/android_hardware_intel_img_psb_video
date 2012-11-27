@@ -786,7 +786,7 @@ int psb_update_context(psb_driver_data_p driver_data, unsigned long ctx_type)
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
     if (ret != 0)
-        psb__error_message("Update context %d failed\n", ctx_type);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Update context %d failed\n", ctx_type);
 
     return ret;
 }
