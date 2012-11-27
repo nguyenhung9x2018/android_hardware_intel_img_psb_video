@@ -113,10 +113,12 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
         allignment = 1;
         placement = WSBM_PL_FLAG_SYSTEM | WSBM_PL_FLAG_CACHED;
         break;
+#if PSB_MFLD_DUMMY_CODE
     case psb_bt_camera:
         allignment = 1;
-        placement = TTM_PL_FLAG_CI | WSBM_PL_FLAG_SHARED;
+        placement = WSBM_PL_FLAG_SHARED;
         break;
+#endif
 #ifdef ANDROID
     case psb_bt_imr:
         allignment = 1;
