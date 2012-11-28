@@ -95,11 +95,11 @@ LOCAL_SHARED_LIBRARIES += liblog
 endif
 
 # Add source codes for Merrifield
-MERRIFIELD_PRODUCT := \
+MERRIFIELD_DEVICE := \
 	mrfl_vp \
 	mrfl_hvp \
 	mrfl_sle
-ifneq ($(filter $(TARGET_PRODUCT),$(MERRIFIELD_PRODUCT)),)
+ifneq ($(filter $(REF_DEVICE_NAME),$(MERRIFIELD_DEVICE)),)
 LOCAL_SRC_FILES += \
     tng_VP8.c \
     tng_jpegdec.c \
