@@ -913,7 +913,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 	int res_set;
 	int strength;
 	context_VPP_p vpp_ctx;
-	int no_combination_check;
+	int combination_check;
 
 	/* check if ctx is right */
 	obj_context = CONTEXT(context);
@@ -990,10 +990,10 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 			goto err;
 		}
 
-		if (getenv("VSP_NO_PIPELINE_CHECK") != NULL)
-			no_combination_check = 1;
+		if (getenv("VSP_PIPELINE_CHECK") != NULL)
+			combination_check = 1;
 		else
-			no_combination_check = 0;
+			combination_check = 0;
 
 		/* FIXME: should check filter value settings here */
 		for (i = 0; i < num_filters; ++i) {
@@ -1006,7 +1006,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 			case VAProcFilterDeblocking:
 				deblock = (VAProcFilterParameterBuffer *)base;
 
-				if (!no_combination_check &&
+				if (combination_check &&
 				    vpp_chain_caps[res_set].deblock_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The deblock is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
@@ -1027,7 +1027,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 			case VAProcFilterNoiseReduction:
 				denoise = (VAProcFilterParameterBuffer *)base;
 
-				if (!no_combination_check &&
+				if (combination_check &&
 				    vpp_chain_caps[res_set].denoise_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The denoise is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
@@ -1047,7 +1047,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 			case VAProcFilterSharpening:
 				sharpen = (VAProcFilterParameterBuffer *)base;
 
-				if (!no_combination_check &&
+				if (combination_check &&
 				    vpp_chain_caps[res_set].sharpen_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The sharpen is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
@@ -1086,7 +1086,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 				}
 
 				/* check filter chain */
-				if (!no_combination_check &&
+				if (combination_check &&
 				    vpp_chain_caps[res_set].color_balance_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The color_balance is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
@@ -1118,7 +1118,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 				}
 
 				/* check the chain */
-				if (!no_combination_check &&
+				if (combination_check &&
 				    vpp_chain_caps[res_set].frc_enabled != FILTER_ENABLED) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The FRC is DISABLE for %d format\n", res_set);
 					vaStatus = VA_STATUS_ERROR_INVALID_FILTER_CHAIN;
