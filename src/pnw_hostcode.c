@@ -1244,13 +1244,19 @@ static void pnw__update_rcdata(
     case IMG_CODEC_H264_CBR:
     case IMG_CODEC_H264_VCM:
     case IMG_CODEC_H264_VBR:
-        psPicParams->sInParams.RCScaleFactor = 30;
         L1 = 0.1;
         L2 = 0.15;
         L3 = 0.2;
 
         /* Set MaxQP to avoid blocky image in low bitrate */
-        psPicParams->sInParams.MaxQPVal = 40;
+        if (psContext->eCodec == IMG_CODEC_H264_VCM) {
+            psPicParams->sInParams.MaxQPVal = 51;
+            psPicParams->sInParams.RCScaleFactor = 16;
+        }
+        else {
+            psPicParams->sInParams.MaxQPVal = 40;
+            psPicParams->sInParams.RCScaleFactor = 30;
+        }
 
         /* Setup MAX and MIN Quant Values */
         if (flBpp >= 0.50)
