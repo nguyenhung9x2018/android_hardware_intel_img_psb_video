@@ -30,54 +30,36 @@
 
 #include <stdio.h>
 
-#include "H263Firmware_bin.h"
-#include "H263FirmwareCBR_bin.h"
-#include "H263FirmwareVBR_bin.h"
-#include "H263MasterFirmware_bin.h"
-#include "H263MasterFirmwareCBR_bin.h"
-#include "H263MasterFirmwareERC_bin.h"
-#include "H263MasterFirmwareLLRC_bin.h"
-#include "H263MasterFirmwareVBR_bin.h"
-#include "H263SlaveFirmware_bin.h"
-#include "H263SlaveFirmwareCBR_bin.h"
-#include "H263SlaveFirmwareVBR_bin.h"
-#include "H264Firmware_bin.h"
-#include "H264FirmwareCBR_bin.h"
-#include "H264FirmwareVBR_bin.h"
+
+#include "JPEGMasterFirmware_bin.h"
+
 #include "H264MasterFirmware_bin.h"
 #include "H264MasterFirmwareCBR_bin.h"
-#include "H264MasterFirmwareERC_bin.h"
-#include "H264MasterFirmwareLLRC_bin.h"
 #include "H264MasterFirmwareVBR_bin.h"
 #include "H264MasterFirmwareVCM_bin.h"
-#include "H264MVCMasterFirmware_bin.h"
-#include "H264MVCMasterFirmwareCBR_bin.h"
-#include "H264MVCMasterFirmwareERC_bin.h"
-#include "H264MVCMasterFirmwareLLRC_bin.h"
-#include "H264MVCMasterFirmwareVBR_bin.h"
-#include "H264SlaveFirmware_bin.h"
-#include "H264SlaveFirmwareCBR_bin.h"
-#include "H264SlaveFirmwareVBR_bin.h"
-#include "JPEGFirmware_bin.h"
-#include "JPEGMasterFirmware_bin.h"
-#include "JPEGSlaveFirmware_bin.h"
+#include "H264MasterFirmwareLLRC_bin.h"
+#include "H264MasterFirmwareALL_bin.h"
+
+#include "H263MasterFirmware_bin.h"
+#include "H263MasterFirmwareCBR_bin.h"
+#include "H263MasterFirmwareVBR_bin.h"
+//#include "H263MasterFirmwareLLRC_bin.h"
+
 #include "MPG2MasterFirmware_bin.h"
 #include "MPG2MasterFirmwareCBR_bin.h"
-#include "MPG2MasterFirmwareERC_bin.h"
-#include "MPG2MasterFirmwareLLRC_bin.h"
 #include "MPG2MasterFirmwareVBR_bin.h"
-#include "MPG4Firmware_bin.h"
-#include "MPG4FirmwareCBR_bin.h"
-#include "MPG4FirmwareVBR_bin.h"
+//#include "MPG2MasterFirmwareLLRC_bin.h"
+
 #include "MPG4MasterFirmware_bin.h"
 #include "MPG4MasterFirmwareCBR_bin.h"
-#include "MPG4MasterFirmwareERC_bin.h"
-#include "MPG4MasterFirmwareLLRC_bin.h"
 #include "MPG4MasterFirmwareVBR_bin.h"
-#include "MPG4SlaveFirmware_bin.h"
-#include "MPG4SlaveFirmwareCBR_bin.h"
-#include "MPG4SlaveFirmwareVBR_bin.h"
-#include "H264MasterFirmwareALL_bin.h"
+#include "MPG4MasterFirmwareLLRC_bin.h"
+
+#include "H264MVCMasterFirmware_bin.h"
+#include "H264MVCMasterFirmwareCBR_bin.h"
+#include "H264MVCMasterFirmwareVBR_bin.h"
+#include "H264MVCMasterFirmwareLLRC_bin.h"
+
 #include "thread0_bin.h"
 
 
@@ -124,6 +106,8 @@ enum topaz_fw_codec_e {
         FW_MASTER_H264_VBR,                     //!< H264 variable bitrate
         FW_MASTER_H264_CBR,                     //!< H264 constant bitrate
         FW_MASTER_H264_VCM,                     //!< H264 video conferance mode
+        FW_MASTER_H264_LLRC,            //!< H264 low-latency rate control
+        FW_MASTER_H264ALL,
         FW_MASTER_H263_NO_RC,           //!< H263 with no rate control
         FW_MASTER_H263_VBR,                     //!< H263 variable bitrate
         FW_MASTER_H263_CBR,                     //!< H263 constant bitrate
@@ -133,17 +117,10 @@ enum topaz_fw_codec_e {
         FW_MASTER_MPEG2_NO_RC,          //!< MPEG2 with no rate control
         FW_MASTER_MPEG2_VBR,            //!< MPEG2 variable bitrate
         FW_MASTER_MPEG2_CBR,            //!< MPEG2 constant bitrate
-        FW_MASTER_H264_ERC,                     //!< H264 example rate control
-        FW_MASTER_H263_ERC,                     //!< H263 example rate control
-        FW_MASTER_MPEG4_ERC,            //!< MPEG4 example rate control
-        FW_MASTER_MPEG2_ERC,            //!< MPEG2 example rate control
-        FW_MASTER_H264_LLRC,            //!< H264 low-latency rate control
         FW_MASTER_H264MVC_NO_RC,        //!< MVC H264 with no rate control
         FW_MASTER_H264MVC_CBR,          //!< MVC H264 constant bitrate
         FW_MASTER_H264MVC_VBR,          //!< MVC H264 variable bitrate
-        FW_MASTER_H264MVC_ERC,          //!< MVC H264 example rate control
         FW_MASTER_H264MVC_LLRC,         //!< MVC H264 low-latency rate control
-        FW_MASTER_H264ALL,
 	FW_NUM
 };
 
@@ -171,6 +148,8 @@ int main()
         FW_MASTER_INFO(H264_VBR, H264VBR),//FW_MASTER_H264_VBR,                     //!< H264 variable bitrate
         FW_MASTER_INFO(H264_CBR, H264CBR),//FW_MASTER_H264_CBR,                     //!< H264 constant bitrate
         FW_MASTER_INFO(H264_VCM, H264VCM),//FW_MASTER_H264_VCM,                     //!< H264 video conferance mode
+        FW_MASTER_INFO(H264_LLRC, H264LLRC),//FW_MASTER_H264_LLRC,            //!< H264 low-latency rate control
+        FW_MASTER_INFO(H264ALL, H264ALL),
         FW_MASTER_INFO(H263_NO_RC, H263),//FW_MASTER_H263_NO_RC,           //!< H263 with no rate control
         FW_MASTER_INFO(H263_VBR, H263VBR),//FW_MASTER_H263_VBR,                     //!< H263 variable bitrate
         FW_MASTER_INFO(H263_CBR, H263CBR),//FW_MASTER_H263_CBR,                     //!< H263 constant bitrate
@@ -180,17 +159,10 @@ int main()
         FW_MASTER_INFO(MPEG2_NO_RC, MPG2),//FW_MASTER_MPEG2_NO_RC,          //!< MPEG2 with no rate control
         FW_MASTER_INFO(MPEG2_VBR, MPG2VBR),//FW_MASTER_MPEG2_VBR,            //!< MPEG2 variable bitrate
         FW_MASTER_INFO(MPEG2_CBR, MPG2CBR),//FW_MASTER_MPEG2_CBR,            //!< MPEG2 constant bitrate
-        FW_MASTER_INFO(H264_ERC, H264ERC),//FW_MASTER_H264_ERC,                     //!< H264 example rate control
-        FW_MASTER_INFO(H263_ERC, H263ERC),//FW_MASTER_H263_ERC,                     //!< H263 example rate control
-        FW_MASTER_INFO(MPEG4_ERC, MPG4ERC),//FW_MASTER_MPEG4_ERC,            //!< MPEG4 example rate control
-        FW_MASTER_INFO(MPEG2_ERC, MPG2ERC),//FW_MASTER_MPEG2_ERC,            //!< MPEG2 example rate control
-        FW_MASTER_INFO(H264_LLRC, H264LLRC),//FW_MASTER_H264_LLRC,            //!< H264 low-latency rate control
         FW_MASTER_INFO(H264MVC_NO_RC, H264MVC),//FW_MASTER_H264MVC_NO_RC,        //!< MVC H264 with no rate control
         FW_MASTER_INFO(H264MVC_CBR, H264MVCCBR),//FW_MASTER_H264MVC_CBR,          //!< MVC H264 constant bitrate
         FW_MASTER_INFO(H264MVC_VBR, H264MVCVBR),//FW_MASTER_H264MVC_VBR,          //!< MVC H264 variable bitrate
-        FW_MASTER_INFO(H264MVC_ERC, H264MVCERC),//FW_MASTER_H264MVC_ERC,          //!< MVC H264 example rate control
         FW_MASTER_INFO(H264MVC_LLRC, H264MVCLLRC),//FW_MASTER_H264MVC_LLRC,         //!< MVC H264 low-latency rate control
-        FW_MASTER_INFO(H264ALL, H264ALL),
     };
     /* open file  */
     fp = fopen(FW_FILE_NAME, "w");

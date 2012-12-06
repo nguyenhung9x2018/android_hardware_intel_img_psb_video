@@ -151,6 +151,8 @@ VAStatus tng_cmdbuf_create(
     }
 
     if (VA_STATUS_SUCCESS != vaStatus) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "psb buffer create 0 \n", __FUNCTION__);
+	tng_cmdbuf_clear(cmdbuf, 1);
         free(cmdbuf->buffer_refs);
         cmdbuf->buffer_refs = NULL;
         cmdbuf->buffer_refs_allocated = 0;
@@ -158,11 +160,19 @@ VAStatus tng_cmdbuf_create(
     }
 
     cmdbuf->mem_size = tng_align_KB(TNG_HEADER_SIZE);
-
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "mem size %d\n", __FUNCTION__, cmdbuf->mem_size);
     /* create buffer information buffer */
-    tng__alloc_init_buffer(driver_data, COMM_CMD_FRAME_BUF_NUM * cmdbuf->mem_size, psb_bt_cpu_vpu, &cmdbuf->frame_mem);
+    //DEBUG-FIXME
+    //tng__alloc_init_buffer(driver_data, COMM_CMD_FRAME_BUF_NUM * cmdbuf->mem_size, psb_bt_cpu_vpu, &cmdbuf->frame_mem);
 
-
+    vaStatus = psb_buffer_create(driver_data, COMM_CMD_FRAME_BUF_NUM * cmdbuf->mem_size, psb_bt_cpu_vpu, &cmdbuf->frame_mem);
+    if (VA_STATUS_SUCCESS != vaStatus) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "psb buffer create xx \n", __FUNCTION__);
+        free(cmdbuf->buffer_refs);
+        cmdbuf->buffer_refs = NULL;
+        cmdbuf->buffer_refs_allocated = 0;
+        return vaStatus;
+    }
     /* all cmdbuf share one MTX_CURRENT_IN_PARAMS since every MB has a MTX_CURRENT_IN_PARAMS structure
      * and filling this structure for all MB is very time-consuming
      */
@@ -170,6 +180,7 @@ VAStatus tng_cmdbuf_create(
     /* create JPEG quantization buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->jpeg_pic_params_size, psb_bt_cpu_vpu, &cmdbuf->jpeg_pic_params);
     if (VA_STATUS_SUCCESS != vaStatus) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "psb buffer create 1 \n", __FUNCTION__);
         tng_cmdbuf_clear(cmdbuf, 2);
         return vaStatus;
     }
@@ -177,6 +188,7 @@ VAStatus tng_cmdbuf_create(
     /* create JPEG MTX setup buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->jpeg_header_mem_size, psb_bt_cpu_vpu, &cmdbuf->jpeg_header_mem);
     if (VA_STATUS_SUCCESS != vaStatus) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "psb buffer create 2 \n", __FUNCTION__);
         tng_cmdbuf_clear(cmdbuf, 3);
         return vaStatus;
     }
@@ -184,6 +196,7 @@ VAStatus tng_cmdbuf_create(
     /* create JPEG MTX setup interface buffer */
     vaStatus = psb_buffer_create(driver_data, ctx->jpeg_header_interface_mem_size, psb_bt_cpu_vpu, &cmdbuf->jpeg_header_interface_mem);
     if (VA_STATUS_SUCCESS != vaStatus) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "psb buffer create 3 \n", __FUNCTION__);
         tng_cmdbuf_clear(cmdbuf, 4);
         return vaStatus;
     }
@@ -587,7 +600,7 @@ ptgDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
         struct psb_validate_arg *arg = &(arg_list[i]);
         struct psb_validate_req *req = &arg->d.req;
 
-        memset(arg, 0, sizeof(*arg));
+        //memset(arg, 0, sizeof(*arg));
         req->next = (unsigned long) & (arg_list[i+1]);
 
         req->buffer_handle = wsbmKBufHandle(wsbmKBuf(buffer_list[i]->drm_buf));
@@ -789,17 +802,15 @@ int tng_context_flush_cmdbuf(object_context_p obj_context)
     fence_flags = DRM_PSB_FENCE_NO_USER;
 #endif
 
-#ifndef LNC_ENGINE_ENCODE
-#define LNC_ENGINE_ENCODE  5
-#endif
 
     wsbmWriteLockKernelBO();
+#if 1 //_PO_DEBUG_
     ret = ptgDRMCmdBuf(driver_data->drm_fd, driver_data->execIoctlOffset, /* FIXME Still use ioctl cmd? */
                        cmdbuf->buffer_refs, cmdbuf->buffer_refs_count, wsbmKBufHandle(wsbmKBuf(cmdbuf->buf.drm_buf)),
                        0, cmdbuffer_size,/*unsigned cmdBufSize*/
                        wsbmKBufHandle(wsbmKBuf(cmdbuf->buf.drm_buf)), reloc_offset, num_relocs,
                        0, LNC_ENGINE_ENCODE, fence_flags, &fence_rep); /* FIXME use LNC_ENGINE_ENCODE */
-
+#endif
     wsbmWriteUnlockKernelBO();
 
     UNLOCK_HARDWARE(driver_data);

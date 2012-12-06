@@ -450,17 +450,19 @@ int psb_buffer_unmap(psb_buffer_p buf)
     return 0;
 }
 
+#define _MRFL_DEBUG_CODED_
+
 #ifdef _MRFL_DEBUG_CODED_
 void psb__trace_coded(unsigned int *pBuf)
 {
     int i, j;
-    drv_debug_msg("%s code buffer is\n", __FUNCTION__);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s code buffer is\n", __FUNCTION__);
     for (i = 0; i < 6; i++) {
-        drv_debug_msg("\t");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "\t");
         for (j = 0; j < 4; j++) {
-             drv_debug_msg("0x%08x, ", pBuf[(i*4) + j]);
+             drv_debug_msg(VIDEO_DEBUG_GENERAL, "0x%08x, ", pBuf[(i*4) + j]);
         }
-        drv_debug_msg("\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n");
     }
 }
 #endif

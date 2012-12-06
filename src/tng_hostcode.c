@@ -29,7 +29,6 @@
  *
  */
 
-
 #include "psb_drv_video.h"
 //#include "tng_H263ES.h"
 #include "tng_hostheader.h"
@@ -145,7 +144,7 @@ VAStatus tng__alloc_init_buffer(
 //    tng_cmdbuf_set_phys(&pTry, 1, buf, 0, 0);
     
     vaStatus = psb_buffer_map(buf, &pch_virt_addr);
-    //drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: phy addr 0x%08x, vir addr 0x%08x\n", __FUNCTION__, buf->drm_buf, pch_virt_addr);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: phy addr 0x%08x, vir addr 0x%08x\n", __FUNCTION__, buf->drm_buf, pch_virt_addr);
 
     if (vaStatus) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "map buf\n");
@@ -533,7 +532,7 @@ static void tng__trace_cmdbuf(tng_cmdbuf_p cmdbuf, int idx)
             ui32CmdTmp[1] = *ptmp++;
             ui32CmdTmp[2] = *ptmp++;
             ui32CmdTmp[3] = 0;
-            topazhp_dump_command((unsigned int*)ui32CmdTmp);
+            //topazhp_dump_command((unsigned int*)ui32CmdTmp);
             ptmp += 2;
         } else if (
             ((*ptmp & 0x7f) == MTX_CMDID_SETVIDEO)||
@@ -542,7 +541,7 @@ static void tng__trace_cmdbuf(tng_cmdbuf_p cmdbuf, int idx)
             ui32CmdTmp[1] = *ptmp++;
             ui32CmdTmp[2] = *ptmp++;
             ui32CmdTmp[3] = *ptmp++;
-            topazhp_dump_command((unsigned int*)ui32CmdTmp);
+            //topazhp_dump_command((unsigned int*)ui32CmdTmp);
         } else if (
             ((*ptmp & 0x7f) == MTX_CMDID_PROVIDE_SOURCE_BUFFER) ||
             ((*ptmp & 0x7f) == MTX_CMDID_PROVIDE_REF_BUFFER) ||
@@ -553,7 +552,7 @@ static void tng__trace_cmdbuf(tng_cmdbuf_p cmdbuf, int idx)
             ui32CmdTmp[1] = *ptmp++;
             ui32CmdTmp[2] = *ptmp++;
             ui32CmdTmp[3] = 0;
-            topazhp_dump_command((unsigned int*)ui32CmdTmp);
+            //topazhp_dump_command((unsigned int*)ui32CmdTmp);
         } else {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: error leave lowpower = 0x%08x\n", __FUNCTION__, *ptmp++);            
         }
@@ -2331,13 +2330,7 @@ void tng__generate_slice_params_template(
        
     IMG_FRAME_TEMPLATE_TYPE buf_idx = (IMG_FRAME_TEMPLATE_TYPE)slice_buf_idx;
 
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_map(&(ps_mem->bufs_slice_template), &(ps_mem->bufs_slice_template.virtual_addr));
-#endif
-    slice_mem_temp_p = (IMG_UINT8*)(ps_mem->bufs_slice_template.virtual_addr + (ctx->ctx_mem_size.slice_template * buf_idx));
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: addr 0x%08x, virtual 0x%08x, size = 0x%08x, buf_idx = %x\n", __FUNCTION__, slice_mem_temp_p, ps_mem->bufs_slice_template.virtual_addr, ctx->ctx_mem_size.slice_template, buf_idx);
-#endif
+
 
     if (ctx->ui8SlicesPerPicture != 0)
         ui32SliceHeight = ctx->ui16PictureHeight / ctx->ui8SlicesPerPicture;
@@ -2372,6 +2365,15 @@ void tng__generate_slice_params_template(
 
     if(ctx->bEnableMVC)
         ctx->ui16MVCViewIdx = (IMG_UINT16)ui32StreamIndex;
+
+
+#ifdef _TOPAZHP_VIR_ADDR_
+    psb_buffer_map(&(ps_mem->bufs_slice_template), &(ps_mem->bufs_slice_template.virtual_addr));
+#endif
+    slice_mem_temp_p = (IMG_UINT8*)(ps_mem->bufs_slice_template.virtual_addr + (ctx->ctx_mem_size.slice_template * buf_idx));
+#ifdef _PDUMP_FUNC_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: addr 0x%08x, virtual 0x%08x, size = 0x%08x, buf_idx = %x\n", __FUNCTION__, slice_mem_temp_p, ps_mem->bufs_slice_template.virtual_addr, ctx->ctx_mem_size.slice_template, buf_idx);
+#endif
 
     /* Prepare Slice Header Template */
     switch (ctx->eStandard) {
