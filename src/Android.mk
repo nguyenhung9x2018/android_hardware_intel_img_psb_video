@@ -100,6 +100,7 @@ endif
 MERRIFIELD_DEVICE := \
 	mrfl_vp \
 	mrfl_hvp \
+	merr_vv \
 	mrfl_sle
 ifneq ($(filter $(REF_DEVICE_NAME),$(MERRIFIELD_DEVICE)),)
 LOCAL_SRC_FILES += \
