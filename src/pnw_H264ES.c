@@ -129,21 +129,24 @@ static VAStatus pnw_H264ES_CreateContext(
     if (eRCmode == VA_RC_VBR) {
         ctx->eCodec = IMG_CODEC_H264_VBR;
         ctx->sRCParams.RCEnable = IMG_TRUE;
+        ctx->sRCParams.bDisableBitStuffing = IMG_FALSE;
     } else if (eRCmode == VA_RC_CBR) {
         ctx->eCodec = IMG_CODEC_H264_CBR;
         ctx->sRCParams.RCEnable = IMG_TRUE;
+        ctx->sRCParams.bDisableBitStuffing = IMG_TRUE;
     } else if (eRCmode == VA_RC_NONE) {
         ctx->eCodec = IMG_CODEC_H264_NO_RC;
         ctx->sRCParams.RCEnable = IMG_FALSE;
+        ctx->sRCParams.bDisableBitStuffing = IMG_FALSE;
     } else if (eRCmode == VA_RC_VCM) {
         ctx->eCodec = IMG_CODEC_H264_VCM;
         ctx->sRCParams.RCEnable = IMG_TRUE;
+        ctx->sRCParams.bDisableBitStuffing = IMG_FALSE;
     } else
         return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "eCodec is %d\n", ctx->eCodec);
     ctx->eFormat = IMG_CODEC_PL12;      /* use default */
-    ctx->sRCParams.bDisableBitStuffing = IMG_TRUE;
 
     ctx->Slices = 1;
     ctx->idr_pic_id = 1;

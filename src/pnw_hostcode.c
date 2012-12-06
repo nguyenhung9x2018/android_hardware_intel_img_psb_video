@@ -833,7 +833,7 @@ VAStatus pnw_RenderPictureParameter(context_ENC_p ctx, int core)
         psPicParams->Flags |= ISVBR_FLAGS;
         break;
     case IMG_CODEC_H264_VCM:
-        psPicParams->Flags |= ISVCM_FLAGS;
+        psPicParams->Flags |= (ISVCM_FLAGS | ISCBR_FLAGS);
         break;
     case IMG_CODEC_H263_CBR:
     case IMG_CODEC_H264_CBR:
@@ -1365,7 +1365,7 @@ static void pnw__update_rcdata(
         return ;
 
     case IMG_CODEC_H264_VCM:
-        psPicParams->Flags      |= ISVCM_FLAGS | ISCBR_FLAGS;
+        psPicParams->Flags      |= (ISVCM_FLAGS | ISCBR_FLAGS);
         if (psContext->Height >= 480) {
             /* for SD and above we can target 95% (122/128) of maximum bitrate */
             psPicParams->sInParams.VCMBitrateMargin = 122;
