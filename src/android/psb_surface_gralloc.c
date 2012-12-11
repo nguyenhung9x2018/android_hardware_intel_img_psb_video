@@ -180,6 +180,10 @@ VAStatus psb_CreateSurfacesFromGralloc(
 #endif
         /*hard code the gralloc buffer usage*/
         usage = GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
+#ifdef PSBVIDEO_MRFL
+	usage |= GRALLOC_USAGE_SW_WRITE_OFTEN;
+	LOGE("will lock with usage %x", usage);
+#endif
         handle = (unsigned int)external_buffers->buffers[i];
         if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
