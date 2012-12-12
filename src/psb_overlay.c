@@ -926,8 +926,12 @@ static void I830PutImageFlipRotateDebug(
     int pipeId)
 {
     INIT_DRIVER_DATA;
-    object_surface_p obj_surface = SURFACE(surface);
+    object_surface_p obj_surface;
     psb_surface_p psb_surface = NULL;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+
+    obj_surface = SURFACE(surface);
+    CHECK_SURFACE(obj_surface);
 
     if (pipeId != 0)
         return;
@@ -940,23 +944,26 @@ static void I830PutImageFlipRotateDebug(
     if (!psb_surface)
         goto dump_out;
     if (pf == NULL)
-        if ((pf = fopen("/home/dump.yuv", "w+")) == NULL)
+        if ((pf = fopen("/home/dump.yuv", "w+")) == NULL) {
             printf("Open yuv file fails\n");
-
+	    return;
+        }
     ret = psb_buffer_map(buf, &data);
 
-    if (ret)
+    if (ret) {
         printf("Map buffer fail\n");
-
+	return;
+    }
     for (i = 0; i < obj_surface->height_r; i++) {
         fwrite(data, 1, obj_surface->width_r, pf);
         data += psb_surface->stride;
     }
 
     buffer = malloc(obj_surface->height_r * obj_surface->width_r);
-    if (!buffer)
+    if (!buffer) {
         printf("Alloc chroma buffer fail\n");
-
+	return;
+    }
     header = buffer;
     chroma = data;
     for (i = 0; i < obj_surface->height_r / 2; i++) {

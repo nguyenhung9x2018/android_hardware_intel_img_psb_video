@@ -938,7 +938,12 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
 #endif
 
         psb_buffer_map(&cmdbuf->buf, &cmdbuf->cmd_base);
-        psb_buffer_map(&cmdbuf->reloc_buf, &cmdbuf->MTX_msg);
+        int ret;
+        ret = psb_buffer_map(&cmdbuf->reloc_buf, &cmdbuf->MTX_msg);
+        if(ret) {
+            psb_buffer_unmap(&cmdbuf->buf);
+            return ret;
+        }
 
         if (psb_video_trace_level & LLDMA_TRACE) {
             psb__trace_message("lldma_count = %d, vitual=0x%08x\n",

@@ -461,8 +461,12 @@ static PPVR2DMEMINFO psb_wrap_surface_pvr2dbuf(psb_driver_data_p driver_data, VA
     unsigned char* tmp_buffer;
     unsigned char tmp;
     object_surface_p obj_surface = SURFACE(surface);
-    psb_surface_p psb_surface = obj_surface->psb_surface;
+    psb_surface_p psb_surface;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
     PVR2DERROR ePVR2DStatus;
+
+    CHECK_SURFACE(obj_surface);
+    psb_surface = obj_surface->psb_surface;
 
     /* Find and return the wrapped buffer index */
     for (i = 0; i < VIDEO_BUFFER_NUM; i++) {
@@ -518,6 +522,7 @@ void psb_putsurface_textureblit(
     struct psb_texture_s *texture_priv = &driver_data->ctexture_priv;
     object_surface_p obj_surface;
     PsbVASurfaceRec *surface_subpic = NULL;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
     obj_surface = SURFACE(surface);
 
     PVR2D_VPBLT sBltVP;
@@ -628,7 +633,9 @@ void psb_putsurface_textureblit(
             }
 
             object_subpic_p obj_subpic = SUBPIC(surface_subpic->subpic_id);
-            sBltVP.AlphaBlendingFunc = PVR2D_ALPHA_OP_GLOBAL;
+            CHECK_SURFACE(obj_subpic);
+            // sBltVP.AlphaBlendingFunc = PVR2D_ALPHA_OP_GLOBAL;
+            sBltVP.AlphaBlendingFunc = 3;
             sBltVP.subpicGlobalAlpha[i] = obj_subpic->global_alpha;
 
             sBltVP.sSrcSubpic[i].pSurfMemInfo = pVaVideoSubpicMemInfo;

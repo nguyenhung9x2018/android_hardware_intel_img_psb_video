@@ -736,7 +736,7 @@ VAStatus psb_CreateSurfacesWithAttribute(
 )
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    int i, height_origin;
+    int i;
 
     CHECK_INVALID_PARAM(attribute_tpi == NULL);
 

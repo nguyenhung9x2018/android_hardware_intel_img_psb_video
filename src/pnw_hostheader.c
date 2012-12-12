@@ -2065,10 +2065,7 @@ static void pnw__H264_writebits_SEI_FPA_header(
         MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_ELEMENT **aui32ElementPointers,
         char* sei_data_buf, IMG_UINT32 data_size)
 {
-    IMG_UINT8 ui8PayloadSizeBits, ui8Tmp, i;
-#ifdef SEI_NOT_USE_TOKEN_ALIGN
-    IMG_UINT8 ui8Pad;
-#endif
+    IMG_UINT8 i;
 
     // Essential we insert the element before we try to fill it!
     pnw__insert_element_token(pMTX_Header,
@@ -2079,7 +2076,7 @@ static void pnw__H264_writebits_SEI_FPA_header(
             aui32ElementPointers,
             4); // 00 00 01 start code prefix
 
-    for(i=0; i<data_size; i++)
+    for (i = 0; i < data_size; i++)
         pnw__write_upto8bits_elements(pMTX_Header,
                 aui32ElementPointers,
                 sei_data_buf[i], 8); //sei_data_buf (SEI Message)

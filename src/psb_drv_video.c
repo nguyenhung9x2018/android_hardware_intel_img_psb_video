@@ -742,6 +742,8 @@ VAStatus psb_DestroySurfaces(
 
     for (i = 0; i < num_surfaces; i++) {
         object_surface_p obj_surface = SURFACE(surface_list[i]);
+        if (obj_surface == NULL)
+            return VA_STATUS_ERROR_INVALID_SURFACE;
 
         if (driver_data->cur_displaying_surface == surface_list[i]) {
             /* Surface is being displaying. Need to stop overlay here */
@@ -1773,6 +1775,9 @@ VAStatus psb_BeginPicture(
     obj_context->slice_count = 0;
 
     obj_config = CONFIG(obj_context->config_id);
+    if (obj_config == NULL)
+        return VA_STATUS_ERROR_INVALID_CONFIG;
+
     /* if the surface is decode render target, and in displaying */
     if (obj_config &&
         (obj_config->entrypoint != VAEntrypointEncSlice) &&
@@ -2341,6 +2346,9 @@ VAStatus psb_PutSurfaceBuf(
     psb_surface_p psb_surface;
 
     obj_surface = SURFACE(surface);
+    if (obj_surface == NULL)
+        return VA_STATUS_ERROR_INVALID_SURFACE;
+
     psb_surface = obj_surface->psb_surface;
 
 #if 0
@@ -2361,6 +2369,7 @@ VAStatus psb_SetTimestampForSurface(
 )
 {
     INIT_DRIVER_DATA;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_surface_p obj_surface = SURFACE(surface);
 
     obj_surface = SURFACE(surface);
@@ -2636,6 +2645,7 @@ VAStatus psb_Terminate(VADriverContextP ctx)
     if (driver_data->surface_mb_error)
         free(driver_data->surface_mb_error);
 
+    pthread_mutex_destroy(&driver_data->drm_mutex);
     free(ctx->pDriverData);
     free(ctx->vtable_egl);
     free(ctx->vtable_tpi);
@@ -2812,6 +2822,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         dri_state->driConnectedFlag == VA_DRI2 ||
         dri_state->driConnectedFlag == VA_DUMMY) {
         if (VA_STATUS_SUCCESS != psb_initOutput(ctx)) {
+            pthread_mutex_destroy(&driver_data->drm_mutex);
             psb__deinitDRM(ctx);
             free(ctx->pDriverData);
             ctx->pDriverData = NULL;
@@ -2924,10 +2935,12 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
 
     driver_data->msvdx_decode_status = calloc(1, sizeof(drm_psb_msvdx_decode_status_t));
     if (NULL == driver_data->msvdx_decode_status) {
+        pthread_mutex_destroy(&driver_data->drm_mutex);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
     driver_data->surface_mb_error = calloc(MAX_MB_ERRORS, sizeof(VASurfaceDecodeMBErrors));
     if (NULL == driver_data->surface_mb_error) {
+        pthread_mutex_destroy(&driver_data->drm_mutex);
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
 

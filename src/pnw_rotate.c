@@ -305,8 +305,10 @@ VAStatus psb_CreateRotateSurface(
             psb_surface_destroy(obj_surface->psb_surface_rotate);
             memset(psb_surface, 0, sizeof(*psb_surface));
         }
-    } else
+    } else {
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
+        CHECK_ALLOCATION(psb_surface);
+    }
 
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
     SET_SURFACE_INFO_tiling(psb_surface, GET_SURFACE_INFO_tiling(obj_surface->psb_surface));

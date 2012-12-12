@@ -347,6 +347,8 @@ void psb__dump_NV_buffers(
     void *mapped_buffer1, *mapped_buffer2;
     if (psb_dump_yuvbuf_fp) {
         psb_buffer_map(&psb_surface->buf, &mapped_buffer);
+        if(mapped_buffer == NULL)
+            return VA_STATUS_ERROR_INVALID_BUFFER;
 
         int j,k;
         mapped_buffer1 = mapped_buffer + psb_surface->stride * srcy;
@@ -818,6 +820,9 @@ void psb__dump_va_buffers(object_buffer_p obj_buffer)
             case VASliceGroupMapBufferType:
             case VABitPlaneBufferType:
                 psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                if(mapped_buffer == NULL)
+                    return VA_STATUS_ERROR_INVALID_BUFFER;
+
                 for(j=0; j<obj_buffer->size;++j) {
                     if(j%16 == 0) fprintf(psb_dump_vabuf_fp,"\n");
                     for(k=0;k < obj_buffer->num_elements;++k)
@@ -1126,6 +1131,9 @@ j=1309;k=0;
 
             case VASliceGroupMapBufferType:
                 psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                if(mapped_buffer == NULL)
+                    return VA_STATUS_ERROR_INVALID_BUFFER;
+
                 for(j=0; j<obj_buffer->size;++j) {
                     if(j%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     for(k=0;k < obj_buffer->num_elements;++k)

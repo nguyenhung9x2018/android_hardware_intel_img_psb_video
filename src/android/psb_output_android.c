@@ -160,11 +160,13 @@ static VAStatus psb_putsurface_ctexture(
 {
     INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
-    object_surface_p obj_surface = SURFACE(surface);
+    object_surface_p obj_surface;
     int offset = 0;
     psb_surface_p psb_surface;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     obj_surface = SURFACE(surface);
+    CHECK_SURFACE(obj_surface);
     psb_surface = obj_surface->psb_surface;
 
     //    psb_surface->buf.drm_buf;

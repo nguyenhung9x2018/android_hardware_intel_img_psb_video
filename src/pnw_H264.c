@@ -1574,7 +1574,7 @@ static VAStatus pnw_H264_EndPicture(
                 chroma_offset_dst = target_surface->chroma_offset;
             } else {
                 if (!rotate_surface) {
-                    ASSERT(0);
+                    return VA_STATUS_ERROR_UNKNOWN;
                 }
 
                 buffer_dst = &rotate_surface->buf;

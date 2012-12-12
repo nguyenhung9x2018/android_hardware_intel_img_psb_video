@@ -1544,6 +1544,7 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
         if(!ctx->data_partition_buffer0) {
             int size = 16 * ctx->size_mb;
             ctx->data_partition_buffer0 = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
+            CHECK_ALLOCATION(ctx->data_partition_buffer0);
             size = (size + 0xfff) & (~0xfff);
             vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, ctx->data_partition_buffer0);
             CHECK_VASTATUS();
@@ -1551,6 +1552,7 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
         if(!ctx->data_partition_buffer1) {
             int size = 16 * ctx->size_mb;
             ctx->data_partition_buffer1 = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
+            CHECK_ALLOCATION(ctx->data_partition_buffer1);
             size = (size + 0xfff) & (~0xfff);
             vaStatus = psb_buffer_create(ctx->obj_context->driver_data, size, psb_bt_vpu_only, ctx->data_partition_buffer1);
             CHECK_VASTATUS();
