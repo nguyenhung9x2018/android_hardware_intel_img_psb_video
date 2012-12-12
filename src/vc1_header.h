@@ -30,7 +30,6 @@
 #ifndef _VC1_HEADER_H_
 #define _VC1_HEADER_H_
 
-#include "psb_VC1.h"
 #include "psb_def.h"
 #include "tng_vld_dec.h"
 

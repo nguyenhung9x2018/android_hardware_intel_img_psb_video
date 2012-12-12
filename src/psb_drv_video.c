@@ -38,7 +38,6 @@
 #include "psb_drv_video.h"
 #include "psb_texture.h"
 #include "psb_cmdbuf.h"
-#include "lnc_cmdbuf.h"
 #include "pnw_cmdbuf.h"
 #include "tng_cmdbuf.h"
 #ifdef PSBVIDEO_MRFL_VPP
