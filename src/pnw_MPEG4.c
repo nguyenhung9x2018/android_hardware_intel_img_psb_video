@@ -1463,7 +1463,7 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
     ctx->FE_VOP_SPS0 = 0;
     REGIO_WRITE_FIELD_LITE(ctx->FE_VOP_SPS0, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_FE_VOP_SPS0, FE_VOP_HEIGHT_IN_MBS_LESS_1, ctx->picture_height_mb - 1);
     REGIO_WRITE_FIELD_LITE(ctx->FE_VOP_SPS0, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_FE_VOP_SPS0, QUANT_PRECISION,        ctx->pic_params->quant_precision);
-    REGIO_WRITE_FIELD_LITE(ctx->FE_VOP_SPS0, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_FE_VOP_SPS0, FE_NO_OF_GMC_WARPING_POINTS, ctx->pic_params->no_of_sprite_warping_points);
+    REGIO_WRITE_FIELD_LITE(ctx->FE_VOP_SPS0, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_FE_VOP_SPS0, FE_NO_OF_GMC_WARPING_POINTS, ((ctx->pic_params->no_of_sprite_warping_points) ? 1 : 0));
     REGIO_WRITE_FIELD_LITE(ctx->FE_VOP_SPS0, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_FE_VOP_SPS0, FE_GMC_ENABLE, (ctx->pic_params->vol_fields.bits.sprite_enable == GMC));
     REGIO_WRITE_FIELD_LITE(ctx->FE_VOP_SPS0, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_FE_VOP_SPS0, REVERSIBLE_VLC,        ctx->pic_params->vol_fields.bits.reversible_vlc);
     REGIO_WRITE_FIELD_LITE(ctx->FE_VOP_SPS0, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_FE_VOP_SPS0, FE_DATA_PARTITIONED,    ctx->pic_params->vol_fields.bits.data_partitioned);
@@ -1507,7 +1507,7 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
         /* BE_VOP_SPS1                                                                */
         ctx->BE_VOP_SPS1 = 0;
         REGIO_WRITE_FIELD_LITE(ctx->BE_VOP_SPS1, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_VOP_SPS1, GMC_WARPING_ACCURACY,        ctx->pic_params->vol_fields.bits.sprite_warping_accuracy);
-        REGIO_WRITE_FIELD_LITE(ctx->BE_VOP_SPS1, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_VOP_SPS1, BE_NO_OF_GMC_WARPING_POINTS, ctx->pic_params->no_of_sprite_warping_points);
+        REGIO_WRITE_FIELD_LITE(ctx->BE_VOP_SPS1, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_VOP_SPS1, BE_NO_OF_GMC_WARPING_POINTS, ((ctx->pic_params->no_of_sprite_warping_points) ? 1 : 0));
         REGIO_WRITE_FIELD_LITE(ctx->BE_VOP_SPS1, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_VOP_SPS1, BE_GMC_ENABLE, (ctx->pic_params->vol_fields.bits.sprite_enable == GMC));
         REGIO_WRITE_FIELD_LITE(ctx->BE_VOP_SPS1, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_VOP_SPS1, BE_DATA_PARTITIONED,         ctx->pic_params->vol_fields.bits.data_partitioned);
         REGIO_WRITE_FIELD_LITE(ctx->BE_VOP_SPS1, MSVDX_VEC_MPEG4, CR_VEC_MPEG4_BE_VOP_SPS1, BE_INTERLACED,               ctx->pic_params->vol_fields.bits.interlaced);
@@ -1825,7 +1825,14 @@ static void psb__MPEG4_set_backend_registers(context_MPEG4_p ctx, VASliceParamet
             /* the values of the warping points.                                                        */
 
             // TODO: Which index to use?
-            int sprite_index = (ctx->pic_params->sprite_trajectory_du[0] || ctx->pic_params->sprite_trajectory_dv[0]) ? 0 : 1;
+            int sprite_index = 0;
+            while (sprite_index < 3) {
+                if (ctx->pic_params->sprite_trajectory_du[sprite_index] || ctx->pic_params->sprite_trajectory_dv[sprite_index])
+                    break;
+                sprite_index++;
+            }
+            if (sprite_index >= 3)
+                sprite_index = 0;
 
             /* BE_GMC_X                                                                */
             cmd = 0;
