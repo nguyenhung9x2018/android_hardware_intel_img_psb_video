@@ -47,9 +47,7 @@
 #define MASK_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_SP_1 0x3FFF0000
 #define SHIFT_TOPAZHP_CR_H264COMP_CUSTOM_QUANT_SP_1 16
 
-#ifdef _TOPAZHP_PDUMP_ALL_
-#define _TOPAZHP_PDUMP_PICMGMT_
-#endif
+#define _TNG_PDUMP_PICMGMT_
 
 /************************* MTX_CMDID_PICMGMT *************************/
 VAStatus tng_picmgmt_update(context_ENC_p ctx, IMG_PICMGMT_TYPE eType, unsigned int ref)
@@ -347,7 +345,7 @@ IMG_UINT32 tng_send_codedbuf(
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
     object_buffer_p object_buffer  = ps_buf->coded_buf;
 
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
+#ifdef _TNG_PDUMP_PICMGMT_
     char *ptmp = NULL;
     void *pxxx = NULL;
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
@@ -361,7 +359,7 @@ IMG_UINT32 tng_send_codedbuf(
         F_ENCODE(ui32SlotIndex, MTX_MSG_PROVIDE_CODED_BUFFER_SLOT),
         object_buffer->psb_buffer, 0);
 
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
+#ifdef _TNG_PDUMP_PICMGMT_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
 #endif
     return  VA_STATUS_SUCCESS;
@@ -378,7 +376,7 @@ static VAStatus tng__set_component_offsets(
     IMG_UINT16 ui16Stride;
     IMG_UINT16 ui16PictureHeight;
 
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
+#ifdef _TNG_PDUMP_PICMGMT_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
 #endif
 
@@ -392,7 +390,7 @@ static VAStatus tng__set_component_offsets(
     ui16Width = obj_surface_p->width;
     ui16PictureHeight = obj_surface_p->height;
     ui16Stride = obj_surface_p->psb_surface->stride;
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
+#ifdef _TNG_PDUMP_PICMGMT_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s eFormat = %d, w = %d, h = %d, stride = %d\n",
         __FUNCTION__, eFormat, ui16Width, ui16PictureHeight, ui16Stride);
 #endif
@@ -576,7 +574,7 @@ static VAStatus tng__set_component_offsets(
         psFrame->i32Field1UOffset = psFrame->i32Field0UOffset;
         psFrame->i32Field1VOffset = psFrame->i32Field0VOffset;
     }
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
+#ifdef _TNG_PDUMP_PICMGMT_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s i32YComponentOffset = %d, i32UComponentOffset = %d, i32VComponentOffset = %d\n",
         __FUNCTION__, (int)(psFrame->i32YComponentOffset), (int)(psFrame->i32UComponentOffset), (int)(psFrame->i32VComponentOffset));
 #endif
@@ -598,7 +596,7 @@ IMG_UINT32 tng_send_source_frame(
     unsigned int frame_mem_index = 0;
     unsigned int srf_buf_offset = src_surface->psb_surface->buf.buffer_ofs;
 
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
+#ifdef _TNG_PDUMP_PICMGMT_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: start ui32SlotIndex = %d, ui32DisplayOrder = %d\n",
         __FUNCTION__, ui32SlotIndex, ui32DisplayOrder);
@@ -621,7 +619,7 @@ IMG_UINT32 tng_send_source_frame(
     memset(psSrcFrame, 0, sizeof(IMG_FRAME));
     tng__set_component_offsets(ctx, src_surface, psSrcFrame);
 
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
+#ifdef _TNG_PDUMP_PICMGMT_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: cmdbuf->frame_mem_index = %d, frame_mem_index = 0x%08x, cmdbuf->frame_mem_p = 0x%08x\n",
         __FUNCTION__, cmdbuf->frame_mem_index, frame_mem_index, cmdbuf->frame_mem_p);
@@ -672,7 +670,7 @@ IMG_UINT32 tng_send_source_frame(
                                  srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field1VOffset, &src_surface->psb_surface->buf);
 #endif
     }
-#ifdef _TOPAZHP_PDUMP_PICMGMT_
+#ifdef _TNG_PDUMP_PICMGMT_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, 
         "%s slot_idx = %d, frame_count = %d\n", __FUNCTION__,
         (int)(ui32SlotIndex), (int)(ctx->ui32FrameCount[ctx->ui32StreamID]));

@@ -60,6 +60,8 @@
 #define MIN_32_REV 0x00030200
 #define MAX_32_REV 0x00030299
 
+#define _TNG_PDUMP_HOSTBIAS_
+
 // New MP4 Lambda table
 static IMG_INT8 MPEG4_QPLAMBDA_MAP[31] = {
 	0,  0,  1,  2,  3, 
@@ -636,8 +638,8 @@ static void tng__H264ES_load_bias_tables(
     IMG_UINT32 count = 0, cmd_word = 0;
     IMG_UINT32 *pCount;
     IMG_UINT32 ui8Pipe;
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s: start\n", __FUNCTION__);
+#ifdef _TNG_PDUMP_HOSTBIAS_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
 #endif
 
     cmd_word = (MTX_CMDID_SW_WRITEREG & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT;
@@ -709,8 +711,8 @@ static void tng__H264ES_load_bias_tables(
             tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_CHCF, 0, psBiasTables->ui32LritcCacheChunkConfig);
         }
     }
-#ifdef _PDUMP_FUNC_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, ("%s: count = %d\n", __FUNCTION__, (int)count);
+#ifdef _TNG_PDUMP_HOSTBIAS_
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: count = %d\n", __FUNCTION__, (int)count);
 #endif
 
     *pCount = count;

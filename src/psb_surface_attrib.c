@@ -28,7 +28,9 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#ifdef ANDROID
 #include <linux/ion.h>
+#endif
 #include <va/va_tpi.h>
 #include "psb_drv_video.h"
 #include "psb_drv_debug.h"
@@ -538,6 +540,7 @@ VAStatus  psb_CreateSurfaceFromUserspace(
 {
     INIT_DRIVER_DATA;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+#ifdef ANDROID
     unsigned int *vaddr;
     unsigned long fourcc;
     int surfaceID;
@@ -609,7 +612,7 @@ VAStatus  psb_CreateSurfaceFromUserspace(
             psb__destroy_surface(driver_data, obj_surface);
         }
     }
-
+#endif
     return vaStatus;
 }
 
@@ -625,6 +628,7 @@ VAStatus  psb_CreateSurfaceFromION(
 {
     INIT_DRIVER_DATA;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+#ifdef ANDROID
     unsigned int *vaddr = NULL;
     unsigned long fourcc;
     int surfaceID;
@@ -730,6 +734,7 @@ VAStatus  psb_CreateSurfaceFromION(
     }
 
     close(ion_fd);
+#endif
     return vaStatus;
 }
 
@@ -760,7 +765,9 @@ VAStatus psb_CreateSurfacesWithAttribute(
                                      attribute_tpi->chroma_v_stride, attribute_tpi->luma_offset,
                                      attribute_tpi->chroma_u_offset, attribute_tpi->chroma_v_offset);
         return vaStatus;
+#ifdef ANDROID
     case VAExternalMemoryNoneCacheUserPointer:
+#endif
     case VAExternalMemoryUserPointer:
         vaStatus = psb_CreateSurfaceFromUserspace(ctx, width, height,
                                                  format, num_surfaces, surface_list,
@@ -783,11 +790,13 @@ VAStatus psb_CreateSurfacesWithAttribute(
                                                  format, num_surfaces, surface_list,
                                                  attribute_tpi);
         return vaStatus;
+#ifdef ANDROID
     case VAExternalMemoryIONSharedFD:
         vaStatus = psb_CreateSurfaceFromION(ctx, width, height,
                                                  format, num_surfaces, surface_list,
                                                  attribute_tpi);
         return vaStatus;
+#endif
     default:
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }

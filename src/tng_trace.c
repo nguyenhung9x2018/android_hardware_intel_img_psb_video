@@ -151,9 +151,6 @@ static int setup_device()
 /* convert physicall address to virtual by search MMU */
 static void *phy2virt_mmu(unsigned int phyaddr)
 {
-#ifdef _TOPAZHP_VIRTUAL_
-    return phyaddr;
-#endif
     unsigned int fb_start, fb_end;
     int pd_index, pt_index, pg_offset;
     unsigned int pd_phyaddr, pt_phyaddr; /* phyaddrss of page directory/table */

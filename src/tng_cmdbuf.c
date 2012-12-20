@@ -847,9 +847,6 @@ void tng_cmdbuf_set_phys(IMG_UINT32 *dest_buf, int dest_num,
 
 //    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: drm_buf 0x%08x, addr_phys 0x%08x, virt addr 0x%08x\n", __FUNCTION__, ref_buf->drm_buf, addr_phys, ref_buf->virtual_addr );
 
-#ifdef _TOPAZHP_VIRTUAL_
-    addr_phys = (IMG_UINT32)(ref_buf->virtual_addr);
-#endif
     do {
         dest_buf[i] =  addr_phys;
         ++i;

@@ -32,7 +32,7 @@
 #ifndef         PSB_TEXTURE_H_
 # define        PSB_TEXTURE_H_
 
-#include "pvr2d.h"
+#include "mrst/pvr2d.h"
 #include <img_types.h>
 
 #define DRI2_BACK_BUFFER_EXPORT_TYPE_BUFFERS 1

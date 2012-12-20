@@ -50,7 +50,7 @@
 #include "x11/psb_x11.h"
 #endif
 
-#include "pvr2d.h"
+#include "mrst/pvr2d.h"
 
 #include "psb_drv_video.h"
 #include "psb_output.h"
