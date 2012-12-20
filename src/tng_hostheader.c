@@ -36,8 +36,6 @@
 #include "psb_drv_debug.h"
 #include "tng_hostheader.h"
 
-#define _TNG_PDUMP_CODEHEADER_
-
 /* Global stores the latest QP information for the DoHeader()
  * routine, should be filled in by the rate control algorithm.
  */
@@ -163,7 +161,6 @@ static void Show_Elements(
 }
 #endif
 
-#ifdef _TNG_PDUMP_CODEHEADER_
 static void tng_print(unsigned char *ptmp, int num)
 {
     int tmp; 
@@ -176,7 +173,6 @@ static void tng_print(unsigned char *ptmp, int num)
      drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n\t\t}\n"); 
     } while (0);
 }
-#endif
 
 /**
  * Header Writing Functions
@@ -201,9 +197,7 @@ static void tng__write_upto8bits_elements(
     if (ui16BitCnt==0)
         return ;
 
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "WBS(8) bits %x, cnt = %d\n", ui8WriteBits, ui16BitCnt);
-#endif
 
 //    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: mtx_hdr->ui32Elments overflow (%d)\n", __FUNCTION__, pMTX_Header->ui32Elements);
     /* WA for klockwork */
@@ -257,9 +251,7 @@ static void tng__write_upto32bits_elements(
     IMG_UINT32 ui32BitLp;
     IMG_UINT32 ui32EndByte;
     IMG_UINT8 ui8Bytes[4];
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "WBS(32) bits %x, cnt = %d\n", ui32WriteBits, ui32BitCnt);
-#endif
     for (ui32BitLp=0; ui32BitLp<4; ui32BitLp++) {
         ui8Bytes[ui32BitLp]=(IMG_UINT8) (ui32WriteBits & 255);
         ui32WriteBits = ui32WriteBits >> 8;
@@ -286,9 +278,7 @@ static void tng__generate_ue(
     IMG_UINT8 ucZeros;
     IMG_UINT32 uiChunk;
 
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, " UE uiVla %x\n", uiVal);
-#endif
 
     for (uiLp=1, ucZeros=0;  (uiLp-1) < uiVal ; uiLp=uiLp+uiLp, ucZeros++)
         uiVal=uiVal-uiLp;
@@ -318,9 +308,7 @@ static void tng__generate_se(
 {
     IMG_UINT32 uiCodeNum;
 
- #ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, " SE iVla %x\n", iVal);
-#endif
  
     if (iVal > 0)
         uiCodeNum=(IMG_UINT32) (iVal+iVal-1);
@@ -338,11 +326,8 @@ static void tng__insert_element_token(
 {
     IMG_UINT8 ui8Offset = 0;
     IMG_UINT8 *ui8P = NULL;
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: in element = %d, Token = %d\n", __FUNCTION__, pMTX_Header->ui32Elements, ui32Token);
-#endif
-
     /* WA for klockwork */
     if ((pMTX_Header->ui32Elements != ELEMENTS_EMPTY) &&
         (pMTX_Header->ui32Elements >= MAXNUMBERELEMENTS)) {
@@ -374,11 +359,9 @@ static void tng__insert_element_token(
 
     aui32ElementPointers[pMTX_Header->ui32Elements]->Element_Type=ui32Token;
     aui32ElementPointers[pMTX_Header->ui32Elements]->ui8Size=0;
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, 
         "%s: ou element = %d, Token = %d\n",
         __FUNCTION__, pMTX_Header->ui32Elements, ui32Token);
-#endif
 }
 
 /*
@@ -670,69 +653,62 @@ static void tng__H264ES_writebits_sequence_header(
     IMG_BOOL8 bASO)
 {
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
-    "%s pSHParams->gaps_in_frame_num_value = %x\n",
-    __FUNCTION__, pSHParams->gaps_in_frame_num_value);
-#endif
+        "%s pSHParams->gaps_in_frame_num_value = %x\n",
+        __FUNCTION__, pSHParams->gaps_in_frame_num_value);
 
-	tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
-	tng__H264_writebits_startcode_prefix_element(pMTX_Header, aui32ElementPointers, 4);
+    tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
+    tng__H264_writebits_startcode_prefix_element(pMTX_Header, aui32ElementPointers, 4);
 
 
-	///**** GENERATES THE FIRST ELEMENT OF THE H264_SEQUENCE_HEADER() STRUCTURE ****///
+    ///**** GENERATES THE FIRST ELEMENT OF THE H264_SEQUENCE_HEADER() STRUCTURE ****///
+    // 4 Byte StartCodePrefix Pregenerated in: H264_WriteBits_StartCodePrefix_Element()
+    // Byte aligned (bit 32)
+    tng__write_upto8bits_elements(pMTX_Header, 
+        aui32ElementPointers,(0 << 7) | // forbidden_zero_bit=0
+	(0x3 << 5) | // nal_ref_idc=01 (may be 11)
+	(7), // nal_unit_type=00111
+        8);
+    // Byte aligned (bit 40)
+    switch (pSHParams->ucProfile) {
+        case SH_PROFILE_BP:
+	    // profile_idc = 8 bits = 66 for BP (PROFILE_IDC_BP)
+            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 66, 8);
 
-	// 4 Byte StartCodePrefix Pregenerated in: H264_WriteBits_StartCodePrefix_Element()
-	// Byte aligned (bit 32)
-	tng__write_upto8bits_elements(pMTX_Header, 
-            aui32ElementPointers,(0 << 7) | // forbidden_zero_bit=0
-	    (0x3 << 5) | // nal_ref_idc=01 (may be 11)
-	    (7), // nal_unit_type=00111
-            8);
-	// Byte aligned (bit 40)
-	switch (pSHParams->ucProfile)
-	{
-	case SH_PROFILE_BP:
-		// profile_idc = 8 bits = 66 for BP (PROFILE_IDC_BP)
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 66, 8);
+            // Byte	aligned	(bit 48)
+            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
+                (1 << 7) |    // constraint_set0_flag = 1 for BP constraints
+                ((bASO ? 0 : 1) << 6) |    // constraint_set1_flag = 1 for MP constraints
+                (1 << 5) |    // constraint_set2_flag = 1 for EP constraints
+                ((pSHParams->ucLevel==SH_LEVEL_1B ? 1:0) << 4),  // constraint_set3_flag = 1 for level 1b, 0 for others
+                // reserved_zero_4bits = 0
+                8);
+            break;
+        case SH_PROFILE_MP:
+            // profile_idc = 8 bits = 77 for MP (PROFILE_IDC_MP)
+            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 77, 8);
 
-		// Byte	aligned	(bit 48)
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
-			(1 << 7) |													// constraint_set0_flag = 1 for BP constraints
-			((bASO ? 0 : 1) << 6) |                                                                           // constraint_set1_flag = 1 for MP constraints
-			(1 << 5) |													// constraint_set2_flag = 1 for EP constraints
-			((pSHParams->ucLevel==SH_LEVEL_1B ? 1:0) << 4),				// constraint_set3_flag = 1 for level 1b, 0 for others
-			// reserved_zero_4bits = 0
-			8);
-		break;
-
-	case SH_PROFILE_MP:
-		// profile_idc = 8 bits = 77 for MP (PROFILE_IDC_MP)
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 77, 8);
-
-		// Byte	aligned	(bit 48)
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
-			(0 << 7) |													// constraint_set0_flag = 0 for no BP constraints
-			(1 << 6) |													// constraint_set1_flag = 1 for MP constraints
-			(1 << 5) |													// constraint_set2_flag = 1 for EP constraints
-			((pSHParams->ucLevel==SH_LEVEL_1B ? 1:0) << 4),				// constraint_set3_flag = 1 for level 1b, 0 for others
-			// reserved_zero_4bits = 0
-			8);
-		break;
-
-	case SH_PROFILE_HP:
-		// profile_idc = 8 bits = 100 for HP (PROFILE_IDC_HP)
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 100, 8);
-
-		// Byte aligned (bit 48)
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
-			(0 << 7) |													// constraint_set0_flag = 0 for no BP constraints
-			(0 << 6) |													// constraint_set1_flag = 0 for no MP constraints
-			(0 << 5) |													// constraint_set2_flag = 0 for no EP constraints
-			(0 << 4),													// constraint_set3_flag = 0
-			// reserved_zero_4bits = 0
-			8);
-		break;
+            // Byte aligned (bit 48)
+            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
+                (0 << 7) | // constraint_set0_flag = 0 for no BP constraints
+                (1 << 6) | // constraint_set1_flag = 1 for MP constraints
+                (1 << 5) | // constraint_set2_flag = 1 for EP constraints
+                ((pSHParams->ucLevel==SH_LEVEL_1B ? 1:0) << 4),    // constraint_set3_flag = 1 for level 1b, 0 for others
+                // reserved_zero_4bits = 0
+                8);
+            break;
+        case SH_PROFILE_HP:
+            // profile_idc = 8 bits = 100 for HP (PROFILE_IDC_HP)
+            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 100, 8);
+            // Byte aligned (bit 48)
+            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
+                (0 << 7) | // constraint_set0_flag = 0 for no BP constraints
+                (0 << 6) | // constraint_set1_flag = 0 for no MP constraints
+                (0 << 5) | // constraint_set2_flag = 0 for no EP constraints
+                (0 << 4),  // constraint_set3_flag = 0
+                // reserved_zero_4bits = 0
+                8);
+            break;
         case SH_PROFILE_H444P:
             // profile_idc = 8 bits = 244 for H444P (PROFILE_IDC_H444P)
             tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 244, 8);
@@ -749,90 +725,81 @@ static void tng__H264ES_writebits_sequence_header(
 	}
 
 
-	// Byte aligned (bit 56)
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, (pSHParams->ucLevel == SH_LEVEL_1B) ? 11 : (IMG_UINT8)pSHParams->ucLevel, 8);			// level_idc (8 bits) = 11 for 1b, 10xlevel for others
+    // Byte aligned (bit 56)
+    // level_idc (8 bits) = 11 for 1b, 10xlevel for others
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, (pSHParams->ucLevel == SH_LEVEL_1B) ? 11 : (IMG_UINT8)pSHParams->ucLevel, 8);
+    tng__generate_ue(pMTX_Header, aui32ElementPointers, 0);		// seq_parameter_set_id = 0
 
-	tng__generate_ue(pMTX_Header, aui32ElementPointers, 0);		// seq_parameter_set_id = 0
+    if ((pSHParams->ucProfile == SH_PROFILE_HP) || (pSHParams->ucProfile == SH_PROFILE_H444P)) {
+        tng__generate_ue(pMTX_Header, aui32ElementPointers, 1);    // chroma_format_idc = 1
+        tng__generate_ue(pMTX_Header, aui32ElementPointers, 0);    // bit_depth_luma_minus8 = 0
+        tng__generate_ue(pMTX_Header, aui32ElementPointers, 0);    // bit_depth_chroma_minus8 = 0
+        // qpprime_y_zero_transform_bypass_flag = 1 if lossless
+        tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, pSHParams->bIsLossless?1:0, 1);
+        if (pSHParams->bUseDefaultScalingList || pSHParams->seq_scaling_matrix_present_flag) {
+            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1); 	// seq_scaling_matrix_present_flag
+            if (!pSHParams->bUseDefaultScalingList) {
+                tng__H264ES_writebits_scalinglists(pMTX_Header, aui32ElementPointers, psScalingMatrix, IMG_TRUE);
+                tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_RAWDATA);
+            } else {
+                // seq_scaling_list_present_flag[i] = 0; 0 < i < 8
+                tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8);
+            }
+        } else {
+            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);  // seq_scaling_matrix_present_flag
+        }
+    }
 
-	if ((pSHParams->ucProfile == SH_PROFILE_HP) || (pSHParams->ucProfile == SH_PROFILE_H444P))
-	{
-		tng__generate_ue(pMTX_Header, aui32ElementPointers, 1);		// chroma_format_idc = 1
-		tng__generate_ue(pMTX_Header, aui32ElementPointers, 0);		// bit_depth_luma_minus8 = 0
-		tng__generate_ue(pMTX_Header, aui32ElementPointers, 0);		// bit_depth_chroma_minus8 = 0
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, pSHParams->bIsLossless?1:0, 1); // qpprime_y_zero_transform_bypass_flag = 1 if lossless
+    tng__generate_ue(pMTX_Header, aui32ElementPointers, 1);  // log2_max_frame_num_minus4 = 1
+    tng__generate_ue(pMTX_Header, aui32ElementPointers, 0);  // pic_order_cnt_type = 0
+    // log2_max_pic_order_cnt_Isb_minus4 = 2
+    tng__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->log2_max_pic_order_cnt - 4);
+    tng__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->max_num_ref_frames); //num_ref_frames ue(2), typically 2
+    // Bytes aligned (bit 72)
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 
+        (pSHParams->gaps_in_frame_num_value), // gaps_in_frame_num_value_allowed_Flag	- (1 bit)
+        1);
+    ///**** GENERATES THE SECOND, VARIABLE LENGTH, ELEMENT OF THE H264_SEQUENCE_HEADER() STRUCTURE ****///
+    ///**** ELEMENT BITCOUNT: xx
+    //pic_width_in_mbs_minus1: ue(v) from 10 to 44 (176 to 720 pixel per row)
+    tng__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->ucWidth_in_mbs_minus1);
+    //pic_height_in_maps_units_minus1: ue(v) Value from 8 to 35 (144 to 576 pixels per column)
+    tng__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->ucHeight_in_maps_units_minus1);
+    // We don't know the alignment at this point, so will have to use bit writing functions
+    // frame_mb_only_flag 1=frame encoding, 0=field encoding
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,pSHParams->ucFrame_mbs_only_flag,1);
+    if (!pSHParams->ucFrame_mbs_only_flag) // in the case of interlaced encoding
+        tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,0,1); // mb_adaptive_frame_field_flag = 0 in Topaz(field encoding at the sequence level)
 
-		if (pSHParams->bUseDefaultScalingList || pSHParams->seq_scaling_matrix_present_flag)
-		{
-			tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1); 	// seq_scaling_matrix_present_flag
-			if (!pSHParams->bUseDefaultScalingList)
-			{
-				tng__H264ES_writebits_scalinglists(pMTX_Header, aui32ElementPointers, psScalingMatrix, IMG_TRUE);
-				tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_RAWDATA);
-			}
-			else
-			{
-				tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8); 	// seq_scaling_list_present_flag[i] = 0; 0 < i < 8
-			}
-		}
-		else
-		{
-			tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1); 	// seq_scaling_matrix_present_flag
-		}
-	}
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,1,1); // direct_8x8_inference_flag=1 in Topaz
+    if (psCrop->bClip) {
+        tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,1,1);
+        tng__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->ui16LeftCropOffset);
+	tng__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->ui16RightCropOffset);
+	tng__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->ui16TopCropOffset);
+	tng__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->ui16BottomCropOffset);
+    } else {
+        tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,0,1);
+    }
 
+    ///**** GENERATES THE THIRD ELEMENT OF THE H264_SEQUENCE_HEADER() STRUCTURE ****///
+    ///**** ELEMENT BITCOUNT: xx
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
+        (pSHParams->VUI_Params_Present), // vui_parameters_present_flag (VUI only in 1st sequence of stream)
+        1);
 
-	tng__generate_ue(pMTX_Header, aui32ElementPointers, 1);		// log2_max_frame_num_minus4 = 1
-
-	tng__generate_ue(pMTX_Header, aui32ElementPointers, 0);		// pic_order_cnt_type = 0
-
-	tng__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->log2_max_pic_order_cnt - 4);		// log2_max_pic_order_cnt_Isb_minus4 = 2
-
-	tng__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->max_num_ref_frames); //num_ref_frames ue(2), typically 2
-
-	// Bytes aligned (bit 72)
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 
-		(pSHParams->gaps_in_frame_num_value), // gaps_in_frame_num_value_allowed_Flag	- (1 bit)
-		1);
-	///**** GENERATES THE SECOND, VARIABLE LENGTH, ELEMENT OF THE H264_SEQUENCE_HEADER() STRUCTURE ****///
-	///**** ELEMENT BITCOUNT: xx
-	tng__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->ucWidth_in_mbs_minus1);				//pic_width_in_mbs_minus1: ue(v) from 10 to 44 (176 to 720 pixel per row)
-	tng__generate_ue(pMTX_Header, aui32ElementPointers, pSHParams->ucHeight_in_maps_units_minus1);		//pic_height_in_maps_units_minus1: ue(v) Value from 8 to 35 (144 to 576 pixels per column)
-	// We don't know the alignment at this point, so will have to use bit writing functions
-
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,pSHParams->ucFrame_mbs_only_flag,1); // frame_mb_only_flag 1=frame encoding, 0=field encoding
-
-	if(!pSHParams->ucFrame_mbs_only_flag) // in the case of interlaced encoding
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,0,1); // mb_adaptive_frame_field_flag = 0 in Topaz(field encoding at the sequence level)
-
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,1,1); // direct_8x8_inference_flag=1 in Topaz
-	if(psCrop->bClip) {
-            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,1,1);
-            tng__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->ui16LeftCropOffset);
-	    tng__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->ui16RightCropOffset);
-	    tng__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->ui16TopCropOffset);
-	    tng__generate_ue(pMTX_Header, aui32ElementPointers, psCrop->ui16BottomCropOffset);
-	} else {
-            tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,0,1);
-	}
-
-	///**** GENERATES THE THIRD ELEMENT OF THE H264_SEQUENCE_HEADER() STRUCTURE ****///
-	///**** ELEMENT BITCOUNT: xx
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,
-            (pSHParams->VUI_Params_Present), // vui_parameters_present_flag (VUI only in 1st sequence of stream)
-            1);
-
-	if (pSHParams->VUI_Params_Present>0)
-		tng__H264_writebits_VUI_params(pMTX_Header, aui32ElementPointers, &(pSHParams->VUI_Params));
+    if (pSHParams->VUI_Params_Present > 0)
+        tng__H264_writebits_VUI_params(pMTX_Header, aui32ElementPointers, &(pSHParams->VUI_Params));
 
 
-	// Finally we need to align to the next byte
-	tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_INSERTBYTEALIGN_H264); // Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point)
+    // Finally we need to align to the next byte
+    tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_INSERTBYTEALIGN_H264);
+    // Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point)
 
-#ifdef _TNG_PDUMP_CODEHEADER_
-  tng_print(pMTX_Header, 64);
-#endif
+    tng_print(pMTX_Header, 64);
   
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
+
     return;
 }
 
@@ -2609,7 +2576,6 @@ static void tng__H264ES_set_sequence_level_profile(
     return ;
 }
 
-#ifdef _TNG_PDUMP_CODEHEADER_
 void tng_trace_seq_header_params(H264_SEQUENCE_HEADER_PARAMS *psSHParams)
 {
   drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucProfile                         = %x\n", __FUNCTION__, psSHParams->ucProfile);
@@ -2635,7 +2601,6 @@ void tng_trace_seq_header_params(H264_SEQUENCE_HEADER_PARAMS *psSHParams)
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s time_offset_length              = %x\n", __FUNCTION__, psSHParams->VUI_Params.time_offset_length);              //!< as defined in the H.264 specification
     }
 }
-#endif
 
 void tng__H264ES_prepare_sequence_header(
     void *pHeaderMemory,
@@ -2689,11 +2654,7 @@ void tng__H264ES_prepare_sequence_header(
     SHParams.bIsLossless = bEnableLossless;
     SHParams.log2_max_pic_order_cnt = 6;
 
-    //drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui8_level = %d, ucLevel = %d\n", __FUNCTION__, ui8_level, SHParams.ucLevel);
-
-#ifdef _TNG_PDUMP_CODEHEADER_
     tng_trace_seq_header_params(&SHParams);
-#endif
     tng__H264ES_writebits_sequence_header(mtx_hdr, aui32ElementPointers, &SHParams, psCropParams, NULL, bASO);
     mtx_hdr->ui32Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
@@ -2903,10 +2864,7 @@ void tng__H264ES_prepare_mvc_sequence_header(
     This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
     aui32ElementPointers[0] = This_Element;
 
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-#endif
-
 
     memset(&sSHParams, 0, sizeof(H264_SEQUENCE_HEADER_PARAMS));
 
@@ -2923,16 +2881,12 @@ void tng__H264ES_prepare_mvc_sequence_header(
     sSHParams.bIsLossless = bEnableLossless;
     sSHParams.log2_max_pic_order_cnt = 6;
 
-#ifdef _TNG_PDUMP_CODEHEADER_
     tng_trace_seq_header_params(&sSHParams);
-#endif
 
     tng__H264ES_writebits_mvc_sequence_header(pMTX_Header, aui32ElementPointers, &sSHParams, psCropParams, NULL);
     pMTX_Header->ui32Elements++; //Has been used as an index, so need to add 1 for a valid element count
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
-#endif
-
+    return ;
 }
 
 static void tng_trace_pic_header_params(H264_PICTURE_HEADER_PARAMS *psSHParams)
@@ -2976,9 +2930,8 @@ void tng__H264ES_prepare_picture_header(
     pMTX_Header->ui32Elements = ELEMENTS_EMPTY;
     This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
     aui32ElementPointers[0] = This_Element;
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
-#endif
+
     sPHParams.pic_parameter_set_id = bMvcPPS ? MVC_PPS_ID : 0;
     sPHParams.seq_parameter_set_id = bMvcPPS ? MVC_SPS_ID : 0;
     sPHParams.entropy_coding_mode_flag = bCabacEnabled ? 1 : 0;
@@ -2991,15 +2944,12 @@ void tng__H264ES_prepare_picture_header(
     sPHParams.bUseDefaultScalingList = !bScalingLists;
     sPHParams.second_chroma_qp_index_offset = i8CQPOffset;
 
-#ifdef _TNG_PDUMP_CODEHEADER_
-  tng_trace_pic_header_params(&sPHParams);
-#endif
+    tng_trace_pic_header_params(&sPHParams);
     tng__H264ES_writebits_picture_header(pMTX_Header, aui32ElementPointers, &sPHParams, NULL);
     /* Has been used as an index, so need to add 1 for a valid element count */
     pMTX_Header->ui32Elements++;
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
-#endif
+    return ;
 }
 
 void tng__H264_prepare_slice_header(
@@ -3423,9 +3373,7 @@ static void tng__H264ES_notforsims_writebits_slice_header(
 {
     bStartNextRawDataElement = IMG_FALSE;
     unsigned char* pdg = (unsigned char*)pMTX_Header;
-#ifdef _TNG_PDUMP_CODEHEADER_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: in element = %d, ui16MvcViewIdx = %d\n", __FUNCTION__, pMTX_Header->ui32Elements, pSlHParams->ui16MvcViewIdx);
-#endif
     if (pSlHParams->ui16MvcViewIdx == (IMG_UINT16)(NON_MVC_VIEW)) {
         tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
     } else if (pSlHParams->ui16MvcViewIdx == MVC_BASE_VIEW_IDX) {
@@ -3571,7 +3519,6 @@ static void tng__H264ES_notforsims_writebits_slice_header(
  @param    bIsLongTermRef     : IMG_TRUE if the frame is to be used as a long-term reference
  @return   None
 ******************************************************************************/
-#ifdef _TNG_PDUMP_CODEHEADER_
 static void tng_trace_slice_header_params(H264_SLICE_HEADER_PARAMS *psSlHParams)
 {
   drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start addr = 0x%08x\n", __FUNCTION__, psSlHParams);
@@ -3626,7 +3573,6 @@ static void tng_trace_slice_header_params(H264_SLICE_HEADER_PARAMS *psSlHParams)
   drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.uRefLongTermRefNum[1] 0x%08x\n", psSlHParams->uRefLongTermRefNum[1]);
   drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end \n", __FUNCTION__);
 }
-#endif
 
 void tng__H264ES_notforsims_prepare_sliceheader(
     IMG_UINT8      *slice_mem_p,
@@ -3679,9 +3625,7 @@ void tng__H264ES_notforsims_prepare_sliceheader(
     This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
     aui32ElementPointers[0] = This_Element;
 
-#ifdef _TNG_PDUMP_CODEHEADER_
-  tng_trace_slice_header_params(&SlHParams);
-#endif
+    tng_trace_slice_header_params(&SlHParams);
 
     tng__H264ES_notforsims_writebits_slice_header(pMTX_Header, aui32ElementPointers, &SlHParams, bCabacEnabled, bIsIDR);
     pMTX_Header->ui32Elements++; //Has been used as an index, so need to add 1 for a valid element count

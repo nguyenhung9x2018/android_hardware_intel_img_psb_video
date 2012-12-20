@@ -66,10 +66,9 @@
 
 #define DEFAULT_CABAC_DB_MARGIN    (0x190)
 #define NOT_USED_BY_TOPAZ 0
-
-#define _TNG_PDUMP_HOSTCODE_
+/*
 #define _TOPAZHP_CMDBUF_
-
+*/
 #ifdef _TOPAZHP_CMDBUF_
 static void tng__trace_cmdbuf_words(tng_cmdbuf_p cmdbuf)
 {
@@ -893,7 +892,6 @@ static VAStatus tng__provide_buffer_BFrames(context_ENC_p ctx, IMG_UINT32 ui32St
 
     slot_index = psFrameInfo->last_slot;
 
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: (int)ui32FrameIdx = %d, psRCParams->ui16BFrames = %d, psRCParams->ui32IntraFreq = %d, ctx->ui32IdrPeriod = %d\n",
         __FUNCTION__, (int)ui32FrameIdx, (int)psRCParams->ui16BFrames, (int)psRCParams->ui32IntraFreq, ctx->ui32IdrPeriod);
@@ -901,7 +899,6 @@ static VAStatus tng__provide_buffer_BFrames(context_ENC_p ctx, IMG_UINT32 ui32St
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: last_slot = %d, last_frame_type = %d, display_order = %d\n",
         __FUNCTION__, psFrameInfo->last_slot, psFrameInfo->last_frame_type, display_order);
-#endif
 
     if (ui32FrameIdx < ui32SlotBuf) {
         if (ui32FrameIdx == 0) {
@@ -1007,12 +1004,10 @@ static void tng__minigop_generate_flat(void* buffer_p, IMG_UINT32 ui32BFrameCoun
         aui8PicOnLevel[ui8Level] = ui32BFrameCount;
     }
 
-#ifdef _TNG_PDUMP_HOSTCODE_
     for( ui8EncodeOrderPos = 0; ui8EncodeOrderPos < MAX_GOP_SIZE; ui8EncodeOrderPos++) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL,
             "%s: psGopStructure = 0x%06x\n", __FUNCTION__, psGopStructure[ui8EncodeOrderPos]);
     }
-#endif
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
 
@@ -1344,9 +1339,7 @@ static void tng__setup_rcdata(context_ENC_p ctx)
     IMG_INT32 i32FrameRate, i32TmpQp;
     double        L1, L2, L3,L4, L5, L6, flBpp;
     IMG_INT32 i32BufferSizeInFrames;
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-#endif
 
 	// If Bit Rate and Basic Units are not specified then set to default values.
     if (psRCParams->ui32BitsPerSecond == 0 && !ctx->bEnableMVC) {
@@ -1636,9 +1629,7 @@ static void tng__setup_rcdata(context_ENC_p ctx)
         psPicParams->sInParams.mode.other.ui16MyInitQP		= psPicParams->sInParams.ui8SeInitQP;
     }
 
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
-#endif
 
     return ;
 }
@@ -1740,11 +1731,9 @@ static IMG_UINT32 tng__prepare_encode_sliceparams(
     bIsBPicture = (eSliceType == IMG_FRAME_INTER_B);
     bIsIDR = ((eSliceType == IMG_FRAME_IDR) || (eSliceType == IMG_FRAME_INTER_P_IDR));
 
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s PTG bIsIntra  = %x\n", __FUNCTION__, bIsIntra);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s PTG bIsBFrame = %x\n", __FUNCTION__, bIsBPicture);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s PTG bIsIDR    = %x\n", __FUNCTION__, bIsIDR);
-#endif
     /* extract block size */
     blkSz = F_EXTRACT(ui32IPEControl, TOPAZHP_CR_IPE_BLOCKSIZE);
     /* mask-out the block size bits from ui32IPEControl */
@@ -2005,9 +1994,7 @@ static IMG_UINT32 tng__prepare_encode_sliceparams(
 
     tng__save_slice_params_template(ctx, ui32SliceBufIdx, eSliceType,
         ui32IPEControl, ui32Flags, ui32SliceConfig, ui32SeqConfig, ui32StreamIndex);
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
-#endif
     return 0;
 }
 
@@ -2125,9 +2112,8 @@ static void tng__H264ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
-#ifdef _TNG_PDUMP_HOSTCODE_
+
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-#endif
 
     memset(psVuiParams, 0, sizeof(H264_VUI_PARAMS));
 
@@ -2142,9 +2128,7 @@ static void tng__H264ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
         psVuiParams->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
         psVuiParams->time_offset_length = 24;
     }
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psVuiParams->vui_flag = %d\n", __FUNCTION__, psVuiParams->vui_flag);
-#endif
 
     psb_buffer_map(&(ps_mem->bufs_seq_header), &(ps_mem->bufs_seq_header.virtual_addr));
     if (ps_mem->bufs_seq_header.virtual_addr == NULL) {
@@ -2191,15 +2175,12 @@ static void tng__H264ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
             ctx->bEnableLossless,        //0,  blossless
             ctx->bArbitrarySO
         );
-#ifdef _TOPAZHP_VIR_ADDR_
         psb_buffer_unmap(&(ps_mem->bufs_sub_seq_header));
-#endif
     }
 
     cmdbuf->cmd_idx_saved[TNG_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
-#endif
+    return ;
 }
 
 static void tng__H264ES_send_pic_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
@@ -2317,12 +2298,10 @@ void tng__generate_slice_params_template(
     
     ui32SliceHeight &= ~15;
 
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s PTG ui8DeblockIDC    = %x\n", __FUNCTION__, ctx->ui8DeblockIDC   );
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s PTG ui32SliceHeight  = %x\n", __FUNCTION__, ui32SliceHeight );
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s PTG bIsInterlaced    = %x\n", __FUNCTION__, ctx->bIsInterlaced   );
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s PTG iFineYSearchSize = %x\n", __FUNCTION__, ctx->iFineYSearchSize);
-#endif
 
     tng__prepare_encode_sliceparams(
         ctx,
@@ -2336,22 +2315,19 @@ void tng__generate_slice_params_template(
         ui32StreamIndex
     );
 
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s PTG bCabacEnabled  = %x\n", __FUNCTION__, ctx->bCabacEnabled );
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s PTG ui16MVCViewIdx = %x\n", __FUNCTION__, ctx->ui16MVCViewIdx);
-#endif
 
     if(ctx->bEnableMVC)
         ctx->ui16MVCViewIdx = (IMG_UINT16)ui32StreamIndex;
 
-
 #ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_map(&(ps_mem->bufs_slice_template), &(ps_mem->bufs_slice_template.virtual_addr));
 #endif
+
     slice_mem_temp_p = (IMG_UINT8*)(ps_mem->bufs_slice_template.virtual_addr + (ctx->ctx_mem_size.slice_template * buf_idx));
-#ifdef _TNG_PDUMP_HOSTCODE_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: addr 0x%08x, virtual 0x%08x, size = 0x%08x, buf_idx = %x\n", __FUNCTION__, slice_mem_temp_p, ps_mem->bufs_slice_template.virtual_addr, ctx->ctx_mem_size.slice_template, buf_idx);
-#endif
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: addr 0x%08x, virtual 0x%08x, size = 0x%08x, buf_idx = %x\n",
+        __FUNCTION__, slice_mem_temp_p, ps_mem->bufs_slice_template.virtual_addr, ctx->ctx_mem_size.slice_template, buf_idx);
 
     /* Prepare Slice Header Template */
     switch (ctx->eStandard) {
@@ -2385,9 +2361,8 @@ void tng__generate_slice_params_template(
 
     psb_buffer_unmap(&(ps_mem->bufs_slice_template));
 
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end \n", __FUNCTION__);
-#endif
+
     return ;
 }
 
@@ -3587,10 +3562,8 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
 
-#ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ctx->ui8SlicesPerPicture = %d, ctx->ui32FrameCount[0] = %d\n",
          __FUNCTION__, ctx->ui8SlicesPerPicture, ctx->ui32FrameCount[0]);
-#endif
 
     if (ctx->ui32FrameCount[0] == 0) {
         vaStatus = tng__set_ctx_buf(ctx, 0);

@@ -538,9 +538,7 @@ int tng_context_get_next_cmdbuf(object_context_p obj_context)
 {
     tng_cmdbuf_p cmdbuf;
     int ret;
-#ifdef _PDUMP_FUNC_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start obj_context->tng_cmdbuf = %x\n", __FUNCTION__, obj_context->tng_cmdbuf);
-#endif
 
     if (obj_context->tng_cmdbuf) {
         return 0;
@@ -560,9 +558,7 @@ int tng_context_get_next_cmdbuf(object_context_p obj_context)
 
 //    tng_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->pic_params);
 //    tng_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->slice_mem);
-#ifdef _PDUMP_FUNC_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
-#endif
 
     return ret;
 }

@@ -92,10 +92,8 @@ IMG_UINT32 tng_fill_slice_map(context_ENC_p ctx, IMG_INT32 i32SlotNum, IMG_UINT3
     ui8SlicesPerPicture = ctx->ui8SlicesPerPicture;
     ui32HalfwayBU = 0;
     ui8HalfWaySlice=ui8SlicesPerPicture/2;
-#ifdef _PDUMP_FUNC_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: slot num = %d, aso = %d\n", __FUNCTION__, i32SlotNum, ctx->bArbitrarySO);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: stream id = %d, addr = 0x%x\n", __FUNCTION__, ui32StreamIndex, ps_mem->bufs_slice_map.virtual_addr);
-#endif
 
     psb_buffer_map(&(ps_mem->bufs_slice_map), &(ps_mem->bufs_slice_map.virtual_addr));
     if (ps_mem->bufs_slice_map.virtual_addr == NULL) {

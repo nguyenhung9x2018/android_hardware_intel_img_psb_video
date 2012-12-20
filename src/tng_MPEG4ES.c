@@ -220,14 +220,10 @@ static VAStatus tng_MPEG4ES_BeginPicture(
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-#ifdef _TOPAZHP_PDUMP_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-#endif
     vaStatus = tng_BeginPicture(ctx);
 
-#ifdef _TOPAZHP_PDUMP_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
-#endif
     return vaStatus;
 }
 

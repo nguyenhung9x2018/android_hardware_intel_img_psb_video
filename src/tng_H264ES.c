@@ -58,8 +58,6 @@
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
-#define _TNG_PDUMP_H264ES_
-
 static VAStatus tng__H264ES_init_profile(
     object_context_p obj_context,
     object_config_p obj_config)
@@ -88,11 +86,9 @@ static VAStatus tng__H264ES_init_profile(
             vaStatus = VA_STATUS_ERROR_UNSUPPORTED_PROFILE;
             break;
     }
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: obj_config->profile = %dctx->eStandard = %d, ctx->bEnableMVC = %d\n",
         __FUNCTION__, obj_config->profile, ctx->eStandard, ctx->bEnableMVC);
-#endif
     return vaStatus;
 }
 
@@ -249,25 +245,21 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
     VAEncMiscParameterRateControl *psMiscRcParams;
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     VAEncMiscParameterBuffer *pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
-#ifdef _TNG_PDUMP_H264ES_
+
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start \n", __FUNCTION__);
-#endif
+
     ASSERT(obj_buffer->type == VAEncMiscParameterTypeRateControl);
     ASSERT(obj_buffer->size == sizeof(VAEncMiscParameterRateControl));
     psMiscRcParams = (VAEncMiscParameterRateControl *)pBuffer->data;
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s psRCParams->ui32BitsPerSecond = %d, psMiscRcParams->bits_per_second = %d \n",
         __FUNCTION__, psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
-#endif
 
     if (psMiscRcParams->bits_per_second > TOPAZ_H264_MAX_BITRATE) {
-#ifdef _TNG_PDUMP_H264ES_
         drv_debug_msg(VIDEO_DEBUG_GENERAL,
             "%s: bits_per_second(%d) exceeds the maximum bitrate, set it with %d\n",
             __FUNCTION__, psMiscRcParams->bits_per_second, TOPAZ_H264_MAX_BITRATE);
-#endif
         psMiscRcParams->bits_per_second = TOPAZ_H264_MAX_BITRATE;
     }
 
@@ -277,11 +269,9 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
         psRCParams->bBitrateChanged = IMG_TRUE;
     }
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: rate control changed from %d to %d\n", __FUNCTION__,
         psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
-#endif
 
     if (psMiscRcParams->window_size != 0)
         ctx->uiCbrBufferTenths = psMiscRcParams->window_size / 100;
@@ -295,14 +285,12 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
             psRCParams->ui32BufferSize = ((5 * psRCParams->ui32BitsPerSecond) >> 1);
     }
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s ctx->uiCbrBufferTenths = %d, psRCParams->ui32BufferSize = %d\n",
         __FUNCTION__, ctx->uiCbrBufferTenths, psRCParams->ui32BufferSize);
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s psRCParams->ui32BitsPerSecond = %d, psMiscRcParams->bits_per_second = %d\n",
         __FUNCTION__, psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
-#endif
 
     //psRCParams->ui32BUSize = psMiscRcParams->basic_unit_size;
     psRCParams->i32InitialDelay = (13 * psRCParams->ui32BufferSize) >> 4;
@@ -390,13 +378,12 @@ static VAStatus tng__H264ES_process_misc_air_param(context_ENC_p ctx, object_buf
     psAIRInfo->i16AIRSkipCnt = 0;   //psMiscAirParams->i16AIRSkipCnt;
     psAIRInfo->ui16AIRScanPos = 0;
 
- #ifdef _TNG_PDUMP_H264ES_ 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: air slice size changed to num_air_mbs %d "
         "air_threshold %d, air_auto %d\n", __FUNCTION__,
         psMiscAirParams->air_num_mbs, psMiscAirParams->air_threshold,
         psMiscAirParams->air_auto);
-#endif
+
     if (psAIRInfo->pi8AIR_Table != NULL)
         free(psAIRInfo->pi8AIR_Table);
     tng_air_buf_create(ctx);
@@ -433,11 +420,9 @@ static IMG_UINT8 tng__H264ES_calculate_level(context_ENC_p ctx)
     else if (ui32MBf >    99) ui32Level = SH_LEVEL_11;
     else ui32Level = SH_LEVEL_10;
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: ui32MBf = %d, ui32MBs = %d, ui32Level = %d\n",
         __FUNCTION__, ui32MBf, ui32MBs, ui32Level);
-#endif
 
     //ui32DpbMbs = ui32MBf * (psContext->ui32MaxNumRefFrames + 1);
     ui32DpbMbs = ui32MBf * (ctx->ui8MaxNumRefFrames + 1);
@@ -455,11 +440,10 @@ static IMG_UINT8 tng__H264ES_calculate_level(context_ENC_p ctx)
     else ui32TempLevel = SH_LEVEL_10;
     ui32Level = tng__max(ui32Level, ui32TempLevel);
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: ui32DpbMbs = %d, ui32Level = %d\n",
         __FUNCTION__, ui32DpbMbs, ui32Level);
-#endif
+
     // now restrict based on the number of macroblocks per second
     if      (ui32MBs > 589824) ui32TempLevel = SH_LEVEL_51;
     else if (ui32MBs > 522240) ui32TempLevel = SH_LEVEL_50;
@@ -476,11 +460,9 @@ static IMG_UINT8 tng__H264ES_calculate_level(context_ENC_p ctx)
     else ui32TempLevel = SH_LEVEL_10;
     ui32Level = tng__max(ui32Level, ui32TempLevel);
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: ui32TempLevel = %d, ui32Level = %d\n",
         __FUNCTION__, ui32TempLevel, ui32Level);
-#endif
 
     if (psRCParams->bRCEnable) {
         // now restrict based on the requested bitrate
@@ -505,11 +487,9 @@ static IMG_UINT8 tng__H264ES_calculate_level(context_ENC_p ctx)
         ui32Level = tng__max(ui32Level, 320);
     }
 */
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: target level is %d, input level is %d\n",
         __FUNCTION__, ui32Level, ctx->ui8LevelIdc);
-#endif
     return (IMG_UINT8)ui32Level;
 }
 
@@ -547,21 +527,17 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     //bits per second
     if (!psSeqParams->bits_per_second) {
         psSeqParams->bits_per_second = ctx->ui16Width * ctx->ui16PictureHeight * 30 * 12;
-#ifdef _TNG_PDUMP_H264ES_
         drv_debug_msg(VIDEO_DEBUG_GENERAL,
             "%s: bits_per_second is 0, set to %d\n",
             __FUNCTION__, psSeqParams->bits_per_second);
-#endif
     }
 
     if (psSeqParams->bits_per_second > TOPAZ_H264_MAX_BITRATE) {
         psSeqParams->bits_per_second = TOPAZ_H264_MAX_BITRATE;
-#ifdef _TNG_PDUMP_H264ES_
         drv_debug_msg(VIDEO_DEBUG_GENERAL,
             "%s: bits_per_second(%d) exceeds the maximum bitrate, set it with %d\n",
             __FUNCTION__, psSeqParams->bits_per_second,
             TOPAZ_H264_MAX_BITRATE);
-#endif
     }
 
     if (psRCParams->ui32BitsPerSecond == 0)
@@ -610,16 +586,14 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     psCropParams->ui16TopCropOffset = psSeqParams->frame_crop_top_offset;
     psCropParams->ui16BottomCropOffset = psSeqParams->frame_crop_bottom_offset;
 
-#ifdef _TNG_PDUMP_H264ES_
-        drv_debug_msg(VIDEO_DEBUG_GENERAL,
-            "%s ctx->ui32IdrPeriod = %d, ctx->ui32IntraCnt = %d\n",
-            __FUNCTION__, ctx->ui32IdrPeriod, ctx->ui32IntraCnt);
-        drv_debug_msg(VIDEO_DEBUG_GENERAL,
-            "%s ctx->ui8MaxNumRefFrames = %d, psRCParams->ui16BFrames = %d\n",
-            __FUNCTION__, ctx->ui8MaxNumRefFrames, psRCParams->ui16BFrames);
-        drv_debug_msg(VIDEO_DEBUG_GENERAL,
-            "%s bClip = %d\n", __FUNCTION__, psCropParams->bClip);
-#endif
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s ctx->ui32IdrPeriod = %d, ctx->ui32IntraCnt = %d\n",
+        __FUNCTION__, ctx->ui32IdrPeriod, ctx->ui32IntraCnt);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s ctx->ui8MaxNumRefFrames = %d, psRCParams->ui16BFrames = %d\n",
+        __FUNCTION__, ctx->ui8MaxNumRefFrames, psRCParams->ui16BFrames);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s bClip = %d\n", __FUNCTION__, psCropParams->bClip);
 
     //set level idc parameter
     ctx->ui32VertMVLimit = 255 ;//(63.75 in qpel increments)
@@ -643,13 +617,10 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     else if (ctx->ui8LevelIdc >= SH_LEVEL_11)
         ctx->ui32VertMVLimit = 511 ;//(127.75 in qpel increments)
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s ctx->ui8LevelIdc (%d), ctx->bLimitNumVectors (%d), ctx->ui32VertMVLimit (%d)\n",
         __FUNCTION__, ctx->ui8LevelIdc, ctx->bLimitNumVectors, ctx->ui32VertMVLimit);
-#endif
 
-//    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
     free(psSeqParams);
 
     return VA_STATUS_SUCCESS;
@@ -747,9 +718,9 @@ static VAStatus tng__H264ES_process_picture_param_base(context_ENC_p ctx, unsign
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
     VAEncPictureParameterBufferH264 *psPicParams;
-#ifdef _TNG_PDUMP_H264ES_
+
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
-#endif
+
     psPicParams = (VAEncPictureParameterBufferH264 *) buf;
 
     ASSERT(ctx->ui16Width == psPicParams->picture_width);
@@ -760,10 +731,8 @@ static VAStatus tng__H264ES_process_picture_param_base(context_ENC_p ctx, unsign
     ps_buf->ref_surface  = SURFACE(psPicParams->ReferenceFrames[0].picture_id);
     ps_buf->ref_surface1 = SURFACE(psPicParams->ReferenceFrames[1].picture_id);
     ps_buf->coded_buf    = BUFFER(psPicParams->coded_buf);
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: psPicParams->coded_buf = 0x%08x, ps_buf->coded_buf = 0x%08x\n",
         __FUNCTION__, psPicParams->coded_buf, ps_buf->coded_buf);
-#endif
 #else
     {
         IMG_INT32 i;
@@ -796,11 +765,10 @@ static VAStatus tng__H264ES_process_picture_param_base(context_ENC_p ctx, unsign
         ctx->bH264IntraConstrained = 0;
     }
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: ctx->bH2648x8Transform = 0x%08x, ctx->bH264IntraConstrained = 0x%08x\n",
         __FUNCTION__, ctx->bH2648x8Transform, ctx->bH264IntraConstrained);
-#endif
+
     ctx->bCabacEnabled = psPicParams->pic_fields.bits.entropy_coding_mode_flag;
     ctx->bWeightedPrediction = psPicParams->pic_fields.bits.weighted_pred_flag;
     ctx->ui8VPWeightedImplicitBiPred = psPicParams->pic_fields.bits.weighted_bipred_idc;
@@ -813,9 +781,7 @@ static VAStatus tng__H264ES_process_picture_param_base(context_ENC_p ctx, unsign
 
     ctx->ui32LastPicture = psPicParams->last_picture;
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
-#endif
     return vaStatus;
 }
 
@@ -824,16 +790,13 @@ static VAStatus tng__H264ES_process_picture_param_mvc(context_ENC_p ctx, unsigne
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     VAEncPictureParameterBufferH264MVC *psPicMvcParams;
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
-#endif
+
     psPicMvcParams = (VAEncPictureParameterBufferH264MVC *) buf;
     ctx->ui16MVCViewIdx = ctx->ui32StreamID = psPicMvcParams->view_id;
     vaStatus = tng__H264ES_process_picture_param_base(ctx, (unsigned char*)&(psPicMvcParams->base_picture_param));
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
-#endif
     return vaStatus;
 }
 
@@ -841,14 +804,12 @@ static VAStatus tng__H264ES_process_picture_param(context_ENC_p ctx, object_buff
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: start\n",__FUNCTION__);
     ASSERT(obj_buffer->type == VAEncPictureParameterBufferType);
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: ctx->bEnableMVC = %d\n", __FUNCTION__, ctx->bEnableMVC);
-#endif
 
     if (ctx->bEnableMVC) {
         if (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264MVC)) {
@@ -908,11 +869,9 @@ static VAStatus tng__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     /* Transfer ownership of VAEncMiscParameterBuffer data */
     pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
     obj_buffer->size = 0;
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: start pBuffer->type = %d\n",
         __FUNCTION__, pBuffer->type);
-#endif
 
     switch (pBuffer->type) {
         case VAEncMiscParameterTypeFrameRate:
@@ -1067,9 +1026,7 @@ static void tng_H264ES_QueryConfigAttributes(
     int num_attribs)
 {
     int i;
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
-#endif
 
     /* RateControl attributes */
     for (i = 0; i < num_attribs; i++) {
@@ -1092,9 +1049,7 @@ static VAStatus tng_H264ES_ValidateConfig(
     object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
-#endif
     return vaStatus;
 }
 
@@ -1160,9 +1115,7 @@ static VAStatus tng_H264ES_CreateContext(
 static void tng_H264ES_DestroyContext(
     object_context_p obj_context)
 {
-#ifdef _TNG_PDUMP_H264ES_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
-#endif
     tng_DestroyContext(obj_context, 0);
 }
 
@@ -1171,13 +1124,7 @@ static VAStatus tng_H264ES_BeginPicture(
 {
     INIT_CONTEXT_H264ES;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-#ifdef _TNG_PDUMP_H264ES_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-#endif
     vaStatus = tng_BeginPicture(ctx);
-#ifdef _TNG_PDUMP_H264ES_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
-#endif
     return vaStatus;
 }
 
@@ -1189,48 +1136,37 @@ static VAStatus tng_H264ES_RenderPicture(
     INIT_CONTEXT_H264ES;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i;
-#ifdef _TNG_PDUMP_H264ES_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
-#endif
+
     for (i = 0; i < num_buffers; i++) {
         object_buffer_p obj_buffer = buffers[i];
-#ifdef _TNG_PDUMP_H264ES_
         drv_debug_msg(VIDEO_DEBUG_GENERAL,
             "%s: type = %d, num = %d\n",
             __FUNCTION__, obj_buffer->type, num_buffers);
-#endif
+
         switch (obj_buffer->type) {
             case VAEncSequenceParameterBufferType:
-#ifdef _TNG_PDUMP_H264ES_
                 drv_debug_msg(VIDEO_DEBUG_GENERAL,
                     "tng_H264_RenderPicture got VAEncSequenceParameterBufferType\n");
-#endif
                 vaStatus = tng__H264ES_process_sequence_param(ctx, obj_buffer);
                 DEBUG_FAILURE;
                 break;
             case VAEncPictureParameterBufferType:
-#ifdef _TNG_PDUMP_H264ES_
                 drv_debug_msg(VIDEO_DEBUG_GENERAL,
                     "tng_H264_RenderPicture got VAEncPictureParameterBuffer\n");
-#endif
                 vaStatus = tng__H264ES_process_picture_param(ctx, obj_buffer);
                 DEBUG_FAILURE;
                 break;
 
             case VAEncSliceParameterBufferType:
-#ifdef _TNG_PDUMP_H264ES_
                 drv_debug_msg(VIDEO_DEBUG_GENERAL,
                     "tng_H264_RenderPicture got VAEncSliceParameterBufferType\n");
-#endif
                 vaStatus = tng__H264ES_process_slice_param(ctx, obj_buffer);
                 DEBUG_FAILURE;
                 break;
 
             case VAEncMiscParameterBufferType:
-#ifdef _TNG_PDUMP_H264ES_
                 drv_debug_msg(VIDEO_DEBUG_GENERAL,
                     "tng_H264_RenderPicture got VAEncMiscParameterBufferType\n");
-#endif
                 vaStatus = tng__H264ES_process_misc_param(ctx, obj_buffer);
                 DEBUG_FAILURE;
                 break;
@@ -1242,9 +1178,6 @@ static VAStatus tng_H264ES_RenderPicture(
             break;
         }
     }
-#ifdef _TNG_PDUMP_H264ES_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
-#endif
     return vaStatus;
 }
 
@@ -1253,15 +1186,7 @@ static VAStatus tng_H264ES_EndPicture(
 {
     INIT_CONTEXT_H264ES;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-#ifdef _TNG_PDUMP_H264ES_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s start\n", __FUNCTION__);
-#endif
     vaStatus = tng_EndPicture(ctx);
-#ifdef _TNG_PDUMP_H264ES_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s end\n", __FUNCTION__);
-#endif
     return vaStatus;
 }
 
