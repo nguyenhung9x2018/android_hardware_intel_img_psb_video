@@ -46,19 +46,19 @@
  */
 // This file was automatically generated from /img/dev/topazsc_v2/firmware/topaz_sc/bin/H263SlaveFirmware.dnl using dnl2c.
 
-extern unsigned long aui32H263_SlaveMTXTOPAZFWText[];
-extern unsigned long ui32H263_SlaveMTXTOPAZFWTextSize;
+extern unsigned int aui32H263_SlaveMTXTOPAZFWText[];
+extern unsigned int ui32H263_SlaveMTXTOPAZFWTextSize;
 
-extern unsigned long aui32H263_SlaveMTXTOPAZFWData[];
-extern unsigned long ui32H263_SlaveMTXTOPAZFWDataSize;
+extern unsigned int aui32H263_SlaveMTXTOPAZFWData[];
+extern unsigned int ui32H263_SlaveMTXTOPAZFWDataSize;
 
-extern unsigned long aui32H263_SlaveMTXTOPAZFWTextReloc[];
+extern unsigned int aui32H263_SlaveMTXTOPAZFWTextReloc[];
 extern unsigned char aui8H263_SlaveMTXTOPAZFWTextRelocType[];
-extern unsigned long aui32H263_SlaveMTXTOPAZFWTextRelocFullAddr[];
+extern unsigned int aui32H263_SlaveMTXTOPAZFWTextRelocFullAddr[];
 
-extern unsigned long aui32H263_SlaveMTXTOPAZFWDataReloc[];
-extern unsigned long ui32H263_SlaveMTXTOPAZFWDataRelocSize;
+extern unsigned int aui32H263_SlaveMTXTOPAZFWDataReloc[];
+extern unsigned int ui32H263_SlaveMTXTOPAZFWDataRelocSize;
 
-extern unsigned long ui32H263_SlaveMTXTOPAZFWTextOrigin;
-extern unsigned long ui32H263_SlaveMTXTOPAZFWDataOrigin;
+extern unsigned int ui32H263_SlaveMTXTOPAZFWTextOrigin;
+extern unsigned int ui32H263_SlaveMTXTOPAZFWDataOrigin;
 

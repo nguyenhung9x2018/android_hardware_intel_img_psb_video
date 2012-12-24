@@ -33,11 +33,11 @@
 
 unsigned char *szMPG4CBR_MTXTOPAZFW_buildtag = "TOPAZ_DDKBUILD_00-00-00-0146";
 
-unsigned long ui32MPG4CBR_MTXTOPAZFWTextSize = 4520;
-unsigned long ui32MPG4CBR_MTXTOPAZFWDataSize = 3664;
-unsigned long ui32MPG4CBR_MTXTOPAZFWDataLocation = 0x828846c0;
+unsigned int ui32MPG4CBR_MTXTOPAZFWTextSize = 4520;
+unsigned int ui32MPG4CBR_MTXTOPAZFWDataSize = 3664;
+unsigned int ui32MPG4CBR_MTXTOPAZFWDataLocation = 0x828846c0;
 
-unsigned long aui32MPG4CBR_MTXTOPAZFWText[] = {
+unsigned int aui32MPG4CBR_MTXTOPAZFWText[] = {
     0x9040c001,
     0xc80993fe,
     0xc0000e42,
@@ -4560,7 +4560,7 @@ unsigned long aui32MPG4CBR_MTXTOPAZFWText[] = {
     0x09c0b060,
 };
 
-unsigned long aui32MPG4CBR_MTXTOPAZFWData[] = {
+unsigned int aui32MPG4CBR_MTXTOPAZFWData[] = {
     0x00000000,
     0x00000000,
     0x00000000,

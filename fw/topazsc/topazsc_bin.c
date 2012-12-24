@@ -55,7 +55,7 @@
 #include "MPG4SlaveFirmwareVBR_bin.h"
 
 
-#define FW_VER 0x5F
+#define FW_VER 0x60
 #define FW_FILE_NAME "topazsc_fw.bin"
 
 #define FW_MASTER_INFO(codec,prefix) \
@@ -122,8 +122,8 @@ typedef enum topaz_fw_codec_e topaz_fw_codec_t;
 struct fw_table_s {
     topaz_fw_codec_t index;
     topaz_fw_info_item_t header;
-    unsigned long *fw_text;
-    unsigned long *fw_data;
+    unsigned int *fw_text;
+    unsigned int *fw_data;
 };
 typedef struct fw_table_s fw_table_t;
 

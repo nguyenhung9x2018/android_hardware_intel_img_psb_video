@@ -46,19 +46,19 @@
  */
 // This file was automatically generated from /img/dev/topazsc_v2/firmware/topaz_sc/bin/H264MasterFirmwareVBR.dnl using dnl2c.
 
-extern unsigned long aui32H264VBR_MasterMTXTOPAZFWText[];
-extern unsigned long ui32H264VBR_MasterMTXTOPAZFWTextSize;
+extern unsigned int aui32H264VBR_MasterMTXTOPAZFWText[];
+extern unsigned int ui32H264VBR_MasterMTXTOPAZFWTextSize;
 
-extern unsigned long aui32H264VBR_MasterMTXTOPAZFWData[];
-extern unsigned long ui32H264VBR_MasterMTXTOPAZFWDataSize;
+extern unsigned int aui32H264VBR_MasterMTXTOPAZFWData[];
+extern unsigned int ui32H264VBR_MasterMTXTOPAZFWDataSize;
 
-extern unsigned long aui32H264VBR_MasterMTXTOPAZFWTextReloc[];
+extern unsigned int aui32H264VBR_MasterMTXTOPAZFWTextReloc[];
 extern unsigned char aui8H264VBR_MasterMTXTOPAZFWTextRelocType[];
-extern unsigned long aui32H264VBR_MasterMTXTOPAZFWTextRelocFullAddr[];
+extern unsigned int aui32H264VBR_MasterMTXTOPAZFWTextRelocFullAddr[];
 
-extern unsigned long aui32H264VBR_MasterMTXTOPAZFWDataReloc[];
-extern unsigned long ui32H264VBR_MasterMTXTOPAZFWDataRelocSize;
+extern unsigned int aui32H264VBR_MasterMTXTOPAZFWDataReloc[];
+extern unsigned int ui32H264VBR_MasterMTXTOPAZFWDataRelocSize;
 
-extern unsigned long ui32H264VBR_MasterMTXTOPAZFWTextOrigin;
-extern unsigned long ui32H264VBR_MasterMTXTOPAZFWDataOrigin;
+extern unsigned int ui32H264VBR_MasterMTXTOPAZFWTextOrigin;
+extern unsigned int ui32H264VBR_MasterMTXTOPAZFWDataOrigin;
 

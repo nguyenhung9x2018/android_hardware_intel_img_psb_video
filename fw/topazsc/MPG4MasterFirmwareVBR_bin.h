@@ -46,19 +46,19 @@
  */
 // This file was automatically generated from /img/dev/topazsc_v2/firmware/topaz_sc/bin/MPG4MasterFirmwareVBR.dnl using dnl2c.
 
-extern unsigned long aui32MPG4VBR_MasterMTXTOPAZFWText[];
-extern unsigned long ui32MPG4VBR_MasterMTXTOPAZFWTextSize;
+extern unsigned int aui32MPG4VBR_MasterMTXTOPAZFWText[];
+extern unsigned int ui32MPG4VBR_MasterMTXTOPAZFWTextSize;
 
-extern unsigned long aui32MPG4VBR_MasterMTXTOPAZFWData[];
-extern unsigned long ui32MPG4VBR_MasterMTXTOPAZFWDataSize;
+extern unsigned int aui32MPG4VBR_MasterMTXTOPAZFWData[];
+extern unsigned int ui32MPG4VBR_MasterMTXTOPAZFWDataSize;
 
-extern unsigned long aui32MPG4VBR_MasterMTXTOPAZFWTextReloc[];
+extern unsigned int aui32MPG4VBR_MasterMTXTOPAZFWTextReloc[];
 extern unsigned char aui8MPG4VBR_MasterMTXTOPAZFWTextRelocType[];
-extern unsigned long aui32MPG4VBR_MasterMTXTOPAZFWTextRelocFullAddr[];
+extern unsigned int aui32MPG4VBR_MasterMTXTOPAZFWTextRelocFullAddr[];
 
-extern unsigned long aui32MPG4VBR_MasterMTXTOPAZFWDataReloc[];
-extern unsigned long ui32MPG4VBR_MasterMTXTOPAZFWDataRelocSize;
+extern unsigned int aui32MPG4VBR_MasterMTXTOPAZFWDataReloc[];
+extern unsigned int ui32MPG4VBR_MasterMTXTOPAZFWDataRelocSize;
 
-extern unsigned long ui32MPG4VBR_MasterMTXTOPAZFWTextOrigin;
-extern unsigned long ui32MPG4VBR_MasterMTXTOPAZFWDataOrigin;
+extern unsigned int ui32MPG4VBR_MasterMTXTOPAZFWTextOrigin;
+extern unsigned int ui32MPG4VBR_MasterMTXTOPAZFWDataOrigin;
 

@@ -1249,6 +1249,7 @@ static void pnw__update_rcdata(
         L3 = 0.2;
 
         /* Set MaxQP to avoid blocky image in low bitrate */
+        /* RCScaleFactor indicates the size of GOP for rate control */
         if (psContext->eCodec == IMG_CODEC_H264_VCM) {
             psPicParams->sInParams.MaxQPVal = 51;
             psPicParams->sInParams.RCScaleFactor = 16;
@@ -1300,7 +1301,7 @@ static void pnw__update_rcdata(
     case IMG_CODEC_MPEG4_VBR:
     case IMG_CODEC_H263_CBR:
     case IMG_CODEC_H263_VBR:
-        psPicParams->sInParams.RCScaleFactor = 30;
+        psPicParams->sInParams.RCScaleFactor = 16;
         psPicParams->sInParams.MaxQPVal  = 31;
 
         if (psContext->Width <= 176) {

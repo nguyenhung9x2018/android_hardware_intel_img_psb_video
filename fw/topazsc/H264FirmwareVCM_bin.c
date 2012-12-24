@@ -33,11 +33,11 @@
 
 unsigned char *szH264VCM_MTXTOPAZFW_buildtag = "TOPAZ_DDKBUILD_00-00-00-0146";
 
-unsigned long ui32H264VCM_MTXTOPAZFWTextSize = 4834;
-unsigned long ui32H264VCM_MTXTOPAZFWDataSize = 3344;
-unsigned long ui32H264VCM_MTXTOPAZFWDataLocation = 0x82884bc0;
+unsigned int ui32H264VCM_MTXTOPAZFWTextSize = 4834;
+unsigned int ui32H264VCM_MTXTOPAZFWDataSize = 3344;
+unsigned int ui32H264VCM_MTXTOPAZFWDataLocation = 0x82884bc0;
 
-unsigned long aui32H264VCM_MTXTOPAZFWText[] = {
+unsigned int aui32H264VCM_MTXTOPAZFWText[] = {
     0x9040c001,
     0xc80993fe,
     0xc0000e42,
@@ -4874,7 +4874,7 @@ unsigned long aui32H264VCM_MTXTOPAZFWText[] = {
     0x09c0b060,
 };
 
-unsigned long aui32H264VCM_MTXTOPAZFWData[] = {
+unsigned int aui32H264VCM_MTXTOPAZFWData[] = {
     0x00000000,
     0x00000000,
     0x00000000,

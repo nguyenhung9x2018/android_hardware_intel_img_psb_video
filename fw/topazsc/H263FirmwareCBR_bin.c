@@ -33,11 +33,11 @@
 
 unsigned char *szH263CBR_MTXTOPAZFW_buildtag = "TOPAZ_DDKBUILD_00-00-00-0146";
 
-unsigned long ui32H263CBR_MTXTOPAZFWTextSize = 4500;
-unsigned long ui32H263CBR_MTXTOPAZFWDataSize = 3680;
-unsigned long ui32H263CBR_MTXTOPAZFWDataLocation = 0x82884680;
+unsigned int ui32H263CBR_MTXTOPAZFWTextSize = 4500;
+unsigned int ui32H263CBR_MTXTOPAZFWDataSize = 3680;
+unsigned int ui32H263CBR_MTXTOPAZFWDataLocation = 0x82884680;
 
-unsigned long aui32H263CBR_MTXTOPAZFWText[] = {
+unsigned int aui32H263CBR_MTXTOPAZFWText[] = {
     0x9040c001,
     0xc80993fe,
     0xc0000e42,
@@ -4540,7 +4540,7 @@ unsigned long aui32H263CBR_MTXTOPAZFWText[] = {
     0x09c0b060,
 };
 
-unsigned long aui32H263CBR_MTXTOPAZFWData[] = {
+unsigned int aui32H263CBR_MTXTOPAZFWData[] = {
     0x00000000,
     0x00000000,
     0x00000000,
