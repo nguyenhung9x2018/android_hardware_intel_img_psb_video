@@ -690,7 +690,7 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     return vaStatus;
 }
 
-static void pnw__H264ES_encode_one_slice(context_ENC_p ctx,
+static VAStatus pnw__H264ES_encode_one_slice(context_ENC_p ctx,
         VAEncSliceParameterBuffer *pBuffer)
 {
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
@@ -699,6 +699,7 @@ static void pnw__H264ES_encode_one_slice(context_ENC_p ctx,
     unsigned char is_intra = 0;
     int slice_param_idx;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     /*Slice encoding Order:
      *1.Insert Do header command
@@ -707,6 +708,13 @@ static void pnw__H264ES_encode_one_slice(context_ENC_p ctx,
      *4.Insert Do slice command
      * */
 
+    if (pBuffer->slice_height > (ctx->Height / 16) ||
+           pBuffer->start_row_number > (ctx->Height / 16) ||
+           (pBuffer->slice_height + pBuffer->start_row_number) > (ctx->Height / 16)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "slice height %d or start row number %d is too large",
+                pBuffer->slice_height,  pBuffer->start_row_number);
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
     MBSkipRun = (pBuffer->slice_height * ctx->Width) / 16;
     deblock_idc = pBuffer->slice_flags.bits.disable_deblocking_filter_idc;
 
@@ -788,7 +796,30 @@ static void pnw__H264ES_encode_one_slice(context_ENC_p ctx,
     }
     ctx->obj_context->slice_count++;
 
-    return;
+    return vaStatus;
+}
+
+/* convert from VAEncSliceParameterBufferH264  to VAEncSliceParameterBuffer */
+static VAStatus pnw__convert_sliceparameter_buffer(VAEncSliceParameterBufferH264 *pBufferH264,
+                                                   VAEncSliceParameterBuffer *pBuffer,
+                                                   int picture_width_in_mbs,
+                                                   unsigned int num_elemenent)
+{
+    unsigned int i;
+
+    for (i = 0; i < num_elemenent; i++) {
+        pBuffer->start_row_number = pBufferH264->macroblock_address / picture_width_in_mbs;
+        pBuffer->slice_height =  pBufferH264->num_macroblocks / picture_width_in_mbs;
+        pBuffer->slice_flags.bits.is_intra =
+            (((pBufferH264->slice_type == 2) || (pBufferH264->slice_type == 7)) ? 1 : 0);
+        pBuffer->slice_flags.bits.disable_deblocking_filter_idc =  pBufferH264->disable_deblocking_filter_idc;
+
+        /* next conversion */
+        pBuffer++;
+        pBufferH264++;
+    }
+
+    return 0;
 }
 
 static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer_p obj_buffer)
@@ -798,22 +829,43 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)(cmdbuf->pic_params_p);
     unsigned int i, j, slice_per_core;
-    VAStatus vaStatus;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
-    ASSERT(obj_buffer->size == obj_buffer->num_elements * sizeof(VAEncSliceParameterBufferType));
 
     if (obj_buffer->num_elements > (ctx->Height / 16)) {
-        free(obj_buffer->buffer_data);
-        obj_buffer->buffer_data = NULL;
         vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-        return vaStatus;
+        goto out2;
     }
     cmdbuf = ctx->obj_context->pnw_cmdbuf;
     psPicParams = (PIC_PARAMS *)cmdbuf->pic_params_p;
 
-    /* Transfer ownership of VAEncPictureParameterBufferH264 data */
-    pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
+    /* Transfer ownership of VAEncPictureParameterBuffer data */
+    if (obj_buffer->size == sizeof(VAEncSliceParameterBufferH264)) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Receive VAEncSliceParameterBufferH264 buffer");
+        pBuffer = calloc(obj_buffer->num_elements, sizeof(VAEncSliceParameterBuffer));
+
+        if (pBuffer == NULL) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Run out of memory!\n");
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            goto out2;
+        }
+
+        pnw__convert_sliceparameter_buffer((VAEncSliceParameterBufferH264 *)obj_buffer->buffer_data,
+                                           pBuffer,
+                                           ctx->Width / 16,
+                                           obj_buffer->num_elements);
+    } else if (obj_buffer->size == sizeof(VAEncSliceParameterBuffer)) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Receive VAEncSliceParameterBuffer buffer");
+        pBuffer = (VAEncSliceParameterBuffer *) obj_buffer->buffer_data;
+    } else {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Buffer size(%d) is wrong. It should be %d or %d\n",
+                obj_buffer->size, sizeof(VAEncSliceParameterBuffer),
+                sizeof(VAEncSliceParameterBufferH264));
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        goto out2;
+    }
+
     obj_buffer->size = 0;
 
     /*In case the slice number changes*/
@@ -831,6 +883,10 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
         ctx->slice_param_cache = calloc(2 * ctx->slice_param_num, sizeof(VAEncSliceParameterBuffer));
         if (NULL == ctx->slice_param_cache) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "Run out of memory!\n");
+
+            /* free the converted VAEncSliceParameterBuffer */
+            if (obj_buffer->size == sizeof(VAEncSliceParameterBufferH264))
+                free(pBuffer);
             free(obj_buffer->buffer_data);
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
         }
@@ -864,7 +920,9 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
     for (i = 0; i < slice_per_core; i++) {
         pBuffer = pBuf_per_core;
         for (j = 0; j < ctx->ParallelCores; j++) {
-            pnw__H264ES_encode_one_slice(ctx, pBuffer);
+            vaStatus = pnw__H264ES_encode_one_slice(ctx, pBuffer);
+            if (vaStatus != VA_STATUS_SUCCESS)
+                goto out1;
             if (0 == ctx->SliceToCore) {
                 ctx->SliceToCore = ctx->ParallelCores;
             }
@@ -882,13 +940,18 @@ static VAStatus pnw__H264ES_process_slice_param(context_ENC_p ctx, object_buffer
         ctx->SliceToCore = 0;
         pBuffer -= slice_per_core;
         pBuffer ++;
-        pnw__H264ES_encode_one_slice(ctx, pBuffer);
+        vaStatus = pnw__H264ES_encode_one_slice(ctx, pBuffer);
     }
+out1:
+    /* free the converted VAEncSliceParameterBuffer */
+    if (obj_buffer->size == sizeof(VAEncSliceParameterBufferH264))
+        free(pBuffer);
 
+out2:
     free(obj_buffer->buffer_data);
     obj_buffer->buffer_data = NULL;
 
-    return VA_STATUS_SUCCESS;
+    return vaStatus;
 }
 
 static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_p obj_buffer)
