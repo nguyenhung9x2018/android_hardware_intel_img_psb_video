@@ -33,6 +33,9 @@
 #ifdef PSBVIDEO_MRFL_VPP
 #include <va/va_backend_vpp.h>
 #endif
+#ifdef PSBVIDEO_MFLD
+#include <va/va_backend_vpp.h>
+#endif
 #include <va/va_dricommon.h>
 
 #include "psb_drv_video.h"
@@ -51,6 +54,7 @@
 #include "pnw_VC1.h"
 #include "tng_jpegdec.h"
 #include "tng_VP8.h"
+#include "tng_yuv_processor.h"
 #ifdef PSBVIDEO_MFLD
 #include "pnw_MPEG4ES.h"
 #include "pnw_H264ES.h"
@@ -112,7 +116,7 @@ extern int force_texure_1080p_60fps;
 #ifdef PSBVIDEO_MRFL_VPP
 #define INIT_FORMAT_VTABLE format_vtable_p format_vtable = ((profile < PSB_MAX_PROFILES) && (entrypoint < PSB_MAX_ENTRYPOINTS)) ? (profile == VAProfileNone? driver_data->vpp_profile : driver_data->profile2Format[profile][entrypoint]) : NULL;
 #else
-#define INIT_FORMAT_VTABLE format_vtable_p format_vtable = ((profile < PSB_MAX_PROFILES) && (entrypoint < PSB_MAX_ENTRYPOINTS)) ? driver_data->profile2Format[profile][entrypoint] : NULL;
+#define INIT_FORMAT_VTABLE format_vtable_p format_vtable = ((profile < PSB_MAX_PROFILES) && (entrypoint < PSB_MAX_ENTRYPOINTS)) ? (profile == VAProfileNone? driver_data->vpp_profile : driver_data->profile2Format[profile][entrypoint]) : NULL;
 #endif
 
 #define CONFIG(id)  ((object_config_p) object_heap_lookup( &driver_data->config_heap, id ))
@@ -197,7 +201,6 @@ VAStatus psb_QueryConfigEntrypoints(
     CHECK_INVALID_PARAM((num_entrypoints == NULL) || (profile >= PSB_MAX_PROFILES));
 
     for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
-#ifdef PSBVIDEO_MRFL_VPP
         if (profile == VAProfileNone && driver_data->vpp_profile &&
             i == VAEntrypointVideoProc) {
                 entrypoints++;
@@ -206,12 +209,6 @@ VAStatus psb_QueryConfigEntrypoints(
                 entrypoints++;
                 *entrypoint_list++ = i;
         }
-#else
-        if (driver_data->profile2Format[profile][i]) {
-            entrypoints++;
-            *entrypoint_list++ = i;
-        }
-#endif
     }
 
     /* If the assert fails then PSB_MAX_ENTRYPOINTS needs to be bigger */
@@ -1011,6 +1008,10 @@ VAStatus psb_CreateContext(
             if (IS_MRFL(obj_context->driver_data))
                 cmdbuf = calloc(1, sizeof(struct vsp_cmdbuf_s));
 #endif
+#ifdef PSBVIDEO_MFLD /* VPP in CTP/MFLD use MSVDX context */
+            if (IS_MFLD(obj_context->driver_data))
+                cmdbuf =  calloc(1, sizeof(struct psb_cmdbuf_s));
+#endif
         } else /* MSVDX decode context */
             cmdbuf =  calloc(1, sizeof(struct psb_cmdbuf_s));
 
@@ -1035,6 +1036,11 @@ VAStatus psb_CreateContext(
             if (IS_MRFL(obj_context->driver_data))
                 vaStatus = vsp_cmdbuf_create(obj_context, driver_data, (vsp_cmdbuf_p)cmdbuf);
 #endif
+#ifdef PSBVIDEO_MFLD
+            if (IS_MFLD(obj_context->driver_data))
+                vaStatus = psb_cmdbuf_create(obj_context, driver_data, (psb_cmdbuf_p)cmdbuf);
+#endif
+
         } else /* MSVDX decode context */
             vaStatus = psb_cmdbuf_create(obj_context, driver_data, (psb_cmdbuf_p)cmdbuf);
 
@@ -1063,6 +1069,10 @@ VAStatus psb_CreateContext(
 #ifdef PSBVIDEO_MRFL_VPP
             if (IS_MRFL(obj_context->driver_data))
                 obj_context->vsp_cmdbuf_list[i] = (vsp_cmdbuf_p)cmdbuf;
+#endif
+#ifdef PSBVIDEO_MFLD
+            if (IS_MFLD(obj_context->driver_data))
+                obj_context->cmdbuf_list[i] = (psb_cmdbuf_p)cmdbuf;
 #endif
         } else /* MSVDX decode context */
             obj_context->cmdbuf_list[i] = (psb_cmdbuf_p)cmdbuf;
@@ -1536,10 +1546,8 @@ VAStatus psb__CreateBuffer(
     case VAEncMiscParameterBufferType:
     case VAProbabilityBufferType:
     case VAHuffmanTableBufferType:
-#ifdef PSBVIDEO_MRFL_VPP
     case VAProcPipelineParameterBufferType:
     case VAProcFilterParameterBufferType:
-#endif
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate new malloc buffers for vaCreateBuffer:type=%s,size=%d, buffer_data=%p.\n",
                                  buffer_type_to_string(type), size, obj_buffer->buffer_data);
         vaStatus = psb__allocate_malloc_buffer(obj_buffer, size * num_elements);
@@ -1612,10 +1620,8 @@ VAStatus psb_CreateBuffer(
     case VAEncMiscParameterBufferType:
     case VAProbabilityBufferType:
     case VAHuffmanTableBufferType:
-#ifdef PSBVIDEO_MRFL_VPP
     case VAProcPipelineParameterBufferType:
     case VAProcFilterParameterBufferType:
-#endif
         break;
 
     default:
@@ -2736,6 +2742,13 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     ctx->vtable_vpp->vaQueryVideoProcFilterCaps = vsp_QueryVideoProcFilterCaps;
     ctx->vtable_vpp->vaQueryVideoProcPipelineCaps = vsp_QueryVideoProcPipelineCaps;
 #endif
+
+#ifdef PSBVIDEO_MFLD
+    ctx->vtable_vpp->vaQueryVideoProcFilters = ved_QueryVideoProcFilters;
+    ctx->vtable_vpp->vaQueryVideoProcFilterCaps = ved_QueryVideoProcFilterCaps;
+    ctx->vtable_vpp->vaQueryVideoProcPipelineCaps = ved_QueryVideoProcPipelineCaps;
+#endif
+
     ctx->vtable_tpi = calloc(1, sizeof(struct VADriverVTableTPI));
     if (NULL == ctx->vtable_tpi)
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -2892,6 +2905,8 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->profile2Format[VAProfileVC1Main][VAEntrypointVLD] = &pnw_VC1_vtable;
         driver_data->profile2Format[VAProfileVC1Advanced][VAEntrypointVLD] = &pnw_VC1_vtable;
         driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &pnw_H264_vtable;
+
+        driver_data->vpp_profile = &tng_yuv_processor_vtable;
     }
 #endif
     result = object_heap_init(&driver_data->config_heap, sizeof(struct object_config_s), CONFIG_ID_OFFSET);

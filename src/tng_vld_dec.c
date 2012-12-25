@@ -74,8 +74,14 @@ void vld_dec_setup_alternative_frame(object_context_p obj_context)
     uint32_t cmd = 0;
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     context_DEC_p ctx = (context_DEC_p) obj_context->format_data;
-    psb_surface_p target_surface = obj_context->current_render_target->psb_surface;
+    psb_surface_p src_surface = obj_context->current_render_target->psb_surface;
     psb_surface_p rotate_surface = obj_context->current_render_target->psb_surface_rotate;
+
+    /*  In VPP ctx, current_render_target is rotated surface */
+    if (ctx->yuv_ctx) {
+        rotate_surface = src_surface;
+        src_surface = ctx->yuv_ctx->src_surface;
+    }
 
     if (CONTEXT_ROTATE(obj_context)) {
         if (rotate_surface == NULL) {
@@ -121,7 +127,7 @@ void vld_dec_setup_alternative_frame(object_context_p obj_context)
     *ctx->alt_output_flags = cmd;
 
     cmd = 0;
-    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64);
+    REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, src_surface->stride / 64);
     psb_cmdbuf_rendec_write(cmdbuf, cmd);
 
     psb_cmdbuf_rendec_end(cmdbuf);
@@ -378,6 +384,15 @@ VAStatus vld_dec_CreateContext(context_DEC_p ctx, object_context_p obj_context)
         DEBUG_FAILURE;
         free(ctx->slice_param_list);
     }
+
+    if (vaStatus == VA_STATUS_SUCCESS) {
+        vaStatus = psb_buffer_create(obj_context->driver_data,
+                                     AUX_LINE_BUFFER_VLD_SIZE,
+                                     psb_bt_cpu_vpu,
+                                     &ctx->aux_line_buffer_vld);
+        DEBUG_FAILURE;
+    }
+
     return vaStatus;
 }
 

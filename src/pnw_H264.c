@@ -411,13 +411,6 @@ static VAStatus pnw_H264_CreateContext(
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
     }
 
-    if (vaStatus == VA_STATUS_SUCCESS) {
-        vaStatus = psb_buffer_create(obj_context->driver_data,
-                                     AUX_LINE_BUFFER_VLD_SIZE,
-                                     psb_bt_cpu_vpu,
-                                     &ctx->dec_ctx.aux_line_buffer_vld);
-        DEBUG_FAILURE;
-    }
     // TODO
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = psb_buffer_create(obj_context->driver_data,

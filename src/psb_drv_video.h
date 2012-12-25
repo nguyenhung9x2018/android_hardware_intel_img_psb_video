@@ -36,6 +36,9 @@
 #ifdef PSBVIDEO_MRFL_VPP
 #include <va/va_vpp.h>
 #endif
+#ifdef PSBVIDEO_MFLD
+#include <va/va_vpp.h>
+#endif
 #include "object_heap.h"
 #include "psb_def.h"
 //#include "psb_drv_debug.h"
@@ -97,9 +100,9 @@
 #define PSB_MAX_BUFFERTYPES			VABufferTypeMax
 #else
 #define PSB_MAX_PROFILES                        18
-#define PSB_MAX_ENTRYPOINTS                      8
+#define PSB_MAX_ENTRYPOINTS                     VAEntrypointMax
 #define PSB_MAX_CONFIG_ATTRIBUTES               10
-#define PSB_MAX_BUFFERTYPES                     32
+#define PSB_MAX_BUFFERTYPES                     VABufferTypeMax
 #endif
 
 /* Max # of command submission buffers */
@@ -185,6 +188,9 @@ struct psb_driver_data_s {
     pthread_mutex_t             drm_mutex;
     format_vtable_p             profile2Format[PSB_MAX_PROFILES][PSB_MAX_ENTRYPOINTS];
 #ifdef PSBVIDEO_MRFL_VPP
+    format_vtable_p             vpp_profile;
+#endif
+#ifdef PSBVIDEO_MFLD
     format_vtable_p             vpp_profile;
 #endif
     uint32_t                    msvdx_context_base;

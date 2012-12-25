@@ -43,7 +43,9 @@ struct context_yuv_processor_s {
     uint32_t display_height;
     uint32_t coded_width;
     uint32_t coded_height;
-    psb_surface_p target_surface;
+    psb_surface_p src_surface;
+    int has_dec_ctx;
+    VAProcPipelineParameterBuffer *proc_param;
 };
 
 typedef struct context_yuv_processor_s *context_yuv_processor_p;
@@ -52,3 +54,23 @@ typedef struct context_yuv_processor_s *context_yuv_processor_p;
 #define YUVProcessorSurfaceType 0xdeadbeef
 
 extern struct format_vtable_s tng_yuv_processor_vtable;
+
+VAStatus ved_QueryVideoProcFilters(
+    VADriverContextP    ctx,
+    VAContextID         context,
+    VAProcFilterType   *filters,
+    unsigned int       *num_filters);
+
+VAStatus ved_QueryVideoProcFilterCaps(
+        VADriverContextP    ctx,
+        VAContextID         context,
+        VAProcFilterType    type,
+        void               *filter_caps,
+        unsigned int       *num_filter_caps);
+
+VAStatus ved_QueryVideoProcPipelineCaps(
+        VADriverContextP    ctx,
+        VAContextID         context,
+        VABufferID         *filters,
+        unsigned int        num_filters,
+        VAProcPipelineCaps *pipeline_caps);
