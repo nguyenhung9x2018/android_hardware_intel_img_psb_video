@@ -38,7 +38,6 @@ LOCAL_SRC_FILES :=		\
     psb_drv_debug.c         \
     psb_surface_attrib.c    \
     psb_output.c		\
-    psb_texture.c               \
     android/psb_output_android.c            \
     android/psb_android_glue.cpp            \
     android/psb_surface_gralloc.c         \
@@ -68,7 +67,7 @@ LOCAL_CFLAGS := -DLINUX -DANDROID -g -Wall -Wno-unused
 LOCAL_C_INCLUDES :=			\
     $(TOPDIR)hardware/libhardware/include/hardware         \
     $(TOPDIR)hardware/intel/include         \
-    $(TOPDIR)hardware/intel/include/eurasia/pvr2d              \
+    $(TOPDIR)hardware/intel/PRIVATE/pvr/eurasia/pvr2d              \
     $(TOPDIR)framework/base/include                          \
     $(TARGET_OUT_HEADERS)/libva	\
     $(TARGET_OUT_HEADERS)/pvr/pvr2d	\
@@ -117,6 +116,7 @@ LOCAL_CFLAGS += -DPSBVIDEO_MRFL_DEC
 #LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_EC
 LOCAL_CFLAGS += -DPSBVIDEO_MRFL
 else
+LOCAL_SRC_FILES += psb_texture.c
 LOCAL_CFLAGS += -DPSBVIDEO_MFLD
 endif
 
