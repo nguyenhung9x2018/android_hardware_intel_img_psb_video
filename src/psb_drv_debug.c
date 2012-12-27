@@ -54,7 +54,7 @@
 
 void psb__open_log(void)
 {
-    char log_fn[1024];
+    char log_fn[1024] = {0};
     unsigned int suffix;
 
     if ((psb_video_debug_fp != NULL) && (psb_video_debug_fp != stderr)) {
@@ -87,7 +87,8 @@ void psb__open_log(void)
         unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
         time_t curtime;
         
-        if(strcmp(log_fn, "/dev/stdout") != 0)
+        log_fn[1024 - 8] = '\0';
+        if(strncmp(log_fn, "/dev/stdout", sizeof("/dev/stdout")) != 0)
             sprintf(log_fn + strlen(log_fn), ".%d", suffix);
         psb_video_trace_fp = fopen(log_fn, "w");
         if (psb_video_trace_fp == NULL)
@@ -836,6 +837,8 @@ void psb__dump_va_buffers(object_buffer_p obj_buffer)
             case VAProtectedSliceDataBufferType:
                 fprintf(psb_dump_vabuf_fp,"first 256 bytes:\n");
                 psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                if (!mapped_buffer)
+                    break;
                 for(j=0; j<256;++j) {
                     if(j%16 == 0) fprintf(psb_dump_vabuf_fp,"\n");
                     for(k=0;k < obj_buffer->num_elements;++k)
@@ -1146,6 +1149,8 @@ j=1309;k=0;
             case VAProtectedSliceDataBufferType:
                 fprintf(psb_dump_vabuf_verbose_fp,"first 256 bytes:\n");
                 psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                if(mapped_buffer == NULL)
+                    return VA_STATUS_ERROR_INVALID_BUFFER;
                 for(j=0; j<256;++j) {
                     if(j%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     for(k=0;k < obj_buffer->num_elements;++k)

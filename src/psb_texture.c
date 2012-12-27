@@ -385,6 +385,11 @@ static PPVR2DMEMINFO psb_check_subpic_buffer(psb_driver_data_p driver_data, PsbV
         if (driver_data->wrapped_subpic_id[i] == VA_INVALID_ID) {
             tmp_buffer = NULL;
             tmp_buffer = wsbmBOMap(surface_subpic->bo, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
+            if (NULL == tmp_buffer) {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d: wsbmBOMap failed!",
+                        __FUNCTION__, __LINE__);
+                return NULL;
+            }
             for (j = 0; j < surface_subpic->size; j = j + 4096) {
                 tmp = *(tmp_buffer + j);
                 if (tmp == 0)
@@ -480,6 +485,11 @@ static PPVR2DMEMINFO psb_wrap_surface_pvr2dbuf(psb_driver_data_p driver_data, VA
         if (driver_data->wrapped_surface_id[i] == VA_INVALID_ID) {
             tmp_buffer = NULL;
             tmp_buffer = wsbmBOMap(psb_surface->buf.drm_buf, WSBM_ACCESS_READ | WSBM_ACCESS_WRITE);
+            if (NULL == tmp_buffer) {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d: wsbmBOMap failed!",
+                        __FUNCTION__, __LINE__);
+                return NULL;
+            }
             for (j = 0; j < psb_surface->size; j = j + 4096) {
                 tmp = *(tmp_buffer + j);
                 if (tmp == 0)
