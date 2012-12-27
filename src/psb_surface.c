@@ -99,8 +99,37 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
         psb_surface->size = psb_surface->stride * height;
         psb_surface->extra_info[4] = VA_FOURCC_RGBA;
     } else if (fourcc == VA_FOURCC_YV16) {
-        psb_surface->stride_mode = STRIDE_NA;
-        psb_surface->stride = (width + 1) & ~0x1;
+        if ((width <= 0) || (width * height > 5120 * 5120) || (height <= 0)) {
+            return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        }
+
+        if (0) {
+            ;
+        } else if (512 >= width) {
+            psb_surface->stride_mode = STRIDE_512;
+            psb_surface->stride = 512;
+        } else if (1024 >= width) {
+            psb_surface->stride_mode = STRIDE_1024;
+            psb_surface->stride = 1024;
+        } else if (1280 >= width) {
+            psb_surface->stride_mode = STRIDE_1280;
+            psb_surface->stride = 1280;
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+            if (tiling) {
+                psb_surface->stride_mode = STRIDE_2048;
+                psb_surface->stride = 2048;
+            }
+#endif
+        } else if (2048 >= width) {
+            psb_surface->stride_mode = STRIDE_2048;
+            psb_surface->stride = 2048;
+        } else if (4096 >= width) {
+            psb_surface->stride_mode = STRIDE_4096;
+            psb_surface->stride = 4096;
+        } else {
+            psb_surface->stride_mode = STRIDE_NA;
+            psb_surface->stride = (width + 0x1f) & ~0x1f;
+        }
 
         psb_surface->luma_offset = 0;
         psb_surface->chroma_offset = psb_surface->stride * height;

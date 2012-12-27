@@ -58,7 +58,7 @@ VAStatus psb_surface_create_from_ub(
 {
     int ret = 0;
 
-    if (fourcc == VA_FOURCC_NV12) {
+    if ((fourcc == VA_FOURCC_NV12) || (fourcc == VA_FOURCC_YV16)) {
         if ((width <= 0) || (width * height > 5120 * 5120) || (height <= 0)) {
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
         }
@@ -91,8 +91,16 @@ VAStatus psb_surface_create_from_ub(
 
         psb_surface->luma_offset = 0;
         psb_surface->chroma_offset = psb_surface->stride * height;
-        psb_surface->size = (psb_surface->stride * height * 3) / 2;
-        psb_surface->extra_info[4] = VA_FOURCC_NV12;
+
+        if (VA_FOURCC_NV12 == fourcc) {
+            psb_surface->size = ((psb_surface->stride * height) * 3) / 2;
+            psb_surface->extra_info[4] = VA_FOURCC_NV12;
+        }
+        else {
+            psb_surface->size = (psb_surface->stride * height) * 2;
+            psb_surface->extra_info[4] = VA_FOURCC_YV16;
+        }
+
     } else {
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
