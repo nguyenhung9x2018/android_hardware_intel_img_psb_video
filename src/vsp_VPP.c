@@ -42,7 +42,7 @@
 
 #define KB 1024
 #define MB (KB * KB)
-#define VSP_PROC_CONTEXT_SIZE (8*MB)
+#define VSP_PROC_CONTEXT_SIZE (30*MB)
 
 #define MAX_VPP_PARAM (100)
 #define MIN_VPP_PARAM (0)
@@ -125,73 +125,77 @@ enum filter_strength_type {
 
 struct filter_strength vpp_strength[STRENGTH_NUM] = {
 	[LOW_STRENGTH] = {
-		/* structure: type, value_thr, cnt_thr, coef, temp_thr1, temp_thr2 */
+		/* structure:
+		 * type(0-Denoise,1-Deblock), value_thr, cnt_thr, coef, temp_thr1, temp_thr2, _pad[2]
+		 */
 		.denoise_deblock = {
-			[QCIF_TO_QVGA] = {1, 15, 47, 35, 0, 0},
-			[QVGA_TO_VGA] = {1, 7, 48, 47, 0, 0},
-			[VGA_TO_SD] = {1, 10, 8, 9, 1, 3},
-			[SD_TO_720P] = {0, 10, 48, 47, 0, 0},
-			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0}
+			[QCIF_TO_QVGA]    = {1, 15, 47, 35, 0, 0, 0, 0},
+			[QVGA_TO_VGA]     = {1, 7,  48, 47, 0, 0, 0, 0},
+			[VGA_TO_SD]       = {1, 10, 8,  9,  1, 3, 0, 0},
+			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, 0, 0},
+			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, 0, 0}
 		},
-		/* structure: temp_detect, temp_correct, clip_thr, mid_thr, luma_amm, chroma_amm */
+		/* structure:
+		 * temp_detect, temp_correct, clip_thr, mid_thr, luma_amm, chroma_amm, _pad[2]
+		 */
 		.enhancer = {
-			[QCIF_TO_QVGA] = {200, 100, 1, 42, 40, 60},
-			[QVGA_TO_VGA] = {220, 180, 1, 42, 40, 60},
-			[VGA_TO_SD] = {220, 200, 1, 42, 40, 60},
-			[SD_TO_720P] = {100, 100, 5, 33, 0, 0},
-			[HD720P_TO_1080P] = {100, 100, 5, 33, 0, 0}
+			[QCIF_TO_QVGA]    = {200, 100, 1, 42, 40, 60, 0, 0},
+			[QVGA_TO_VGA]     = {220, 180, 1, 42, 40, 60, 0, 0},
+			[VGA_TO_SD]       = {220, 200, 1, 42, 40, 60, 0, 0},
+			[SD_TO_720P]      = {100, 100, 5, 33, 0,  0,  0, 0},
+			[HD720P_TO_1080P] = {100, 100, 5, 33, 0,  0,  0, 0}
 		},
 		.sharpen = {
-			[QCIF_TO_QVGA] = { .quality = SHARPEN_ON },
-			[QVGA_TO_VGA] = { .quality = SHARPEN_ON },
-			[VGA_TO_SD] = { .quality = SHARPEN_ON },
-			[SD_TO_720P] = { .quality = SHARPEN_ON },
+			[QCIF_TO_QVGA]    = { .quality = SHARPEN_ON },
+			[QVGA_TO_VGA]     = { .quality = SHARPEN_ON },
+			[VGA_TO_SD]       = { .quality = SHARPEN_ON },
+			[SD_TO_720P]      = { .quality = SHARPEN_ON },
 			[HD720P_TO_1080P] = { .quality = SHARPEN_ON }
 		}
 	},
 	[MEDIUM_STRENGTH] = {
 		.denoise_deblock = {
-			[QCIF_TO_QVGA] = {1, 25, 47, 12, 0, 0},
-			[QVGA_TO_VGA] = {1, 10, 48, 47, 0, 0},
-			[VGA_TO_SD] = {1, 20, 8, 9, 2, 4},
-			[SD_TO_720P] = {0, 10, 48, 47, 0, 0},
-			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0}
+			[QCIF_TO_QVGA]    = {1, 25, 47, 12, 0, 0, 0, 0},
+			[QVGA_TO_VGA]     = {1, 10, 48, 47, 0, 0, 0, 0},
+			[VGA_TO_SD]       = {1, 20, 8,  9,  2, 4, 0, 0},
+			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, 0, 0},
+			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, 0, 0}
 		},
 		.enhancer = {
-			[QCIF_TO_QVGA] = {100, 100, 1, 33, 100, 100},
-			[QVGA_TO_VGA] = {100, 180, 1, 33, 100, 100},
-			[VGA_TO_SD] = {100, 200, 1, 33, 100, 100},
-			[SD_TO_720P] = {100, 100, 5, 33, 0, 0},
-			[HD720P_TO_1080P] = {100, 100, 5, 33, 0, 0}
+			[QCIF_TO_QVGA]    = {100, 100, 1, 33, 100, 100, 0, 0},
+			[QVGA_TO_VGA]     = {100, 180, 1, 33, 100, 100, 0, 0},
+			[VGA_TO_SD]       = {100, 200, 1, 33, 100, 100, 0, 0},
+			[SD_TO_720P]      = {100, 100, 5, 33, 0,   0,   0, 0},
+			[HD720P_TO_1080P] = {100, 100, 5, 33, 0,   0,   0, 0}
 		},
 		.sharpen = {
-			[QCIF_TO_QVGA] = { .quality = SHARPEN_ON },
-			[QVGA_TO_VGA] = { .quality = SHARPEN_ON },
-			[VGA_TO_SD] = { .quality = SHARPEN_ON },
-			[SD_TO_720P] = { .quality = SHARPEN_ON },
+			[QCIF_TO_QVGA]    = { .quality = SHARPEN_ON },
+			[QVGA_TO_VGA]     = { .quality = SHARPEN_ON },
+			[VGA_TO_SD]       = { .quality = SHARPEN_ON },
+			[SD_TO_720P]      = { .quality = SHARPEN_ON },
 			[HD720P_TO_1080P] = { .quality = SHARPEN_ON }
 		}
 	},
 	[HIGH_STRENGTH] = {
 		.denoise_deblock = {
-			[QCIF_TO_QVGA] = {1, 30, 40, 10, 0, 0},
-			[QVGA_TO_VGA] = {1, 15, 45, 25, 0, 0},
-			[VGA_TO_SD] = {1, 20, 7, 5, 3, 6},
-			[SD_TO_720P] = {0, 10, 48, 47, 0, 0},
-			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0}
+			[QCIF_TO_QVGA]    = {1, 30, 40, 10, 0, 0, 0, 0},
+			[QVGA_TO_VGA]     = {1, 15, 45, 25, 0, 0, 0, 0},
+			[VGA_TO_SD]       = {1, 20, 7,  5,  3, 6, 0, 0},
+			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, 0, 0},
+			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, 0, 0}
 		},
 		.enhancer = {
-			[QCIF_TO_QVGA] = {100, 100, 5, 33, 150, 200},
-			[QVGA_TO_VGA] = {100, 180, 5, 33, 150, 200},
-			[VGA_TO_SD] = {100, 200, 5, 33, 100, 150},
-			[SD_TO_720P] = {100, 100, 5, 33, 0, 0},
-			[HD720P_TO_1080P] = {100, 100, 5, 33, 0, 0}
+			[QCIF_TO_QVGA]    = {100, 100, 5, 33, 150, 200, 0, 0},
+			[QVGA_TO_VGA]     = {100, 180, 5, 33, 150, 200, 0, 0},
+			[VGA_TO_SD]       = {100, 200, 5, 33, 100, 150, 0, 0},
+			[SD_TO_720P]      = {100, 100, 5, 33, 0,   0,   0, 0},
+			[HD720P_TO_1080P] = {100, 100, 5, 33, 0,   0,   0, 0}
 		},
 		.sharpen = {
-			[QCIF_TO_QVGA] = { .quality = SHARPEN_ON },
-			[QVGA_TO_VGA] = { .quality = SHARPEN_ON },
-			[VGA_TO_SD] = { .quality = SHARPEN_ON },
-			[SD_TO_720P] = { .quality = SHARPEN_ON },
+			[QCIF_TO_QVGA]    = { .quality = SHARPEN_ON },
+			[QVGA_TO_VGA]     = { .quality = SHARPEN_ON },
+			[VGA_TO_SD]       = { .quality = SHARPEN_ON },
+			[SD_TO_720P]      = { .quality = SHARPEN_ON },
 			[HD720P_TO_1080P] = { .quality = SHARPEN_ON }
 		}
 	}
@@ -384,6 +388,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	VAProcFilterParameterBufferFrameRateConversion *frc_param;
 	object_surface_p input_surface = NULL;
 	object_surface_p cur_output_surf = NULL;
+	unsigned int rotation_angle;
 
 	/* FIXME: ignore output input color standard */
 
@@ -556,6 +561,23 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		cell_proc_picture_param->output_picture[i].irq = 1;
 		/* keep the same first, modify to dest format when feature's avaliable */
 		cell_proc_picture_param->output_picture[i].format = ctx->format;
+
+		/* Set the rotation angle info */
+		switch (GET_SURFACE_INFO_rotate(cur_output_surf->psb_surface)) {
+			case VA_ROTATION_90:
+				rotation_angle = VSP_ROTATION_90;
+				break;
+			case VA_ROTATION_180:
+				rotation_angle = VSP_ROTATION_180;
+				break;
+			case VA_ROTATION_270:
+				rotation_angle = VSP_ROTATION_270;
+				break;
+			default:
+				rotation_angle = VSP_ROTATION_NONE;
+		}
+		/* FIXME: The rotation design is still on going, set it to default value */
+		cell_proc_picture_param->output_picture[i].rot_angle = 0;
 	}
 
 	vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcPictureCommand,
