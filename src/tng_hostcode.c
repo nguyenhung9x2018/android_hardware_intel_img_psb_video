@@ -568,28 +568,7 @@ void tng_DestroyContext(object_context_p obj_context, unsigned char is_JPEG)
     context_ENC_p ctx;
 //    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
     ctx = (context_ENC_p)obj_context->format_data;
-    tng_cmdbuf_p cmdbuf = NULL;
     FRAME_ORDER_INFO *psFrameInfo = &(ctx->sFrameOrderInfo);
-
-    if (tng_context_get_next_cmdbuf(ctx->obj_context))
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "get next cmdbuf fail\n");
-
-    tng_cmdbuf_insert_command_package(ctx->obj_context, 0,
-        MTX_CMDID_SHUTDOWN, 0, 0, 0);
-
-    cmdbuf = ctx->obj_context->tng_cmdbuf;
-
-#ifdef _TOPAZHP_CMDBUF_
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s addr = 0x%08x \n", __FUNCTION__, cmdbuf);
-    tng__trace_cmdbuf_words(cmdbuf);
-#endif
-
-#ifdef _TOPAZHP_PDUMP_
-    tng__trace_cmdbuf(cmdbuf, ctx->ui32StreamID);
-#endif
-
-    if (tng_context_flush_cmdbuf(ctx->obj_context))
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "flush cmd package fail\n");
 
     if (psFrameInfo->slot_consume_dpy_order != NULL)
         free(psFrameInfo->slot_consume_dpy_order);
