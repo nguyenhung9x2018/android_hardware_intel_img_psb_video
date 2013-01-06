@@ -203,11 +203,11 @@ static VAStatus tng__set_custom_scaling_values(
     };
 
 
-    if (!ctx) {
+    if (ctx == NULL) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
-    if (!ctx->bCustomScaling) {
+    if (ctx->bCustomScaling == IMG_FALSE) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 

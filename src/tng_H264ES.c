@@ -265,7 +265,7 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
     if (psMiscRcParams->bits_per_second > TOPAZ_H264_MAX_BITRATE) {
 #ifdef _TNG_PDUMP_H264ES_
         drv_debug_msg(VIDEO_DEBUG_GENERAL,
-            "%s: bits_per_second(%d) exceeds \ the maximum bitrate, set it with %d\n",
+            "%s: bits_per_second(%d) exceeds the maximum bitrate, set it with %d\n",
             __FUNCTION__, psMiscRcParams->bits_per_second, TOPAZ_H264_MAX_BITRATE);
 #endif
         psMiscRcParams->bits_per_second = TOPAZ_H264_MAX_BITRATE;

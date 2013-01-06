@@ -36,7 +36,6 @@
 #include "tng_hostcode.h"
 #include "tng_hostair.h"
 
-
 /***********************************************************************************
  * Function Name     : functions of pi8AIR_Table table
  ************************************************************************************/
@@ -98,10 +97,17 @@ IMG_UINT32 tng_fill_slice_map(context_ENC_p ctx, IMG_INT32 i32SlotNum, IMG_UINT3
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: stream id = %d, addr = 0x%x\n", __FUNCTION__, ui32StreamIndex, ps_mem->bufs_slice_map.virtual_addr);
 #endif
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_map(&(ps_mem->bufs_slice_map), &(ps_mem->bufs_slice_map.virtual_addr));
-#endif
+    if (ps_mem->bufs_slice_map.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping slice map\n", __FUNCTION__);
+        goto out1;
+    }
+
     pvBuffer = (unsigned char*)(ps_mem->bufs_slice_map.virtual_addr + (i32SlotNum * ctx->ctx_mem_size.slice_map));
+    if (pvBuffer == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: pvBuffer == NULL\n", __FUNCTION__);
+        goto out1;
+    }
 
     if (ctx->bArbitrarySO) {
         IMG_UINT8 ui8Index;
@@ -205,9 +211,9 @@ IMG_UINT32 tng_fill_slice_map(context_ENC_p ctx, IMG_INT32 i32SlotNum, IMG_UINT3
         // last BU
         * pvBuffer = ui8SizeInKicks;    pvBuffer++;
     }
-#ifdef _TOPAZHP_VIR_ADDR_
+
+out1:
     psb_buffer_unmap(&(ps_mem->bufs_slice_map));
-#endif
     ctx->ui32HalfWayBU[i32SlotNum] = ui32HalfwayBU;
     drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ui32HalfWayBU = %d\n", __FUNCTION__, ctx->ui32HalfWayBU[i32SlotNum]);
     return ui32HalfwayBU;
@@ -222,13 +228,20 @@ static VAStatus tng__map_inp_ctrl_buf(
     VAStatus vaStatus = VA_STATUS_SUCCESS; 
     context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
     context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    if (ppsInpCtrlBuf == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ppsInpCtrlBuf == NULL\n", __FUNCTION__);
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    *ppsInpCtrlBuf = NULL; // Not enabled
 
     // if enabled, return the input-control buffer corresponding to this slot
     if (ctx->bEnableInpCtrl) {
-        psb_buffer_map(&(ps_mem->bufs_mb_ctrl_in_params), ppsInpCtrlBuf);
-        *ppsInpCtrlBuf += ui8SlotNumber * ps_mem_size->mb_ctrl_in_params;
-    } else {
-        *ppsInpCtrlBuf = NULL; // Not enabled
+        vaStatus = psb_buffer_map(&(ps_mem->bufs_mb_ctrl_in_params), ppsInpCtrlBuf);
+        if (vaStatus == VA_STATUS_SUCCESS)
+            *ppsInpCtrlBuf += ui8SlotNumber * ps_mem_size->mb_ctrl_in_params;
+        else
+            psb_buffer_unmap(&(ps_mem->bufs_mb_ctrl_in_params));
     }
 
     return vaStatus;
@@ -279,6 +292,11 @@ static void tng__fill_inp_ctrl_buf(
 #ifdef BRN_30324
     IMG_UINT32 ui32HalfWayMB=ui32HalfWayBU * ctx->sRCParams.ui32BUSize;
 #endif
+
+    if (pi8QP == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: start QP == NULL\n", __FUNCTION__);
+        return ;
+    }
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: start QP = %d\n", __FUNCTION__, *pi8QP);
 
@@ -521,11 +539,19 @@ VAStatus tng__map_first_pass_out_buf(
     VAStatus vaStatus = VA_STATUS_SUCCESS; 
     context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
 
+    if (ppsFirstPassOutBuf == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ppsFirstPassOutBuf == NULL\n", __FUNCTION__);
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    *ppsFirstPassOutBuf = NULL; // Not enabled
+
     // if enabled, return the input-control buffer corresponding to this slot
-    if (ctx->bEnableInpCtrl)
-         psb_buffer_map(&(ps_mem->bufs_first_pass_out_params), ppsFirstPassOutBuf);
-    else
-        *ppsFirstPassOutBuf = NULL; // Not enabled
+    if (ctx->bEnableInpCtrl) {
+         vaStatus = psb_buffer_map(&(ps_mem->bufs_first_pass_out_params), ppsFirstPassOutBuf);
+        if (vaStatus != VA_STATUS_SUCCESS)
+            psb_buffer_unmap(&(ps_mem->bufs_first_pass_out_params));
+    }
 
     return vaStatus;
 }
@@ -558,7 +584,7 @@ VAStatus tng__map_best_mb_decision_out_buf(
 
     // if enabled, return the input-control buffer corresponding to this slot
     if (ctx->bEnableInpCtrl)
-        psb_buffer_map(&(ps_mem->bufs_first_pass_out_best_multipass_param), ppsBestMBDecisionOutBuf);
+        vaStatus = psb_buffer_map(&(ps_mem->bufs_first_pass_out_best_multipass_param), ppsBestMBDecisionOutBuf);
     else
         *ppsBestMBDecisionOutBuf = NULL; // Not enabled
 
@@ -575,7 +601,7 @@ VAStatus tng__unmap_best_mb_decision_out_buf(
 
     // if enabled, return the input-control buffer corresponding to this slot
     if (*ppsBestMBDecisionOutBuf != NULL) {
-        psb_buffer_map(&(ps_mem->bufs_first_pass_out_best_multipass_param), ppsBestMBDecisionOutBuf);
+        psb_buffer_unmap(&(ps_mem->bufs_first_pass_out_best_multipass_param));
         *ppsBestMBDecisionOutBuf = NULL; // Not enabled
      }
 

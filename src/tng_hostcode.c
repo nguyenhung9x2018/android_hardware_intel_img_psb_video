@@ -123,7 +123,6 @@ VAStatus tng__alloc_init_buffer(
     psb_buffer_type_t type,
     psb_buffer_p buf)
 {
-//    IMG_UINT32 pTry;
     unsigned char *pch_virt_addr;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     vaStatus = psb_buffer_create(driver_data, size, type, buf);
@@ -132,26 +131,16 @@ VAStatus tng__alloc_init_buffer(
         return vaStatus;
     }
 
-//    tng_cmdbuf_set_phys(&pTry, 1, buf, 0, 0);
-    
     vaStatus = psb_buffer_map(buf, &pch_virt_addr);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: phy addr 0x%08x, vir addr 0x%08x\n", __FUNCTION__, buf->drm_buf, pch_virt_addr);
-
-    if (vaStatus) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "map buf\n");
+    if ((vaStatus) || (pch_virt_addr == NULL)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: map buf 0x%08x\n", __FUNCTION__, (IMG_UINT32)pch_virt_addr);
         psb_buffer_destroy(buf);
-        return vaStatus;
     } else {
         memset(pch_virt_addr, 0, size);
-#ifdef _TOPAZHP_VIR_ADDR_
-        psb_buffer_unmap(buf); 
-        if (vaStatus) {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "unmap buf\n");
-            psb_buffer_destroy(buf);
-            return vaStatus;
-        }
-#endif
+        psb_buffer_unmap(buf);
     }
+
     return vaStatus;
 }
 
@@ -894,7 +883,7 @@ static VAStatus tng__provide_buffer_BFrames(context_ENC_p ctx, IMG_UINT32 ui32St
     IMG_RC_PARAMS * psRCParams = &(ctx->sRCParams);
     FRAME_ORDER_INFO *psFrameInfo = &(ctx->sFrameOrderInfo);
     int slot_index = 0;
-    unsigned long long display_order;
+    unsigned long long display_order = 0;
     IMG_UINT32 ui32SlotBuf = psRCParams->ui16BFrames + 2;
     IMG_UINT32 ui32FrameIdx = ctx->ui32FrameCount[ui32StreamIndex];
 
@@ -1222,9 +1211,12 @@ static void tng__prepare_mv_estimates(context_ENC_p ctx, IMG_UINT32 ui32StreamIn
     IMG_MTX_VIDEO_CONTEXT* psMtxEncCtx = NULL;
     IMG_UINT32 ui32Distance;
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
-#endif
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx context\n", __FUNCTION__);
+        return ;
+    }
+
     psMtxEncCtx = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
 
     /* IDR */
@@ -1261,9 +1253,12 @@ static void tng__prepare_mv_estimates(context_ENC_p ctx, IMG_UINT32 ui32StreamIn
         IMG_MV_SETTINGS *pMvElement = NULL;
         IMG_MV_SETTINGS *pHostMVSettingsBTable = NULL;
 
-#ifdef _TOPAZHP_VIR_ADDR_
         psb_buffer_map(&(ps_mem->bufs_mv_setting_btable), &(ps_mem->bufs_mv_setting_btable.virtual_addr));
-#endif
+        if (ps_mem->bufs_mv_setting_btable.virtual_addr == NULL) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mv setting btable\n", __FUNCTION__);
+            return ;
+        }
+
         pHostMVSettingsBTable = (IMG_MV_SETTINGS *)(ps_mem->bufs_mv_setting_btable.virtual_addr);
 
         for (ui32DistanceB = 0; ui32DistanceB < MAX_BFRAMES; ui32DistanceB++) {
@@ -1292,14 +1287,10 @@ static void tng__prepare_mv_estimates(context_ENC_p ctx, IMG_UINT32 ui32StreamIn
                 pHostMVSettingsHierarchical[ui32DistanceB].ui32MVCalc_Below     = pMvElement->ui32MVCalc_Below;
             }
         }
-#ifdef _TOPAZHP_VIR_ADDR_
         psb_buffer_unmap(&(ps_mem->bufs_mv_setting_btable));
-#endif
     }
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
-#endif
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
 
@@ -1666,9 +1657,13 @@ static void tng__save_slice_params_template(
     IMG_FRAME_TEMPLATE_TYPE eSliceType = (IMG_FRAME_TEMPLATE_TYPE)ui32SliceType;
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
     SLICE_PARAMS *slice_temp_p = NULL;
-#ifdef _TOPAZHP_VIR_ADDR_
+
     psb_buffer_map(&(ps_mem->bufs_slice_template), &(ps_mem->bufs_slice_template.virtual_addr));
-#endif
+    if (ps_mem->bufs_slice_template.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping slice template\n", __FUNCTION__);
+        return ;
+    }
+
     slice_temp_p = (SLICE_PARAMS*)(ps_mem->bufs_slice_template.virtual_addr + (ctx->ctx_mem_size.slice_template * ui32SliceBufIdx));
 
     slice_temp_p->eTemplateType = eSliceType;
@@ -1676,9 +1671,9 @@ static void tng__save_slice_params_template(
     slice_temp_p->ui32IPEControl = ui32IPEControl;
     slice_temp_p->ui32SliceConfig = ui32SliceConfig;
     slice_temp_p->ui32SeqConfig = ui32SeqConfig;
-#ifdef _TOPAZHP_VIR_ADDR_
+
     psb_buffer_unmap(&(ps_mem->bufs_slice_template));
-#endif
+
     return ;
 }
 
@@ -2037,15 +2032,17 @@ void tng__mpeg4_generate_pic_hdr_template(
     }
 
     eVop_Coding_Type = (ui8SliceType == IMG_FRAME_INTER_P) ? P_FRAME : I_FRAME;
-#ifdef _TOPAZHP_VIR_ADDR_
+
     psb_buffer_map(&(ps_mem->bufs_pic_template), &(ps_mem->bufs_pic_template.virtual_addr));
-#endif
+    if (ps_mem->bufs_pic_template.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping pic template\n", __FUNCTION__);
+        return ;
+    }
+
     pPicHeaderMem = (MTX_HEADER_PARAMS *)((IMG_UINT8*)(ps_mem->bufs_pic_template.virtual_addr + (ctx->ctx_mem_size.pic_template * ui8OriginalSliceType)));
     //todo fix time resolution
     tng__MPEG4_notforsims_prepare_vop_header(pPicHeaderMem, b8IsVopCoded, ui8Search_range, eVop_Coding_Type);
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_unmap(&(ps_mem->bufs_pic_template));
-#endif
 
 }
 
@@ -2056,9 +2053,12 @@ void tng__h263_generate_pic_hdr_template(context_ENC_p ctx,
     MTX_HEADER_PARAMS * pPicHeaderMem = NULL;
     H263_PICTURE_CODING_TYPE ePictureCodingType = ((eFrameType == IMG_FRAME_INTRA)|| (eFrameType == IMG_FRAME_IDR)) ? I_FRAME : P_FRAME;
        
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_map(&(ps_mem->bufs_pic_template), &(ps_mem->bufs_pic_template.virtual_addr));
-#endif
+    if (ps_mem->bufs_pic_template.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping pic template\n", __FUNCTION__);
+        return ;
+    }
+
     pPicHeaderMem = (MTX_HEADER_PARAMS *)((IMG_UINT8*)(ps_mem->bufs_pic_template.virtual_addr + (ctx->ctx_mem_size.pic_template * eFrameType)));
 
     IMG_UINT8 ui8FrameRate = (IMG_UINT8)ctx->sRCParams.ui32FrameRate;
@@ -2073,9 +2073,8 @@ void tng__h263_generate_pic_hdr_template(context_ENC_p ctx,
         ui8FrameRate,
         ui32PictureWidth,
         ui32PictureHeigth );
-#ifdef _TOPAZHP_VIR_ADDR_
+
     psb_buffer_unmap(&(ps_mem->bufs_pic_template));
-#endif
 
 }
 
@@ -2100,9 +2099,12 @@ static void tng__MPEG4ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32Strea
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_map(&(ps_mem->bufs_seq_header), &(ps_mem->bufs_seq_header.virtual_addr));
-#endif
+    if (ps_mem->bufs_seq_header.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping seq template\n", __FUNCTION__);
+        return ;
+    }
+
     tng__MPEG4_prepare_sequence_header(ps_mem->bufs_seq_header.virtual_addr,
                                        IMG_FALSE,//FIXME: Zhaohan bFrame
                                        ctx->ui8ProfileIdc,//profile
@@ -2112,9 +2114,7 @@ static void tng__MPEG4ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32Strea
                                        ctx->obj_context->picture_height,//ui32Picture_Height_Pixels
                                        NULL,//VBVPARAMS
                                        ctx->ui32VopTimeResolution);
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_unmap(&(ps_mem->bufs_seq_header));
-#endif
 
     cmdbuf->cmd_idx_saved[TNG_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
 }
@@ -2146,9 +2146,11 @@ static void tng__H264ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psVuiParams->vui_flag = %d\n", __FUNCTION__, psVuiParams->vui_flag);
 #endif
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_map(&(ps_mem->bufs_seq_header), &(ps_mem->bufs_seq_header.virtual_addr));
-#endif
+    if (ps_mem->bufs_seq_header.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping seq header\n", __FUNCTION__);
+        return ;
+    }
 
     tng__H264ES_prepare_sequence_header(
         ps_mem->bufs_seq_header.virtual_addr,
@@ -2166,14 +2168,14 @@ static void tng__H264ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
         ctx->bEnableLossless,        //0,  blossless
         ctx->bArbitrarySO
     );
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_unmap(&(ps_mem->bufs_seq_header));
-#endif
 
     if (ctx->bEnableMVC) {
-#ifdef _TOPAZHP_VIR_ADDR_
         psb_buffer_map(&(ps_mem->bufs_sub_seq_header), &(ps_mem->bufs_sub_seq_header.virtual_addr));
-#endif
+        if (ps_mem->bufs_sub_seq_header.virtual_addr == NULL) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping sub seq header\n", __FUNCTION__);
+            return ;
+        }
         tng__H264ES_prepare_mvc_sequence_header(
             ps_mem->bufs_sub_seq_header.virtual_addr,
             &(ctx->sCropParams),
@@ -2210,9 +2212,11 @@ static void tng__H264ES_send_pic_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
         bDepViewPPS = IMG_TRUE;
     }
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_map(&(ps_mem->bufs_pic_template), &(ps_mem->bufs_pic_template.virtual_addr));
-#endif
+    if (ps_mem->bufs_pic_template.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping pic template\n", __FUNCTION__);
+        return ;
+    }
 
     tng__H264ES_prepare_picture_header(
         ps_mem->bufs_pic_template.virtual_addr,
@@ -2226,9 +2230,9 @@ static void tng__H264ES_send_pic_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
         0, //IMG_BOOL    bScalingMatrix,
         0  //IMG_BOOL    bScalingLists
     );
-#ifdef _TOPAZHP_VIR_ADDR_
+
     psb_buffer_unmap(&(ps_mem->bufs_pic_template));
-#endif
+    return ;
 }
 
 static void tng__H264ES_send_hrd_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
@@ -2237,9 +2241,12 @@ static void tng__H264ES_send_hrd_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
     H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
     IMG_UINT8 aui8clocktimestampflag[1];
     aui8clocktimestampflag[0] = IMG_FALSE;
-#ifdef _TOPAZHP_VIR_ADDR_
+
     psb_buffer_map(&(ps_mem->bufs_sei_header), &(ps_mem->bufs_sei_header.virtual_addr));
-#endif
+    if (ps_mem->bufs_sei_header.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping sei header\n", __FUNCTION__);
+        return ;
+    }
 
     if ((!ctx->bEnableMVC) || (ctx->ui16MVCViewIdx == 0)) {
         tng__H264ES_prepare_AUD_header(ps_mem->bufs_sei_header.virtual_addr);
@@ -2282,10 +2289,9 @@ static void tng__H264ES_send_hrd_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
         NOT_USED_BY_TOPAZ, //n_frames, (not used when ui8pic_struct_present_flag = 0)
         NOT_USED_BY_TOPAZ, //time_offset_length, (not used when ui8pic_struct_present_flag = 0)
         NOT_USED_BY_TOPAZ); //time_offset (not used when ui8pic_struct_present_flag = 0)
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_unmap(&(ps_mem->bufs_sei_header));
-#endif
 
+    return ;
 }
 
 void tng__generate_slice_params_template(
@@ -2377,9 +2383,7 @@ void tng__generate_slice_params_template(
         break;
     }
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_unmap(&(ps_mem->bufs_slice_template));
-#endif
 
 #ifdef _TNG_PDUMP_HOSTCODE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end \n", __FUNCTION__);
@@ -2621,9 +2625,11 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
-#endif
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping slice template\n", __FUNCTION__);
+        return ;
+    }
 
     psMtxEncContext = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
 
@@ -2968,26 +2974,25 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 
     {
         memset(psMtxEncContext->aui8PicOnLevel, 0, sizeof(psMtxEncContext->aui8PicOnLevel));
-#ifdef _TOPAZHP_VIR_ADDR_
         psb_buffer_map(&(ps_mem->bufs_flat_gop), &(ps_mem->bufs_flat_gop.virtual_addr));
-#endif
+        if (ps_mem->bufs_flat_gop.virtual_addr == NULL) {
+           drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping flat gop\n", __FUNCTION__);
+           return ;
+        }
         tng__minigop_generate_flat(ps_mem->bufs_flat_gop.virtual_addr, psMtxEncContext->ui32BFrameCount,
             psMtxEncContext->ui8RefSpacing, psMtxEncContext->aui8PicOnLevel);
-#ifdef _TOPAZHP_VIR_ADDR_
         psb_buffer_unmap(&(ps_mem->bufs_flat_gop));
-#endif
         
         if (ctx->sRCParams.b16Hierarchical) {
             memset(psMtxEncContext->aui8PicOnLevel, 0, sizeof(psMtxEncContext->aui8PicOnLevel));
-#ifdef _TOPAZHP_VIR_ADDR_
             psb_buffer_map(&(ps_mem->bufs_hierar_gop), &(ps_mem->bufs_hierar_gop.virtual_addr));
-#endif
+            if (ps_mem->bufs_hierar_gop.virtual_addr == NULL) {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping sei header\n", __FUNCTION__);
+                return ;
+            }
             tng_minigop_generate_hierarchical(ps_mem->bufs_hierar_gop.virtual_addr, psMtxEncContext->ui32BFrameCount,
                 psMtxEncContext->ui8RefSpacing, psMtxEncContext->aui8PicOnLevel);
-#ifdef _TOPAZHP_VIR_ADDR_
             psb_buffer_unmap(&(ps_mem->bufs_hierar_gop));
-#endif
-
         }
     }
 
@@ -3056,9 +3061,7 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
     }
 #endif // INPUT_SCALER_SUPPORTED
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
-#endif
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
 
@@ -3071,9 +3074,11 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
     context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
     IMG_MTX_VIDEO_CONTEXT* psMtxEncContext = NULL;
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
-#endif
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping sei header\n", __FUNCTION__);
+        return ;
+    }
     psMtxEncContext = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
@@ -3164,9 +3169,7 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
             &(ps_mem->bufs_mb_ctrl_in_params), 0, ps_mem_size->mb_ctrl_in_params);
     }
 
-#ifdef _TOPAZHP_VIR_ADDR_
     psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
-#endif
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
 
@@ -3818,9 +3821,12 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
                                               &(ps_mem->bufs_seq_header),
                                               0);
 	}
-#ifdef _TOPAZHP_VIR_ADDR_
 	psb_buffer_map(&(ps_mem->bufs_seq_header), &(ps_mem->bufs_seq_header.virtual_addr));
-#endif
+        if (ps_mem->bufs_seq_header.virtual_addr == NULL) {
+           drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping seq header\n", __FUNCTION__);
+           return ;
+        }
+
 	tng__MPEG4_prepare_sequence_header(ps_mem->bufs_seq_header.virtual_addr,
 					   IMG_FALSE,//FIXME: Zhaohan bFrame
 					   ctx->ui8ProfileIdc,//profile
@@ -3830,9 +3836,7 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
 					   ctx->obj_context->picture_height,//ui32Picture_Height_Pixels
 					   NULL,//VBVPARAMS
 					   ctx->ui32VopTimeResolution);
-#ifdef _TOPAZHP_VIR_ADDR_
 	psb_buffer_unmap(&(ps_mem->bufs_seq_header));
-#endif
 
 	cmdbuf->cmd_idx_saved[TNG_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
     }
