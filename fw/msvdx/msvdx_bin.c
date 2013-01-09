@@ -33,6 +33,7 @@
 #include "thread1_bin.h"
 
 #define MTX_SIZE (40*1024)
+#define MTX_SIZE1 (56*1024)
 #define STACKGUARDWORD          ( 0x10101010 )
 #define UNINITILISE_MEM         ( 0xcd )
 #define LINKED_LIST_SIZE	( 32*5 )
@@ -101,6 +102,41 @@ int main()
     buf[((MTX_SIZE + sizeof(fw))/4) - 1] = STACKGUARDWORD;
 
     fwrite(buf, 1, MTX_SIZE + sizeof(fw), ptr);
+
+    fseek(ptr, LINKED_LIST_SIZE, SEEK_SET);
+    fwrite(&fw, sizeof(fw), 1, ptr);
+
+    for (i = 0; i < fw.text_size; i++) {
+        fwrite(&fw_DE3.pui8Text[i*4], 4, 1, ptr);
+    }
+
+    fseek(ptr, LINKED_LIST_SIZE + fw_DE3.DataOffset + sizeof(fw), SEEK_SET);
+
+    for (i = 0; i < fw.data_size; i++) {
+        fwrite(&fw_DE3.pui8Data[i*4], 4, 1, ptr);
+    }
+    fclose(ptr);
+
+    /* Create stitch image of 56k msvdx fw */
+    ptr = fopen("unsigned_msvdx_fw_56k.bin", "w");
+    if (ptr == NULL) {
+        fprintf(stderr, "Create unsigned_msvdx_fw failed\n");
+        exit(-1);
+    }
+    fp_ll_dma = fopen("linked_list_struct_56k", "r");
+    if (fp_ll_dma == NULL) {
+        fprintf(stderr, "Cannot open linked_list_sturct failed\n");
+        exit(-1);
+    }
+
+    unsigned int buf1[(MTX_SIZE1 + sizeof(fw))/4];
+    fread(buf1, 1, LINKED_LIST_SIZE, fp_ll_dma);
+    fwrite(buf1, 1, LINKED_LIST_SIZE, ptr);
+
+    memset(buf1, UNINITILISE_MEM, MTX_SIZE1 + sizeof(fw));
+    buf1[((MTX_SIZE1 + sizeof(fw))/4) - 1] = STACKGUARDWORD;
+
+    fwrite(buf1, 1, MTX_SIZE1 + sizeof(fw), ptr);
 
     fseek(ptr, LINKED_LIST_SIZE, SEEK_SET);
     fwrite(&fw, sizeof(fw), 1, ptr);
