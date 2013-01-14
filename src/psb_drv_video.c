@@ -1793,8 +1793,7 @@ VAStatus psb_BeginPicture(
      * but check per-context stream type: interlace or not
      */
     if ((obj_config->entrypoint != VAEntrypointEncSlice) &&
-        (obj_config->entrypoint != VAEntrypointEncPicture) &&
-        driver_data->native_window) {
+        (obj_config->entrypoint != VAEntrypointEncPicture)) {
         psb_RecalcRotate(ctx, obj_context);
     }
 #endif

@@ -134,7 +134,7 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
         }
         else
             driver_data->disable_msvdx_rotate = driver_data->disable_msvdx_rotate_backup;
-    } else {
+    } else if (driver_data->native_window) {
         int display_rotate = 0;
         psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
