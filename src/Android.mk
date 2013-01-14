@@ -71,7 +71,7 @@ LOCAL_C_INCLUDES :=			\
     $(TOPDIR)framework/base/include                          \
     $(TARGET_OUT_HEADERS)/libva	\
     $(TARGET_OUT_HEADERS)/pvr/pvr2d	\
-    $(TOPDIR)hardware/intel/linux-2.6/include/drm     \
+    $(TOPDIR)$(KERNEL_SRC_DIR)/include/drm     \
     $(TARGET_OUT_HEADERS)/libttm	\
     $(TARGET_OUT_HEADERS)/libwsbm	\
     $(TARGET_OUT_HEADERS)/libdrm\
