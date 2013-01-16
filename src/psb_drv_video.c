@@ -2378,6 +2378,7 @@ VAStatus psb_SetTimestampForSurface(
     object_surface_p obj_surface = SURFACE(surface);
 
     obj_surface = SURFACE(surface);
+    CHECK_SURFACE(obj_surface);
 
     if (obj_surface->share_info) {
         obj_surface->share_info->timestamp = timestamp;

@@ -160,8 +160,10 @@ void psb__open_log(void)
     /* psb video va buffers dump */
     if(psb_parse_config("PSB_VIDEO_DUMP_VABUF", &log_fn[0]) == 0) {
         unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
-        if(strcmp(log_fn, "/dev/stdout") != 0)
-            sprintf(log_fn + strlen(log_fn), ".%d", suffix);
+        /* Make sure there is space left for suffix */
+        log_fn[1024 - 12] = '\0';
+        if(strncmp(log_fn, "/dev/stdout", sizeof("/dev/stdout")) != 0)
+            snprintf(log_fn + strlen(log_fn), 11, ".%d", suffix);
         psb_dump_vabuf_fp = fopen(log_fn, "w");
 #ifdef ANDROID
         LOGD("PSB_VIDEO_DUMP_VABUF is enabled.\n");
@@ -173,8 +175,10 @@ void psb__open_log(void)
     /* psb video va buffer verbose dump */
     if(psb_parse_config("PSB_VIDEO_DUMP_VABUF_VERBOSE", &log_fn[0]) == 0) {
         unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
-        if(strcmp(log_fn, "/dev/stdout") != 0)
-            sprintf(log_fn + strlen(log_fn), ".%d", suffix);
+        /* Make sure there is space left for suffix */
+        log_fn[1024 - 12] = '\0';
+        if(strncmp(log_fn, "/dev/stdout", sizeof("/dev/stdout")) != 0)
+            snprintf(log_fn + strlen(log_fn), 11, ".%d", suffix);
         psb_dump_vabuf_verbose_fp = fopen(log_fn, "w");
 #ifdef ANDROID
         LOGD("PSB_VIDEO_DUMP_VABUF_VERBOSE is enabled.\n");
@@ -186,8 +190,10 @@ void psb__open_log(void)
     /* dump decoded surface to a yuv file */
     if(psb_parse_config("PSB_VIDEO_DUMP_YUVBUF", &log_fn[0]) == 0) {
         unsigned int suffix = 0xffff & ((unsigned int)time(NULL));
-        if(strcmp(log_fn, "/dev/stdout") != 0)
-            sprintf(log_fn + strlen(log_fn), ".%d", suffix);
+        /* Make sure there is space left for suffix */
+        log_fn[1024 - 12] = '\0';
+        if(strncmp(log_fn, "/dev/stdout", sizeof("/dev/stdout")) != 0)
+            snprintf(log_fn + strlen(log_fn), 11, ".%d", suffix);
         psb_dump_yuvbuf_fp = fopen(log_fn, "ab");
 #ifdef ANDROID
         LOGD("PSB_VIDEO_DUMP_YUVBUF is enabled.\n");
