@@ -188,9 +188,13 @@ VAStatus psb_CreateSurfacesFromGralloc(
         if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         } else {
+            int cache_flag = PSB_USER_BUFFER_UNCACHED;
+#ifdef PSBVIDEO_MRFL
+            cache_flag = 0;
+#endif
             vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
                     external_buffers, psb_surface, vaddr[GRALLOC_SUB_BUFFER0],
-                    PSB_USER_BUFFER_UNCACHED);
+                    cache_flag);
             psb_surface->buf.handle = handle;
             obj_surface->share_info = (psb_surface_share_info_t *)vaddr[GRALLOC_SUB_BUFFER1];
             memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
