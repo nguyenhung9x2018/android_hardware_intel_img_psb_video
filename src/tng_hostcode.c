@@ -929,19 +929,35 @@ VAStatus tng__provide_buffer_PFrames(context_ENC_p ctx, IMG_UINT32 ui32StreamInd
         __FUNCTION__, (int)ui32FrameIdx, ctx->ui8SlotsInUse, ui32FrameIdx);
 
     tng_send_source_frame(ctx, ctx->ui8SlotsCoded, ui32FrameIdx);
-
-    if (ui32FrameIdx % ctx->ui32IntraCnt == 0)
+/*
+    if (ctx->ui32IntraCnt == 0)
         ctx->eFrameType = IMG_INTRA_FRAME;
     else
-        ctx->eFrameType = IMG_INTER_P;
+        if (ui32FrameIdx % ctx->ui32IntraCnt == 0)
+            ctx->eFrameType = IMG_INTRA_FRAME;
+        else
+            ctx->eFrameType = IMG_INTER_P;
 
     if (ctx->ui32IdrPeriod == 0) {
         if (ui32FrameIdx == 0)
             ctx->eFrameType = IMG_INTRA_IDR;
     } else {
-        if (ui32FrameIdx % (ctx->ui32IntraCnt * ctx->ui32IdrPeriod) == 0)
-            ctx->eFrameType = IMG_INTRA_IDR;
+        if (ctx->ui32IntraCnt == 0) {
+            if (ui32FrameIdx % ctx->ui32IdrPeriod == 0)
+                ctx->eFrameType = IMG_INTRA_IDR;
+        } else {
+            if (ui32FrameIdx % (ctx->ui32IntraCnt * ctx->ui32IdrPeriod) == 0)
+                ctx->eFrameType = IMG_INTRA_IDR;
+        }
     }
+*/
+    ctx->eFrameType = IMG_INTER_P;
+
+    if (ui32FrameIdx % ctx->ui32IntraCnt == 0)
+        ctx->eFrameType = IMG_INTRA_FRAME;
+
+    if (ui32FrameIdx % (ctx->ui32IdrPeriod * ctx->ui32IntraCnt) == 0)
+        ctx->eFrameType = IMG_INTRA_IDR;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ctx->eFrameType = %d\n", __FUNCTION__, ctx->eFrameType);
 
@@ -2275,7 +2291,7 @@ static void tng__H264ES_send_hrd_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
     return ;
 }
 
-void tng__generate_slice_params_template(
+static void tng__generate_slice_params_template(
     context_ENC_p ctx,
     IMG_UINT32 slice_buf_idx,
     IMG_UINT32 slice_type,
@@ -2286,10 +2302,7 @@ void tng__generate_slice_params_template(
     IMG_UINT8  *slice_mem_temp_p = NULL;
     IMG_UINT32 ui32SliceHeight = 0;
     IMG_FRAME_TEMPLATE_TYPE slice_temp_type = (IMG_FRAME_TEMPLATE_TYPE)slice_type;
-       
     IMG_FRAME_TEMPLATE_TYPE buf_idx = (IMG_FRAME_TEMPLATE_TYPE)slice_buf_idx;
-
-
 
     if (ctx->ui8SlicesPerPicture != 0)
         ui32SliceHeight = ctx->ui16PictureHeight / ctx->ui8SlicesPerPicture;
@@ -2321,9 +2334,10 @@ void tng__generate_slice_params_template(
     if(ctx->bEnableMVC)
         ctx->ui16MVCViewIdx = (IMG_UINT16)ui32StreamIndex;
 
-#ifdef _TOPAZHP_VIR_ADDR_
-    psb_buffer_map(&(ps_mem->bufs_slice_template), &(ps_mem->bufs_slice_template.virtual_addr));
-#endif
+    if (ps_mem->bufs_slice_template.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping slice template\n", __FUNCTION__);
+        return ;
+    }
 
     slice_mem_temp_p = (IMG_UINT8*)(ps_mem->bufs_slice_template.virtual_addr + (ctx->ctx_mem_size.slice_template * buf_idx));
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: addr 0x%08x, virtual 0x%08x, size = 0x%08x, buf_idx = %x\n",
@@ -3495,7 +3509,7 @@ VAStatus tng__set_ctx_buf(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
     return vaStatus;
 }
 
-VAStatus tng__set_headers (context_ENC_p ctx, IMG_UINT32 ui32StreamID)
+static VAStatus tng__set_headers (context_ENC_p ctx, IMG_UINT32 ui32StreamID)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     IMG_UINT8 ui8SlotIdx = 0;
@@ -3511,7 +3525,7 @@ VAStatus tng__set_headers (context_ENC_p ctx, IMG_UINT32 ui32StreamID)
     return vaStatus;
 }
 
-VAStatus tng__set_cmd_buf(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
+static VAStatus tng__set_cmd_buf(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     vaStatus = tng__cmdbuf_new_codec(ctx);

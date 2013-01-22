@@ -329,11 +329,11 @@ typedef struct tag_IMG_BIAS_PARAMS {
     IMG_UINT32      uDirectVecBias;
     IMG_UINT32      uSPESkipVecBias;
 
-    IMG_UINT32      uiSpeZeroThreshold;
-    IMG_UINT32  uiSpeZeroThld;
+    IMG_UINT32  uisz1;
+    IMG_UINT32  uisz2;
 
-    IMG_INT32 uZeroBlock4x4Threshold;
-    IMG_INT32 uZeroBlock8x8Threshold;
+    IMG_INT32 uzb4;
+    IMG_INT32 uzb8;
 
     IMG_UINT32  uTHInter;
     IMG_UINT32  uTHInterQP;
@@ -722,7 +722,7 @@ typedef struct tag_IMG_BIAS_TABLES {
     IMG_UINT32 aui32DirectBias_B[53];
     IMG_UINT32 aui32InterBias_B[53];
 
-    IMG_UINT32  ui32SpeZeroThreshold;
+    IMG_UINT32  ui32sz1;
     IMG_UINT32      ui32RejectThresholdH264;
 
     IMG_UINT32      ui32FCode;                          //!< value only used in MPEG4
@@ -866,10 +866,10 @@ typedef enum
 #define MASK_INTEL_CH_PM 0x00FF0000
 #define SHIFT_INTEL_CH_PM 16
 
-#define MASK_INTEL_H264_4X4RT 0x0000001F
-#define SHIFT_INTEL_H264_4X4RT 0
-#define MASK_INTEL_H264_8X8RT 0x00003F00
-#define SHIFT_INTEL_H264_8X8RT 8
+#define MASK_INTEL_H264_ConfigReg1 0x0000001F
+#define SHIFT_INTEL_H264_ConfigReg1 0
+#define MASK_INTEL_H264_ConfigReg2 0x00003F00
+#define SHIFT_INTEL_H264_ConfigReg2 8
 #define MASK_INTEL_H264_LL 0x00010000
 #define SHIFT_INTEL_H264_LL 16
 #define MASK_INTEL_H264_LL8X8P 0x00020000

@@ -40,16 +40,12 @@
 #include "psb_drv_debug.h"
 
 #define UNINIT_PARAM 0xCDCDCDCD
-#define SPE_ZERO_THRESHOLD	6
 #define TOPAZHP_DEFAULT_bZeroDetectionDisable IMG_FALSE
-#define TOPAZHP_DEFAULT_uZeroBlock4x4Threshold		6
-#define TOPAZHP_DEFAULT_uZeroBlock8x8Threshold		4
 #define TH_SKIP_IPE                      6
 #define TH_INTER                           60
 #define TH_INTER_QP                    10
 #define TH_INTER_MAX_LEVEL      1500
 #define TH_SKIP_SPE                     6
-#define SPE_ZERO_THRESHOLD   6
 
 #define TOPAZHP_DEFAULT_uTHInter                           TH_INTER
 #define TOPAZHP_DEFAULT_uTHInterQP                      TH_INTER_QP
@@ -264,9 +260,9 @@ tng__MPEG4ES_generate_bias_tables(
     }
 
     if(psBiasParams->bRCEnable || psBiasParams->bRCBiases)
-	ctx->sBiasTables.ui32SpeZeroThreshold = psBiasParams->uiSpeZeroThreshold;
+	ctx->sBiasTables.ui32sz1 = psBiasParams->uisz1;
     else
-	ctx->sBiasTables.ui32SpeZeroThreshold = psBiasParams->uiSpeZeroThld;
+	ctx->sBiasTables.ui32sz1 = psBiasParams->uisz2;
 }
 
 /**************************************************************************************************
@@ -333,9 +329,9 @@ tng__H263ES_generate_bias_tables(
     }
 
     if(psBiasParams->bRCEnable || psBiasParams->bRCBiases)
-	ctx->sBiasTables.ui32SpeZeroThreshold = psBiasParams->uiSpeZeroThreshold;
+	ctx->sBiasTables.ui32sz1 = psBiasParams->uisz1;
     else
-	ctx->sBiasTables.ui32SpeZeroThreshold = psBiasParams->uiSpeZeroThld;
+	ctx->sBiasTables.ui32sz1 = psBiasParams->uisz2;
 }
 
 /**************************************************************************************************
@@ -347,7 +343,7 @@ static void tng__H264ES_generate_bias_tables(context_ENC_p ctx)
 {
     IMG_INT32 n;
     IMG_UINT32 ui32RegVal;
-    IMG_UINT32 iIntra16Bias, uiSpeZeroThld, uIntra8Scale, uDirectVecBias_P, iInterMBBias_P, uDirectVecBias_B, iInterMBBias_B;
+    IMG_UINT32 iIntra16Bias, uisz2, uIntra8Scale, uDirectVecBias_P, iInterMBBias_P, uDirectVecBias_B, iInterMBBias_B;
     IMG_BIAS_PARAMS * psBiasParams = &(ctx->sBiasParams);
 
     IMG_BYTE PVR_QP_SCALE_CR[52] = {
@@ -426,7 +422,7 @@ static void tng__H264ES_generate_bias_tables(context_ENC_p ctx)
             iInterMBBias_P    = psBiasParams->iInterMBBias;
 
             iIntra16Bias    = psBiasParams->iIntra16Bias;
-            uiSpeZeroThld   = psBiasParams->uiSpeZeroThld;
+            uisz2   = psBiasParams->uisz2;
         }
 
 #ifdef BRN_30029
@@ -445,16 +441,16 @@ static void tng__H264ES_generate_bias_tables(context_ENC_p ctx)
     }
 
     if (psBiasParams->bRCEnable || psBiasParams->bRCBiases)
-        ctx->sBiasTables.ui32SpeZeroThreshold = psBiasParams->uiSpeZeroThreshold;
+        ctx->sBiasTables.ui32sz1 = psBiasParams->uisz1;
     else
-        ctx->sBiasTables.ui32SpeZeroThreshold = psBiasParams->uiSpeZeroThld;
+        ctx->sBiasTables.ui32sz1 = psBiasParams->uisz2;
 
     if (psBiasParams->bZeroDetectionDisable) {
-        ctx->sBiasTables.ui32RejectThresholdH264 = F_ENCODE(0, INTEL_H264_4X4RT)
-                | F_ENCODE(0, INTEL_H264_8X8RT);
+        ctx->sBiasTables.ui32RejectThresholdH264 = F_ENCODE(0, INTEL_H264_ConfigReg1)
+                | F_ENCODE(0, INTEL_H264_ConfigReg2);
     } else {
-        ctx->sBiasTables.ui32RejectThresholdH264 = F_ENCODE(psBiasParams->uZeroBlock4x4Threshold, INTEL_H264_4X4RT)
-                | F_ENCODE(psBiasParams->uZeroBlock8x8Threshold, INTEL_H264_8X8RT);
+        ctx->sBiasTables.ui32RejectThresholdH264 = F_ENCODE(psBiasParams->uzb4, INTEL_H264_ConfigReg1)
+                | F_ENCODE(psBiasParams->uzb8, INTEL_H264_ConfigReg2);
     }
 }
 
@@ -555,7 +551,7 @@ static void tng__H263ES_load_bias_tables(
     }
 
     for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
-	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_SZ, 0, psBiasTables->ui32SpeZeroThreshold);
+	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_SZ, 0, psBiasTables->ui32sz1);
     }
 
     for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++)
@@ -612,7 +608,7 @@ static void tng__MPEG4_load_bias_tables(context_ENC_p ctx)
     }
 
     for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
-	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_SZ, 0, psBiasTables->ui32SpeZeroThreshold);
+	tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_SZ, 0, psBiasTables->ui32sz1);
 		
 	//VLC RSize is fcode - 1 and only done for mpeg4 AND mpeg2 not H263
 	tng_cmdbuf_insert_reg_write(TOPAZ_VLC_REG, TOPAZ_VLC_CR_VLC_MPEG4_CFG, 0, F_ENCODE(psBiasTables->ui32FCode - 1, TOPAZ_VLC_CR_RSIZE));
@@ -692,7 +688,7 @@ static void tng__H264ES_load_bias_tables(
 
     //aui32HpCoreRegId[ui32Pipe]
     for (ui8Pipe = 0; ui8Pipe < ctx->ui8PipesToUse; ui8Pipe++) {
-        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_SZ, 0, psBiasTables->ui32SpeZeroThreshold);
+        tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_SZ, 0, psBiasTables->ui32sz1);
         tng_cmdbuf_insert_reg_write(TOPAZ_CORE_REG, INTEL_H264_RT, 0, psBiasTables->ui32RejectThresholdH264);
     }
 
@@ -757,12 +753,12 @@ void tng_init_bias_params(context_ENC_p ctx)
     psBiasParams->uIPESkipVecBias = UNINIT_PARAM;
     psBiasParams->uSPESkipVecBias = 0;      //not in spec
 
-    psBiasParams->uiSpeZeroThreshold = SPE_ZERO_THRESHOLD;
-    psBiasParams->uiSpeZeroThld = SPE_ZERO_THRESHOLD;
+    psBiasParams->uisz1 = 6;
+    psBiasParams->uisz2 = 6;
     psBiasParams->bZeroDetectionDisable = TOPAZHP_DEFAULT_bZeroDetectionDisable;
 
-    psBiasParams->uZeroBlock4x4Threshold = TOPAZHP_DEFAULT_uZeroBlock4x4Threshold;
-    psBiasParams->uZeroBlock8x8Threshold = TOPAZHP_DEFAULT_uZeroBlock8x8Threshold;
+    psBiasParams->uzb4 = 6;
+    psBiasParams->uzb8 = 4;
 
     psBiasParams->uTHInter = TOPAZHP_DEFAULT_uTHInter;
     psBiasParams->uTHInterQP = TOPAZHP_DEFAULT_uTHInterQP;

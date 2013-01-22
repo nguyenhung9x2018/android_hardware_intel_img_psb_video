@@ -75,10 +75,6 @@
 #define max(a, b) ((a) > (b)) ? (a) : (b)
 #endif
 
-#define _TOPAZHP_VIR_ADDR_
-#define _TOPAZHP_SLICE_PARAM_
-#define _TOPAZHP_PDUMP_
-
 #define _TOPAZHP_OLD_LIBVA_
 #define FORCED_REFERENCE 1
 #define LTREFHEADER 1

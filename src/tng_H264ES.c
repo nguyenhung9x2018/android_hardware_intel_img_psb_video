@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <string.h>
+#include <limits.h>
 
 #include "hwdefs/coreflags.h"
 #include "hwdefs/topaz_vlc_regs.h"
@@ -495,34 +496,81 @@ static IMG_UINT8 tng__H264ES_calculate_level(context_ENC_p ctx)
 
 static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
     VAEncSequenceParameterBufferH264 *psSeqParams;
     H264_CROP_PARAMS* psCropParams = &(ctx->sCropParams);
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     FRAME_ORDER_INFO *psFrameInfo = &(ctx->sFrameOrderInfo);
-    IMG_UINT32 ui32_var_0, ui32_var_1;
+    IMG_UINT32 ui32MaxUnit32 = (IMG_UINT32)0x7ffa;
+    IMG_UINT32 ui32IPCount = 0;
+    IMG_UINT64 ui64Temp = 0;
 
     ASSERT(obj_buffer->type == VAEncSequenceParameterBufferType);
     ASSERT(obj_buffer->size == sizeof(VAEncSequenceParameterBufferH264));
 
     if (obj_buffer->size != sizeof(VAEncSequenceParameterBufferH264)) {
-        return VA_STATUS_ERROR_UNKNOWN;
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        goto out1;
     }
+
     ctx->obj_context->frame_count = 0;
     psSeqParams = (VAEncSequenceParameterBufferH264 *) obj_buffer->buffer_data;
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
-    ctx->ui32IdrPeriod = psSeqParams->intra_idr_period;
-    ctx->ui32IntraCnt = psSeqParams->intra_period;
     ctx->ui8LevelIdc = psSeqParams->level_idc;
-    ctx->ui8SlotsInUse = (IMG_UINT8)(psSeqParams->ip_period + 1);
     ctx->ui8MaxNumRefFrames = psSeqParams->max_num_ref_frames;
 
-    //be sure intral period is the cycle of ip_period
-    ui32_var_0 = (IMG_UINT32)(psSeqParams->ip_period);
-    ui32_var_1 = ctx->ui32IntraCnt % ui32_var_0;
-	if (ui32_var_1 != 0)
-        ctx->ui32IntraCnt = ctx->ui32IntraCnt + ui32_var_0 - ui32_var_1;
+    ctx->ui32IdrPeriod = psSeqParams->intra_idr_period;
+    ctx->ui32IntraCnt = psSeqParams->intra_period;
+    ui32IPCount = (IMG_UINT32)(psSeqParams->ip_period);
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+        "%s ctx->ui32IdrPeriod = %d, ctx->ui32IntraCnt = %d, psSeqParams->ip_period = %d\n",
+        __FUNCTION__, ctx->ui32IdrPeriod, ctx->ui32IntraCnt, psSeqParams->ip_period);
+
+
+    if ((ui32IPCount > 4) || (ui32IPCount == 0)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,
+            "%s: ip_period %d, it should be in [1, 4]\n",
+            __FUNCTION__, psSeqParams->ip_period);
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        goto out1;
+    }
+
+    if (ctx->ui32IntraCnt == 0) {
+        if (ui32IPCount == 1)
+            ctx->ui32IntraCnt = INT_MAX;
+        else
+            ctx->ui32IntraCnt = INT_MAX - (INT_MAX % ui32IPCount);
+        ctx->ui32IdrPeriod = 1;
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+            "%s: only ONE I frame in the sequence, %d\n",
+            __FUNCTION__, ctx->ui32IdrPeriod);
+    } else if (ctx->ui32IntraCnt == 1) {
+        //only I frame or IDR frames;
+        ui32IPCount = 1;
+        if (ctx->ui32IdrPeriod == 0)
+            ctx->ui32IdrPeriod = INT_MAX;
+    } else {
+        if (ctx->ui32IdrPeriod == 0) {
+            ctx->ui32IdrPeriod = INT_MAX / ctx->ui32IntraCnt;
+        } else if (ctx->ui32IdrPeriod > 1) {
+            ui64Temp = (IMG_UINT64)(ctx->ui32IdrPeriod) * (IMG_UINT64)(ctx->ui32IntraCnt);
+            if (ui64Temp >= (IMG_UINT64)INT_MAX) {
+                ctx->ui32IdrPeriod = INT_MAX / ctx->ui32IntraCnt;
+            }
+        }
+
+        if ((ctx->ui32IntraCnt % ui32IPCount) != 0) {
+            if (ctx->ui32IntraCnt > INT_MAX - ui32IPCount + (ctx->ui32IntraCnt % ui32IPCount))
+                ctx->ui32IntraCnt = INT_MAX - ui32IPCount + (ctx->ui32IntraCnt % ui32IPCount);
+            else
+                ctx->ui32IntraCnt += ui32IPCount - (ctx->ui32IntraCnt % ui32IPCount);
+        }
+    }
+
+    ctx->ui8SlotsInUse = ui32IPCount + 1; //Bframes + 2
 
     //bits per second
     if (!psSeqParams->bits_per_second) {
@@ -548,9 +596,9 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
         psRCParams->bBitrateChanged = IMG_TRUE;
     }
 
-    psRCParams->ui32IntraFreq = psSeqParams->intra_period;
+    psRCParams->ui32IntraFreq = ctx->ui32IntraCnt;
     psRCParams->ui32TransferBitsPerSecond = psRCParams->ui32BitsPerSecond;
-    psRCParams->ui16BFrames = (IMG_UINT16)(psSeqParams->ip_period - 1);
+    psRCParams->ui16BFrames = ui32IPCount - 1;
 
     if (psRCParams->ui32FrameRate == 0)
         psRCParams->ui32FrameRate = 30;
@@ -621,9 +669,13 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
         "%s ctx->ui8LevelIdc (%d), ctx->bLimitNumVectors (%d), ctx->ui32VertMVLimit (%d)\n",
         __FUNCTION__, ctx->ui8LevelIdc, ctx->bLimitNumVectors, ctx->ui32VertMVLimit);
 
-    free(psSeqParams);
+out1:
+//    free(psSeqParams);
+    free(obj_buffer->buffer_data);
+    obj_buffer->buffer_data = NULL;
+    obj_buffer->size = 0;
 
-    return VA_STATUS_SUCCESS;
+    return vaStatus;
 }
 
 #if 0
@@ -834,28 +886,98 @@ static VAStatus tng__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     return vaStatus;
 }
 
-static VAStatus tng__H264ES_process_slice_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+static VAStatus tng__H264ES_process_slice_param_mrfld(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    VAEncSliceParameterBufferH264 *psSliceParams;
-    
-    ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
-    /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
+    VAEncSliceParameterBufferH264 *psSliceParamsH264;
+    int i;
+    unsigned int uiPreMBAddress = 0;
+    unsigned int uiCurMBAddress = 0;
+    unsigned int uiPreMBNumbers = 0;
+    unsigned int uiCurMBNumbers = 0;
+    unsigned int uiAllMBNumbers = 0;
+    unsigned char ucPreDeblockIdc = 0;
+    unsigned char ucCurDeblockIdc = 0;
     
     /* Transfer ownership of VAEncPictureParameterBufferH264 data */
-    psSliceParams = (VAEncSliceParameterBufferH264*) obj_buffer->buffer_data;
+    psSliceParamsH264 = (VAEncSliceParameterBufferH264*) obj_buffer->buffer_data;
+    ucPreDeblockIdc = psSliceParamsH264->disable_deblocking_filter_idc;
 
-    obj_buffer->size = 0;
-    obj_buffer->buffer_data = NULL;
+    for (i = 0; i < obj_buffer->num_elements; i++) {
+        uiCurMBAddress = psSliceParamsH264->macroblock_address;
+        uiCurMBNumbers = psSliceParamsH264->num_macroblocks;
+        if (uiCurMBAddress != uiPreMBAddress + uiPreMBNumbers) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR,
+                "%s L%d Error Macroblock Address (%d), address (%d), number (%d)\n",
+                __FUNCTION__, __LINE__, i, psSliceParamsH264->macroblock_address,
+                psSliceParamsH264->num_macroblocks);
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+        uiPreMBNumbers = uiCurMBNumbers;
+        uiPreMBAddress = uiCurMBAddress;
+        uiAllMBNumbers += uiCurMBNumbers;
+
+        ucCurDeblockIdc = psSliceParamsH264->disable_deblocking_filter_idc;
+        if (ucPreDeblockIdc != ucCurDeblockIdc) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR,
+                "%s L%d Error Macroblock Address (%d), deblock idc pre (%d), cur (%d)\n",
+                __FUNCTION__, __LINE__, i, ucPreDeblockIdc, ucCurDeblockIdc);
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+        psSliceParamsH264++;
+    }
+
+    if (uiAllMBNumbers != ((ctx->ui16Width * ctx->ui16PictureHeight) >> 8)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,
+            "%s L%d Error Macroblock all number (%d), (%d)\n",
+            __FUNCTION__, __LINE__, i, uiAllMBNumbers,
+            ((ctx->ui16Width * ctx->ui16PictureHeight) >> 8));
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
 
     //deblocking behaviour
     ctx->bArbitrarySO = IMG_FALSE;
-    ctx->ui8DeblockIDC = psSliceParams->disable_deblocking_filter_idc;
+    ctx->ui8DeblockIDC = ucCurDeblockIdc;
+    ctx->ui8SlicesPerPicture = obj_buffer->num_elements;
 
-    if ((ctx->ui32StreamID == 0) && (ctx->ui32FrameCount[0] == 0))
-        ++ctx->ui8SlicesPerPicture;
+    return vaStatus;
+}
 
-    free(psSliceParams);
+static VAStatus tng__H264ES_process_slice_param_mdfld(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    VAEncSliceParameterBuffer *psSliceParams = NULL;
+    psSliceParams = (VAEncSliceParameterBuffer*) obj_buffer->buffer_data;
+
+    //deblocking behaviour
+    ctx->bArbitrarySO = IMG_FALSE;
+    ctx->ui8DeblockIDC = psSliceParams->slice_flags.bits.disable_deblocking_filter_idc;
+    ctx->ui8SlicesPerPicture = obj_buffer->num_elements;
+    return vaStatus;
+}
+
+static VAStatus tng__H264ES_process_slice_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    ASSERT(obj_buffer->type == VAEncSliceParameterBufferType);
+    /* Prepare InParams for macros of current slice, insert slice header, insert do slice command */
+
+    if (obj_buffer->size == sizeof(VAEncSliceParameterBufferH264)) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Receive VAEncSliceParameterBufferH264 buffer");
+        vaStatus = tng__H264ES_process_slice_param_mrfld(ctx, obj_buffer);
+    } else if (obj_buffer->size == sizeof(VAEncSliceParameterBuffer)) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Receive VAEncSliceParameterBuffer buffer");
+        vaStatus = tng__H264ES_process_slice_param_mdfld(ctx, obj_buffer);
+    } else {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Buffer size(%d) is wrong. It should be %d or %d\n",
+            obj_buffer->size, sizeof(VAEncSliceParameterBuffer),
+            sizeof(VAEncSliceParameterBufferH264));
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    free(obj_buffer->buffer_data);
+    obj_buffer->size = 0;
+    obj_buffer->buffer_data = NULL;
     return vaStatus;
 }
 
