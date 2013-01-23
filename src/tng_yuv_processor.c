@@ -88,15 +88,21 @@ static void tng_yuv_processor_DestroyContext(
     object_context_p obj_context)
 {
     context_DEC_p dec_ctx = (context_DEC_p) obj_context->format_data;
-    context_yuv_processor_p yuv_ctx = dec_ctx->yuv_ctx;
-    int has_dec_ctx = yuv_ctx->has_dec_ctx;
+    context_yuv_processor_p yuv_ctx = NULL;
+    int has_dec_ctx = 0;
+
+    if (dec_ctx == NULL)
+        return;
+
+    yuv_ctx = dec_ctx->yuv_ctx;
 
     if (yuv_ctx) {
+        has_dec_ctx = yuv_ctx->has_dec_ctx;
         free(yuv_ctx);
         dec_ctx->yuv_ctx = NULL;
     }
 
-    if (has_dec_ctx && dec_ctx) {
+    if (has_dec_ctx) {
         free(dec_ctx);
         obj_context->format_data = NULL;
     }
@@ -207,6 +213,11 @@ static VAStatus tng__yuv_processor_execute(context_DEC_p dec_ctx, object_buffer_
         VAProcPipelineParameterBuffer *vpp_params = (VAProcPipelineParameterBuffer *) obj_buffer->buffer_data;
         object_surface_p obj_surface = SURFACE(vpp_params->surface);
         psb_surface_p rotate_surface = dec_ctx->obj_context->current_render_target->psb_surface;
+
+        if (obj_surface == NULL){
+            vaStatus = VA_STATUS_ERROR_UNKNOWN;
+            return vaStatus;
+        }
 
         //ctx->display_width = ((vpp_params->surface_region->width + 0xf) & ~0xf);
         //ctx->display_height = ((vpp_params->surface_region->height + 0x1f) & ~0x1f);
@@ -496,6 +507,12 @@ VAStatus ved_QueryVideoProcPipelineCaps(
     if (IS_MFLD(driver_data)) {
         /* find buffer */
         buf = BUFFER(*(filters));
+
+        if (buf == NULL){
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid filter buffer: NULL \n");
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            goto err;
+        }
 
         base = (VAProcFilterParameterBufferBase *)buf->buffer_data;
         /* check filter buffer setting */
