@@ -67,6 +67,7 @@
 #define SHIFT_MTX_WBWORD_CORE  (8)
 #define MASK_MTX_WBWORD_CORE   (0xff << SHIFT_MTX_WBWORD_CORE)
 
+#define tng_align_KB(x)  (((x) + (IMG_UINT32)(0xfff)) & (~(IMG_UINT32)(0xfff)))
 
 struct tng_cmdbuf_s {
     struct psb_buffer_s buf;
@@ -268,7 +269,8 @@ int tng_context_flush_cmdbuf(object_context_p obj_context);
 void tng_cmdbuf_mem_unmap(tng_cmdbuf_p cmdbuf);
 
 void tng_cmdbuf_set_phys(IMG_UINT32 *dest_buf, int dest_num, psb_buffer_p ref_buf, unsigned int ref_ofs, unsigned int ref_len);
-
+int tng_get_pipe_number(object_context_p obj_context);
+VAStatus tng_set_frame_skip_flag(object_context_p obj_context);
 
 #endif /* _TNG_CMDBUF_H_ */
 

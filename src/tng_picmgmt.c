@@ -342,16 +342,20 @@ IMG_UINT32 tng_send_codedbuf(
 {
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
     object_buffer_p object_buffer  = ps_buf->coded_buf;
+    IMG_UINT32 ui32Offset = 0;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s slot 1 = %x\n", __FUNCTION__, ui32SlotIndex);
+
+    if ((ctx->ui8PipesToUse == 2) && ((ui32SlotIndex & 1) == 1))
+	ui32Offset = object_buffer->size >> 1;
 
     tng_cmdbuf_insert_command_package(
         ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PROVIDE_CODED_BUFFER | MTX_CMDID_PRIORITY,
         F_ENCODE(object_buffer->size, MTX_MSG_PROVIDE_CODED_BUFFER_SIZE) |
         F_ENCODE(ui32SlotIndex, MTX_MSG_PROVIDE_CODED_BUFFER_SLOT),
-        object_buffer->psb_buffer, 0);
+        object_buffer->psb_buffer, tng_align_KB(ui32Offset));
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
     return  VA_STATUS_SUCCESS;

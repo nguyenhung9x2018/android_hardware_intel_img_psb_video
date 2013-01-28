@@ -64,7 +64,6 @@
 #define CMD_MARGIN            (0x0400)
 #define MAX_CMD_COUNT         12
 #define MTX_SEG_SIZE          (0x0800)
-#define tng_align_KB(x)  (((x) + (IMG_UINT32)(0xfff)) & (~(IMG_UINT32)(0xfff)))
 
 /*!
  *****************************************************************************
@@ -850,3 +849,13 @@ void tng_cmdbuf_set_phys(IMG_UINT32 *dest_buf, int dest_num,
     } while(i < dest_num);
     return ;
 }
+
+
+int tng_get_pipe_number(object_context_p obj_context)
+{
+
+    context_ENC_p ctx = (context_ENC_p)(obj_context->format_data);
+    return ctx->ui8PipesToUse;
+
+}
+

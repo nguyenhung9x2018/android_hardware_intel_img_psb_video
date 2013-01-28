@@ -60,7 +60,6 @@
 #define MVEA_ABOVE_PARAM_REGION_SIZE 96
 #define QUANT_LISTS_SIZE                (224)
 #define _1080P_30FPS (((1920*1088)/256)*30)
-#define tng_align_KB(x)  (((x) + (IMG_UINT32)(0xfff)) & (~(IMG_UINT32)(0xfff)))
 #define tng_align_64(X)  (((X)+63) &~63)
 #define tng_align_4(X)  (((X)+3) &~3)
 
@@ -616,8 +615,8 @@ static VAStatus tng__init_rc_params(context_ENC_p ctx, object_config_p obj_confi
 *
 ***************************************************************************************************/
 //FIXME
-static const IMG_UINT32 g_ui32PipesAvailable = 1;
-static const IMG_UINT32 g_ui32CoreDes1 = 1;
+static const IMG_UINT32 g_ui32PipesAvailable = TOPAZHP_PIPE_NUM;
+static const IMG_UINT32 g_ui32CoreDes1 = TOPAZHP_PIPE_NUM;
 static const IMG_UINT32 g_ui32CoreRev = 0x00030401;
 
 static IMG_UINT32 tng__get_num_pipes()
@@ -3459,7 +3458,13 @@ static VAStatus tng__cmdbuf_provide_buffer(context_ENC_p ctx, IMG_UINT32 ui32Str
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
-    tng_send_codedbuf(ctx, ctx->ui8SlotsCoded);
+    if (ctx->ui8PipesToUse == 1) {
+        tng_send_codedbuf(ctx, ctx->ui8SlotsCoded);
+    } else {
+        /*Make sure DMA start is 128bits alignment*/
+        tng_send_codedbuf(ctx, ctx->ui8SlotsCoded * 2);
+        tng_send_codedbuf(ctx, ctx->ui8SlotsCoded * 2 + 1);
+    }
 
     if (ctx->sRCParams.ui16BFrames > 0)
         tng__provide_buffer_BFrames(ctx, ui32StreamIndex);
