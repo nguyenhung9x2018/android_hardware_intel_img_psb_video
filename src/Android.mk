@@ -95,13 +95,7 @@ LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE
 LOCAL_SHARED_LIBRARIES += liblog
 endif
 
-# Add source codes for Merrifield
-MERRIFIELD_DEVICE := \
-	mrfl_vp \
-	mrfl_hvp \
-	merr_vv \
-	mrfl_sle
-ifneq ($(filter $(REF_DEVICE_NAME),$(MERRIFIELD_DEVICE)),)
+ifeq ($(TARGET_BOARD_PLATFORM),merrifield)
 LOCAL_SRC_FILES += \
     tng_VP8.c \
     tng_jpegdec.c \
