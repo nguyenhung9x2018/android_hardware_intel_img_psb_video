@@ -201,30 +201,25 @@ typedef enum {
  ****************************************************************************/
 typedef enum
 {
-//    IMG_CODEC_NONE = 0,              //!< There is no FW in MTX memory
-    IMG_CODEC_JPEG,                        //!< JPEG
-    IMG_CODEC_H264_NO_RC,           //!< H264 with no rate control
-    IMG_CODEC_H264_VBR,                //!< H264 variable bitrate
-    IMG_CODEC_H264_CBR,			//!< H264 constant bitrate
-    IMG_CODEC_H264_VCM,               //!< H264 video conferance mode
-    IMG_CODEC_H263_NO_RC,           //!< H263 with no rate control
-    IMG_CODEC_H263_VBR,                //!< H263 variable bitrate
-    IMG_CODEC_H263_CBR,                //!< H263 constant bitrate
-    IMG_CODEC_MPEG4_NO_RC,        //!< MPEG4 with no rate control
-    IMG_CODEC_MPEG4_VBR,            //!< MPEG4 variable bitrate
-    IMG_CODEC_MPEG4_CBR,            //!< MPEG4 constant bitrate
-    IMG_CODEC_MPEG2_NO_RC,        //!< MPEG2 with no rate control
-    IMG_CODEC_MPEG2_VBR,            //!< MPEG2 variable bitrate
-    IMG_CODEC_MPEG2_CBR,            //!< MPEG2 constant bitrate
-    IMG_CODEC_H264_ERC,                //!< H264 example rate control
-    IMG_CODEC_H263_ERC,                //!< H263 example rate control
-    IMG_CODEC_MPEG4_ERC,            //!< MPEG4 example rate control
-    IMG_CODEC_MPEG2_ERC,            //!< MPEG2 example rate control
-    IMG_CODEC_H264MVC_NO_RC,    //!< MVC H264 with no rate control
-    IMG_CODEC_H264MVC_CBR,         //!< MVC H264 constant bitrate
-    IMG_CODEC_H264MVC_VBR,         //!< MVC H264 variable bitrate
-    IMG_CODEC_H264MVC_ERC,         //!< MVC H264 example rate control
-    IMG_CODEC_H264_ALL_RC,           //!< H264 with multiple rate control modes
+    IMG_CODEC_JPEG = 0,    /* !< JPEG */
+    IMG_CODEC_H264_NO_RC,  /* !< H264 with no rate control */
+    IMG_CODEC_H264_VBR,    /* !< H264 variable bitrate */
+    IMG_CODEC_H264_CBR,    /* !< H264 constant bitrate */
+    IMG_CODEC_H264_VCM,    /* !< H264 video conferance mode */
+    IMG_CODEC_H264_LLRC,   /* !< H264 low-latency rate control */
+    IMG_CODEC_H264_ALL_RC, /* !< H264 with multiple rate control modes */
+    IMG_CODEC_H263_NO_RC,  /* !< H263 with no rate control */
+    IMG_CODEC_H263_VBR,    /* !< H263 variable bitrate */
+    IMG_CODEC_H263_CBR,    /* !< H263 constant bitrate */
+    IMG_CODEC_MPEG4_NO_RC, /* !< MPEG4 with no rate control */
+    IMG_CODEC_MPEG4_VBR,   /* !< MPEG4 variable bitrate */
+    IMG_CODEC_MPEG4_CBR,   /* !< MPEG4 constant bitrate */
+    IMG_CODEC_MPEG2_NO_RC, /* !< MPEG2 with no rate control */
+    IMG_CODEC_MPEG2_VBR,   /* !< MPEG2 variable bitrate */
+    IMG_CODEC_MPEG2_CBR,   /* !< MPEG2 constant bitrate */
+    IMG_CODEC_H264MVC_NO_RC, /* !< MVC H264 with no rate control */
+    IMG_CODEC_H264MVC_CBR, /* !< MVC H264 constant bitrate */
+    IMG_CODEC_H264MVC_VBR, /* !< MVC H264 variable bitrate */
     IMG_CODEC_NUM
 } IMG_CODEC;
 
