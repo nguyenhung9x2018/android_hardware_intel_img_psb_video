@@ -215,13 +215,6 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
     */
     placement =  DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_SHARED ;
 
-    if (flags & PSB_USER_BUFFER_WC)
-	placement |= WSBM_PL_FLAG_WC;
-    else if (flags & PSB_USER_BUFFER_UNCACHED)
-	placement |= WSBM_PL_FLAG_UNCACHED;
-    else
-	placement |= WSBM_PL_FLAG_CACHED;
-
     ret = LOCK_HARDWARE(driver_data);
     if (ret) {
         UNLOCK_HARDWARE(driver_data);
@@ -237,6 +230,14 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
         allignment = 2048 * 16; /* Tiled row aligned */
     }
 #endif
+
+    if (flags & PSB_USER_BUFFER_WC)
+	placement |= WSBM_PL_FLAG_WC;
+    else if (flags & PSB_USER_BUFFER_UNCACHED)
+	placement |= WSBM_PL_FLAG_UNCACHED;
+    else
+	placement |= WSBM_PL_FLAG_CACHED;
+
     //drv_debug_msg(VIDEO_DEBUG_ERROR, "FIXME: should use geetpagesize() ?\n");
     ret = wsbmGenBuffers(driver_data->main_pool, 1, &buf->drm_buf,
     allignment, placement);

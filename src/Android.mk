@@ -116,7 +116,8 @@ endif
 
 CTP_PRODUCT := \
 	ctp_pr1 \
-	ctp_nomodem
+	ctp_nomodem \
+	redhookbay
 ifneq ($(filter $(TARGET_PRODUCT),$(CTP_PRODUCT)),)
 LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_DEC_TILING
 endif
