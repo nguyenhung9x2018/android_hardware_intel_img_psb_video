@@ -633,7 +633,6 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
     /* For H264, PicHeader only needed in the first picture*/
     if (!(ctx->obj_context->frame_count)) {
         cmdbuf = ctx->obj_context->pnw_cmdbuf;
-        cmdbuf->cmd_idx_saved[PNW_CMDBUF_PIC_HEADER_IDX] = cmdbuf->cmd_idx;
 
         if (need_sps) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "TOPAZ: insert a SPS before IDR frame\n");
@@ -659,6 +658,7 @@ static VAStatus pnw__H264ES_process_picture_param(context_ENC_p ctx, object_buff
 
         pnw__H264_prepare_picture_header(cmdbuf->header_mem_p + ctx->pic_header_ofs, IMG_FALSE, ctx->sRCParams.QCPOffset);
 
+        cmdbuf->cmd_idx_saved[PNW_CMDBUF_PIC_HEADER_IDX] = cmdbuf->cmd_idx;
         /* Send to the last core as this will complete first */
         pnw_cmdbuf_insert_command_package(ctx->obj_context,
                 ctx->ParallelCores - 1,
