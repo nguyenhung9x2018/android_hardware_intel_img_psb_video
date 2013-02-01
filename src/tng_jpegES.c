@@ -1088,6 +1088,7 @@ static VAStatus tng_jpeg_BeginPicture(
 			     ((ctx->eCodec) << MTX_CMDWORD_CORE_SHIFT) |
                              (((driver_data->drm_context & MTX_CMDWORD_COUNT_MASK) << MTX_CMDWORD_COUNT_SHIFT));
         tng_cmdbuf_insert_command_param((ctx->ui16Width << 16) | ctx->ui16FrameHeight);
+	tng_cmdbuf_insert_command_param(jpeg_ctx_p->sScan_Encode_Info.ui8NumberOfCodedBuffers);
     }
 
 
@@ -1125,13 +1126,6 @@ static VAStatus tng_jpeg_BeginPicture(
     jpeg_ctx_p->pMemInfoTableBlock = cmdbuf->jpeg_pic_params_p;
     jpeg_ctx_p->psTablesBlock = (JPEG_MTX_QUANT_TABLE *)jpeg_ctx_p->pMemInfoTableBlock;
     memset(jpeg_ctx_p->pMemInfoTableBlock, 0x0, ctx->jpeg_pic_params_size);
-
-    *cmdbuf->cmd_idx++ =
-        ((MTX_CMDID_SW_LEAVE_LOWPOWER & MTX_CMDWORD_ID_MASK) << MTX_CMDWORD_ID_SHIFT) |
-        ((0 & MTX_CMDWORD_CORE_MASK) << MTX_CMDWORD_CORE_SHIFT) |
-        (((driver_data->context_id & MTX_CMDWORD_COUNT_MASK) << MTX_CMDWORD_COUNT_SHIFT));
-
-    *cmdbuf->cmd_idx++ = IMG_CODEC_JPEG;
 
     vaStatus = tng__cmdbuf_lowpower(ctx);
     if (vaStatus != VA_STATUS_SUCCESS) {
