@@ -840,11 +840,9 @@ VAStatus tng_BeginPicture(context_ENC_p ctx)
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
     ctx->ui32StreamID = 0;
 
-#ifdef _TOPAZHP_OLD_LIBVA_
     if (ctx->ui32RawFrameCount != 0)
         ps_buf->previous_src_surface = ps_buf->src_surface;
     ps_buf->src_surface = ctx->obj_context->current_render_target;
-#endif
 
     vaStatus = tng__get_encoder_caps(ctx);
     if (vaStatus != VA_STATUS_SUCCESS) {
@@ -3211,13 +3209,8 @@ static VAStatus tng__validate_params(context_ENC_p ctx)
         ctx->ui8DeblockIDC = 1;
     }
 
-#ifdef _TOPAZHP_OLD_LIBVA_
     ctx->sRCParams.ui32SliceByteLimit = 0;
     ctx->sRCParams.ui32SliceMBLimit = 0;
-#else
-    ctx->sRCParams.ui32SliceByteLimit = ctx->sCapsParams.ui16MaxSlices;
-    ctx->sRCParams.ui32SliceMBLimit = ctx->sCapsParams.ui16MaxSlices >> 4;
-#endif
     //slice params
     if (ctx->ui8SlicesPerPicture == 0)
         ctx->ui8SlicesPerPicture = ctx->sCapsParams.ui16RecommendedSlices;

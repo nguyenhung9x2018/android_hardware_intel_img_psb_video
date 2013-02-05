@@ -147,44 +147,10 @@ static VAStatus tng__H264ES_init_format_mode(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
 
-#ifdef _TOPAZHP_OLD_LIBVA_
     ctx->bIsInterlaced = IMG_FALSE;
     ctx->bIsInterleaved = IMG_FALSE;
     ctx->ui16PictureHeight = ctx->ui16FrameHeight;
     ctx->eCodec = IMG_CODEC_H264_NO_RC;
-#else
-    unsigned int eFormatMode;
-    int i;
-
-    for (i = 0; i < obj_config->attrib_count; i++) {
-        if (obj_config->attrib_list[i].type == VAConfigAttribEncInterlaced)
-            break;
-    }
-
-    if (i >= obj_config->attrib_count)
-        eFormatMode = VA_ENC_INTERLACED_NONE;
-    else
-        eFormatMode = obj_config->attrib_list[i].value;
-
-    if (eFormatMode == VA_ENC_INTERLACED_NONE) {
-        ctx->bIsInterlaced = IMG_FALSE;
-        ctx->bIsInterleaved = IMG_FALSE;
-        ctx->ui16PictureHeight = ctx->ui16FrameHeight;
-        ctx->eCodec = IMG_CODEC_H264_NO_RC;
-    } else {
-        if (eFormatMode == VA_ENC_INTERLACED_FRAME) {
-            ctx->bIsInterlaced = IMG_TRUE;
-            ctx->bIsInterleaved = IMG_FALSE;
-        } else if (eFormatMode == VA_ENC_INTERLACED_FIELD) {
-            ctx->bIsInterlaced = IMG_TRUE;
-            ctx->bIsInterleaved = IMG_TRUE;
-        } else {
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "not support this RT Format\n");
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
-        ctx->ui16PictureHeight = ctx->ui16FrameHeight >> 1;
-    }
-#endif
     return vaStatus;
 }
 
@@ -778,7 +744,7 @@ static VAStatus tng__H264ES_process_picture_param_base(context_ENC_p ctx, unsign
     ASSERT(ctx->ui16Width == psPicParams->picture_width);
     ASSERT(ctx->ui16PictureHeight == psPicParams->picture_height);
 
-#ifdef _TOPAZHP_OLD_LIBVA_
+#ifdef _TNG_FRAMES_
     ps_buf->rec_surface  = SURFACE(psPicParams->CurrPic.picture_id);
     ps_buf->ref_surface  = SURFACE(psPicParams->ReferenceFrames[0].picture_id);
     ps_buf->ref_surface1 = SURFACE(psPicParams->ReferenceFrames[1].picture_id);

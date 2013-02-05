@@ -167,7 +167,7 @@ typedef struct context_ENC_mem_size_s {
 typedef struct context_ENC_frame_buf_s {
     object_surface_p  src_surface;
     object_surface_p  rec_surface;
-#ifdef _TOPAZHP_OLD_LIBVA_
+#ifdef _TNG_FRAMES_
     object_surface_p  ref_surface;
     object_surface_p  ref_surface1;
 #else

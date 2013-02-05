@@ -99,10 +99,7 @@ static VAStatus tng_H263ES_CreateContext(
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_p ctx;
-#ifndef _TOPAZHP_OLD_LIBVA_
-    int i;
-    unsigned int eFormatMode;
-#endif
+
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
 
     vaStatus = tng_CreateContext(obj_context, obj_config, 0);
@@ -130,40 +127,9 @@ static VAStatus tng_H263ES_CreateContext(
            break;
     }
 
-#ifdef _TOPAZHP_OLD_LIBVA_
     ctx->bIsInterlaced = IMG_FALSE;
     ctx->bIsInterleaved = IMG_FALSE;
     ctx->ui16PictureHeight = ctx->ui16FrameHeight;
-#else
-    for (i = 0; i < obj_config->attrib_count; i++) {
-        if (obj_config->attrib_list[i].type == VAConfigAttribEncInterlaced)
-            break;
-    }
-
-    if (i >= obj_config->attrib_count)
-        eFormatMode = VA_ENC_INTERLACED_NONE;
-    else
-        eFormatMode = obj_config->attrib_list[i].value;
-
-    if (eFormatMode == VA_ENC_INTERLACED_NONE) {
-        ctx->bIsInterlaced = IMG_FALSE;
-        ctx->bIsInterleaved = IMG_FALSE;
-        ctx->ui16PictureHeight = ctx->ui16FrameHeight;
-        ctx->eCodec = IMG_CODEC_H263_NO_RC;
-    } else {
-        if (eFormatMode == VA_ENC_INTERLACED_FRAME) {
-            ctx->bIsInterlaced = IMG_TRUE;
-            ctx->bIsInterleaved = IMG_FALSE;
-        } else if (eFormatMode == VA_ENC_INTERLACED_FIELD) {
-            ctx->bIsInterlaced = IMG_TRUE;
-            ctx->bIsInterleaved = IMG_TRUE;
-        } else {
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "not support this RT Format\n");
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
-        ctx->ui16PictureHeight = ctx->ui16FrameHeight >> 1;
-    }
-#endif
 
     //This parameter need not be exposed
     ctx->ui8InterIntraIndex = 3;
@@ -273,14 +239,12 @@ static VAStatus tng__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     psRCParams->i32InitialDelay = (13 * psRCParams->ui32BufferSize) >> 4;
     psRCParams->i32InitialLevel = (3 * psRCParams->ui32BufferSize) >> 4;
     psRCParams->ui32IntraFreq = psSeqParams->intra_period;
-#ifdef _TOPAZHP_OLD_LIBVA_
     psRCParams->ui32InitialQp = psSeqParams->initial_qp;
     psRCParams->iMinQP = psSeqParams->min_qp;
     ctx->ui32BasicUnit = psSeqParams->min_qp;
     //psRCParams->ui32BUSize = psSeqParams->basic_unit_size;
     //ctx->ui32KickSize = psRCParams->ui32BUSize;
     psRCParams->ui32FrameRate = psSeqParams->frame_rate;
-#endif
 
     //B-frames are not supported for non-H.264 streams
     ctx->sRCParams.ui16BFrames = 0;
@@ -320,19 +284,9 @@ static VAStatus tng__H263ES_process_picture_param(context_ENC_p ctx, object_buff
     ASSERT(ctx->ui16Width == psPicParams->picture_width);
     ASSERT(ctx->ui16PictureHeight == psPicParams->picture_height);
 
-#ifdef _TOPAZHP_OLD_LIBVA_
     ps_buf->ref_surface = SURFACE(psPicParams->reference_picture);
     ps_buf->rec_surface = SURFACE(psPicParams->reconstructed_picture);
     ps_buf->coded_buf = BUFFER(psPicParams->coded_buf);
-#else
-    {
-        IMG_INT32 i;
-        ps_buf->src_surface = SURFACE(psPicParams->CurrPic);
-        for (i = 0; i < 16; i++)
-            ps_buf->ref_surface[i] = SURFACE(psPicParams->ReferenceFrames[i]);
-        ps_buf->coded_buf = BUFFER(psPicParams->CodedBuf);
-    }
-#endif
 
     if (NULL == ps_buf->coded_buf) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid coded buffer handle\n", __FUNCTION__, __LINE__);
@@ -387,10 +341,6 @@ static VAStatus tng__H263ES_process_misc_param(context_ENC_p ctx, object_buffer_
     VAEncMiscParameterFrameRate *frame_rate_param;
     VAEncMiscParameterRateControl *rate_control_param;
     IMG_RC_PARAMS   *psRCParams = &(ctx->sRCParams);
-#ifndef _TOPAZHP_OLD_LIBVA_
-    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
-    IMG_UINT8 aui8clocktimestampflag[1];
-#endif
 
     ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
 
