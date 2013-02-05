@@ -989,6 +989,10 @@ VAStatus psb_PutImage(
     INIT_DRIVER_DATA;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int ret;
+    CHECK_INVALID_PARAM((src_width == -1) ||
+                        (src_height == -1) ||
+                        (dest_width == ~0) ||
+                        (dest_height == ~0));
 
     if ((src_width == dest_width) && (src_height == dest_height)) {
         /* Shortcut if scaling is not required */

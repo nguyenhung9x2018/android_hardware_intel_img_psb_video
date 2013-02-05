@@ -300,10 +300,9 @@ VAStatus psb_CreateSurfacesForUserPtr(
         drv_debug_msg(VIDEO_DEBUG_ERROR, "Only support NV12 format\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
-    /*
+
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
     CHECK_VASTATUS();
-    */
 
     CHECK_INVALID_PARAM((size < width * height * 1.5) ||
         (luma_stride < width) ||

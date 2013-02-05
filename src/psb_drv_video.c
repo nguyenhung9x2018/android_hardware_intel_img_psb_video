@@ -557,7 +557,6 @@ void psb__destroy_surface(psb_driver_data_p driver_data, object_surface_p obj_su
     }
 }
 
-static
 VAStatus psb__checkSurfaceDimensions(psb_driver_data_p driver_data, int width, int height)
 {
     if (driver_data->video_sd_disabled) {
@@ -715,10 +714,13 @@ VAStatus psb_DestroySurfaces(
 {
     INIT_DRIVER_DATA
     int i;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     if (num_surfaces <= 0) {
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
+
+    CHECK_SURFACE(surface_list);
 
 #if 0
     /* Free PVR2D buffer wrapped from the surfaces */
