@@ -306,7 +306,7 @@ static void IssueQmatix(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n");
     }
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETQUANT,
                                       0,
@@ -476,7 +476,7 @@ static void IssueSetupInterface(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
                                  pJPEGContext->pMTXWritebackMemory->apWritebackRegions[i]);
     }
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETUP_INTERFACE,
                                       0,
@@ -564,7 +564,7 @@ static void IssueMTXSetup(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui16DataInterleaveStatus: %d\n", pJPEGContext->pMTXSetup->ui16DataInterleaveStatus);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui16MaxPipes: %d\n", pJPEGContext->pMTXSetup->ui16MaxPipes);
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command(ctx->obj_context,
                                       0,
                                       MTX_CMDID_SETUP,
                                       0,
@@ -901,7 +901,7 @@ static IMG_ERRORCODE IssueBufferToHW(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Command Data: 0x%x\n", (unsigned int)(PTG_JPEG_HEADER_MAX_SIZE + ui16BCnt * pJPEGContext->ui32SizePerCodedBuffer));
 
     // Issue buffers
-    tng_cmdbuf_insert_command_package(ctx->obj_context,
+    tng_cmdbuf_insert_command(ctx->obj_context,
                                       0,
                                       MTX_CMDID_ISSUEBUFF,
                                       0,

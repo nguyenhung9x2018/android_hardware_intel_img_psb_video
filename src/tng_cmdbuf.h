@@ -193,7 +193,9 @@ void tng_cmdbuf_add_relocation(tng_cmdbuf_p cmdbuf,
                                IMG_UINT32 dst_buffer, /*Index of the list refered by cmdbuf->buffer_refs */
                                IMG_UINT32 *start_of_dst_buffer);
 
-#define RELOC_CMDBUF_PTG(dest, offset, buf)     tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, cmdbuf->cmd_start)
+#define TNG_RELOC_CMDBUF_START(dest, offset, buf)    tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, cmdbuf->cmd_start)
+/* do relocation in IMG_BUFFER_PARAMS: reference Y/UV base,CodedData */
+#define TNG_RELOC_CMDBUF_FRAMES(dest, offset, buf)   tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->frame_mem_p)
 
 /* do relocation in PIC_PARAMS: src/dst Y/UV base, InParamsBase, CodeBase, BellowParamsBase, AboveParamsBase
 #define RELOC_PIC_PARAMS_PTG(dest, offset, buf) tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (uint32_t *)cmdbuf->pic_params_p)
@@ -205,8 +207,6 @@ void tng_cmdbuf_add_relocation(tng_cmdbuf_p cmdbuf,
 /* do relocation in SLICE_PARAMS: reference Y/UV base,CodedData */
 //#define RELOC_SLICE_PARAMS_PTG(dest, offset, buf)       tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 2,(uint32_t *)cmdbuf->slice_mem_p)
 
-/* do relocation in IMG_BUFFER_PARAMS: reference Y/UV base,CodedData */
-#define RELOC_FRAME_PARAMS_PTG(dest, offset, buf)       tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->frame_mem_p)
 
 /* do relocation in IMG_BUFFER_PARAMS: reference Y/UV base,CodedData */
 #define RELOC_PICMGMT_PARAMS_PTG(dest, offset, buf)       tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->picmgmt_mem_p)
@@ -231,13 +231,7 @@ void tng_cmdbuf_add_relocation(tng_cmdbuf_p cmdbuf,
 #define tng_cmdbuf_insert_reg_write(topaz_reg, base, offset, value)        \
     do { *cmdbuf->cmd_idx++ = topaz_reg; *cmdbuf->cmd_idx++ = base + offset; *cmdbuf->cmd_idx++ = value; count++; } while(0)
 
-void tng_cmdbuf_insert_command_package_jpeg(object_context_p obj_context,
-                                       IMG_UINT32 core,
-                                       IMG_UINT32 cmd_id,
-                                       psb_buffer_p command_data,
-                                       IMG_UINT32 offset);
-
-void tng_cmdbuf_insert_command_package(
+void tng_cmdbuf_insert_command(
     object_context_p obj_context, IMG_UINT32 core,
     IMG_UINT32 cmd_id, IMG_UINT32 cmd_data,
     psb_buffer_p data_addr, IMG_UINT32 offset);

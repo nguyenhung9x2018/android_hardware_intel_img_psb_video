@@ -61,7 +61,7 @@ VAStatus tng_picmgmt_update(context_ENC_p ctx, IMG_PICMGMT_TYPE eType, unsigned 
         F_ENCODE(ref, MTX_MSG_PICMGMT_DATA);
 
     /* Send PicMgmt Command */
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
         ui32CmdData, 0, 0);
 
@@ -350,7 +350,7 @@ IMG_UINT32 tng_send_codedbuf(
     if ((ctx->ui8PipesToUse == 2) && ((ui32SlotIndex & 1) == 1))
 	ui32Offset = object_buffer->size >> 1;
 
-    tng_cmdbuf_insert_command_package(
+    tng_cmdbuf_insert_command(
         ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PROVIDE_CODED_BUFFER | MTX_CMDID_PRIORITY,
         F_ENCODE(object_buffer->size, MTX_MSG_PROVIDE_CODED_BUFFER_SIZE) |
@@ -620,7 +620,33 @@ IMG_UINT32 tng_send_source_frame(
         psSrcBufParams->ui8DisplayOrderNum = (IMG_UINT8)(ui32DisplayOrder & 0xff);
         psSrcBufParams->ui32HostContext = (IMG_UINT32)ctx;
 
-#ifdef _TOPAZHP_OLD_LIBVA_
+#ifdef _TNG_RELOC_
+        TNG_RELOC_CMDBUF_FRAMES(
+            &(psSrcBufParams->ui32PhysAddrYPlane_Field0),
+            srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field0YOffset,
+            &(src_surface->psb_surface->buf));
+        TNG_RELOC_CMDBUF_FRAMES(
+            &(psSrcBufParams->ui32PhysAddrUPlane_Field0),
+            srf_buf_offset + psSrcFrame->i32UComponentOffset + psSrcFrame->i32Field0UOffset,
+            &(src_surface->psb_surface->buf));
+        TNG_RELOC_CMDBUF_FRAMES(
+            &(psSrcBufParams->ui32PhysAddrVPlane_Field0),
+            srf_buf_offset + psSrcFrame->i32VComponentOffset + psSrcFrame->i32Field0VOffset,
+            &(src_surface->psb_surface->buf));
+
+        TNG_RELOC_CMDBUF_FRAMES(
+            &(psSrcBufParams->ui32PhysAddrYPlane_Field1),
+            srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field1YOffset,
+            &(src_surface->psb_surface->buf));
+        TNG_RELOC_CMDBUF_FRAMES(
+            &(psSrcBufParams->ui32PhysAddrUPlane_Field1),
+            srf_buf_offset + psSrcFrame->i32UComponentOffset + psSrcFrame->i32Field1UOffset,
+            &(src_surface->psb_surface->buf));
+        TNG_RELOC_CMDBUF_FRAMES(
+            &(psSrcBufParams->ui32PhysAddrVPlane_Field1),
+            srf_buf_offset + psSrcFrame->i32VComponentOffset + psSrcFrame->i32Field1VOffset,
+            &(src_surface->psb_surface->buf));
+#else
         tng_cmdbuf_set_phys(&(psSrcBufParams->ui32PhysAddrYPlane_Field0), 0,
             &(src_surface->psb_surface->buf), 
             srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field0YOffset, 0);
@@ -640,20 +666,6 @@ IMG_UINT32 tng_send_source_frame(
         tng_cmdbuf_set_phys(&(psSrcBufParams->ui32PhysAddrVPlane_Field1), 0,
             &(src_surface->psb_surface->buf), 
             srf_buf_offset + psSrcFrame->i32VComponentOffset + psSrcFrame->i32Field1VOffset, 0);
-#else
-        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrYPlane_Field0,
-                                 srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field0YOffset, &src_surface->psb_surface->buf);
-        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrUPlane_Field0,
-                                 srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field0UOffset, &src_surface->psb_surface->buf);
-        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrVPlane_Field0,
-                                 srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field0VOffset, &src_surface->psb_surface->buf);
-
-        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrYPlane_Field1,
-                                 srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field1YOffset, &src_surface->psb_surface->buf);
-        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrUPlane_Field1,
-                                 srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field1UOffset, &src_surface->psb_surface->buf);
-        RELOC_PICMGMT_PARAMS_PTG(&psSrcBufParams->ui32PhysAddrVPlane_Field1,
-                                 srf_buf_offset + psSrcFrame->i32YComponentOffset + psSrcFrame->i32Field1VOffset, &src_surface->psb_surface->buf);
 #endif
     }
     drv_debug_msg(VIDEO_DEBUG_GENERAL, 
@@ -671,7 +683,7 @@ IMG_UINT32 tng_send_source_frame(
         (unsigned int)(psSrcBufParams->ui32PhysAddrVPlane_Field1));
 
     /* Send ProvideBuffer Command */
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PROVIDE_SOURCE_BUFFER | MTX_CMDID_PRIORITY,
         0, &(cmdbuf->frame_mem), frame_mem_index);
 
@@ -699,7 +711,7 @@ IMG_UINT32 tng_send_rec_frames(
         F_ENCODE(i8HeaderSlotNum, MTX_MSG_PROVIDE_REF_BUFFER_SLOT) |
         F_ENCODE(bLongTerm, MTX_MSG_PROVIDE_REF_BUFFER_LT);
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PROVIDE_REF_BUFFER | MTX_CMDID_PRIORITY,
         ui32CmdData, &(rec_surface->psb_surface->buf), 0);
 
@@ -729,7 +741,7 @@ IMG_UINT32 tng_send_ref_frames(
     
     srf_buf_offset = ref_surface->psb_surface->buf.buffer_ofs;
     /* Send ProvideBuffer Command */
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PROVIDE_REF_BUFFER | MTX_CMDID_PRIORITY,
         ui32CmdData, &(ref_surface->psb_surface->buf), 0);
 

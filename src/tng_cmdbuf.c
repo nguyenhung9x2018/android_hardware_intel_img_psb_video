@@ -370,76 +370,7 @@ void tng_cmdbuf_add_relocation(tng_cmdbuf_p cmdbuf,
 }
 
 /* Prepare one command package */
-void tng_cmdbuf_insert_command_package_jpeg(
-    object_context_p obj_context,
-    IMG_UINT32 stream_id,
-    IMG_UINT32 cmd_id,
-    psb_buffer_p command_data,
-    IMG_UINT32 offset)
-{
-    IMG_UINT32 cmd_word;
-    context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
-    context_ENC_cmdbuf *ps_cmd = &(ctx->ctx_cmdbuf[stream_id]);
-    tng_cmdbuf_p cmdbuf = obj_context->tng_cmdbuf;
-    psb_driver_data_p driver_data = ctx->obj_context->driver_data;
-    int interrupt_flags;
-
-    //CMD composed by user space does not generate Interrupt
-    interrupt_flags = 0;
-
-    assert(stream_id <= TOPAZHP_MAX_NUM_STREAMS);
-
-    if (cmd_id & MTX_CMDID_PRIORITY) {
-        // increment the command counter
-        ps_cmd->ui32HighCmdCount++;
-
-        // Preapre HIGH priority command
-        cmd_word = (
-                   ((ps_cmd->ui32LowCmdCount - 1) & 0xff) << SHIFT_MTX_CMDWORD_COUNT) |
-                   ((ps_cmd->ui32HighCmdCount & 0xff) << (SHIFT_MTX_CMDWORD_COUNT + 8)) |
-                   (stream_id << SHIFT_MTX_CMDWORD_CORE) | (cmd_id << SHIFT_MTX_CMDWORD_ID);
-    } else {
-        // Prepare LOW priority command
-        cmd_word = (
-                   (ps_cmd->ui32LowCmdCount & 0xff) << SHIFT_MTX_CMDWORD_COUNT) |
-                   ((ps_cmd->ui32HighWBReceived & 0xff) << (SHIFT_MTX_CMDWORD_COUNT + 8)) |
-                   (stream_id << SHIFT_MTX_CMDWORD_CORE) | (cmd_id << SHIFT_MTX_CMDWORD_ID);
-        ++(ps_cmd->ui32LowCmdCount);
-    }
-
-    /* write command word into cmdbuf */
-    *cmdbuf->cmd_idx++ = cmd_word;
-
-    /* Command data address */
-    if (command_data) {
-#ifdef _TOPAZHP_OLD_LIBVA_
-        tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, command_data, offset, 0);
-#else
-        RELOC_CMDBUF_PTG(cmdbuf->cmd_idx, offset, command_data);
-#endif
-        cmdbuf->cmd_idx++;
-    } else {
-        *cmdbuf->cmd_idx++ = 0;
-    }
-
-    if (cmd_id == MTX_CMDID_SETVIDEO) {
-        *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ctx->bufs_writeback.drm_buf));
-    }
-
-    if (cmd_id == MTX_CMDID_SETUP_INTERFACE) {
-        *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ctx->bufs_writeback.drm_buf));
-    }
-
-    if (cmd_id == MTX_CMDID_SHUTDOWN) {
-        *(cmdbuf->cmd_idx)++ = driver_data->context_id & MTX_CMDWORD_COUNT_MASK;
-        *(cmdbuf->cmd_idx)++ = ctx->eCodec;
-    }
-
-    return ;
-}
-
-/* Prepare one command package */
-void tng_cmdbuf_insert_command_package(
+void tng_cmdbuf_insert_command(
     object_context_p obj_context,
     IMG_UINT32 stream_id,
     IMG_UINT32 cmd_id,
@@ -487,10 +418,10 @@ void tng_cmdbuf_insert_command_package(
     *cmdbuf->cmd_idx++ = cmd_data;
 /* Command data address */
     if (data_addr) {
-#ifdef _TOPAZHP_OLD_LIBVA_
-        tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
+#ifdef _TNG_RELOC_
+        TNG_RELOC_CMDBUF_START(cmdbuf->cmd_idx, offset, data_addr);
 #else
-        RELOC_CMDBUF_PTG(cmdbuf->cmd_idx, offset, data_addr);
+        tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
 #endif
         drv_debug_msg(VIDEO_DEBUG_GENERAL,
             "%s: data_addr = 0x%08x\n",
@@ -605,11 +536,6 @@ ptgDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 #if 1
         req->presumed_gpu_offset = (uint64_t)wsbmBOOffsetHint(buffer_list[i]->drm_buf);
         req->presumed_flags = PSB_USE_PRESUMED;
-        if ((req->presumed_gpu_offset >> 28) & 0x1) {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "buffer is at the address topaz can not access\n");
-            ret = -1;
-            goto out;
-        }
 #else
         req->presumed_flags = 0;
 #endif

@@ -3331,7 +3331,7 @@ static VAStatus tng__cmdbuf_doheader(context_ENC_p ctx)
      tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
 
     cmdbuf->cmd_idx_saved[TNG_CMDBUF_PIC_HEADER_IDX] = cmdbuf->cmd_idx;
-    tng_cmdbuf_insert_command_package(ctx->obj_context, 0,
+    tng_cmdbuf_insert_command(ctx->obj_context, 0,
                                       MTX_CMDID_DO_HEADER,
                                       0,
                                       &(ps_mem->bufs_seq_header),
@@ -3383,7 +3383,7 @@ static VAStatus tng__cmdbuf_setvideo(context_ENC_p ctx, IMG_UINT32 ui32StreamInd
     tng__setvideo_params(ctx, ui32StreamIndex);
     tng__setvideo_cmdbuf(ctx, ui32StreamIndex);
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_SETVIDEO, 0, &(ps_mem->bufs_mtx_context), 0);
 
     return vaStatus;
@@ -3416,7 +3416,7 @@ static VAStatus tng__update_bitrate(context_ENC_p ctx, IMG_UINT32 ui32StreamInde
     ui32CmdData = F_ENCODE(ui8NewVCMIFrameQP, MTX_MSG_RC_UPDATE_QP) |
                 F_ENCODE(ui32NewBitrate, MTX_MSG_RC_UPDATE_BITRATE);
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
         ui32CmdData, 0, 0);
 
@@ -3625,7 +3625,7 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         tng__MPEG4ES_send_seq_header(ctx, ctx->ui32StreamID);
     }
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_ENCODE_FRAME, 0, 0, 0);
 
 #ifdef _TOPAZHP_CMDBUF_
@@ -3801,7 +3801,7 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
     if (ctx->eStandard == IMG_STANDARD_MPEG4) {
 	if (ctx->ui32FrameCount[0] == 0) {
 	    cmdbuf->cmd_idx_saved[TNG_CMDBUF_PIC_HEADER_IDX] = cmdbuf->cmd_idx;
-            tng_cmdbuf_insert_command_package(ctx->obj_context, 0,
+            tng_cmdbuf_insert_command(ctx->obj_context, 0,
                                               MTX_CMDID_DO_HEADER,
                                               &(ps_mem->bufs_seq_header),
                                               0);
@@ -3826,7 +3826,7 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
 	cmdbuf->cmd_idx_saved[TNG_CMDBUF_SEQ_HEADER_IDX] = cmdbuf->cmd_idx;
     }
 
-    tng_cmdbuf_insert_command_package(ctx->obj_context, ctx->ui32StreamID,
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_ENCODE_FRAME, 0, 0);
 
 #ifdef _TOPAZHP_CMDBUF_

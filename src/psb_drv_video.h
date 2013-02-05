@@ -75,12 +75,11 @@
 #define max(a, b) ((a) > (b)) ? (a) : (b)
 #endif
 
-#define _TOPAZHP_VIR_ADDR_
-#define _TOPAZHP_SLICE_PARAM_
 #define _TOPAZHP_PDUMP_
-
 #define TOPAZHP_PIPE_NUM 1
-#define _TOPAZHP_OLD_LIBVA_
+
+#define _TNG_RELOC_
+#define _TNG_FRAMES_
 #define FORCED_REFERENCE 1
 #define LTREFHEADER 1
 //#define _TP_DEBUG_MMU_
