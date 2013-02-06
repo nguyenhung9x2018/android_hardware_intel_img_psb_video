@@ -114,11 +114,7 @@ LOCAL_SRC_FILES += psb_texture.c
 LOCAL_CFLAGS += -DPSBVIDEO_MFLD
 endif
 
-CTP_PRODUCT := \
-	ctp_pr1 \
-	ctp_nomodem \
-	redhookbay
-ifneq ($(filter $(TARGET_PRODUCT),$(CTP_PRODUCT)),)
+ifeq ($(TARGET_BOARD_PLATFORM),clovertrail)
 LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_DEC_TILING
 endif
 
