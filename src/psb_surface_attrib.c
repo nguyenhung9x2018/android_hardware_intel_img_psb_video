@@ -60,7 +60,7 @@ VAStatus psb_surface_create_from_ub(
 {
     int ret = 0;
 
-    if ((fourcc == VA_FOURCC_NV12) || (fourcc == VA_FOURCC_YV16)) {
+    if ((fourcc == VA_FOURCC_NV12) || (fourcc == VA_FOURCC_YV16) || (fourcc == VA_FOURCC_IYUV)) {
         if ((width <= 0) || (width * height > 5120 * 5120) || (height <= 0)) {
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
         }
@@ -98,11 +98,14 @@ VAStatus psb_surface_create_from_ub(
             psb_surface->size = ((psb_surface->stride * height) * 3) / 2;
             psb_surface->extra_info[4] = VA_FOURCC_NV12;
         }
-        else {
+        else if (VA_FOURCC_YV16 == fourcc) {
             psb_surface->size = (psb_surface->stride * height) * 2;
             psb_surface->extra_info[4] = VA_FOURCC_YV16;
         }
-
+        else if (VA_FOURCC_IYUV == fourcc) {
+            psb_surface->size = ((psb_surface->stride * height) * 3) / 2;
+            psb_surface->extra_info[4] = VA_FOURCC_IYUV;
+        }
     } else {
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -286,17 +289,15 @@ VAStatus psb_CreateSurfacesForUserPtr(
     CHECK_SURFACE(surface_list);
 
     /* We only support one format */
-    if ((VA_RT_FORMAT_YUV420 != format)
-        && (VA_RT_FORMAT_YUV422 != format)) {
+    if (VA_RT_FORMAT_YUV420 != format) {
         vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
         DEBUG_FAILURE;
         return vaStatus;
     }
 
-    /* We only support NV12/YV12 */
-    if (((VA_RT_FORMAT_YUV420 == format) && (fourcc != VA_FOURCC_NV12)) ||
-        ((VA_RT_FORMAT_YUV422 == format) && (fourcc != VA_FOURCC_YV16))) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "Only support NV12/YV16 format\n");
+    /* We only support NV12 */
+    if ((VA_RT_FORMAT_YUV420 == format) && (fourcc != VA_FOURCC_NV12)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Only support NV12 format\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
     /*
@@ -347,15 +348,6 @@ VAStatus psb_CreateSurfacesForUserPtr(
             break;
         }
 
-        switch (format) {
-        case VA_RT_FORMAT_YUV422:
-            fourcc = VA_FOURCC_YV16;
-            break;
-        case VA_RT_FORMAT_YUV420:
-        default:
-            fourcc = VA_FOURCC_NV12;
-            break;
-        }
 
         vaStatus = psb_surface_create_for_userptr(driver_data, width, height,
                    size,
@@ -436,8 +428,7 @@ VAStatus  psb_CreateSurfaceFromKBuf(
     CHECK_SURFACE(surface);
 
     /* We only support one format */
-    if ((VA_RT_FORMAT_YUV420 != format)
-        && (VA_RT_FORMAT_YUV422 != format)) {
+    if (VA_RT_FORMAT_YUV420 != format) {
         vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
         DEBUG_FAILURE;
         return vaStatus;
@@ -445,9 +436,8 @@ VAStatus  psb_CreateSurfaceFromKBuf(
 
     /* We only support NV12/YV12 */
 
-    if (((VA_RT_FORMAT_YUV420 == format) && (kBuf_fourcc != VA_FOURCC_NV12)) ||
-        ((VA_RT_FORMAT_YUV422 == format) && (kBuf_fourcc != VA_FOURCC_YV16))) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "Only support NV12/YV16 format\n");
+    if ((VA_RT_FORMAT_YUV420 == format) && (kBuf_fourcc != VA_FOURCC_NV12)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Only support NV12 format\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
     /*

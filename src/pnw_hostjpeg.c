@@ -601,6 +601,7 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
         ui16_width_max = ui16_width;
         break;
     case IMG_CODEC_NV12:
+    case IMG_CODEC_IYUV:
     default:
         ui16_height_min = ui16_height >> 1;
         ui16_height_max = ui16_height;
@@ -652,6 +653,7 @@ IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, obje
                 ui16_comp_height = ui16_height;
                 break;
             case IMG_CODEC_NV12:
+            case IMG_CODEC_IYUV:
             default:
                 ui16_comp_width  = ui16_width >> 1;
                 ui16_comp_height = ui16_height >> 1;

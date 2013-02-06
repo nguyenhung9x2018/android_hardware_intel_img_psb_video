@@ -117,16 +117,39 @@ static VAStatus pnw_jpeg_CreateContext(
         if (VAConfigAttribRTFormat ==  obj_config->attrib_list[i].type) {
             switch (obj_config->attrib_list[i].value) {
             case VA_RT_FORMAT_YUV420:
-                ctx->eFormat = IMG_CODEC_PL12;
-                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG encoding: Choose NV12 format\n");
+                if (obj_context->render_targets != NULL) {
+                    object_surface_p surface_p = SURFACE(obj_context->render_targets[0]);
+                    if (NULL == surface_p) {
+                        ctx->eFormat = IMG_CODEC_PL12;
+                        drv_debug_msg(VIDEO_DEBUG_ERROR, "JPEG encoding: Unsupported format and set to NV12\n");
+                        break;
+                    }
+
+                    if ((surface_p->psb_surface)->extra_info[4] == VA_FOURCC_NV12) {
+                        ctx->eFormat = IMG_CODEC_PL12;
+                        drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG encoding: Choose NV12 format\n");
+                    }
+                    else if ((surface_p->psb_surface)->extra_info[4] == VA_FOURCC_IYUV) {
+                        ctx->eFormat = IMG_CODEC_IYUV;
+                        drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG encoding: Choose IYUV format\n");
+                    }
+                    else {
+                        ctx->eFormat = IMG_CODEC_PL12;
+                        drv_debug_msg(VIDEO_DEBUG_ERROR, "JPEG encoding: Unsupported format and set to NV12\n");
+                    }
+                }
+                else {
+                    ctx->eFormat = IMG_CODEC_PL12;
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "JPEG encoding: Unsupported format and set to NV12\n");
+                }
                 break;
             case VA_RT_FORMAT_YUV422:
                 ctx->eFormat = IMG_CODEC_YV16;
-                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG encoding: Choose YV16 format\n");
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "JPEG encoding: Choose YUV422 format\n");
                 break;
             default:
-                drv_debug_msg(VIDEO_DEBUG_ERROR, "JPEG encoding: unsupported YUV format!\n");
                 ctx->eFormat = IMG_CODEC_PL12;
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "JPEG encoding: Unsupported format and set to NV12\n");
                 break;
             }
             break;
