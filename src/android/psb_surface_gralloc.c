@@ -54,6 +54,11 @@ VAStatus psb_DestroySurfaceGralloc(object_surface_p obj_surface)
     void *vaddr[GRALLOC_SUB_BUFFER_MAX];
     int usage = GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
     buffer_handle_t handle = obj_surface->psb_surface->buf.handle;
+
+#ifdef PSBVIDEO_MRFL
+    usage |= GRALLOC_USAGE_SW_WRITE_OFTEN;
+#endif
+
     if (!gralloc_lock(handle, usage, 0, 0,
                       obj_surface->width, obj_surface->height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])){
         if (obj_surface->share_info && vaddr[GRALLOC_SUB_BUFFER1] == obj_surface->share_info) {
