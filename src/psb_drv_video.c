@@ -1146,8 +1146,8 @@ VAStatus psb_CreateContext(
         obj_context->va_flags = 0;
         object_heap_free(&driver_data->context_heap, (object_base_p) obj_context);
     } 
-    obj_context->ctp_type = ((obj_config->profile << 8) |
-                             obj_config->entrypoint | driver_data->protected);
+    obj_context->ctp_type = (((obj_config->profile << 8) |
+                             obj_config->entrypoint | driver_data->protected) & 0xffff);
 
     if (!encode) {
         obj_context->ctp_type |= ((obj_context->msvdx_tile & 0xff) << 16);
