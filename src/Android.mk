@@ -60,7 +60,8 @@ LOCAL_SRC_FILES :=		\
     pnw_jpeg.c		\
     pnw_rotate.c	\
     tng_vld_dec.c	\
-    tng_yuv_processor.c
+    tng_yuv_processor.c \
+    tng_ved_scaling.c
 
 LOCAL_CFLAGS := -DLINUX -DANDROID -g -Wall -Wno-unused
 

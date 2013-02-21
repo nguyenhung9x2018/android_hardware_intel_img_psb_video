@@ -30,6 +30,7 @@
 #include "psb_cmdbuf.h"
 #include "psb_surface.h"
 #include "tng_yuv_processor.h"
+#include "tng_ved_scaling.h"
 
 struct context_DEC_s {
     object_context_p obj_context; /* back reference */
@@ -66,6 +67,11 @@ struct context_DEC_s {
     int colocated_buffers_size;
     int colocated_buffers_idx;
     context_yuv_processor_p yuv_ctx;
+
+    /* scaling coeff reg */
+    uint32_t scaler_coeff_reg[2][2][4];
+    uint32_t h_scaler_ctrl;
+    uint32_t v_scaler_ctrl;
 };
 
 typedef struct context_DEC_s *context_DEC_p;

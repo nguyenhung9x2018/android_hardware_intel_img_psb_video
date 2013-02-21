@@ -1275,11 +1275,8 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /*          If this a two pass mode deblock, then we will perform the rotation as part of the
      *          2nd pass deblock procedure
      */
-    if (!ctx->two_pass_mode) /* FIXME field coded should not issue */
+    if (!ctx->two_pass_mode)
         vld_dec_setup_alternative_frame(ctx->obj_context);
-
-
-    /* psb_cmdbuf_rendec_end_block( cmdbuf ); */
 }
 
 static void psb__H264_preprocess_slice(context_H264_p ctx,

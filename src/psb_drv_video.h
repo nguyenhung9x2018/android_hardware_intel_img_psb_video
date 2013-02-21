@@ -400,6 +400,7 @@ struct object_context_s {
 
     int is_oold;
     int msvdx_rotate;
+    int msvdx_scaling;
     int interlaced_stream;
     unsigned long ctp_type;
     unsigned long msvdx_tile; /* normal tile | (rotate tile << 4) */
@@ -413,6 +414,9 @@ struct object_context_s {
 
 #define ROTATE_VA2MSVDX(va_rotate)  (va_rotate)
 #define CONTEXT_ROTATE(obj_context) (obj_context->msvdx_rotate != ROTATE_VA2MSVDX(VA_ROTATION_NONE))
+/* #define CONTEXT_SCALING(obj_context) (obj_context->msvdx_scaling) */
+#define CONTEXT_SCALING(obj_context) (0)
+#define CONTEXT_ALTERNATIVE_OUTPUT(obj_context) (CONTEXT_ROTATE(obj_context) || CONTEXT_SCALING(obj_context))
 
 enum force_output_method_t {
     OUTPUT_FORCE_NULL = 0,
