@@ -159,7 +159,7 @@ VAStatus tng_cmdbuf_create(
     }
 
     cmdbuf->mem_size = tng_align_KB(TNG_HEADER_SIZE);
-    drv_debug_msg(VIDEO_DEBUG_ERROR, "mem size %d\n", __FUNCTION__, cmdbuf->mem_size);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "mem size %d\n", __FUNCTION__, cmdbuf->mem_size);
     /* create buffer information buffer */
     //DEBUG-FIXME
     //tng__alloc_init_buffer(driver_data, COMM_CMD_FRAME_BUF_NUM * cmdbuf->mem_size, psb_bt_cpu_vpu, &cmdbuf->frame_mem);
@@ -418,11 +418,16 @@ void tng_cmdbuf_insert_command(
     *cmdbuf->cmd_idx++ = cmd_data;
 /* Command data address */
     if (data_addr) {
+        if ((cmd_id >= MTX_CMDID_SETQUANT) && (cmd_id <= MTX_CMDID_SETUP)) {
+            tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
+        }
+        else {
 #ifdef _TNG_RELOC_
-        TNG_RELOC_CMDBUF_START(cmdbuf->cmd_idx, offset, data_addr);
+            TNG_RELOC_CMDBUF_START(cmdbuf->cmd_idx, offset, data_addr);
 #else
-        tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
+            tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
 #endif
+        }
         drv_debug_msg(VIDEO_DEBUG_GENERAL,
             "%s: data_addr = 0x%08x\n",
             __FUNCTION__, *(cmdbuf->cmd_idx));
