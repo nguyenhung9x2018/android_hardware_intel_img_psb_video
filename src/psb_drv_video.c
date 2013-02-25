@@ -2143,24 +2143,26 @@ VAStatus psb_QuerySurfaceStatus(
         }
     } else if (decode) {
 #ifdef ANDROID
-        buffer_handle_t handle = obj_surface->psb_surface->buf.handle;
-        int display_status;
-        int err;
+        if (obj_surface->psb_surface->buf.handle) {
+            buffer_handle_t handle = obj_surface->psb_surface->buf.handle;
+            int display_status;
+            int err;
 
-        err = gralloc_getdisplaystatus(handle, &display_status);
-        if (!err) {
-            if (display_status)
-                surface_status = VASurfaceDisplaying;
-            else
+            err = gralloc_getdisplaystatus(handle, &display_status);
+            if (!err) {
+                if (display_status)
+                    surface_status = VASurfaceDisplaying;
+                else
+                    surface_status = VASurfaceReady;
+            } else {
                 surface_status = VASurfaceReady;
-        } else {
-                surface_status = VASurfaceReady;
-        }
+            }
 
-	/* if not used by display, then check whether surface used by widi */
-        if (surface_status == VASurfaceReady && obj_surface->share_info) {
-            if (obj_surface->share_info->renderStatus == 1) {
-                surface_status = VASurfaceDisplaying;
+            /* if not used by display, then check whether surface used by widi */
+            if (surface_status == VASurfaceReady && obj_surface->share_info) {
+                if (obj_surface->share_info->renderStatus == 1) {
+                    surface_status = VASurfaceDisplaying;
+                }
             }
         }
 #endif
