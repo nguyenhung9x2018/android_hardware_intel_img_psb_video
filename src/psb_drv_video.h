@@ -76,7 +76,7 @@
 #endif
 
 #define _TOPAZHP_PDUMP_
-#define TOPAZHP_PIPE_NUM 1
+#define TOPAZHP_PIPE_NUM 2
 
 #define _TNG_RELOC_
 #define _TNG_FRAMES_
