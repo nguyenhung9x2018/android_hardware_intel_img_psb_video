@@ -66,12 +66,16 @@ static void pnw_H264ES_QueryConfigAttributes(
 
             case VAConfigAttribRateControl:
                 attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR | VA_RC_VCM;
+	        break;
+
+            case VAConfigAttribEncMaxRefFrames:
+                attrib_list[i].value = 1;
                 break;
 
-            default:
-                attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
-                break;
-        }
+	    default:
+		attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
+		break;
+	}
     }
 }
 
