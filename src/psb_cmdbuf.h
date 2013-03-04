@@ -307,8 +307,4 @@ int psb_cmdbuf_second_pass(object_context_p obj_context,
                            uint32_t chroma_offset
                           );
 
-#ifndef ANDROID
-#define PSB_ENGINE_DECODE 1
-#endif
-
 #endif /* _PSB_CMDBUF_H_ */
