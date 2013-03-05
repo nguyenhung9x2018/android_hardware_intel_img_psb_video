@@ -39,7 +39,7 @@
 #endif
 
 #include <va/va_backend.h>
-#include <va/va_dricommon.h>
+#include <va/va_drmcommon.h>
 #include "psb_drv_debug.h"
 
 #include <wsbm/wsbm_manager.h>
@@ -577,12 +577,14 @@ void psb_putsurface_textureblit(
     /* wrap the dest source */
     /* FIXME: this is wrap for rgb565 */
     if (wrap_dst == 0) {
-
+        /* comment out for rebasing to staging
         pDstMeminfo = (PPVR2DMEMINFO)dst;
         if (IS_MFLD(driver_data))
             sBltVP.sDst.Stride = PVRCalculateStride(((struct dri_drawable*)texture_priv->dri_drawable)->width, 32, 8);
         sBltVP.sDst.Format = PVR2D_ARGB8888;
-
+        */
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Not support ARGB8888!\n", __func__);
+        return;
     } else {
         ePVR2DStatus = PVR2DMemWrap(driver_data->hPVR2DContext,
                                     dst,

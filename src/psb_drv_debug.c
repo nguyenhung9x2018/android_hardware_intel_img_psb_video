@@ -30,7 +30,7 @@
 #include <va/va_backend.h>
 #include <va/va_backend_tpi.h>
 #include <va/va_backend_egl.h>
-#include <va/va_dricommon.h>
+#include <va/va_drmcommon.h>
 
 #include "psb_drv_video.h"
 #include "psb_drv_debug.h"

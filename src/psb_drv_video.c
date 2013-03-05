@@ -36,7 +36,7 @@
 #ifdef PSBVIDEO_MFLD
 #include <va/va_backend_vpp.h>
 #endif
-#include <va/va_dricommon.h>
+#include <va/va_drmcommon.h>
 
 #include "psb_drv_video.h"
 #include "psb_texture.h"
@@ -574,6 +574,17 @@ VAStatus psb__checkSurfaceDimensions(psb_driver_data_p driver_data, int width, i
     return VA_STATUS_SUCCESS;
 }
 
+VAStatus psb_CreateSurfaces(
+        VADriverContextP ctx,
+        int width,
+        int height,
+        int format,
+        int num_surfaces,
+        VASurfaceID *surface_list        /* out */
+)
+{
+    return VA_STATUS_ERROR_UNIMPLEMENTED;
+}
 
 VAStatus psb_CreateSurfaces2(
     VADriverContextP ctx,
@@ -2427,7 +2438,6 @@ int UNLOCK_HARDWARE(psb_driver_data_p driver_data)
 static void psb__deinitDRM(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA
-    struct dri_state *dri_state = (struct dri_state *)ctx->dri_state;
 
     if (driver_data->main_pool) {
         driver_data->main_pool->takeDown(driver_data->main_pool);
@@ -2442,14 +2452,14 @@ static void psb__deinitDRM(VADriverContextP ctx)
         wsbmTakedown();
 
     close(driver_data->drm_fd);
-    driver_data->drm_fd = dri_state->fd = -1;
+    driver_data->drm_fd = -1;
 }
 
 
 static VAStatus psb__initDRI(VADriverContextP ctx)
 {
     INIT_DRIVER_DATA
-    struct dri_state *dri_state = (struct dri_state *)ctx->dri_state;
+    struct drm_state *drm_state = (struct drm_state *)ctx->drm_state;
 
     assert(dri_state);
 #ifdef _FOR_FPGA_
@@ -2463,9 +2473,9 @@ static VAStatus psb__initDRI(VADriverContextP ctx)
     assert(dri_state->driConnectedFlag == VA_DRI2 ||
            dri_state->driConnectedFlag == VA_DUMMY);
 
-    driver_data->drm_fd = dri_state->fd;
-    driver_data->dri_dummy = (dri_state->driConnectedFlag == VA_DUMMY);
-    driver_data->dri2 = (dri_state->driConnectedFlag == VA_DRI2);
+    driver_data->drm_fd = drm_state->fd;
+    driver_data->dri_dummy = 1;
+    driver_data->dri2 = 0;
     driver_data->ws_priv = NULL;
     driver_data->bus_id = NULL;
 
@@ -2705,7 +2715,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     ctx->vtable->vaDestroyConfig = psb_DestroyConfig;
     ctx->vtable->vaGetConfigAttributes = psb_GetConfigAttributes;
     ctx->vtable->vaCreateSurfaces2 = psb_CreateSurfaces2; 
-    ctx->vtable->vaCreateSurfaces = NULL;
+    ctx->vtable->vaCreateSurfaces = psb_CreateSurfaces;
     ctx->vtable->vaDestroySurfaces = psb_DestroySurfaces;
     ctx->vtable->vaCreateContext = psb_CreateContext;
     ctx->vtable->vaDestroyContext = psb_DestroyContext;
@@ -2834,17 +2844,12 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     psb_init_surface_pvr2dbuf(driver_data);
 #endif
 
-    struct dri_state *dri_state = (struct dri_state *)ctx->dri_state;
-    if (dri_state->driConnectedFlag == VA_DRI1 ||
-        dri_state->driConnectedFlag == VA_DRI2 ||
-        dri_state->driConnectedFlag == VA_DUMMY) {
-        if (VA_STATUS_SUCCESS != psb_initOutput(ctx)) {
-            pthread_mutex_destroy(&driver_data->drm_mutex);
-            psb__deinitDRM(ctx);
-            free(ctx->pDriverData);
-            ctx->pDriverData = NULL;
-            return VA_STATUS_ERROR_UNKNOWN;
-        }
+    if (VA_STATUS_SUCCESS != psb_initOutput(ctx)) {
+        pthread_mutex_destroy(&driver_data->drm_mutex);
+        psb__deinitDRM(ctx);
+        free(ctx->pDriverData);
+        ctx->pDriverData = NULL;
+        return VA_STATUS_ERROR_UNKNOWN;
     }
 
     driver_data->msvdx_context_base = (((unsigned int) getpid()) & 0xffff) << 16;
