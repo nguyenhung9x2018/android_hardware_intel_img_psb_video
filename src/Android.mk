@@ -106,8 +106,8 @@ LOCAL_C_INCLUDES :=                     \
 else
 LOCAL_C_INCLUDES :=			\
     $(TOPDIR)hardware/libhardware/include/hardware         \
-    $(TOPDIR)hardware/intel/include         \
-    $(TOPDIR)hardware/intel/PRIVATE/pvr/eurasia/pvr2d              \
+    $(TOPDIR)vendor/intel/hardware/include         \
+    $(TOPDIR)vendor/intel/hardware/PRIVATE/pvr/eurasia/pvr2d              \
     $(TOPDIR)framework/base/include                          \
     $(TARGET_OUT_HEADERS)/libva	\
     $(TARGET_OUT_HEADERS)/pvr/pvr2d	\
