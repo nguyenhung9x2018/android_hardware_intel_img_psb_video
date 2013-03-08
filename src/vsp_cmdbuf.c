@@ -63,12 +63,8 @@ VAStatus vsp_cmdbuf_create(
 	vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_only, &cmdbuf->buf);
 	cmdbuf->size = size;
 
-	if (VA_STATUS_SUCCESS != vaStatus) {
-		free(cmdbuf->buffer_refs);
-		cmdbuf->buffer_refs = NULL;
-		cmdbuf->buffer_refs_allocated = 0;
+	if (VA_STATUS_SUCCESS != vaStatus)
 		goto err2;
-	}
 
 	vaStatus = psb_buffer_create(driver_data, ctx->param_sz, psb_bt_cpu_vpu, &cmdbuf->param_mem);
 	if (VA_STATUS_SUCCESS != vaStatus)
@@ -79,6 +75,8 @@ err3:
 	psb_buffer_destroy(&cmdbuf->buf);
 err2:
 	free(cmdbuf->buffer_refs);
+	cmdbuf->buffer_refs = NULL;
+	cmdbuf->buffer_refs_allocated = 0;
 err1:
 	return vaStatus;
 }
@@ -160,7 +158,11 @@ int vsp_cmdbuf_buffer_ref(vsp_cmdbuf_p cmdbuf, psb_buffer_p buf)
 {
     int item_loc = 0;
 
-    while ((item_loc < cmdbuf->buffer_refs_count) && (cmdbuf->buffer_refs[item_loc] != buf)) {
+//    while ((item_loc < cmdbuf->buffer_refs_count) && (cmdbuf->buffer_refs[item_loc] != buf)) {
+    /*Reserve the same TTM BO twice will cause kernel lock up*/
+    while ((item_loc < cmdbuf->buffer_refs_count)
+           && (wsbmKBufHandle(wsbmKBuf(cmdbuf->buffer_refs[item_loc]->drm_buf))
+               != wsbmKBufHandle(wsbmKBuf(buf->drm_buf)))) {
         item_loc++;
     }
     if (item_loc == cmdbuf->buffer_refs_count) {

@@ -130,8 +130,8 @@ struct filter_strength vpp_strength[STRENGTH_NUM] = {
 		 */
 		.denoise_deblock = {
 			[QCIF_TO_QVGA]    = {1, 15, 47, 35, 0, 0, 0, 0},
-			[QVGA_TO_VGA]     = {1, 7,  48, 47, 0, 0, 0, 0},
-			[VGA_TO_SD]       = {1, 10, 8,  9,  1, 3, 0, 0},
+			[QVGA_TO_VGA]     = {0, 7,  48, 47, 0, 0, 0, 0},
+			[VGA_TO_SD]       = {0, 10, 8,  9,  1, 3, 0, 0},
 			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, 0, 0},
 			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, 0, 0}
 		},
@@ -156,8 +156,8 @@ struct filter_strength vpp_strength[STRENGTH_NUM] = {
 	[MEDIUM_STRENGTH] = {
 		.denoise_deblock = {
 			[QCIF_TO_QVGA]    = {1, 25, 47, 12, 0, 0, 0, 0},
-			[QVGA_TO_VGA]     = {1, 10, 48, 47, 0, 0, 0, 0},
-			[VGA_TO_SD]       = {1, 20, 8,  9,  2, 4, 0, 0},
+			[QVGA_TO_VGA]     = {0, 10, 48, 47, 0, 0, 0, 0},
+			[VGA_TO_SD]       = {0, 20, 8,  9,  2, 4, 0, 0},
 			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, 0, 0},
 			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, 0, 0}
 		},
@@ -179,8 +179,8 @@ struct filter_strength vpp_strength[STRENGTH_NUM] = {
 	[HIGH_STRENGTH] = {
 		.denoise_deblock = {
 			[QCIF_TO_QVGA]    = {1, 30, 40, 10, 0, 0, 0, 0},
-			[QVGA_TO_VGA]     = {1, 15, 45, 25, 0, 0, 0, 0},
-			[VGA_TO_SD]       = {1, 20, 7,  5,  3, 6, 0, 0},
+			[QVGA_TO_VGA]     = {0, 15, 45, 25, 0, 0, 0, 0},
+			[VGA_TO_SD]       = {0, 20, 7,  5,  3, 6, 0, 0},
 			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, 0, 0},
 			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, 0, 0}
 		},
@@ -526,6 +526,8 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	cell_proc_picture_param->input_picture[0].irq = 0;
 	cell_proc_picture_param->input_picture[0].stride = input_surface->psb_surface->stride;
 	cell_proc_picture_param->input_picture[0].format = ctx->format;
+	cell_proc_picture_param->input_picture[0].tiled = 0;
+	cell_proc_picture_param->input_picture[0].rot_angle = 0;
 
 	if (frc_param == NULL)
 		cell_proc_picture_param->num_output_pictures = 1;
@@ -578,6 +580,8 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		}
 		/* FIXME: The rotation design is still on going, set it to default value */
 		cell_proc_picture_param->output_picture[i].rot_angle = 0;
+		/* FIXME: The tiling feature is still on going, set it to default value */
+		cell_proc_picture_param->output_picture[i].tiled = 0;
 	}
 
 	vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcPictureCommand,
@@ -1301,6 +1305,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			memcpy(cell_enhancer_param,
 			       &ctx->enhancer_param,
 			       sizeof(ctx->enhancer_param));
+
 			vsp_cmdbuf_insert_command(cmdbuf,
 						  &cmdbuf->param_mem,
 						  VssProcColorEnhancementParameterCommand,
@@ -1326,6 +1331,8 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 				cell_proc_frc_param->conversion_rate = VssFrc2_5xConversionRate;
 			else if (ratio == 4)
 				cell_proc_frc_param->conversion_rate = VssFrc4xConversionRate;
+                        else if (ratio == 1.25)
+                                cell_proc_frc_param->conversion_rate = VssFrc1_25xConversionRate;
 			else {
 				drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid frame rate conversion ratio %f \n", ratio);
 				vaStatus = VA_STATUS_ERROR_UNKNOWN;
