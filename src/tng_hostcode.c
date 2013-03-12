@@ -643,11 +643,10 @@ static VAStatus tng__get_encoder_caps(context_ENC_p ctx)
 
     ctx->ui32CoreRev = tng__get_core_rev();
     psCaps->ui32CoreFeatures = tng__get_core_des1();
-    
+
     /* get the actual number of cores */
     ui32NumCores = tng__get_num_pipes();
-    ctx->ui8PipesToUse = (IMG_UINT8)(ui32NumCores & 0xff);
-        
+
     switch (ctx->eStandard) {
         case IMG_STANDARD_JPEG:
             psCaps->ui16MaxSlices = ui16Height / 8;
@@ -697,6 +696,7 @@ static VAStatus tng__init_context(context_ENC_p ctx)
     //ctx->ui32HWProfile = pParams->ui32HWProfile;
     ctx->ui32FrameCount[0] = ctx->ui32FrameCount[1] = 0;
     /* Using Extended parameters */
+    ctx->ui8PipesToUse = (IMG_UINT8)(tng__get_num_pipes() & (IMG_UINT32)0xff);
     //carc params
     ctx->sCARCParams.bCARC             = 0;
     ctx->sCARCParams.i32CARCBaseline   = 0;
@@ -879,7 +879,8 @@ static VAStatus tng__provide_buffer_BFrames(context_ENC_p ctx, IMG_UINT32 ui32St
     FRAME_ORDER_INFO *psFrameInfo = &(ctx->sFrameOrderInfo);
     int slot_index = 0;
     unsigned long long display_order = 0;
-    IMG_UINT32 ui32SlotBuf = psRCParams->ui16BFrames + 2;
+    IMG_INT32  i32SlotBuf  = (IMG_INT32)(psRCParams->ui16BFrames + 2);
+    IMG_UINT32 ui32SlotBuf = (IMG_UINT32)(psRCParams->ui16BFrames + 2);
     IMG_UINT32 ui32FrameIdx = ctx->ui32FrameCount[ui32StreamIndex];
 
     if (ui32StreamIndex == 0)
@@ -904,7 +905,7 @@ static VAStatus tng__provide_buffer_BFrames(context_ENC_p ctx, IMG_UINT32 ui32St
             do {
                 tng_send_source_frame(ctx, slot_index, slot_index);
                 ++slot_index;
-            } while(slot_index < ui32SlotBuf);
+            } while(slot_index < i32SlotBuf);
         } else {
             slot_index = ui32FrameIdx - 1;
             tng_send_source_frame(ctx, slot_index, slot_index);
