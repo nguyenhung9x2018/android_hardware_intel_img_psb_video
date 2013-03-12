@@ -300,10 +300,22 @@ static void IssueQmatix(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
     ASSERT(NULL != pJPEGContext->pMemInfoTableBlock);
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Issue Quantization Table data\n");
-    for (i = 0; i < 128 ; i++) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%d \t", *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p + i));
-        if (((i + 1) % 8) == 0)
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n");
+    for (i=0; i<128; i+=8) {
+        if (0 == i) {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Table 0:\n");
+        }
+        else if (64 == i) {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Table 1:\n");
+        }
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%d %d %d %d %d %d %d %d\n", 
+                      *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p+i),
+                      *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p+i+1),
+                      *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p+i+2),
+                      *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p+i+3),
+                      *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p+i+4),
+                      *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p+i+5),
+                      *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p+i+6),
+                      *((unsigned char *)ctx->obj_context->tng_cmdbuf->jpeg_pic_params_p+i+7));
     }
 
     tng_cmdbuf_insert_command(ctx->obj_context,

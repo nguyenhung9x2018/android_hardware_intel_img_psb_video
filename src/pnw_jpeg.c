@@ -344,10 +344,22 @@ static VAStatus pnw__jpeg_process_picture_param(context_ENC_p ctx, object_buffer
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Quant Table \n");
 
-    for (i = 0; i < 128 ; i++) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%d \t", *((unsigned char *)cmdbuf->pic_params_p + i));
-        if (((i + 1) % 8) == 0)
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "\n");
+    for (i=0; i<128; i+=8) {
+        if (0 == i) {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Table 0:\n");
+        }
+        else if (64 == i) {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Table 1:\n");
+        }
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%d %d %d %d %d %d %d %d\n",
+                      *((unsigned char *)cmdbuf->pic_params_p+i),
+                      *((unsigned char *)cmdbuf->pic_params_p+i+1),
+                      *((unsigned char *)cmdbuf->pic_params_p+i+2),
+                      *((unsigned char *)cmdbuf->pic_params_p+i+3),
+                      *((unsigned char *)cmdbuf->pic_params_p+i+4),
+                      *((unsigned char *)cmdbuf->pic_params_p+i+5),
+                      *((unsigned char *)cmdbuf->pic_params_p+i+6),
+                      *((unsigned char *)cmdbuf->pic_params_p+i+7));
     }
 
     jpeg_ctx->ui32SizePerCodedBuffer =
