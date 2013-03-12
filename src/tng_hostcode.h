@@ -395,7 +395,6 @@ struct context_ENC_s {
 
     IMG_BOOL   bOverlapping;
     IMG_BOOL   bInsertSeqHeader;
-    IMG_BOOL   bOutputReconstructed;
 
     IMG_UINT32 ui32EncodePicProcessing;
     IMG_UINT8  ui8ExtraWBRetrieved;

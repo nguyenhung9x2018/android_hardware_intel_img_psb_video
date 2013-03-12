@@ -756,7 +756,6 @@ static VAStatus tng__init_context(context_ENC_p ctx)
     ctx->bNoOffscreenMv = (ctx->eStandard == IMG_STANDARD_H263) ? IMG_TRUE : IMG_FALSE; //Default Value ?? Extended Parameter and bUseOffScreenMVUserSetting
     ctx->bNoSequenceHeaders = IMG_FALSE;
     ctx->bTopFieldFirst = IMG_TRUE;
-    ctx->bOutputReconstructed = IMG_FALSE;
     ctx->sBiasTables.ui32FCode = ctx->ui32FCode;
     ctx->ui32pseudo_rand_seed = UNINIT_PARAM;
     ctx->bVPAdaptiveRoundingDisable = IMG_TRUE;
@@ -2629,7 +2628,7 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
     psMtxEncContext->eStandard = ctx->eStandard;
     psMtxEncContext->ui32WidthInMbs = ctx->ui16Width >> 4;
     psMtxEncContext->ui32PictureHeightInMbs = ctx->ui16PictureHeight >> 4;
-    psMtxEncContext->bOutputReconstructed = ctx->bOutputReconstructed;
+    psMtxEncContext->bOutputReconstructed = (ps_buf->rec_surface != NULL) ? IMG_TRUE : IMG_FALSE;
     psMtxEncContext->ui32VopTimeResolution = ctx->ui32VopTimeResolution;
     psMtxEncContext->ui8MaxSlicesPerPicture = ctx->ui8SlicesPerPicture;
     psMtxEncContext->ui8NumPipes = ctx->ui8PipesToUse;
@@ -3058,7 +3057,11 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 {
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
     context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+#ifndef _TNG_FRAMES_
+    context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
+#endif
     IMG_MTX_VIDEO_CONTEXT* psMtxEncContext = NULL;
+    IMG_INT32 i;
 
     psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
     if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
@@ -3074,9 +3077,20 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
     if (ctx->sRCParams.b16Hierarchical)
         tng_cmdbuf_set_phys(&psMtxEncContext->ui32MVSettingsHierarchical, 0, 
             &(ps_mem->bufs_mv_setting_hierar), 0, 0);
-
+#ifdef _TNG_FRAMES_
     tng_cmdbuf_set_phys(psMtxEncContext->apReconstructured, ctx->i32PicNodes,
         &(ps_mem->bufs_recon_pictures), 0, ps_mem_size->recon_pictures);
+#else
+    for (i = 0; i < ctx->i32PicNodes; i++) {
+        tng_cmdbuf_set_phys(&(psMtxEncContext->apReconstructured[i]), 0,
+            &(ps_buf->ref_surface[i]->psb_surface->buf), 0, 0);
+    }
+#endif
+    for (i = 0; i < ctx->i32PicNodes; i++) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s psMtxEncContext->apReconstructured[i]\n",
+            __FUNCTION__, psMtxEncContext->apReconstructured[i]);
+    }
+
 
     tng_cmdbuf_set_phys(psMtxEncContext->apColocated, ctx->i32PicNodes,
         &(ps_mem->bufs_colocated), 0, ps_mem_size->colocated);

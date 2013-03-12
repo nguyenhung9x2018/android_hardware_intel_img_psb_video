@@ -295,9 +295,13 @@ static VAStatus tng__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
 
     ASSERT(ctx->ui16Width == psPicParams->picture_width);
     ASSERT(ctx->ui16PictureHeight == psPicParams->picture_height);
-
+#ifndef _TNG_FRAMES_
+    ps_buf->ref_surface[0] = ps_buf->ref_surface[2] = SURFACE(psPicParams->reference_picture);
+    ps_buf->ref_surface[1] = ps_buf->ref_surface[3] = SURFACE(psPicParams->reconstructed_picture);
+#else
     ps_buf->ref_surface = SURFACE(psPicParams->reference_picture);
     ps_buf->rec_surface = SURFACE(psPicParams->reconstructed_picture);
+#endif
     ps_buf->coded_buf = BUFFER(psPicParams->coded_buf);
 
     if (NULL == ps_buf->coded_buf) {

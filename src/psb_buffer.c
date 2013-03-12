@@ -487,13 +487,16 @@ static void tng_get_coded_data(
     int iPipeIndex = 0;
     unsigned int uiPipeNum = tng_get_pipe_number(obj_context);
     unsigned int uiBufOffset = tng_align_KB(obj_buffer->size >> 1);
+    unsigned long *ptmp = NULL;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s pipenum = 0x%x\n", __FUNCTION__, uiPipeNum);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s offset  = 0x%x\n", __FUNCTION__, uiBufOffset);
 
     vaCodedBufSeg[iPipeIndex].size = *(unsigned long *)((unsigned long)raw_codedbuf);
     vaCodedBufSeg[iPipeIndex].buf = (unsigned char *)(((unsigned long *)((unsigned long)raw_codedbuf)) + 16); /* skip 4DWs */
-    vaCodedBufSeg[iPipeIndex].reserved = 0;
+
+    ptmp = (unsigned long *)((unsigned long)raw_codedbuf); 
+    vaCodedBufSeg[iPipeIndex].reserved = (ptmp[1] >> 6) & 0xf;
     vaCodedBufSeg[iPipeIndex].next = NULL;
 
 
@@ -505,7 +508,7 @@ static void tng_get_coded_data(
         vaCodedBufSeg[iPipeIndex - 1].next = &vaCodedBufSeg[iPipeIndex];
         vaCodedBufSeg[iPipeIndex].size = *(unsigned long *)((unsigned long)raw_codedbuf + uiBufOffset);
         vaCodedBufSeg[iPipeIndex].buf = (unsigned char *)(((unsigned long *)((unsigned long)raw_codedbuf + uiBufOffset)) + 16); /* skip 4DWs */
-        vaCodedBufSeg[iPipeIndex].reserved = 0;
+        vaCodedBufSeg[iPipeIndex].reserved = vaCodedBufSeg[iPipeIndex - 1].reserved;
         vaCodedBufSeg[iPipeIndex].next = NULL;
     }
 

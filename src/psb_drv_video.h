@@ -79,7 +79,7 @@
 #define TOPAZHP_PIPE_NUM 2
 
 #define _TNG_RELOC_
-#define _TNG_FRAMES_
+//#define _TNG_FRAMES_
 #define FORCED_REFERENCE 1
 #define LTREFHEADER 1
 //#define _TP_DEBUG_MMU_

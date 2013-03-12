@@ -736,7 +736,9 @@ static VAStatus tng__H264ES_process_picture_param_base(context_ENC_p ctx, unsign
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
     VAEncPictureParameterBufferH264 *psPicParams;
-
+#ifndef _TNG_FRAMES_
+    IMG_INT32 i;
+#endif
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
 
     psPicParams = (VAEncPictureParameterBufferH264 *) buf;
@@ -748,18 +750,17 @@ static VAStatus tng__H264ES_process_picture_param_base(context_ENC_p ctx, unsign
     ps_buf->rec_surface  = SURFACE(psPicParams->CurrPic.picture_id);
     ps_buf->ref_surface  = SURFACE(psPicParams->ReferenceFrames[0].picture_id);
     ps_buf->ref_surface1 = SURFACE(psPicParams->ReferenceFrames[1].picture_id);
-    ps_buf->coded_buf    = BUFFER(psPicParams->coded_buf);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: psPicParams->coded_buf = 0x%08x, ps_buf->coded_buf = 0x%08x\n",
         __FUNCTION__, psPicParams->coded_buf, ps_buf->coded_buf);
 #else
     {
-        IMG_INT32 i;
         ps_buf->rec_surface = SURFACE(psPicParams->CurrPic.picture_id);
-        for (i = 0; i < 16; i++)
+        for (i = 0; i < 4; i++)
             ps_buf->ref_surface[i] = SURFACE(psPicParams->ReferenceFrames[i].picture_id);
-        ps_buf->coded_buf = BUFFER(psPicParams->coded_buf);
     }
 #endif
+
+    ps_buf->coded_buf = BUFFER(psPicParams->coded_buf);
 
     if (NULL == ps_buf->coded_buf) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalid coded buffer handle\n", __FUNCTION__, __LINE__);
@@ -1128,6 +1129,10 @@ static void tng_H264ES_QueryConfigAttributes(
 
         case VAConfigAttribEncAutoReference:
             attrib_list[i].value = 1;
+            break;
+
+        case VAConfigAttribEncMaxRefFrames:
+            attrib_list[i].value = 4;
             break;
 
         default:

@@ -729,6 +729,7 @@ IMG_UINT32 tng_send_ref_frames(
     object_surface_p ref_surface = ps_buf->ref_surface;
     IMG_UINT32 ui32CmdData = 0;
 
+#ifdef _TNG_FRAMES_
     if (ui32RefIndex == 0) {
         ref_surface = ps_buf->ref_surface;
         ui32CmdData = F_ENCODE(IMG_BUFFER_REF0, MTX_MSG_PROVIDE_REF_BUFFER_USE) |
@@ -738,7 +739,7 @@ IMG_UINT32 tng_send_ref_frames(
         ui32CmdData = F_ENCODE(IMG_BUFFER_REF1, MTX_MSG_PROVIDE_REF_BUFFER_USE) |
         F_ENCODE(bLongTerm, MTX_MSG_PROVIDE_REF_BUFFER_LT);
     }
-    
+#endif
     srf_buf_offset = ref_surface->psb_surface->buf.buffer_ofs;
     /* Send ProvideBuffer Command */
     tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
