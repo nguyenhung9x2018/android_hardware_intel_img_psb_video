@@ -83,7 +83,7 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
             psb_surface->stride = 4096;
         } else {
             psb_surface->stride_mode = STRIDE_NA;
-            psb_surface->stride = (width + 0x1f) & ~0x1f;
+            psb_surface->stride = (width + 0x3f) & ~0x3f;
         }
 
         psb_surface->luma_offset = 0;
@@ -128,7 +128,7 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
             psb_surface->stride = 4096;
         } else {
             psb_surface->stride_mode = STRIDE_NA;
-            psb_surface->stride = (width + 0x1f) & ~0x1f;
+            psb_surface->stride = (width + 0x3f) & ~0x3f;
         }
 
         psb_surface->luma_offset = 0;
