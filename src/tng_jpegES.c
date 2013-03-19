@@ -1003,7 +1003,7 @@ static VAStatus tng_jpeg_CreateContext(
 
     memset((void *)jpeg_ctx_p, 0x0, sizeof(jpeg_ctx_p));
 
-    jpeg_ctx_p->NumCores = 1;
+    jpeg_ctx_p->NumCores = TOPAZHP_PIPE_NUM;
     jpeg_ctx_p->eFormat = ctx->eFormat;
     jpeg_ctx_p->ui32OutputWidth = ctx->ui16Width;
     jpeg_ctx_p->ui32OutputHeight = ctx->ui16FrameHeight;
