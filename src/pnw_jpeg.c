@@ -616,6 +616,9 @@ VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, unsigned char *raw
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Coded Buffer Part %d, size %d, next part offset: %d\n",
                              ui16BCnt, pBufHeader->ui32BytesUsed, pBufHeader->ui32Reserved3);
 
+    while(*(pSegStart +sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed - 1) == 0xff)
+        pBufHeader->ui32BytesUsed--;
+
     s_streamW.Buffer = pSegStart;
     s_streamW.Offset = (sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed);
 
