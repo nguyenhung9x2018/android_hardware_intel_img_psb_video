@@ -1,10 +1,10 @@
 // This file was automatically generated from ../release/MPG4FirmwareVBR.dnl using dnl2c.
 
-unsigned long ui32MPG4VBR_MTXTOPAZFWTextSize = 4344;
-unsigned long ui32MPG4VBR_MTXTOPAZFWDataSize = 3840;
-unsigned long ui32MPG4VBR_MTXTOPAZFWDataLocation = 0x82884400;
+unsigned int ui32MPG4VBR_MTXTOPAZFWTextSize = 4344;
+unsigned int ui32MPG4VBR_MTXTOPAZFWDataSize = 3840;
+unsigned int ui32MPG4VBR_MTXTOPAZFWDataLocation = 0x82884400;
 
-unsigned long aui32MPG4VBR_MTXTOPAZFWText[] =
+unsigned int aui32MPG4VBR_MTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -4352,7 +4352,7 @@ unsigned long aui32MPG4VBR_MTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32MPG4VBR_MTXTOPAZFWData[] =
+unsigned int aui32MPG4VBR_MTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,

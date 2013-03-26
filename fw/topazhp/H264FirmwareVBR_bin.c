@@ -1,10 +1,10 @@
 // This file was automatically generated from ../release/H264FirmwareVBR.dnl using dnl2c.
 
-unsigned long ui32H264VBR_MTXTOPAZFWTextSize = 4686;
-unsigned long ui32H264VBR_MTXTOPAZFWDataSize = 3504;
-unsigned long ui32H264VBR_MTXTOPAZFWDataLocation = 0x82884940;
+unsigned int ui32H264VBR_MTXTOPAZFWTextSize = 4686;
+unsigned int ui32H264VBR_MTXTOPAZFWDataSize = 3504;
+unsigned int ui32H264VBR_MTXTOPAZFWDataLocation = 0x82884940;
 
-unsigned long aui32H264VBR_MTXTOPAZFWText[] =
+unsigned int aui32H264VBR_MTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -4694,7 +4694,7 @@ unsigned long aui32H264VBR_MTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32H264VBR_MTXTOPAZFWData[] =
+unsigned int aui32H264VBR_MTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,

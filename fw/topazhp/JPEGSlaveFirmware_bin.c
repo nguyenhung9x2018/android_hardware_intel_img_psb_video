@@ -1,14 +1,14 @@
 // This file was automatically generated from ../release/JPEGSlaveFirmware.dnl using dnl2c.
 
-unsigned long ui32JPEG_SlaveMTXTOPAZFWTextSize = 1469;
-unsigned long ui32JPEG_SlaveMTXTOPAZFWDataSize = 332;
-unsigned long ui32JPEG_SlaveMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32JPEG_SlaveMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32JPEG_SlaveMTXTOPAZFWTextSize = 1469;
+unsigned int ui32JPEG_SlaveMTXTOPAZFWDataSize = 332;
+unsigned int ui32JPEG_SlaveMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32JPEG_SlaveMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32JPEG_SlaveMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32JPEG_SlaveMTXTOPAZFWDataOrigin = 0x82881700;
+unsigned int ui32JPEG_SlaveMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32JPEG_SlaveMTXTOPAZFWDataOrigin = 0x82881700;
 
-unsigned long aui32JPEG_SlaveMTXTOPAZFWText[] =
+unsigned int aui32JPEG_SlaveMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -1481,7 +1481,7 @@ unsigned long aui32JPEG_SlaveMTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32JPEG_SlaveMTXTOPAZFWData[] =
+unsigned int aui32JPEG_SlaveMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -1817,7 +1817,7 @@ unsigned long aui32JPEG_SlaveMTXTOPAZFWData[] =
     0x00000000,
 };
 
-unsigned long aui32JPEG_SlaveMTXTOPAZFWTextReloc[] =
+unsigned int aui32JPEG_SlaveMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -1827,12 +1827,12 @@ unsigned char aui8JPEG_SlaveMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32JPEG_SlaveMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32JPEG_SlaveMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32JPEG_SlaveMTXTOPAZFWDataReloc[] =
+unsigned int aui32JPEG_SlaveMTXTOPAZFWDataReloc[] =
 {
     0
 };

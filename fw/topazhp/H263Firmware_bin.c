@@ -1,10 +1,10 @@
 // This file was automatically generated from ../release/H263Firmware.dnl using dnl2c.
 
-unsigned long ui32H263_MTXTOPAZFWTextSize = 3025;
-unsigned long ui32H263_MTXTOPAZFWDataSize = 5152;
-unsigned long ui32H263_MTXTOPAZFWDataLocation = 0x82882f80;
+unsigned int ui32H263_MTXTOPAZFWTextSize = 3025;
+unsigned int ui32H263_MTXTOPAZFWDataSize = 5152;
+unsigned int ui32H263_MTXTOPAZFWDataLocation = 0x82882f80;
 
-unsigned long aui32H263_MTXTOPAZFWText[] =
+unsigned int aui32H263_MTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -3033,7 +3033,7 @@ unsigned long aui32H263_MTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32H263_MTXTOPAZFWData[] =
+unsigned int aui32H263_MTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,

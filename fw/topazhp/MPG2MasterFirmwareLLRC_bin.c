@@ -1,14 +1,14 @@
 // This file was automatically generated from ../release/MPG2MasterFirmwareLLRC.dnl using dnl2c.
 
-unsigned long ui32MPG2LLRC_MasterMTXTOPAZFWTextSize = 6393;
-unsigned long ui32MPG2LLRC_MasterMTXTOPAZFWDataSize = 2817;
-unsigned long ui32MPG2LLRC_MasterMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32MPG2LLRC_MasterMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32MPG2LLRC_MasterMTXTOPAZFWTextSize = 6393;
+unsigned int ui32MPG2LLRC_MasterMTXTOPAZFWDataSize = 2817;
+unsigned int ui32MPG2LLRC_MasterMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32MPG2LLRC_MasterMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32MPG2LLRC_MasterMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32MPG2LLRC_MasterMTXTOPAZFWDataOrigin = 0x828863e8;
+unsigned int ui32MPG2LLRC_MasterMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32MPG2LLRC_MasterMTXTOPAZFWDataOrigin = 0x828863e8;
 
-unsigned long aui32MPG2LLRC_MasterMTXTOPAZFWText[] =
+unsigned int aui32MPG2LLRC_MasterMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -6405,7 +6405,7 @@ unsigned long aui32MPG2LLRC_MasterMTXTOPAZFWText[] =
     0x0ae0b060,
 };
 
-unsigned long aui32MPG2LLRC_MasterMTXTOPAZFWData[] =
+unsigned int aui32MPG2LLRC_MasterMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -9226,7 +9226,7 @@ unsigned long aui32MPG2LLRC_MasterMTXTOPAZFWData[] =
     0x1234baac,
 };
 
-unsigned long aui32MPG2LLRC_MasterMTXTOPAZFWTextReloc[] =
+unsigned int aui32MPG2LLRC_MasterMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -9236,12 +9236,12 @@ unsigned char aui8MPG2LLRC_MasterMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32MPG2LLRC_MasterMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32MPG2LLRC_MasterMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32MPG2LLRC_MasterMTXTOPAZFWDataReloc[] =
+unsigned int aui32MPG2LLRC_MasterMTXTOPAZFWDataReloc[] =
 {
     0
 };

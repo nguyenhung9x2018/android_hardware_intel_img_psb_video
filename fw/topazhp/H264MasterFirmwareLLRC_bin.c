@@ -1,14 +1,14 @@
 // This file was automatically generated from ../release/H264MasterFirmwareLLRC.dnl using dnl2c.
 
-unsigned long ui32H264LLRC_MasterMTXTOPAZFWTextSize = 5643;
-unsigned long ui32H264LLRC_MasterMTXTOPAZFWDataSize = 1127;
-unsigned long ui32H264LLRC_MasterMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32H264LLRC_MasterMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32H264LLRC_MasterMTXTOPAZFWTextSize = 5643;
+unsigned int ui32H264LLRC_MasterMTXTOPAZFWDataSize = 1127;
+unsigned int ui32H264LLRC_MasterMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32H264LLRC_MasterMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32H264LLRC_MasterMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32H264LLRC_MasterMTXTOPAZFWDataOrigin = 0x82885830;
+unsigned int ui32H264LLRC_MasterMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32H264LLRC_MasterMTXTOPAZFWDataOrigin = 0x82885830;
 
-unsigned long aui32H264LLRC_MasterMTXTOPAZFWText[] =
+unsigned int aui32H264LLRC_MasterMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -5655,7 +5655,7 @@ unsigned long aui32H264LLRC_MasterMTXTOPAZFWText[] =
     0x0ae0b060,
 };
 
-unsigned long aui32H264LLRC_MasterMTXTOPAZFWData[] =
+unsigned int aui32H264LLRC_MasterMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -6786,7 +6786,7 @@ unsigned long aui32H264LLRC_MasterMTXTOPAZFWData[] =
     0x1234baac,
 };
 
-unsigned long aui32H264LLRC_MasterMTXTOPAZFWTextReloc[] =
+unsigned int aui32H264LLRC_MasterMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -6796,12 +6796,12 @@ unsigned char aui8H264LLRC_MasterMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32H264LLRC_MasterMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32H264LLRC_MasterMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32H264LLRC_MasterMTXTOPAZFWDataReloc[] =
+unsigned int aui32H264LLRC_MasterMTXTOPAZFWDataReloc[] =
 {
     0
 };

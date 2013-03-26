@@ -1,10 +1,10 @@
 // This file was automatically generated from ../release/MPG4Firmware.dnl using dnl2c.
 
-unsigned long ui32MPG4_MTXTOPAZFWTextSize = 3047;
-unsigned long ui32MPG4_MTXTOPAZFWDataSize = 5136;
-unsigned long ui32MPG4_MTXTOPAZFWDataLocation = 0x82882fc0;
+unsigned int ui32MPG4_MTXTOPAZFWTextSize = 3047;
+unsigned int ui32MPG4_MTXTOPAZFWDataSize = 5136;
+unsigned int ui32MPG4_MTXTOPAZFWDataLocation = 0x82882fc0;
 
-unsigned long aui32MPG4_MTXTOPAZFWText[] =
+unsigned int aui32MPG4_MTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -3055,7 +3055,7 @@ unsigned long aui32MPG4_MTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32MPG4_MTXTOPAZFWData[] =
+unsigned int aui32MPG4_MTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,

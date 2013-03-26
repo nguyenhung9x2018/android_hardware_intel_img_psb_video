@@ -1,14 +1,14 @@
 // This file was automatically generated from ./build/H264MasterFirmwareERC.dnl using dnl2c.
 
-unsigned long ui32H264ERC_MasterMTXTOPAZFWTextSize = 7195;
-unsigned long ui32H264ERC_MasterMTXTOPAZFWDataSize = 3267;
-unsigned long ui32H264ERC_MasterMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32H264ERC_MasterMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32H264ERC_MasterMTXTOPAZFWTextSize = 7195;
+unsigned int ui32H264ERC_MasterMTXTOPAZFWDataSize = 3267;
+unsigned int ui32H264ERC_MasterMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32H264ERC_MasterMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32H264ERC_MasterMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32H264ERC_MasterMTXTOPAZFWDataOrigin = 0x82887070;
+unsigned int ui32H264ERC_MasterMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32H264ERC_MasterMTXTOPAZFWDataOrigin = 0x82887070;
 
-unsigned long aui32H264ERC_MasterMTXTOPAZFWText[] =
+unsigned int aui32H264ERC_MasterMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -7207,7 +7207,7 @@ unsigned long aui32H264ERC_MasterMTXTOPAZFWText[] =
     0x0ac0b060,
 };
 
-unsigned long aui32H264ERC_MasterMTXTOPAZFWData[] =
+unsigned int aui32H264ERC_MasterMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -10478,7 +10478,7 @@ unsigned long aui32H264ERC_MasterMTXTOPAZFWData[] =
     0x1234baac,
 };
 
-unsigned long aui32H264ERC_MasterMTXTOPAZFWTextReloc[] =
+unsigned int aui32H264ERC_MasterMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -10488,12 +10488,12 @@ unsigned char aui8H264ERC_MasterMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32H264ERC_MasterMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32H264ERC_MasterMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32H264ERC_MasterMTXTOPAZFWDataReloc[] =
+unsigned int aui32H264ERC_MasterMTXTOPAZFWDataReloc[] =
 {
     0
 };

@@ -1,14 +1,14 @@
 // This file was automatically generated from ./build/MPG4MasterFirmwareVBR.dnl using dnl2c.
 
-unsigned long ui32MPG4VBR_MasterMTXTOPAZFWTextSize = 7093;
-unsigned long ui32MPG4VBR_MasterMTXTOPAZFWDataSize = 3283;
-unsigned long ui32MPG4VBR_MasterMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32MPG4VBR_MasterMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32MPG4VBR_MasterMTXTOPAZFWTextSize = 7093;
+unsigned int ui32MPG4VBR_MasterMTXTOPAZFWDataSize = 3283;
+unsigned int ui32MPG4VBR_MasterMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32MPG4VBR_MasterMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32MPG4VBR_MasterMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32MPG4VBR_MasterMTXTOPAZFWDataOrigin = 0x82886ed8;
+unsigned int ui32MPG4VBR_MasterMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32MPG4VBR_MasterMTXTOPAZFWDataOrigin = 0x82886ed8;
 
-unsigned long aui32MPG4VBR_MasterMTXTOPAZFWText[] =
+unsigned int aui32MPG4VBR_MasterMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -7105,7 +7105,7 @@ unsigned long aui32MPG4VBR_MasterMTXTOPAZFWText[] =
     0x0ac0b060,
 };
 
-unsigned long aui32MPG4VBR_MasterMTXTOPAZFWData[] =
+unsigned int aui32MPG4VBR_MasterMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -10392,7 +10392,7 @@ unsigned long aui32MPG4VBR_MasterMTXTOPAZFWData[] =
     0x1234baac,
 };
 
-unsigned long aui32MPG4VBR_MasterMTXTOPAZFWTextReloc[] =
+unsigned int aui32MPG4VBR_MasterMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -10402,12 +10402,12 @@ unsigned char aui8MPG4VBR_MasterMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32MPG4VBR_MasterMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32MPG4VBR_MasterMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32MPG4VBR_MasterMTXTOPAZFWDataReloc[] =
+unsigned int aui32MPG4VBR_MasterMTXTOPAZFWDataReloc[] =
 {
     0
 };

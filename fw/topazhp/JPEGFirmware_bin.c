@@ -1,10 +1,10 @@
 // This file was automatically generated from ../release/JPEGFirmware.dnl using dnl2c.
 
-unsigned long ui32JPEG_MTXTOPAZFWTextSize = 1339;
-unsigned long ui32JPEG_MTXTOPAZFWDataSize = 6848;
-unsigned long ui32JPEG_MTXTOPAZFWDataLocation = 0x82881500;
+unsigned int ui32JPEG_MTXTOPAZFWTextSize = 1339;
+unsigned int ui32JPEG_MTXTOPAZFWDataSize = 6848;
+unsigned int ui32JPEG_MTXTOPAZFWDataLocation = 0x82881500;
 
-unsigned long aui32JPEG_MTXTOPAZFWText[] =
+unsigned int aui32JPEG_MTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -1347,7 +1347,7 @@ unsigned long aui32JPEG_MTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32JPEG_MTXTOPAZFWData[] =
+unsigned int aui32JPEG_MTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,

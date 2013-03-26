@@ -1,14 +1,14 @@
 // This file was automatically generated from ./build/MPG4MasterFirmwareERC.dnl using dnl2c.
 
-unsigned long ui32MPG4ERC_MasterMTXTOPAZFWTextSize = 6032;
-unsigned long ui32MPG4ERC_MasterMTXTOPAZFWDataSize = 3343;
-unsigned long ui32MPG4ERC_MasterMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32MPG4ERC_MasterMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32MPG4ERC_MasterMTXTOPAZFWTextSize = 6032;
+unsigned int ui32MPG4ERC_MasterMTXTOPAZFWDataSize = 3343;
+unsigned int ui32MPG4ERC_MasterMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32MPG4ERC_MasterMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32MPG4ERC_MasterMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32MPG4ERC_MasterMTXTOPAZFWDataOrigin = 0x82885e40;
+unsigned int ui32MPG4ERC_MasterMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32MPG4ERC_MasterMTXTOPAZFWDataOrigin = 0x82885e40;
 
-unsigned long aui32MPG4ERC_MasterMTXTOPAZFWText[] =
+unsigned int aui32MPG4ERC_MasterMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -6044,7 +6044,7 @@ unsigned long aui32MPG4ERC_MasterMTXTOPAZFWText[] =
     0x0ac0b060,
 };
 
-unsigned long aui32MPG4ERC_MasterMTXTOPAZFWData[] =
+unsigned int aui32MPG4ERC_MasterMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -9391,7 +9391,7 @@ unsigned long aui32MPG4ERC_MasterMTXTOPAZFWData[] =
     0x1234baac,
 };
 
-unsigned long aui32MPG4ERC_MasterMTXTOPAZFWTextReloc[] =
+unsigned int aui32MPG4ERC_MasterMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -9401,12 +9401,12 @@ unsigned char aui8MPG4ERC_MasterMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32MPG4ERC_MasterMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32MPG4ERC_MasterMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32MPG4ERC_MasterMTXTOPAZFWDataReloc[] =
+unsigned int aui32MPG4ERC_MasterMTXTOPAZFWDataReloc[] =
 {
     0
 };

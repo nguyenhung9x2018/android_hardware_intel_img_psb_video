@@ -1,14 +1,14 @@
 // This file was automatically generated from ../release/MPG4SlaveFirmware.dnl using dnl2c.
 
-unsigned long ui32MPG4_SlaveMTXTOPAZFWTextSize = 2546;
-unsigned long ui32MPG4_SlaveMTXTOPAZFWDataSize = 740;
-unsigned long ui32MPG4_SlaveMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32MPG4_SlaveMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32MPG4_SlaveMTXTOPAZFWTextSize = 2546;
+unsigned int ui32MPG4_SlaveMTXTOPAZFWDataSize = 740;
+unsigned int ui32MPG4_SlaveMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32MPG4_SlaveMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32MPG4_SlaveMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32MPG4_SlaveMTXTOPAZFWDataOrigin = 0x828827c8;
+unsigned int ui32MPG4_SlaveMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32MPG4_SlaveMTXTOPAZFWDataOrigin = 0x828827c8;
 
-unsigned long aui32MPG4_SlaveMTXTOPAZFWText[] =
+unsigned int aui32MPG4_SlaveMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -2558,7 +2558,7 @@ unsigned long aui32MPG4_SlaveMTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32MPG4_SlaveMTXTOPAZFWData[] =
+unsigned int aui32MPG4_SlaveMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -3302,7 +3302,7 @@ unsigned long aui32MPG4_SlaveMTXTOPAZFWData[] =
     0x00000000,
 };
 
-unsigned long aui32MPG4_SlaveMTXTOPAZFWTextReloc[] =
+unsigned int aui32MPG4_SlaveMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -3312,12 +3312,12 @@ unsigned char aui8MPG4_SlaveMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32MPG4_SlaveMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32MPG4_SlaveMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32MPG4_SlaveMTXTOPAZFWDataReloc[] =
+unsigned int aui32MPG4_SlaveMTXTOPAZFWDataReloc[] =
 {
     0
 };

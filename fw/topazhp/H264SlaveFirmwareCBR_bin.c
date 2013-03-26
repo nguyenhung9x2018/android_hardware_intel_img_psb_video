@@ -1,14 +1,14 @@
 // This file was automatically generated from ../release/H264SlaveFirmwareCBR.dnl using dnl2c.
 
-unsigned long ui32H264CBR_SlaveMTXTOPAZFWTextSize = 3633;
-unsigned long ui32H264CBR_SlaveMTXTOPAZFWDataSize = 994;
-unsigned long ui32H264CBR_SlaveMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32H264CBR_SlaveMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32H264CBR_SlaveMTXTOPAZFWTextSize = 3633;
+unsigned int ui32H264CBR_SlaveMTXTOPAZFWDataSize = 994;
+unsigned int ui32H264CBR_SlaveMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32H264CBR_SlaveMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32H264CBR_SlaveMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32H264CBR_SlaveMTXTOPAZFWDataOrigin = 0x828838c8;
+unsigned int ui32H264CBR_SlaveMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32H264CBR_SlaveMTXTOPAZFWDataOrigin = 0x828838c8;
 
-unsigned long aui32H264CBR_SlaveMTXTOPAZFWText[] =
+unsigned int aui32H264CBR_SlaveMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -3645,7 +3645,7 @@ unsigned long aui32H264CBR_SlaveMTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32H264CBR_SlaveMTXTOPAZFWData[] =
+unsigned int aui32H264CBR_SlaveMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -4643,7 +4643,7 @@ unsigned long aui32H264CBR_SlaveMTXTOPAZFWData[] =
     0x00000000,
 };
 
-unsigned long aui32H264CBR_SlaveMTXTOPAZFWTextReloc[] =
+unsigned int aui32H264CBR_SlaveMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -4653,12 +4653,12 @@ unsigned char aui8H264CBR_SlaveMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32H264CBR_SlaveMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32H264CBR_SlaveMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32H264CBR_SlaveMTXTOPAZFWDataReloc[] =
+unsigned int aui32H264CBR_SlaveMTXTOPAZFWDataReloc[] =
 {
     0
 };

@@ -1,10 +1,10 @@
 // This file was automatically generated from ../release/thread0.dnl using dnl2c.
 
-unsigned long ui32MTXTOPAZFWTextSize = 3325;
-unsigned long ui32MTXTOPAZFWDataSize = 4866;
-unsigned long ui32MTXTOPAZFWDataLocation = 0x828833f8;
+unsigned int ui32MTXTOPAZFWTextSize = 3325;
+unsigned int ui32MTXTOPAZFWDataSize = 4866;
+unsigned int ui32MTXTOPAZFWDataLocation = 0x828833f8;
 
-unsigned long aui32MTXTOPAZFWText[] =
+unsigned int aui32MTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -3333,7 +3333,7 @@ unsigned long aui32MTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32MTXTOPAZFWData[] =
+unsigned int aui32MTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,

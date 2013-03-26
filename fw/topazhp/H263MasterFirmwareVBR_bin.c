@@ -1,14 +1,14 @@
 // This file was automatically generated from ./build/H263MasterFirmwareVBR.dnl using dnl2c.
 
-unsigned long ui32H263VBR_MasterMTXTOPAZFWTextSize = 7038;
-unsigned long ui32H263VBR_MasterMTXTOPAZFWDataSize = 3283;
-unsigned long ui32H263VBR_MasterMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32H263VBR_MasterMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32H263VBR_MasterMTXTOPAZFWTextSize = 7038;
+unsigned int ui32H263VBR_MasterMTXTOPAZFWDataSize = 3283;
+unsigned int ui32H263VBR_MasterMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32H263VBR_MasterMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32H263VBR_MasterMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32H263VBR_MasterMTXTOPAZFWDataOrigin = 0x82886df8;
+unsigned int ui32H263VBR_MasterMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32H263VBR_MasterMTXTOPAZFWDataOrigin = 0x82886df8;
 
-unsigned long aui32H263VBR_MasterMTXTOPAZFWText[] =
+unsigned int aui32H263VBR_MasterMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -7050,7 +7050,7 @@ unsigned long aui32H263VBR_MasterMTXTOPAZFWText[] =
     0x0ac0b060,
 };
 
-unsigned long aui32H263VBR_MasterMTXTOPAZFWData[] =
+unsigned int aui32H263VBR_MasterMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -10337,7 +10337,7 @@ unsigned long aui32H263VBR_MasterMTXTOPAZFWData[] =
     0x1234baac,
 };
 
-unsigned long aui32H263VBR_MasterMTXTOPAZFWTextReloc[] =
+unsigned int aui32H263VBR_MasterMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -10347,12 +10347,12 @@ unsigned char aui8H263VBR_MasterMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32H263VBR_MasterMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32H263VBR_MasterMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32H263VBR_MasterMTXTOPAZFWDataReloc[] =
+unsigned int aui32H263VBR_MasterMTXTOPAZFWDataReloc[] =
 {
     0
 };

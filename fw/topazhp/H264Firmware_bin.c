@@ -1,10 +1,10 @@
 // This file was automatically generated from ../release/H264Firmware.dnl using dnl2c.
 
-unsigned long ui32H264_MTXTOPAZFWTextSize = 3389;
-unsigned long ui32H264_MTXTOPAZFWDataSize = 4800;
-unsigned long ui32H264_MTXTOPAZFWDataLocation = 0x82883500;
+unsigned int ui32H264_MTXTOPAZFWTextSize = 3389;
+unsigned int ui32H264_MTXTOPAZFWDataSize = 4800;
+unsigned int ui32H264_MTXTOPAZFWDataLocation = 0x82883500;
 
-unsigned long aui32H264_MTXTOPAZFWText[] =
+unsigned int aui32H264_MTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -3397,7 +3397,7 @@ unsigned long aui32H264_MTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32H264_MTXTOPAZFWData[] =
+unsigned int aui32H264_MTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,

@@ -1,10 +1,10 @@
 // This file was automatically generated from ../release/H264FirmwareCBR.dnl using dnl2c.
 
-unsigned long ui32H264CBR_MTXTOPAZFWTextSize = 4996;
-unsigned long ui32H264CBR_MTXTOPAZFWDataSize = 3184;
-unsigned long ui32H264CBR_MTXTOPAZFWDataLocation = 0x82884e40;
+unsigned int ui32H264CBR_MTXTOPAZFWTextSize = 4996;
+unsigned int ui32H264CBR_MTXTOPAZFWDataSize = 3184;
+unsigned int ui32H264CBR_MTXTOPAZFWDataLocation = 0x82884e40;
 
-unsigned long aui32H264CBR_MTXTOPAZFWText[] =
+unsigned int aui32H264CBR_MTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -5004,7 +5004,7 @@ unsigned long aui32H264CBR_MTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32H264CBR_MTXTOPAZFWData[] =
+unsigned int aui32H264CBR_MTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,

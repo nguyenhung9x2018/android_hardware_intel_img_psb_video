@@ -1,10 +1,10 @@
 // This file was automatically generated from ../release/H263FirmwareVBR.dnl using dnl2c.
 
-unsigned long ui32H263VBR_MTXTOPAZFWTextSize = 4322;
-unsigned long ui32H263VBR_MTXTOPAZFWDataSize = 3856;
-unsigned long ui32H263VBR_MTXTOPAZFWDataLocation = 0x828843c0;
+unsigned int ui32H263VBR_MTXTOPAZFWTextSize = 4322;
+unsigned int ui32H263VBR_MTXTOPAZFWDataSize = 3856;
+unsigned int ui32H263VBR_MTXTOPAZFWDataLocation = 0x828843c0;
 
-unsigned long aui32H263VBR_MTXTOPAZFWText[] =
+unsigned int aui32H263VBR_MTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -4330,7 +4330,7 @@ unsigned long aui32H263VBR_MTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32H263VBR_MTXTOPAZFWData[] =
+unsigned int aui32H263VBR_MTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,

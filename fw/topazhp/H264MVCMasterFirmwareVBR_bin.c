@@ -1,14 +1,14 @@
 // This file was automatically generated from ./build/H264MVCMasterFirmwareVBR.dnl using dnl2c.
 
-unsigned long ui32H264MVCVBR_MasterMTXTOPAZFWTextSize = 8645;
-unsigned long ui32H264MVCVBR_MasterMTXTOPAZFWDataSize = 3247;
-unsigned long ui32H264MVCVBR_MasterMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32H264MVCVBR_MasterMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32H264MVCVBR_MasterMTXTOPAZFWTextSize = 8645;
+unsigned int ui32H264MVCVBR_MasterMTXTOPAZFWDataSize = 3247;
+unsigned int ui32H264MVCVBR_MasterMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32H264MVCVBR_MasterMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32H264MVCVBR_MasterMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32H264MVCVBR_MasterMTXTOPAZFWDataOrigin = 0x82888718;
+unsigned int ui32H264MVCVBR_MasterMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32H264MVCVBR_MasterMTXTOPAZFWDataOrigin = 0x82888718;
 
-unsigned long aui32H264MVCVBR_MasterMTXTOPAZFWText[] =
+unsigned int aui32H264MVCVBR_MasterMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -8657,7 +8657,7 @@ unsigned long aui32H264MVCVBR_MasterMTXTOPAZFWText[] =
     0x0ac0b060,
 };
 
-unsigned long aui32H264MVCVBR_MasterMTXTOPAZFWData[] =
+unsigned int aui32H264MVCVBR_MasterMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -11908,7 +11908,7 @@ unsigned long aui32H264MVCVBR_MasterMTXTOPAZFWData[] =
     0x1234baac,
 };
 
-unsigned long aui32H264MVCVBR_MasterMTXTOPAZFWTextReloc[] =
+unsigned int aui32H264MVCVBR_MasterMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -11918,12 +11918,12 @@ unsigned char aui8H264MVCVBR_MasterMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32H264MVCVBR_MasterMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32H264MVCVBR_MasterMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32H264MVCVBR_MasterMTXTOPAZFWDataReloc[] =
+unsigned int aui32H264MVCVBR_MasterMTXTOPAZFWDataReloc[] =
 {
     0
 };

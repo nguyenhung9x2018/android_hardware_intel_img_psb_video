@@ -1,14 +1,14 @@
 // This file was automatically generated from ../release/H263SlaveFirmwareCBR.dnl using dnl2c.
 
-unsigned long ui32H263CBR_SlaveMTXTOPAZFWTextSize = 3099;
-unsigned long ui32H263CBR_SlaveMTXTOPAZFWDataSize = 810;
-unsigned long ui32H263CBR_SlaveMTXTOPAZFWTextRelocSize = 0;
-unsigned long ui32H263CBR_SlaveMTXTOPAZFWDataRelocSize = 0;
+unsigned int ui32H263CBR_SlaveMTXTOPAZFWTextSize = 3099;
+unsigned int ui32H263CBR_SlaveMTXTOPAZFWDataSize = 810;
+unsigned int ui32H263CBR_SlaveMTXTOPAZFWTextRelocSize = 0;
+unsigned int ui32H263CBR_SlaveMTXTOPAZFWDataRelocSize = 0;
 
-unsigned long ui32H263CBR_SlaveMTXTOPAZFWTextOrigin = 0x80900000;
-unsigned long ui32H263CBR_SlaveMTXTOPAZFWDataOrigin = 0x82883070;
+unsigned int ui32H263CBR_SlaveMTXTOPAZFWTextOrigin = 0x80900000;
+unsigned int ui32H263CBR_SlaveMTXTOPAZFWDataOrigin = 0x82883070;
 
-unsigned long aui32H263CBR_SlaveMTXTOPAZFWText[] =
+unsigned int aui32H263CBR_SlaveMTXTOPAZFWText[] =
 {
     0x9040c001,
     0xc80993fe,
@@ -3111,7 +3111,7 @@ unsigned long aui32H263CBR_SlaveMTXTOPAZFWText[] =
     0x09c0b060,
 };
 
-unsigned long aui32H263CBR_SlaveMTXTOPAZFWData[] =
+unsigned int aui32H263CBR_SlaveMTXTOPAZFWData[] =
 {
     0x00000000,
     0x00000000,
@@ -3925,7 +3925,7 @@ unsigned long aui32H263CBR_SlaveMTXTOPAZFWData[] =
     0x00000000,
 };
 
-unsigned long aui32H263CBR_SlaveMTXTOPAZFWTextReloc[] =
+unsigned int aui32H263CBR_SlaveMTXTOPAZFWTextReloc[] =
 {
     0
 };
@@ -3935,12 +3935,12 @@ unsigned char aui8H263CBR_SlaveMTXTOPAZFWTextRelocType[] =
     0
 };
 
-unsigned long aui32H263CBR_SlaveMTXTOPAZFWTextRelocFullAddr[] =
+unsigned int aui32H263CBR_SlaveMTXTOPAZFWTextRelocFullAddr[] =
 {
     0
 };
 
-unsigned long aui32H263CBR_SlaveMTXTOPAZFWDataReloc[] =
+unsigned int aui32H263CBR_SlaveMTXTOPAZFWDataReloc[] =
 {
     0
 };
