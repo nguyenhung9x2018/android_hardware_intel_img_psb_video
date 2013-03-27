@@ -34,6 +34,7 @@
 #include "hwdefs/msvdx_offsets.h"
 #include "hwdefs/msvdx_cmds_io2.h"
 #include "va/va_dec_jpeg.h"
+#include "va/va_dec_vp8.h"
 
 #define GET_SURFACE_INFO_colocated_index(psb_surface) ((int) (psb_surface->extra_info[3]))
 #define SET_SURFACE_INFO_colocated_index(psb_surface, val) psb_surface->extra_info[3] = (uint32_t) val;
@@ -171,7 +172,7 @@ int vld_dec_slice_parameter_size(object_context_p obj_context)
         size = sizeof(VASliceParameterBufferVC1);
         break;
     case VAProfileVP8Version0_3:
-        size = sizeof(VASliceParameterBufferBase);
+        size = sizeof(VASliceParameterBufferVP8);
     case VAProfileJPEGBaseline:
         size = sizeof(VASliceParameterBufferJPEG);
     default:
