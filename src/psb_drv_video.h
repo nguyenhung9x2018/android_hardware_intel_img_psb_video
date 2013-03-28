@@ -498,7 +498,7 @@ struct object_surface_s {
 	(((aux_info)>>PSB_CODEDBUF_##flag##_SHIFT) & PSB_CODEDBUF_##flag##_MASK)
 
 
-#define PSB_CODEDBUF_SEGMENT_MAX  (8)
+#define PSB_CODEDBUF_SEGMENT_MAX  (9)
 
 struct object_buffer_s {
     struct object_base_s base;

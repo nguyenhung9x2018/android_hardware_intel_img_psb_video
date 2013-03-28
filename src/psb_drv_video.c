@@ -69,6 +69,7 @@
 #endif
 #ifdef PSBVIDEO_MRFL_VPP
 #include "vsp_VPP.h"
+#include "vsp_vp8.h"
 #endif
 #include "psb_output.h"
 #include <stdio.h>
@@ -171,6 +172,7 @@ VAStatus psb_QueryConfigProfiles(
     if (IS_MRFL(driver_data)) {
         profile_list[i++] = VAProfileH263Baseline;
         profile_list[i++] = VAProfileJPEGBaseline;
+        profile_list[i++] = VAProfileVP8Version0_3;
     } else if (IS_MFLD(driver_data)) {
         profile_list[i++] = VAProfileH263Baseline;
         profile_list[i++] = VAProfileJPEGBaseline;
@@ -921,6 +923,12 @@ VAStatus psb_CreateContext(
 #ifdef PSBVIDEO_MRFL_VPP
     if (obj_config->entrypoint == VAEntrypointVideoProc)
         proc = 1;
+
+    //todo: fixme
+    if (obj_config->entrypoint == VAEntrypointEncSlice && obj_config->profile == VAProfileVP8Version0_3){
+            proc = 1;
+            encode = 0;
+    }
 #endif
 
     if (encode)
@@ -2870,6 +2878,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     if (IS_MRFL(driver_data)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "merrifield vsp vpp\n");
         driver_data->vpp_profile = &vsp_VPP_vtable;
+        driver_data->profile2Format[VAProfileVP8Version0_3][VAEntrypointEncSlice] = &vsp_VP8_vtable;
     }
 #endif
 

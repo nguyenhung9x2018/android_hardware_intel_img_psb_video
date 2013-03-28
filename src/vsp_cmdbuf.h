@@ -58,6 +58,7 @@ struct vsp_cmdbuf_s {
 	struct psb_buffer_s param_mem;
 	unsigned char *param_mem_p;
 	unsigned char *pic_param_p;
+	unsigned char *seq_param_p;
 	unsigned char *end_param_p;
 	unsigned char *pipeline_param_p;
 	unsigned char *denoise_param_p;
@@ -72,7 +73,13 @@ typedef struct vsp_cmdbuf_s *vsp_cmdbuf_p;
 
 /* operation number is inserted by DRM */
 #define vsp_cmdbuf_insert_command(cmdbuf,ref_buf,type,offset,size)	\
-	do { *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = type; VSP_RELOC_CMDBUF(cmdbuf->cmd_idx++, offset, ref_buf); *cmdbuf->cmd_idx++ = size; *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0;} while(0)
+	do { *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = type;\
+	     VSP_RELOC_CMDBUF(cmdbuf->cmd_idx++, offset, ref_buf);\
+	     *cmdbuf->cmd_idx++ = size; *cmdbuf->cmd_idx++ = 0;\
+	     *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0; \
+	     *cmdbuf->cmd_idx++ = wsbmKBufHandle(wsbmKBuf((ref_buf)->drm_buf));} while(0)
+
+
 #define vsp_cmdbuf_reloc_pic_param(pic_param_dest,offset,ref_buf, dst_buf_loc, pic_param_buf_start)	\
 	do { vsp_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(pic_param_dest), ref_buf, offset, 0XFFFFFFFF, 0, 0, dst_buf_loc,(uint32_t *)pic_param_buf_start); } while(0)
 #define vsp_cmdbuf_fence_pic_param(cmdbuf, pic_param_handler) \

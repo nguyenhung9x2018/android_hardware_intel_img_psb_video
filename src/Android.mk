@@ -104,7 +104,9 @@ LOCAL_SRC_FILES += \
     tng_H264ES.c tng_H263ES.c tng_MPEG4ES.c tng_jpegES.c tng_slotorder.c tng_hostair.c\
 LOCAL_SRC_FILES += \
     vsp_VPP.c \
-    vsp_cmdbuf.c
+    vsp_cmdbuf.c \
+    vsp_vp8.c
+
 LOCAL_CFLAGS += -DPSBVIDEO_MRFL_VPP
 LOCAL_CFLAGS += -DPSBVIDEO_MRFL_DEC 
 #LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_DEC_TILING
