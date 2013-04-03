@@ -22,13 +22,38 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-ifeq ($(ENABLE_IMG_GRAPHICS),true)
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
 PSBVIDEO_LOG_ENABLE := true
 
+ifeq ($(TARGET_BOARD_PLATFORM),baytrail)
+LOCAL_SRC_FILES :=              \
+    object_heap.c           \
+    psb_buffer.c            \
+    psb_buffer_dm.c         \
+    psb_cmdbuf.c            \
+    psb_drv_video.c         \
+    psb_drv_debug.c         \
+    psb_surface_attrib.c    \
+    psb_output.c		\
+    android/psb_output_android.c            \
+    android/psb_android_glue.cpp            \
+    android/psb_surface_gralloc.c         \
+    android/psb_gralloc.cpp            \
+    psb_surface.c           \
+    psb_overlay.c		\
+    vc1_idx.c                   \
+    vc1_vlc.c           \
+    pnw_H264.c          \
+    pnw_MPEG4.c         \
+    pnw_MPEG2.c         \
+    pnw_VC1.c           \
+    pnw_rotate.c        \
+    tng_vld_dec.c       \
+    tng_yuv_processor.c
+else
 LOCAL_SRC_FILES :=		\
     object_heap.c           \
     psb_buffer.c            \
@@ -62,9 +87,23 @@ LOCAL_SRC_FILES :=		\
     tng_vld_dec.c	\
     tng_yuv_processor.c \
     tng_ved_scaling.c
+endif
 
 LOCAL_CFLAGS := -DLINUX -DANDROID -g -Wall -Wno-unused
 
+ifeq ($(TARGET_BOARD_PLATFORM),baytrail)
+LOCAL_C_INCLUDES :=                     \
+    $(TOPDIR)hardware/libhardware/include/hardware         \
+    $(TOPDIR)hardware/intel/include         \
+    $(TOPDIR)framework/base/include                          \
+    $(TARGET_OUT_HEADERS)/libva \
+    $(TOPDIR)$(KERNEL_SRC_DIR)/include/drm     \
+    $(TARGET_OUT_HEADERS)/libttm        \
+    $(TARGET_OUT_HEADERS)/libwsbm       \
+    $(TARGET_OUT_HEADERS)/libdrm\
+    $(TARGET_OUT_HEADERS)/opengles  \
+    $(LOCAL_PATH)/hwdefs
+else
 LOCAL_C_INCLUDES :=			\
     $(TOPDIR)hardware/libhardware/include/hardware         \
     $(TOPDIR)hardware/intel/include         \
@@ -77,13 +116,20 @@ LOCAL_C_INCLUDES :=			\
     $(TARGET_OUT_HEADERS)/libwsbm	\
     $(TARGET_OUT_HEADERS)/libdrm\
     $(TARGET_OUT_HEADERS)/opengles  \
-    $(LOCAL_PATH)/hwdefs \
+    $(LOCAL_PATH)/hwdefs
+endif
 
 LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := pvr_drv_video
 
+
+ifeq ($(TARGET_BOARD_PLATFORM),baytrail)
+LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libcutils \
+                libui libutils libbinder libhardware
+else
 LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libpvr2d libcutils \
                 libui libutils libbinder libhardware
+endif
 
 ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
 LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
@@ -101,26 +147,33 @@ LOCAL_SRC_FILES += \
     tng_VP8.c \
     tng_jpegdec.c \
     tng_cmdbuf.c tng_hostheader.c tng_hostcode.c tng_picmgmt.c tng_hostbias.c \
-    tng_H264ES.c tng_H263ES.c tng_MPEG4ES.c tng_jpegES.c tng_slotorder.c tng_hostair.c\
+    tng_H264ES.c tng_H263ES.c tng_MPEG4ES.c tng_jpegES.c tng_slotorder.c tng_hostair.c
 LOCAL_SRC_FILES += \
     vsp_VPP.c \
     vsp_cmdbuf.c \
     vsp_vp8.c
 
-LOCAL_CFLAGS += -DPSBVIDEO_MRFL_VPP
-LOCAL_CFLAGS += -DPSBVIDEO_MRFL_DEC 
+LOCAL_CFLAGS += -DPSBVIDEO_MRFL_VPP -DPSBVIDEO_MRFL -DPSBVIDEO_VXD392
+
 #LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_DEC_TILING
 #LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_EC
-LOCAL_CFLAGS += -DPSBVIDEO_MRFL
-else
+endif
+
+ifeq ($(TARGET_BOARD_PLATFORM),baytrail)
+LOCAL_SRC_FILES += \
+    tng_VP8.c \
+    tng_jpegdec.c
+LOCAL_CFLAGS += -DPSBVIDEO_VXD392 -DBAYTRAIL
+endif
+
+ifeq ($(TARGET_BOARD_PLATFORM),medfield)
 LOCAL_SRC_FILES += psb_texture.c
 LOCAL_CFLAGS += -DPSBVIDEO_MFLD
 endif
 
 ifeq ($(TARGET_BOARD_PLATFORM),clovertrail)
-LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_DEC_TILING
+LOCAL_SRC_FILES += psb_texture.c
+LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_DEC_TILING -DPSBVIDEO_MFLD
 endif
 
 include $(BUILD_SHARED_LIBRARY)
-endif
-

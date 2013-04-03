@@ -36,7 +36,11 @@
 #include <wsbm/wsbm_manager.h>
 
 #ifdef ANDROID
+#ifdef BAYTRAIL
+#include <linux/vxd_drm.h>
+#else
 #include <linux/psb_drm.h>
+#endif
 #else
 #include <psb_drm.h>
 #endif
@@ -44,12 +48,14 @@
 #include "psb_def.h"
 #include "psb_drv_debug.h"
 
+#ifndef BAYTRAIL
 #include <pnw_cmdbuf.h>
 #include "tng_cmdbuf.h"
 
 #include "pnw_jpeg.h"
 #include "pnw_H264ES.h"
 #include "tng_jpegES.h"
+#endif
 
 #include "linux/vsp_fw.h"
 /*
@@ -121,10 +127,12 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
         break;
 #endif
 #ifdef ANDROID
+#ifndef BAYTRAIL
     case psb_bt_imr:
         allignment = 1;
         placement = TTM_PL_FLAG_IMR | WSBM_PL_FLAG_SHARED;
         break;
+#endif
 #endif
     default:
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
@@ -253,7 +261,7 @@ VAStatus psb_buffer_create_from_ub(psb_driver_data_p driver_data,
 
     ret = wsbmBODataUB(buf->drm_buf, size, NULL, NULL, 0, vaddr);
     if (ret) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to alloc wsbm buffers\n");
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to alloc wsbm buffers, buf->drm_buf is 0x%x, size is %d, vaddr is 0x%x\n", buf->drm_buf, size, vaddr);
         return 1;
     }
 

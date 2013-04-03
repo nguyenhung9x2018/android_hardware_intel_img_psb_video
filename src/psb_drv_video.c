@@ -41,8 +41,10 @@
 #include "psb_drv_video.h"
 #include "psb_texture.h"
 #include "psb_cmdbuf.h"
+#ifndef BAYTRAIL
 #include "pnw_cmdbuf.h"
 #include "tng_cmdbuf.h"
+#endif
 #ifdef PSBVIDEO_MRFL_VPP
 #include "vsp_cmdbuf.h"
 #endif
@@ -54,7 +56,9 @@
 #include "pnw_VC1.h"
 #include "tng_jpegdec.h"
 #include "tng_VP8.h"
+
 #include "tng_yuv_processor.h"
+
 #ifdef PSBVIDEO_MFLD
 #include "pnw_MPEG4ES.h"
 #include "pnw_H264ES.h"
@@ -86,7 +90,9 @@
 
 #include "psb_def.h"
 #include "psb_drv_debug.h"
+#ifndef BAYTRAIL
 #include "psb_ws_driver.h"
+#endif
 #include "pnw_rotate.h"
 #include "psb_surface_attrib.h"
 
@@ -100,6 +106,7 @@
 #define PSB_STR_VENDOR_MRST     "Intel GMA500-MRST-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_MFLD     "Intel GMA500-MFLD-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_MRFL     "Intel GMA500-MRFL-" PSB_DRV_VERSION " " PSB_CHG_REVISION
+#define PSB_STR_VENDOR_BAYTRAIL     "Intel GMA500-BAYTRAIL-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 #define PSB_STR_VENDOR_LEXINGTON     "Intel GMA500-LEXINGTON-" PSB_DRV_VERSION " " PSB_CHG_REVISION
 
 #define MAX_UNUSED_BUFFERS      16
@@ -116,7 +123,8 @@ extern int force_texure_1080p_60fps;
 
 #ifdef PSBVIDEO_MRFL_VPP
 #define INIT_FORMAT_VTABLE format_vtable_p format_vtable = ((profile < PSB_MAX_PROFILES) && (entrypoint < PSB_MAX_ENTRYPOINTS)) ? (profile == VAProfileNone? driver_data->vpp_profile : driver_data->profile2Format[profile][entrypoint]) : NULL;
-#else
+#endif
+#ifdef PSBVIDEO_MFLD
 #define INIT_FORMAT_VTABLE format_vtable_p format_vtable = ((profile < PSB_MAX_PROFILES) && (entrypoint < PSB_MAX_ENTRYPOINTS)) ? (profile == VAProfileNone? driver_data->vpp_profile : driver_data->profile2Format[profile][entrypoint]) : NULL;
 #endif
 
@@ -169,7 +177,7 @@ VAStatus psb_QueryConfigProfiles(
     profile_list[i++] = VAProfileVC1Main;
     profile_list[i++] = VAProfileVC1Advanced;
 
-    if (IS_MRFL(driver_data)) {
+    if (IS_MRFL(driver_data) || IS_BAYTRAIL(driver_data)) {
         profile_list[i++] = VAProfileH263Baseline;
         profile_list[i++] = VAProfileJPEGBaseline;
         profile_list[i++] = VAProfileVP8Version0_3;
@@ -203,11 +211,14 @@ VAStatus psb_QueryConfigEntrypoints(
     CHECK_INVALID_PARAM((num_entrypoints == NULL) || (profile >= PSB_MAX_PROFILES));
 
     for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
+#ifdef PSBVIDEO_MFLD
         if (profile == VAProfileNone && driver_data->vpp_profile &&
             i == VAEntrypointVideoProc) {
                 entrypoints++;
                 *entrypoint_list++ = i;
-	    } else if (profile != VAProfileNone && driver_data->profile2Format[profile][i]) {
+	} else
+#endif
+	if (profile != VAProfileNone && driver_data->profile2Format[profile][i]) {
                 entrypoints++;
                 *entrypoint_list++ = i;
         }
@@ -259,7 +270,12 @@ VAStatus psb_GetConfigAttributes(
 {
     DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
+
+#if defined(BAYTRAIL)
+    format_vtable_p format_vtable = driver_data->profile2Format[profile][entrypoint];
+#else
     INIT_FORMAT_VTABLE
+#endif
     int i;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     if (NULL == format_vtable) {
@@ -379,7 +395,12 @@ VAStatus psb_CreateConfig(
 {
     DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
+#if defined(BAYTRAIL)
+    format_vtable_p format_vtable = driver_data->profile2Format[profile][entrypoint];
+#else
     INIT_FORMAT_VTABLE
+#endif
+
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int configID;
     object_config_p obj_config;
@@ -1014,7 +1035,7 @@ VAStatus psb_CreateContext(
 
     for (i = 0; i < cmdbuf_num; i++) {
         void  *cmdbuf = NULL;
-
+#ifndef BAYTRAIL
         if (encode) { /* Topaz encode context */
 #ifdef PSBVIDEO_MRFL
             if (IS_MRFL(obj_context->driver_data))
@@ -1034,6 +1055,7 @@ VAStatus psb_CreateContext(
                 cmdbuf =  calloc(1, sizeof(struct psb_cmdbuf_s));
 #endif
         } else /* MSVDX decode context */
+#endif
             cmdbuf =  calloc(1, sizeof(struct psb_cmdbuf_s));
 
         if (NULL == cmdbuf) {
@@ -1042,6 +1064,7 @@ VAStatus psb_CreateContext(
             break;
         }
 
+#ifndef BAYTRAIL
         if (encode) { /* Topaz encode context */
 
 #ifdef PSBVIDEO_MRFL
@@ -1063,6 +1086,7 @@ VAStatus psb_CreateContext(
 #endif
 
         } else /* MSVDX decode context */
+#endif
             vaStatus = psb_cmdbuf_create(obj_context, driver_data, (psb_cmdbuf_p)cmdbuf);
 
         if (VA_STATUS_SUCCESS != vaStatus) {
@@ -1071,6 +1095,7 @@ VAStatus psb_CreateContext(
             break;
         }
 
+#ifndef BAYTRAIL
         if (encode) { /* Topaz encode context */
             if (i >= LNC_MAX_CMDBUFS_ENCODE) {
                 free(cmdbuf);
@@ -1096,6 +1121,7 @@ VAStatus psb_CreateContext(
                 obj_context->cmdbuf_list[i] = (psb_cmdbuf_p)cmdbuf;
 #endif
         } else /* MSVDX decode context */
+#endif
             obj_context->cmdbuf_list[i] = (psb_cmdbuf_p)cmdbuf;
     }
 
@@ -1122,11 +1148,13 @@ VAStatus psb_CreateContext(
         if (cmdbuf_num > LNC_MAX_CMDBUFS_ENCODE)
             cmdbuf_num = LNC_MAX_CMDBUFS_ENCODE;
         for (i = 0; i < cmdbuf_num; i++) {
+#ifndef BAYTRAIL
             if (obj_context->pnw_cmdbuf_list[i]) {
                 pnw_cmdbuf_destroy(obj_context->pnw_cmdbuf_list[i]);
                 free(obj_context->pnw_cmdbuf_list[i]);
                 obj_context->pnw_cmdbuf_list[i] = NULL;
             }
+#endif
 #ifdef PSBVIDEO_MRFL
             if (obj_context->tng_cmdbuf_list[i]) {
                 tng_cmdbuf_destroy(obj_context->tng_cmdbuf_list[i]);
@@ -1239,9 +1267,11 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
                                                         * should be shared between two process
                                                         */
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_shared, obj_buffer->psb_buffer);
+#ifndef BAYTRAIL
             else if (obj_buffer->type == VAProtectedSliceDataBufferType) {
                 vaStatus = psb_buffer_reference_imr(driver_data, (uint32_t)data, obj_buffer->psb_buffer);
             }
+#endif
             else if (obj_buffer->type == VAEncCodedBufferType)
 #ifdef ANDROID
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_cached, obj_buffer->psb_buffer);
@@ -1361,7 +1391,7 @@ static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p
         }
         obj_context->buffers_unused_count[i] = 0;
     }
-
+#ifndef BAYTRAIL
     for (i = 0; i < LNC_MAX_CMDBUFS_ENCODE; i++) {
         if (obj_context->pnw_cmdbuf_list[i]) {
             pnw_cmdbuf_destroy(obj_context->pnw_cmdbuf_list[i]);
@@ -1369,6 +1399,7 @@ static void psb__destroy_context(psb_driver_data_p driver_data, object_context_p
             obj_context->pnw_cmdbuf_list[i] = NULL;
         }
     }
+#endif
 #ifdef PSBVIDEO_MRFL
     for (i = 0; i < TNG_MAX_CMDBUFS_ENCODE; i++) {
         if (obj_context->tng_cmdbuf_list[i]) {
@@ -2029,6 +2060,88 @@ static void psb__surface_usage(
     }
 }
 
+#ifdef BAYTRAIL
+void psb_csc_for_byt(VADriverContextP ctx, VASurfaceID render_target)
+{
+    INIT_DRIVER_DATA
+    object_surface_p obj_surface;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_SyncSurface: 0x%08x\n", render_target);
+
+    obj_surface = SURFACE(render_target);
+
+    unsigned char *src, *dst;
+    unsigned char *src1, *src2;
+
+    int j, k;
+
+    psb_buffer_map(&obj_surface->psb_surface->buf, &src);
+#ifdef BYT_USING_GRALLOC_BUF
+    psb_buffer_map(&obj_surface->psb_surface->native_buf, &dst);
+#else
+    dst = obj_surface->psb_surface->virt_addr;
+#endif
+    unsigned char *dst_orig = dst;
+    int srcw = obj_surface->width;
+    int srch = obj_surface->height;
+    int srch_origin = obj_surface->height_origin;
+    int src_stride = obj_surface->psb_surface->stride;
+
+    int align_w = 128;
+    int align_h = 32;
+    int dst_stride = (obj_surface->width + align_w - 1) & ~(align_w - 1);
+    int dsth = (obj_surface->height_origin + align_h - 1) & ~(align_h - 1);
+
+    src2 = src1 = src + src_stride * srch;
+
+    for (j = 0; j < srch_origin; ++j)
+    {
+        memcpy(dst, src, srcw);
+        src += src_stride;
+        dst += dst_stride;
+    }
+    dst += (dsth - srch_origin) * dst_stride;
+    for (j = 0 ; j < srch_origin / 2; ++j)
+    {
+        for (k = 0; k < srcw; ++k)
+        {
+            if ((k%2) == 1) {
+                *dst = *src2;
+                src2++;
+                dst++;
+            } else {
+                src2++;
+            }
+        }
+        src2 += src_stride - srcw;
+        dst += (dst_stride - srcw) / 2;
+    }
+    dst += (dsth - srch_origin) * dst_stride / 2;
+    for(j = 0 ; j < srch_origin /2; ++j)
+    {
+        for(k = 0; k < srcw; ++k)
+        {
+            if((k%2) == 0) {
+                *dst = *src1;
+                src1++;
+                dst++;
+            } else {
+                src1++;
+            }
+        }
+        src1 += src_stride - srcw;
+        dst += (dst_stride - srcw) /2;
+    }
+    if (psb_dump_yuvbuf_fp)
+        fwrite(dst_orig, dst_stride * dsth * 3 / 2, 1, psb_dump_yuvbuf_fp);
+
+    psb_buffer_unmap(&obj_surface->psb_surface->buf);
+#ifdef BYT_USING_GRALLOC_BUF
+    psb_buffer_unmap(&obj_surface->psb_surface->native_buf);
+#endif
+}
+#endif
+
 VAStatus psb_SyncSurface(
     VADriverContextP ctx,
     VASurfaceID render_target
@@ -2097,6 +2210,12 @@ VAStatus psb_SyncSurface(
     if (proc && IS_MRFL(driver_data)) {
         /* FIXME: does it need a new surface sync mechanism for FRC? */
     }
+
+#ifdef BAYTRAIL
+    if (driver_data->native_window)
+        psb_csc_for_byt(ctx, render_target);
+#endif
+
     //psb__dump_NV_buffers(obj_surface->psb_surface, 0, 0, obj_surface->width, obj_surface->height);
     //psb__dump_NV_buffers(obj_surface->psb_surface_rotate, 0, 0, obj_surface->height, ((obj_surface->width + 0x1f) & (~0x1f)));
     DEBUG_FAILURE;
@@ -2147,6 +2266,7 @@ VAStatus psb_QuerySurfaceStatus(
 
     /* try to get frameskip flag for encode */
     psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
+#ifndef BAYTRAIL
     if (encode && rc_enable) {
 #ifdef PSBVIDEO_MRFL
         if (IS_MRFL(driver_data))
@@ -2160,13 +2280,17 @@ VAStatus psb_QuerySurfaceStatus(
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s next frame of 0x%08x is skipped",
                     __FUNCTION__, render_target);
         }
-    } else if (decode) {
+    } else
+#endif
+    if (decode) {
 #ifdef ANDROID
         if (obj_surface->psb_surface->buf.handle) {
             buffer_handle_t handle = obj_surface->psb_surface->buf.handle;
             int display_status;
             int err;
-
+#ifdef BAYTRAIL
+            surface_status = VASurfaceReady;
+#else
             err = gralloc_getdisplaystatus(handle, &display_status);
             if (!err) {
                 if (display_status)
@@ -2176,7 +2300,7 @@ VAStatus psb_QuerySurfaceStatus(
             } else {
                 surface_status = VASurfaceReady;
             }
-
+#endif
             /* if not used by display, then check whether surface used by widi */
             if (surface_status == VASurfaceReady && obj_surface->share_info) {
                 if (obj_surface->share_info->renderStatus == 1) {
@@ -2692,7 +2816,6 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     struct VADriverVTableTPI *tpi;
     struct VADriverVTableEGL *va_egl;
     int result;
-
     if (psb_video_trace_fp) {
         /* make gdb always stop here */
         signal(SIGUSR1, SIG_IGN);
@@ -2882,8 +3005,8 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     }
 #endif
 
-#ifdef PSBVIDEO_MRFL_DEC
-    if (IS_MRFL(driver_data)) {
+#ifdef PSBVIDEO_VXD392
+    if (IS_MRFL(driver_data) || IS_BAYTRAIL(driver_data)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "merrifield VXD392 decoder\n");
 	driver_data->profile2Format[VAProfileVP8Version0_3][VAEntrypointVLD] = &tng_VP8_vtable;
         driver_data->profile2Format[VAProfileJPEGBaseline][VAEntrypointVLD] = &tng_JPEG_vtable;
@@ -2928,6 +3051,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->vpp_profile = &tng_yuv_processor_vtable;
     }
 #endif
+
     result = object_heap_init(&driver_data->config_heap, sizeof(struct object_config_s), CONFIG_ID_OFFSET);
     ASSERT(result == 0);
 
@@ -2954,6 +3078,8 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     driver_data->blend_mode = 0;
     driver_data->overlay_auto_paint_color_key = 0;
 
+    if (IS_BAYTRAIL(driver_data))
+        ctx->str_vendor = PSB_STR_VENDOR_BAYTRAIL;
     if (IS_MRFL(driver_data))
         ctx->str_vendor = PSB_STR_VENDOR_MRFL;
     else if (IS_MFLD(driver_data))
@@ -2980,10 +3106,11 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     drv_debug_msg(VIDEO_DEBUG_INIT, "vaInitilize: succeeded!\n\n");
 
 #ifdef ANDROID
-#ifndef PSBVIDEO_MRFL
+#ifndef PSBVIDEO_VXD392
     gralloc_init();
 #endif
 #endif
+
     return VA_STATUS_SUCCESS;
 }
 

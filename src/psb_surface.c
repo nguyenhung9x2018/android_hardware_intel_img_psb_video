@@ -44,8 +44,10 @@ VAStatus psb_surface_create(psb_driver_data_p driver_data,
     int ret = 0;
     int buffer_type = psb_bt_surface;
 
+#ifndef BAYTRAIL
     if ((flags & IS_ROTATED) || (driver_data->render_mode & VA_RENDER_MODE_LOCAL_OVERLAY))
         buffer_type = psb_bt_surface_tt;
+#endif
 
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
     int tiling = GET_SURFACE_INFO_tiling(psb_surface);
@@ -319,6 +321,9 @@ VAStatus psb_surface_set_chroma(psb_surface_p psb_surface, int chroma)
 void psb_surface_destroy(psb_surface_p psb_surface)
 {
     psb_buffer_destroy(&psb_surface->buf);
+#ifdef BYT_USING_GRALLOC_BUF
+    psb_buffer_destroy(&psb_surface->native_buf);
+#endif
 
     if (NULL != psb_surface->in_loop_buf)
         psb_buffer_destroy(psb_surface->in_loop_buf);

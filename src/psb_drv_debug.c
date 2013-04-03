@@ -352,6 +352,7 @@ void psb__dump_NV_buffers(
 {
     void *mapped_buffer;
     void *mapped_buffer1, *mapped_buffer2;
+
     if (psb_dump_yuvbuf_fp) {
         psb_buffer_map(&psb_surface->buf, &mapped_buffer);
         if(mapped_buffer == NULL)
@@ -361,20 +362,24 @@ void psb__dump_NV_buffers(
         mapped_buffer1 = mapped_buffer + psb_surface->stride * srcy;
         mapped_buffer2= mapped_buffer + psb_surface->stride * (srch + srcy / 2);
         mapped_buffer=mapped_buffer2;
+
         for(j = 0; j < srch; ++j)
         {
             fwrite(mapped_buffer1,  srcw, 1, psb_dump_yuvbuf_fp);
             mapped_buffer1 += psb_surface->stride;
         }
+
         for(j = 0 ; j < srch /2; ++j)
         {
             for(k = 0; k < srcw; ++k)
             {
                 if((k%2) == 0)fwrite(mapped_buffer2, 1, 1, psb_dump_yuvbuf_fp);
+
                 mapped_buffer2++;
             }
             mapped_buffer2 += psb_surface->stride-srcw;
         }
+
         mapped_buffer2=mapped_buffer;
         for(j = 0 ; j < srch /2; ++j)
         {
@@ -385,6 +390,7 @@ void psb__dump_NV_buffers(
             }
             mapped_buffer2 += psb_surface->stride-srcw;
         }
+
         psb_buffer_unmap(&psb_surface->buf);
     }
 }

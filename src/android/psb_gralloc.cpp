@@ -50,7 +50,8 @@ int gralloc_lock(buffer_handle_t handle,
                 int usage, int left, int top, int width, int height,
                 void** vaddr)
 {
-    int err;
+    int err, j;
+    unsigned char *tmp_buffer;
 
     if (!mAllocMod) {
         LOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
@@ -65,6 +66,19 @@ int gralloc_lock(buffer_handle_t handle,
                           vaddr);
     LOGV("gralloc_lock: handle is %lx, usage is %x, vaddr is %x.\n", handle, usage, *vaddr);
 
+#ifdef BYT_USING_GRALLOC_BUF
+    tmp_buffer = (unsigned char *)(*vaddr);
+    int align_w = 128;
+    int align_h = 32;
+    int dst_stride = (width + align_w - 1) & ~(align_w - 1);
+    int dsth = (height + align_h - 1) & ~(align_h - 1);
+
+    for (j = 0; j < dst_stride * dsth * 3 / 2; j = j + 4096) {
+        *(tmp_buffer + j) = 0xa5;
+        if (*(tmp_buffer + j) !=  0xa5)
+            LOGE("access page failed.\n");
+    }
+#endif
     if (err){
         LOGE("lock(...) failed %d (%s).\n", err, strerror(-err));
         return -1;

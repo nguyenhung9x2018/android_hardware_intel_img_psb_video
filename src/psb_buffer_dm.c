@@ -219,6 +219,7 @@ VAStatus psb_buffer_create_camera_from_ub(psb_driver_data_p driver_data,
 #endif
 
 #ifdef ANDROID
+#ifndef BAYTRAIL
 static int psb_buffer_info_rar(psb_driver_data_p driver_data)
 {
     struct drm_lnc_video_getparam_arg arg;
@@ -245,7 +246,9 @@ static int psb_buffer_info_rar(psb_driver_data_p driver_data)
     return ret;
 }
 #endif
+#endif
 
+#ifndef BAYTRAIL
 static VAStatus psb_buffer_init_imr(psb_driver_data_p driver_data)
 {
     int ret = 0;
@@ -331,3 +334,4 @@ VAStatus psb_buffer_reference_imr(psb_driver_data_p driver_data,
 
     return VA_STATUS_SUCCESS;
 }
+#endif

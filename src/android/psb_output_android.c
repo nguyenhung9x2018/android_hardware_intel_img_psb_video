@@ -40,7 +40,9 @@
 #include <stdarg.h>
 #include "psb_android_glue.h"
 #include "psb_output_android.h"
+#ifndef BAYTRAIL
 #include "psb_HDMIExtMode.h"
+#endif
 #include "pnw_rotate.h"
 #include "psb_drv_debug.h"
 #include <wsbm/wsbm_manager.h>
@@ -143,6 +145,7 @@ VAStatus psb_android_output_deinit(VADriverContextP ctx)
     return VA_STATUS_SUCCESS;
 }
 
+#ifndef BAYTRAIL
 static VAStatus psb_putsurface_ctexture(
     VADriverContextP ctx,
     VASurfaceID surface,
@@ -181,6 +184,8 @@ static VAStatus psb_putsurface_ctexture(
 
     return VA_STATUS_SUCCESS;
 }
+#endif
+
 #if 0
 VAStatus psb_putsurface_coverlay(
     VADriverContextP ctx,
@@ -474,6 +479,7 @@ VAStatus psb_PutSurface(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
     int ret = 0;
+#ifndef BAYTRAIL
 
     obj_surface = SURFACE(surface);
 
@@ -530,6 +536,6 @@ VAStatus psb_PutSurface(
                                       flags, OVERLAY_A, PIPEA);
 
     driver_data->frame_count++;
-
+#endif
     return vaStatus;
 }

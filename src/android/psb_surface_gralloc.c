@@ -80,6 +80,175 @@ VAStatus psb_DestroySurfaceGralloc(object_surface_p obj_surface)
     return VA_STATUS_SUCCESS;
 }
 
+#ifdef BAYTRAIL
+VAStatus psb_CreateSurfacesFromGralloc(
+    VADriverContextP ctx,
+    int width,
+    int height,
+    int format,
+    int num_surfaces,
+    VASurfaceID *surface_list,        /* out */
+    VASurfaceAttributeTPI *attribute_tpi
+)
+{
+    INIT_DRIVER_DATA
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    int i, height_origin, usage, buffer_stride = 0;
+    int protected = (VA_RT_FORMAT_PROTECTED & format);
+    unsigned long fourcc;
+    VASurfaceAttributeTPI *external_buffers = NULL;
+    unsigned int handle;
+    unsigned int *tmp_nativebuf_handle = NULL;
+    int size = num_surfaces * sizeof(unsigned int);
+    void *vaddr;
+
+
+    /* follow are gralloc-buffers */
+    format = format & (~VA_RT_FORMAT_PROTECTED);
+    driver_data->protected = protected;
+
+    CHECK_INVALID_PARAM(num_surfaces <= 0);
+    CHECK_SURFACE(surface_list);
+
+    external_buffers = attribute_tpi;
+
+    LOGD("format is 0x%x, width is %d, height is %d, num_surfaces is %d.\n", format, width, height, num_surfaces);
+    /* We only support one format */
+    if ((VA_RT_FORMAT_YUV420 != format)
+        && (VA_RT_FORMAT_YUV422 != format)) {
+        vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    CHECK_INVALID_PARAM(external_buffers == NULL);
+
+    /*
+    vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
+    CHECK_VASTATUS();
+    */
+    /* Adjust height to be a multiple of 32 (height of macroblock in interlaced mode) */
+    height_origin = height;
+    if (external_buffers->pixel_format != HAL_PIXEL_FORMAT_NV12)
+        height = (height + 0x1f) & ~0x1f;
+    LOGD("external_buffers->pixel_format is 0x%x.\n", external_buffers->pixel_format);
+    /* get native window from the reserved field */
+    driver_data->native_window = (void *)external_buffers->reserved[0];
+
+    tmp_nativebuf_handle = calloc(1, size);
+    CHECK_ALLOCATION(tmp_nativebuf_handle);
+
+    memcpy(tmp_nativebuf_handle, external_buffers->buffers, size);
+
+    for (i = 0; i < num_surfaces; i++) {
+        int surfaceID;
+        object_surface_p obj_surface;
+        psb_surface_p psb_surface;
+
+        surfaceID = object_heap_allocate(&driver_data->surface_heap);
+        obj_surface = SURFACE(surfaceID);
+        if (NULL == obj_surface) {
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            DEBUG_FAILURE;
+            break;
+        }
+        MEMSET_OBJECT(obj_surface, struct object_surface_s);
+
+        obj_surface->surface_id = surfaceID;
+        surface_list[i] = surfaceID;
+        obj_surface->context_id = -1;
+        obj_surface->width = width;
+        obj_surface->height = height;
+        obj_surface->width_r = width;
+        obj_surface->height_r = height;
+        obj_surface->height_origin = height_origin;
+
+        psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
+        if (NULL == psb_surface) {
+            object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
+            obj_surface->surface_id = VA_INVALID_SURFACE;
+
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+            DEBUG_FAILURE;
+            break;
+        }
+
+        switch (format) {
+        case VA_RT_FORMAT_YUV422:
+            fourcc = VA_FOURCC_YV16;
+            break;
+        case VA_RT_FORMAT_YUV420:
+        default:
+            fourcc = VA_FOURCC_NV12;
+            break;
+        }
+
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+        if (width > 1280)
+            external_buffers->tiling = 1;
+#endif
+        /*hard code the gralloc buffer usage*/
+        usage = GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
+
+        if (external_buffers->pixel_format == HAL_PIXEL_FORMAT_NV12)
+            usage |= GRALLOC_USAGE_SW_READ_OFTEN;
+
+        /* usage hack for byt */
+        usage |= GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
+
+        handle = (unsigned int)external_buffers->buffers[i];
+        if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr)) {
+            vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        } else {
+            int cache_flag = PSB_USER_BUFFER_UNCACHED;
+
+#ifdef BYT_USING_GRALLOC_BUF
+            vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
+                    external_buffers, psb_surface, vaddr,
+                    cache_flag);
+#endif
+            vaStatus = psb_surface_create(driver_data, width, height, fourcc,
+                    0, psb_surface);
+            psb_surface->buf.handle = handle;
+            obj_surface->share_info = NULL;
+            psb_surface->virt_addr = vaddr;
+            gralloc_unlock(handle);
+        }
+
+        if (VA_STATUS_SUCCESS != vaStatus) {
+            free(psb_surface);
+            object_heap_free(&driver_data->surface_heap, (object_base_p) obj_surface);
+            obj_surface->surface_id = VA_INVALID_SURFACE;
+
+            DEBUG_FAILURE;
+            break;
+        }
+        buffer_stride = psb_surface->stride;
+        /* by default, surface fourcc is NV12 */
+        psb_surface->extra_info[4] = fourcc;
+        obj_surface->psb_surface = psb_surface;
+    }
+
+    /* Error recovery */
+    if (VA_STATUS_SUCCESS != vaStatus) {
+        /* surface_list[i-1] was the last successful allocation */
+        for (; i--;) {
+            object_surface_p obj_surface = SURFACE(surface_list[i]);
+            psb__destroy_surface(driver_data, obj_surface);
+            surface_list[i] = VA_INVALID_SURFACE;
+        }
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "CreateSurfaces failed\n");
+
+        if (tmp_nativebuf_handle)
+            free(tmp_nativebuf_handle);
+
+        return vaStatus;
+    }
+
+    return vaStatus;
+}
+#else
 VAStatus psb_CreateSurfacesFromGralloc(
     VADriverContextP ctx,
     int width,
@@ -275,3 +444,5 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
     return vaStatus;
 }
+
+#endif

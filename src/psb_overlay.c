@@ -124,6 +124,7 @@ static uint32_t I830BoundGamma(uint32_t gamma, uint32_t gammaPrev)
 static void
 I830UpdateGamma(VADriverContextP ctx, PsbPortPrivPtr pPriv)
 {
+#ifndef BAYTRAIL
     INIT_DRIVER_DATA;
     uint32_t gamma0 = pPriv->gamma0;
     uint32_t gamma1 = pPriv->gamma1;
@@ -151,10 +152,12 @@ I830UpdateGamma(VADriverContextP ctx, PsbPortPrivPtr pPriv)
     regs.overlay.OGAMC4 = gamma4;
     regs.overlay.OGAMC5 = gamma5;
     drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
+#endif
 }
 
 static void I830StopVideo(VADriverContextP ctx)
 {
+#ifndef BAYTRAIL
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
     I830OverlayRegPtr overlayA, overlayC;
@@ -218,6 +221,7 @@ static void I830StopVideo(VADriverContextP ctx)
         drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
         pPriv->overlayA_enabled = 0;
     }
+#endif
 }
 
 #if 0
@@ -411,6 +415,7 @@ i830_display_video(
     short src_w, short src_h, short drw_w, short drw_h,
     unsigned int flags, int overlayId, int pipeId)
 {
+#ifndef BAYTRAIL
     INIT_DRIVER_DATA;
     unsigned int        swidth, swidthy, swidthuv;
     unsigned int        mask, shift, offsety, offsetu;
@@ -835,6 +840,7 @@ i830_display_video(
             *(unsigned int *)((unsigned int)&(overlay->IEP_SPACE[0]) + 0x804)  = regs.overlay.IEP_BLE_MINMAX;
         }
     }
+#endif
 }
 
 
@@ -1364,6 +1370,7 @@ out_err:
 
 int psb_coverlay_init(VADriverContextP ctx)
 {
+#ifndef BAYTRAIL
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = &driver_data->coverlay_priv;
     struct drm_psb_register_rw_arg regs;
@@ -1391,7 +1398,7 @@ int psb_coverlay_init(VADriverContextP ctx)
 
     I830ResetVideo(ctx, pPriv);
     I830UpdateGamma(ctx, pPriv);
-
+#endif
     return 0;
 }
 
@@ -1403,6 +1410,7 @@ int psb_coverlay_stop(VADriverContextP ctx)
 
 int psb_coverlay_deinit(VADriverContextP ctx)
 {
+#ifndef BAYTRAIL
     INIT_DRIVER_DATA;
     PsbPortPrivPtr pPriv = &driver_data->coverlay_priv;
     struct drm_psb_register_rw_arg regs;
@@ -1419,7 +1427,7 @@ int psb_coverlay_deinit(VADriverContextP ctx)
     }
 
     psbPortPrivDestroy(ctx, pPriv);
-
+#endif
     return 0;
 }
 

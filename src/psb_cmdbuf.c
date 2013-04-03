@@ -54,8 +54,9 @@
 
 #include "psb_def.h"
 #include "psb_drv_debug.h"
+#ifndef BAYTRAIL
 #include "psb_ws_driver.h"
-
+#endif
 #include <wsbm/wsbm_pool.h>
 #include <wsbm/wsbm_manager.h>
 #include <wsbm/wsbm_util.h>
