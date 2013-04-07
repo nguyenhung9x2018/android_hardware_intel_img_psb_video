@@ -37,6 +37,7 @@
 #include <va/va_backend_vpp.h>
 #endif
 #include <va/va_drmcommon.h>
+#include <va/va_android.h>
 
 #include "psb_drv_video.h"
 #include "psb_texture.h"
@@ -597,6 +598,51 @@ VAStatus psb__checkSurfaceDimensions(psb_driver_data_p driver_data, int width, i
     return VA_STATUS_SUCCESS;
 }
 
+VAStatus psb_GetSurfaceAttributes(
+        VADisplay dpy,
+        VAConfigID config,
+        VASurfaceAttrib *attrib_list,
+        unsigned int num_attribs
+        )
+{
+    DEBUG_FUNC_ENTER
+
+    int i;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+
+    CHECK_INVALID_PARAM(attrib_list == NULL);
+    CHECK_INVALID_PARAM(num_attribs <= 0);
+
+    /* Generic attributes */
+    for (i = 0; i < num_attribs; i++) {
+        switch (attrib_list[i].type) {
+        case VASurfaceAttribMemoryType:
+            attrib_list[i].flags = VA_SURFACE_ATTRIB_SETTABLE | VA_SURFACE_ATTRIB_GETTABLE;
+            attrib_list[i].value.type = VAGenericValueTypeInteger;
+            attrib_list[i].value.value.i =
+                VA_SURFACE_ATTRIB_MEM_TYPE_VA |
+                VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR |
+                VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM |
+                VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC |
+                VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_ION;
+            break;
+
+        case VASurfaceAttribExternalBufferDescriptor:
+            attrib_list[i].flags = VA_SURFACE_ATTRIB_SETTABLE;
+            attrib_list[i].value.type = VAGenericValueTypePointer;
+            break;
+
+        default:
+            attrib_list[i].flags = VA_SURFACE_ATTRIB_NOT_SUPPORTED;
+            break;
+        }
+    }
+
+    DEBUG_FUNC_EXIT
+    return VA_STATUS_SUCCESS;
+
+}
+
 VAStatus psb_CreateSurfaces(
         VADriverContextP ctx,
         int width,
@@ -627,6 +673,9 @@ VAStatus psb_CreateSurfaces2(
     driver_data->protected = (VA_RT_FORMAT_PROTECTED & format);
     unsigned long fourcc;
     unsigned int flags = 0;
+    int memory_type = 0;
+    VASurfaceAttribExternalBuffers  *pExternalBufDesc = NULL;
+    VASurfaceAttributeTPI attribute_tpi;
 
     format = format & (~VA_RT_FORMAT_PROTECTED);
 
@@ -638,11 +687,70 @@ VAStatus psb_CreateSurfaces2(
             if (!attrib_list)
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
             switch (attrib_list->type) {
+            case VASurfaceAttribExternalBufferDescriptor:
+                {
+                    pExternalBufDesc = (VASurfaceAttribExternalBuffers *)attrib_list->value.value.p;
+                    if (pExternalBufDesc == NULL) {
+                        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid VASurfaceAttribExternalBuffers.\n");
+                        return VA_STATUS_ERROR_INVALID_PARAMETER;
+                    }
+                    attribute_tpi.type = memory_type;
+                    attribute_tpi.buffers = malloc(sizeof(int) * pExternalBufDesc->num_buffers);
+                    attribute_tpi.width = pExternalBufDesc->width;
+                    attribute_tpi.height = pExternalBufDesc->height;
+                    attribute_tpi.count = pExternalBufDesc->num_buffers;
+                    memcpy((void*)attribute_tpi.buffers, (void*)pExternalBufDesc->buffers,
+                            sizeof(pExternalBufDesc->buffers[0]) *
+                            pExternalBufDesc->num_buffers);
+                    attribute_tpi.pixel_format = pExternalBufDesc->pixel_format;
+                    attribute_tpi.size = pExternalBufDesc->data_size;
+                    attribute_tpi.luma_stride = pExternalBufDesc->pitches[0];
+                    attribute_tpi.chroma_u_stride = pExternalBufDesc->pitches[1];
+                    attribute_tpi.chroma_v_stride = pExternalBufDesc->pitches[2];
+                    attribute_tpi.luma_offset = pExternalBufDesc->offsets[0];
+                    attribute_tpi.chroma_u_offset = pExternalBufDesc->offsets[1];
+                    attribute_tpi.chroma_v_offset = pExternalBufDesc->offsets[2];
+                }
+                break;
+            case VASurfaceAttribMemoryType:
+                {
+                    switch (attrib_list->value.value.i) {
+                        case VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR:
+                            memory_type = VAExternalMemoryUserPointer;
+                            break;
+                        case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
+                            memory_type = VAExternalMemoryKernelDRMBufffer;
+                            break;
+                        case VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC:
+                            memory_type = VAExternalMemoryAndroidGrallocBuffer;
+                            break;
+                        case VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_ION:
+                            memory_type = VAExternalMemoryIONSharedFD;
+                            break;
+                        case VA_SURFACE_ATTRIB_MEM_TYPE_VA:
+                            memory_type = VAExternalMemoryNULL;
+                            break;
+                        default:
+                            drv_debug_msg(VIDEO_DEBUG_ERROR, "Unsupported memory type.\n");
+                            return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+                    }
+                }
+                break;
             default:
                 drv_debug_msg(VIDEO_DEBUG_ERROR, "Unsupported attribute.\n");
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
             }
         }
+    }
+
+    if ((memory_type == 0 && pExternalBufDesc != NULL) ||
+            (memory_type !=0 && pExternalBufDesc == NULL)) {
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+    else if(memory_type !=0 && pExternalBufDesc != NULL) {
+        attribute_tpi.type = memory_type;
+        return psb_CreateSurfacesWithAttribute(ctx, width, height, format, num_surfaces, surface_list, &attribute_tpi);
     }
 
     /* We only support one format */
@@ -2847,6 +2955,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     ctx->vtable->vaGetConfigAttributes = psb_GetConfigAttributes;
     ctx->vtable->vaCreateSurfaces2 = psb_CreateSurfaces2; 
     ctx->vtable->vaCreateSurfaces = psb_CreateSurfaces;
+    ctx->vtable->vaGetSurfaceAttributes = psb_GetSurfaceAttributes;
     ctx->vtable->vaDestroySurfaces = psb_DestroySurfaces;
     ctx->vtable->vaCreateContext = psb_CreateContext;
     ctx->vtable->vaDestroyContext = psb_DestroyContext;
