@@ -211,7 +211,7 @@ VAStatus psb_QueryConfigEntrypoints(
     CHECK_INVALID_PARAM((num_entrypoints == NULL) || (profile >= PSB_MAX_PROFILES));
 
     for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
-#ifdef PSBVIDEO_MFLD
+#ifndef BAYTRAIL
         if (profile == VAProfileNone && driver_data->vpp_profile &&
             i == VAEntrypointVideoProc) {
                 entrypoints++;
