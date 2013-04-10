@@ -191,7 +191,6 @@ struct context_JPEG_s {
 
     uint32_t vlctable_buffer_size;
     uint32_t rendec_qmatrix[JPEG_MAX_QUANT_TABLES][16];
-    uint32_t operating_mode;
 
     /* Huffman table information as parsed from the bitstream */
     vlc_symbol_code_jpeg* symbol_codes[TABLE_CLASS_NUM][JPEG_MAX_SETS_HUFFMAN_TABLES];
@@ -834,15 +833,15 @@ static VAStatus tng__JPEG_process_huffman_tables(context_JPEG_p ctx, object_buff
 
 static void tng__JPEG_set_operating_mode(context_JPEG_p ctx) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    ctx->operating_mode = 0;
+    ctx->obj_context->operating_mode = 0;
 
-    REGIO_WRITE_FIELD_LITE(ctx->operating_mode, MSVDX_CMDS, OPERATING_MODE, USE_EXT_ROW_STRIDE, 1 );
-    REGIO_WRITE_FIELD_LITE( ctx->operating_mode, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE, 1 );
-    REGIO_WRITE_FIELD_LITE( ctx->operating_mode, MSVDX_CMDS, OPERATING_MODE, CHROMA_FORMAT,	1);
+    REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, USE_EXT_ROW_STRIDE, 1 );
+    REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE, 1 );
+    REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CHROMA_FORMAT,	1);
 
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET( MSVDX_CMDS, OPERATING_MODE ));
 
-    psb_cmdbuf_rendec_write(cmdbuf, ctx->operating_mode);
+    psb_cmdbuf_rendec_write(cmdbuf, ctx->obj_context->operating_mode);
 
     psb_cmdbuf_rendec_end(cmdbuf);
 
@@ -991,8 +990,14 @@ static void tng__JPEG_set_register(context_JPEG_p ctx, VASliceParameterBufferJPE
 
 static void tng__JPEG_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
 {
+    context_JPEG_p ctx = (context_JPEG_p)dec_ctx;
+
     dec_ctx->bits_offset = 0;
     dec_ctx->SR_flags = CMD_ENABLE_RBDU_EXTRACTION;
+    *dec_ctx->cmd_params |=ctx->MCU_width * ctx->MCU_height;
+    *dec_ctx->slice_first_pic_last &= 0xfefe;
+    tng__JPEG_write_huffman_tables(ctx);
+    tng__JPEG_write_qmatrices(ctx);
 }
 
 static void tng__JPEG_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
@@ -1011,9 +1016,11 @@ static void tng__JPEG_end_slice(context_DEC_p dec_ctx)
 {
     context_JPEG_p ctx = (context_JPEG_p)dec_ctx;
 
+    ctx->obj_context->flags = FW_VA_RENDER_IS_FIRST_SLICE | FW_VA_RENDER_IS_LAST_SLICE | FW_INTERNAL_CONTEXT_SWITCH;
     ctx->obj_context->first_mb = 0;
     ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
     *(dec_ctx->slice_first_pic_last) = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb) & 0xfefe;
+
 }
 
 static VAStatus tng_JPEG_BeginPicture(

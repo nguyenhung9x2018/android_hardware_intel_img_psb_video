@@ -281,8 +281,8 @@ VAStatus vld_dec_process_slice(context_DEC_p ctx,
             DEBUG_FAILURE;
             return vaStatus;
         }
-        ctx->begin_slice(ctx, slice_param);
         vld_dec_FE_state(ctx->obj_context, ctx->preload_buffer);
+        ctx->begin_slice(ctx, slice_param);
         ctx->slice_data_buffer = obj_buffer->psb_buffer;
 
         psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
