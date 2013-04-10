@@ -990,10 +990,11 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
             pnw__update_rcdata(ctx, psPicParams, &ctx->sRCParams);
             memcpy(&ctx->in_params_cache, (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
             /* Save rate control info in slave core as well */
-            for (i = 1; i < ctx->ParallelCores; i++)
+            for (i = 1; i < ctx->ParallelCores; i++) {
                 psPicParamsSlave = (PIC_PARAMS *)(cmdbuf->pic_params_p + ctx->pic_params_size * i);
                 memcpy((unsigned char *)&psPicParamsSlave->sInParams,
                         (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
+	    }
         }
     }
 
