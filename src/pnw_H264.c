@@ -1096,6 +1096,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
                 psb_cmdbuf_rendec_write_address(cmdbuf, buffer,
                                                 buffer->buffer_ofs +
                                                 ref_surface->psb_surface->chroma_offset);
+                buffer->unfence_flag = 1;
             } else {
                 psb_cmdbuf_rendec_write(cmdbuf, 0xdeadbeef);
                 psb_cmdbuf_rendec_write(cmdbuf, 0xdeadbeef);

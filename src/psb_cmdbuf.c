@@ -253,7 +253,7 @@ int psb_cmdbuf_buffer_ref(psb_cmdbuf_p cmdbuf, psb_buffer_p buf)
     int item_loc = 0;
 
     // buf->next = NULL; /* buf->next only used for buffer list validation */
-
+    buf->unfence_flag = 0;
     while ((item_loc < cmdbuf->buffer_refs_count)
            && (wsbmKBufHandle(wsbmKBuf(cmdbuf->buffer_refs[item_loc]->drm_buf))
                != wsbmKBufHandle(wsbmKBuf(buf->drm_buf)))) {
@@ -452,6 +452,9 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
         req->presumed_gpu_offset = (uint64_t)wsbmBOOffsetHint(buffer_list[i]->drm_buf);
         req->presumed_flags = PSB_USE_PRESUMED;
         req->pad64 = (uint32_t)buffer_list[i]->pl_flags;
+#ifndef BAYTRAIL
+        req->unfence_flag = buffer_list[i]->unfence_flag;
+#endif
     }
     arg_list[buffer_count-1].d.req.next = 0;
 
@@ -513,6 +516,11 @@ psbDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
     for (i = 0; i < buffer_count; i++) {
         struct psb_validate_arg *arg = &(arg_list[i]);
         struct psb_validate_rep *rep = &arg->d.rep;
+
+#ifndef BAYTRAIL
+        if (arg->d.req.unfence_flag)
+            continue;
+#endif
 
         if (!arg->handled) {
             ret = -EFAULT;

@@ -81,6 +81,7 @@ struct psb_buffer_s {
     uint32_t size;
     void *handle;
 	unsigned char *virtual_addr;
+    int unfence_flag;
 };
 
 /*
