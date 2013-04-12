@@ -169,7 +169,7 @@ struct context_JPEG_s {
     uint32_t profile;
 
     /* Picture parameters */
-    VAPictureParameterBufferJPEG *pic_params;
+    VAPictureParameterBufferJPEGBaseline *pic_params;
 
     uint32_t display_picture_width;    /* in pixels */
     uint32_t display_picture_height;    /* in pixels */
@@ -575,18 +575,18 @@ static VAStatus tng__JPEG_process_picture_param(context_JPEG_p ctx, object_buffe
     VAStatus vaStatus;
     ASSERT(obj_buffer->type == VAPictureParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
-    ASSERT(obj_buffer->size == sizeof(VAPictureParameterBufferJPEG));
+    ASSERT(obj_buffer->size == sizeof(VAPictureParameterBufferJPEGBaseline));
 
     if ((obj_buffer->num_elements != 1) ||
-        (obj_buffer->size != sizeof(VAPictureParameterBufferJPEG))) {
+        (obj_buffer->size != sizeof(VAPictureParameterBufferJPEGBaseline))) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
-    /* Transfer ownership of VAPictureParameterBufferJPEG data */
+    /* Transfer ownership of VAPictureParameterBufferJPEGBaseline data */
     if (ctx->pic_params) {
         free(ctx->pic_params);
     }
-    ctx->pic_params = (VAPictureParameterBufferJPEG *) obj_buffer->buffer_data;
+    ctx->pic_params = (VAPictureParameterBufferJPEGBaseline *) obj_buffer->buffer_data;
     ctx->display_picture_width = ctx->pic_params->picture_width;
     ctx->display_picture_height = ctx->pic_params->picture_height;
 
@@ -641,10 +641,10 @@ static void tng__JPEG_write_qmatrices(context_JPEG_p ctx) {
 }
 
 static VAStatus tng__JPEG_process_iq_matrix(context_JPEG_p ctx, object_buffer_p obj_buffer) {
-    VAIQMatrixParameterBufferJPEG *qmatrix_data = (VAIQMatrixParameterBufferJPEG *) obj_buffer->buffer_data;
+    VAIQMatrixBufferJPEGBaseline *qmatrix_data = (VAIQMatrixBufferJPEGBaseline *) obj_buffer->buffer_data;
     ASSERT(obj_buffer->type == VAIQMatrixBufferType);
     ASSERT(obj_buffer->num_elements == 1);
-    ASSERT(obj_buffer->size == sizeof(VAIQMatrixParameterBufferJPEG));
+    ASSERT(obj_buffer->size == sizeof(VAIQMatrixBufferJPEGBaseline));
 
     uint32_t dqt_ind;
 
@@ -729,10 +729,10 @@ static void tng__JPEG_write_huffman_tables(context_JPEG_p ctx) {
 
 static VAStatus tng__JPEG_process_huffman_tables(context_JPEG_p ctx, object_buffer_p obj_buffer) {
 
-    VAHuffmanTableParameterBufferJPEG *huff = (VAHuffmanTableParameterBufferJPEG *) obj_buffer->buffer_data;
+    VAHuffmanTableBufferJPEGBaseline *huff = (VAHuffmanTableBufferJPEGBaseline *) obj_buffer->buffer_data;
     ASSERT(obj_buffer->type == VAHuffmanTableBufferType);
     ASSERT(obj_buffer->num_elements == 1);
-    ASSERT(obj_buffer->size == sizeof(VAHuffmanTableParameterBufferJPEG));
+    ASSERT(obj_buffer->size == sizeof(VAHuffmanTableBufferJPEGBaseline));
 
     uint32_t table_id;
     for (table_id = 0; table_id < JPEG_MAX_SETS_HUFFMAN_TABLES; table_id++) {
@@ -880,7 +880,7 @@ static void tng__JPEG_set_ent_dec(context_JPEG_p ctx) {
 
 }
 
-static void tng__JPEG_set_register(context_JPEG_p ctx, VASliceParameterBufferJPEG *slice_param) {
+static void tng__JPEG_set_register(context_JPEG_p ctx, VASliceParameterBufferJPEGBaseline *slice_param) {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     uint32_t reg_value;
     const uint32_t num_MCUs = ctx->MCU_width * ctx->MCU_height;
@@ -1002,7 +1002,7 @@ static void tng__JPEG_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferB
 
 static void tng__JPEG_process_slice_data(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
 {
-    VASliceParameterBufferJPEG *slice_param = (VASliceParameterBufferJPEG *) vld_slice_param;
+    VASliceParameterBufferJPEGBaseline *slice_param = (VASliceParameterBufferJPEGBaseline *) vld_slice_param;
     context_JPEG_p ctx = (context_JPEG_p)dec_ctx;
 
     tng__JPEG_set_operating_mode(ctx);
