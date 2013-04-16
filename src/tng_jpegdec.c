@@ -652,17 +652,17 @@ static VAStatus tng__JPEG_process_iq_matrix(context_JPEG_p ctx, object_buffer_p 
         // Reorder Quant table for hardware
         uint32_t table_ind = 0;
         uint32_t rendec_table_ind = 0;
-        uint32_t table_id = qmatrix_data->load_quantiser_table[dqt_ind];
+        if (qmatrix_data->load_quantiser_table[dqt_ind]) {
+            while(table_ind < 64) {
+                ctx->rendec_qmatrix[dqt_ind][rendec_table_ind] =
+                        (qmatrix_data->quantiser_table[dqt_ind][inverse_zigzag[table_ind+3]] << 24) |
+                        (qmatrix_data->quantiser_table[dqt_ind][inverse_zigzag[table_ind+2]] << 16) |
+                        (qmatrix_data->quantiser_table[dqt_ind][inverse_zigzag[table_ind+1]] << 8) |
+                        (qmatrix_data->quantiser_table[dqt_ind][inverse_zigzag[table_ind]]);
 
-        while(table_ind < 64) {
-            ctx->rendec_qmatrix[table_id][rendec_table_ind] =
-	            (qmatrix_data->quantiser_table[table_id][inverse_zigzag[table_ind+3]] << 24) |
-                    (qmatrix_data->quantiser_table[table_id][inverse_zigzag[table_ind+2]] << 16) |
-                    (qmatrix_data->quantiser_table[table_id][inverse_zigzag[table_ind+1]] << 8) |
-                    (qmatrix_data->quantiser_table[table_id][inverse_zigzag[table_ind]]);
-
-            table_ind += 4;
-            rendec_table_ind++;
+                table_ind += 4;
+                rendec_table_ind++;
+            }
         }
     }
 
