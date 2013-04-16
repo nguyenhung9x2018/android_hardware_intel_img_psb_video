@@ -1085,77 +1085,67 @@ void H263_NOTFORSIMS_WriteBits_VideoPictureHeader(MTX_HEADER_PARAMS *pMTX_Header
 					   IMG_UINT32 ui32PictureHeight
 					   )
 {
-	IMG_UINT8 UFEP;
-	IMG_UINT8 OCPCF = 0;
+    IMG_UINT8 UFEP;
 
-	// Essential we insert the element before we try to fill it!
-	tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
+    // Essential we insert the element before we try to fill it!
+    tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
 
-	// short_video_start_marker	= 22 Bits	= 0x20 Picture start code
-	tng__write_upto32bits_elements(pMTX_Header, aui32ElementPointers, 32, 22);
+    // short_video_start_marker	= 22 Bits	= 0x20 Picture start code
+    tng__write_upto32bits_elements(pMTX_Header, aui32ElementPointers, 32, 22);
 
-	// temporal_reference		= 8 Bits	= 0-255	Each picture increased by 1
-	tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_TEMPORAL_REFERENCE);
-	tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_RAWDATA);
+    // temporal_reference		= 8 Bits	= 0-255	Each picture increased by 1
+    tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_TEMPORAL_REFERENCE);
+    tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_RAWDATA);
 
-	// marker_bit				= 1 Bit		= 1
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
+    // marker_bit				= 1 Bit		= 1
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
 
     // zero_bit					= 1 Bits	= 0
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
 
     // split_screen_indicator	= 1	Bits	= 0	No direct effect on encoding of picture
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
 	
     // document_camera_indicator= 1	Bits	= 0	No direct effect on encoding of picture
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
 
-	// full_picture_freeze_release=1 Bits	= 0	No direct effect on encoding of picture
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
+    // full_picture_freeze_release=1 Bits	= 0	No direct effect on encoding of picture
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
 
     // source_format				= 3	Bits	= 1-4	See note
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, SourceFormatType, 3);
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, SourceFormatType, 3);
 
-	if (SourceFormatType != 7)
-	{
-		// picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, PictureCodingType, 1);
-		// four_reserved_zero_bits	= 4 Bits	= 0
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 4);
-	}
+    if (SourceFormatType != 7)
+    {
+	// picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
+	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, PictureCodingType, 1);
+	// four_reserved_zero_bits	= 4 Bits	= 0
+	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 4);
+    }
     // the else block is for PLUSPTYPE header insertion.
-	else
-	{
-        static IMG_UINT8 RTYPE = 0;
+    else
+    {
+	static IMG_UINT8 RTYPE = 0;
 
         // if I- Frame set Update Full Extended PTYPE to true
-		if (PictureCodingType == I_FRAME)
-		{
-			UFEP = 1;
-		}
-		else
-		{
-			UFEP = 0;
-		}
+	if (PictureCodingType == I_FRAME)
+	{
+	    UFEP = 1;
+	}
+	else
+	{
+	    UFEP = 0;
+	}
         
         // write UFEP of 3 bits.
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, UFEP, 3);
+	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, UFEP, 3);
 
         // if UFEP was present( if it was 1).
         // Optional part of PPTYPE.
-		if (UFEP == 1)
-		{
-			tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 6, 3);
-			// souce_format_optional
-			if (ui8FrameRate == 30 || ui8FrameRate == 0 /* unspecified */)
-			{
-				OCPCF  = 0;
-			}
-			else
-			{
-				OCPCF = 1; // 1 for Custom PCF.
-			}
-			tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, OCPCF , 1);
+	if (UFEP == 1)
+	{
+	    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 6, 3);
+	    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
 
             /* 10 reserve bits ( Optional support for the encoding). All are OFF(0).
                - Optional Unrestricted Motion Vector (UMV)
@@ -1169,7 +1159,7 @@ void H263_NOTFORSIMS_WriteBits_VideoPictureHeader(MTX_HEADER_PARAMS *pMTX_Header
                - Optional Alternative INTER VLC (AIV) mode
                - Optional Modified Quantization (MQ) mode
             */
-			tng__write_upto32bits_elements(pMTX_Header, aui32ElementPointers, 0, 10); // 10 reserve bits
+	    tng__write_upto32bits_elements(pMTX_Header, aui32ElementPointers, 0, 10); // 10 reserve bits
 
             /* 4 reserve bits
                - 1 (ON) to prevent start code emulation.
@@ -1177,19 +1167,19 @@ void H263_NOTFORSIMS_WriteBits_VideoPictureHeader(MTX_HEADER_PARAMS *pMTX_Header
                - 0  Reserved(shall be 0).
                - 0  Reserved(shall be 0).
             */
-			tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 8, 4);	// 4 reserve bits
-		}
+	    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 8, 4);	// 4 reserve bits
+	}
         // Optional Part of PPTYPE ends.
 
         // Mandatory part of PPTYPE starts.(MPPTYPE)
         // picture_coding_type		= 1 Bit		= 0/1	0 for I-frame and 1 for P-frame
-		tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, PictureCodingType, 3 );
+	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, PictureCodingType, 3 );
 	
         /*
             - Optional Reference Picture Resampling (RPR) mode ( OFF) : 0
             - Optional Reference Picture Resampling (RPR) mode (OFF) : 0
          */
-        tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0 , 2);
+	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0 , 2);
 
         // Rounding Type (RTYPE) (1 for P Picture, 0 for all other Picture frames.
         tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, RTYPE, 1);
@@ -1209,9 +1199,9 @@ void H263_NOTFORSIMS_WriteBits_VideoPictureHeader(MTX_HEADER_PARAMS *pMTX_Header
 
         /* Custom Picture Format (CPFMT) */
         /* if UFEP was present and Source Format type was 7(custom format) */
-		if (UFEP == 1)
-		{
-            IMG_UINT16 ui16PWI,ui16PHI;
+	if (UFEP == 1)
+	{
+	    IMG_UINT16 ui16PWI,ui16PHI;
 
             // aspect ratio 4 bits value = 0010 (12:11)
 			//tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0x01, 4);
@@ -1225,7 +1215,7 @@ void H263_NOTFORSIMS_WriteBits_VideoPictureHeader(MTX_HEADER_PARAMS *pMTX_Header
             tng__write_upto32bits_elements(pMTX_Header, aui32ElementPointers,ui16PWI, 9);
 			
             // Marker bit 1bit = 1 to prevent start code emulation.
-			tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
+	    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
 			
             // Picture Height Indication 9 bits.
 			//tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, (IMG_UINT8)(ui16PictureHeigth >> 8), 1);
@@ -1233,50 +1223,24 @@ void H263_NOTFORSIMS_WriteBits_VideoPictureHeader(MTX_HEADER_PARAMS *pMTX_Header
             ui16PHI = ui32PictureHeight >> 2;
             tng__write_upto32bits_elements(pMTX_Header, aui32ElementPointers,ui16PHI, 9);
             // good up to that point
-
-            // Custom Picture Clock Frequency Code (CPCFC) (8 bits) only if PPTYPE is true, UFEP is set
-            // and OCPCF is set.
-			if (OCPCF == 1)
-			{
-
-				//IMG_UINT8 CPCFC;
-				//CPCFC = (IMG_UINT8)(1800 / (IMG_UINT16)ui8FrameRate);
-				//		// you can use the table for division
-				//CPCFC <<= 1; // for Clock Conversion Code
-				//tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, CPCFC, 8);
-
-                // Clock Conversion Code 1 bit = 0 for 1000 and 1 for 1001
-                tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);
-
-                // Clock Divisor : 7 bits The natural binary representation of the value of the clock divisor.
-                tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, ui8FrameRate, 7);
-			}
-		}
-		if (OCPCF == 1)
-		{
-			tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_EXTENDED_TR);
-			tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_RAWDATA);
-		}
-
-        // Rest of the header stuff for Picture Layer is absent because 
-        // we do not support any of the advanced modes.
 	}
+    }
     // Insert token to tell MTX to insert rate-control value (QScale is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, FrameQScale))
     // vop_quant				= 5 Bits	= x	5-bit frame Q_scale from rate control - GENERATED BY MTX
-	tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_FRAMEQSCALE); 
+    tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_FRAMEQSCALE); 
 
-	tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_RAWDATA);
+    tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_RAWDATA);
 
     // if it was not PLUSPTYPE i.e for standard format size insert CPM bit here.
     if (SourceFormatType != 7)
-	{
+    {
         // cpm	= 1 Bit		= 0	No direct effect on encoding of picture
         tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0 ,1);
     }
-	// pei						= 1 Bit		= 0	No direct effect on encoding of picture
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
+    // pei						= 1 Bit		= 0	No direct effect on encoding of picture
+    tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 1);
 
-	return;
+    return;
 }
 
 void MPEG4_NOTFORSIMS_WriteBits_VOPHeader(MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_ELEMENT **aui32ElementPointers,
@@ -1772,7 +1736,6 @@ static void H263_writebits_VideoPictureHeader(
     IMG_UINT32 PictureHeight)
 {
     IMG_UINT8 UFEP;
-    IMG_UINT8 OCPCF = 0;
 
     /* Essential we insert the element before we try to fill it! */
     tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
@@ -1801,13 +1764,6 @@ static void H263_writebits_VideoPictureHeader(
     /* source_format                            = 3     Bits    = 1-4   See note */
     tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, SourceFormatType, 3);
 
-    /*Write optional Custom Picture Clock Frequency(OCPCF)*/
-    if (FrameRate == 30 || FrameRate == 0/* unspecified */) {
-        OCPCF = 0; // 0 for CIF PCF
-    } else {
-        OCPCF = 1; //1 for Custom PCF
-    }
-
     if (SourceFormatType != 7) {
         // picture_coding_type          = 1 Bit         = 0/1   0 for I-frame and 1 for P-frame
         tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, PictureCodingType, 1);
@@ -1817,7 +1773,7 @@ static void H263_writebits_VideoPictureHeader(
         static unsigned char  RTYPE = 0;
 
         // if I- Frame set Update Full Extended PTYPE to true
-        if ((PictureCodingType == I_FRAME) || (SourceFormatType == 7) || OCPCF) {
+        if (PictureCodingType == I_FRAME) {
             UFEP = 1;
         } else {
             UFEP = 0;
@@ -1825,7 +1781,7 @@ static void H263_writebits_VideoPictureHeader(
         tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, UFEP, 3);
         if (UFEP == 1) {
             tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 6, 3);
-            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, OCPCF , 1);
+            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 0, 1);
 
             /* 10 reserve bits ( Optional support for the encoding). All are OFF(0).
              *  - Optional Unrestricted Motion Vector (UMV)
@@ -1881,28 +1837,12 @@ static void H263_writebits_VideoPictureHeader(
             //  tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 1);
             // marker_bit                               = 1 Bit         = 1
             // just checking
-            if (OCPCF == 1) {
-                //IMG_UINT8 CPCFC;
-                //CPCFC = (IMG_UINT8)(1800/(IMG_UINT16)FrameRate);
-                /* you can use the table for division */
-                //CPCFC <<= 1; /* for Clock Conversion Code */
-                tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1, 1);
-                // Clock Divisor : 7 bits The natural binary representation of the value of the clock divisor.
-                tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, 1800000 / (FrameRate * 1000), 7);
-            }
-        }
-        if (OCPCF == 1) {
-            IMG_UINT8 ui8ETR; // extended Temporal reference
-            // Two MSBs of 10 bit temporal_reference : value 0
-            ui8ETR = Temporal_Ref >> 8;
-
-            tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, ui8ETR, 2);
-            /* Two MSBs of temporal_reference */
         }
     }
     // vop_quant                                = 5 Bits        = x     5-bit frame Q_scale from rate control - GENERATED BY MTX
     //tng__write_upto8bits_elements(mtx_hdr, aui32ElementPointers, ui8Q_Scale, 5);
-    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_FRAMEQSCALE); // Insert token to tell MTX to insert rate-control value (QScale is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, FrameQScale))
+    tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_FRAMEQSCALE); // Insert token to tell MTX to insert rate-control value (QScale 
+										   //is sent as an argument in MTX_Send_Elements_To_VLC(&MTX_Header, FrameQScale))
     tng__insert_element_token(mtx_hdr, aui32ElementPointers, ELEMENT_RAWDATA);
     // zero_bit                                 = 1 Bit         = 0
     // pei                                              = 1 Bit         = 0     No direct effect on encoding of picture
