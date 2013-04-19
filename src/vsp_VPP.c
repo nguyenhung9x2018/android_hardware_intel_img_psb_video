@@ -389,8 +389,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	object_surface_p input_surface = NULL;
 	object_surface_p cur_output_surf = NULL;
 	unsigned int rotation_angle;
-
-	/* FIXME: ignore output input color standard */
+	int tiled = 0;
 
 	if (pipeline_param->surface_region != NULL) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Cann't scale\n");
@@ -450,8 +449,6 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		input_surface = NULL;
 	}
 		
-	/* IGNORE backward references setting */
-
 	/* if it is the first pipeline command */
 	if (pipeline_param->num_filters != ctx->num_filters || pipeline_param->num_filters == 0) {
 		if (ctx->num_filters != 0) {
@@ -508,7 +505,6 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		frc_param = NULL;
 
 	/* end picture command */
-	/* FIXME: how to acknowledge driver to send end command */
 	if (pipeline_param->pipeline_flags & VA_PIPELINE_FLAG_END) {
 		cell_end_param->num_input_pictures = 0;
 		cell_end_param->num_output_pictures = 0;
@@ -517,6 +513,12 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		goto out;
 	}
 
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+	/* Tiling available for 1080P*/
+	if (input_surface->width > 1280)
+		tiled = 1;
+#endif
+	/* Setup input surface */
 	cell_proc_picture_param->num_input_pictures  = 1;
 	cell_proc_picture_param->input_picture[0].surface_id = pipeline_param->surface;
 	vsp_cmdbuf_reloc_pic_param(&(cell_proc_picture_param->input_picture[0].base), ctx->pic_param_offset, &(input_surface->psb_surface->buf),
@@ -526,9 +528,10 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	cell_proc_picture_param->input_picture[0].irq = 0;
 	cell_proc_picture_param->input_picture[0].stride = input_surface->psb_surface->stride;
 	cell_proc_picture_param->input_picture[0].format = ctx->format;
-	cell_proc_picture_param->input_picture[0].tiled = 0;
+	cell_proc_picture_param->input_picture[0].tiled = tiled;
 	cell_proc_picture_param->input_picture[0].rot_angle = 0;
 
+	/* Setup output surfaces */
 	if (frc_param == NULL)
 		cell_proc_picture_param->num_output_pictures = 1;
 	else
@@ -580,8 +583,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		}
 		/* FIXME: The rotation design is still on going, set it to default value */
 		cell_proc_picture_param->output_picture[i].rot_angle = 0;
-		/* FIXME: The tiling feature is still on going, set it to default value */
-		cell_proc_picture_param->output_picture[i].tiled = 0;
+		cell_proc_picture_param->output_picture[i].tiled = tiled;
 	}
 
 	vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcPictureCommand,
