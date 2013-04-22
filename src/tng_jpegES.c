@@ -87,7 +87,7 @@ static void tng__trace_cmdbuf(tng_cmdbuf_p cmdbuf)
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
-#define PTG_JPEG_MAX_MCU_PER_SCAN (0x3D09)
+#define PTG_JPEG_MAX_MCU_PER_SCAN (0x4000)
 #define PTG_JPEG_HEADER_MAX_SIZE (1024)
 
 
@@ -1331,7 +1331,7 @@ static VAStatus tng_jpeg_EndPicture(
 
         jpeg_ctx_p->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber = jpeg_ctx_p->sScan_Encode_Info.ui16SScan--;
         jpeg_ctx_p->sScan_Encode_Info.aBufferTable[ui16BCnt].i8PipeNumber =
-            (1 == jpeg_ctx_p->NumCores) ? 0 : (ui16BCnt % jpeg_ctx_p->NumCores);
+            (1 == jpeg_ctx_p->NumCores) ? 0 : ((ui16BCnt+1) % jpeg_ctx_p->NumCores);
 
         if (jpeg_ctx_p->sScan_Encode_Info.ui16SScan > 0) {
             ui32NoMCUsToEncode = jpeg_ctx_p->sScan_Encode_Info.ui32NumberMCUsToEncodePerScan;
