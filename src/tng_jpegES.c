@@ -510,7 +510,11 @@ static IMG_ERRORCODE SetMTXSetup(
 
     switch (pJPEGContext->eFormat) {
     case IMG_CODEC_PL12:
-    default:
+        if (pTFrame->psb_surface->stride % 64) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Surface stride isn't aligned to 64 bytes as HW requires: %u!\n",
+                          pTFrame->psb_surface->stride);
+            return IMG_ERR_INVALID_CONTEXT;
+        }
         pJPEGContext->pMTXSetup->ComponentPlane[0].ui32Stride = pTFrame->psb_surface->stride;
         pJPEGContext->pMTXSetup->ComponentPlane[1].ui32Stride = pTFrame->psb_surface->stride;
         pJPEGContext->pMTXSetup->ComponentPlane[2].ui32Stride = pTFrame->psb_surface->stride;
@@ -519,10 +523,14 @@ static IMG_ERRORCODE SetMTXSetup(
         pJPEGContext->pMTXSetup->ComponentPlane[1].ui32Height = pJPEGContext->MCUComponent[0].ui32YLimit / 2;
         pJPEGContext->pMTXSetup->ComponentPlane[2].ui32Height = pJPEGContext->MCUComponent[0].ui32YLimit / 2;
         break;
+    default:
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Not supported FOURCC: %x!\n", pJPEGContext->eFormat);
+        return IMG_ERR_INVALID_CONTEXT;
     }
 
     srf_buf_offset = pTFrame->psb_surface->buf.buffer_ofs;
-    RELOC_JPEG_PIC_PARAMS_PTG(&pJPEGContext->pMTXSetup->ComponentPlane[0].ui32PhysAddr, srf_buf_offset, &pTFrame->psb_surface->buf);
+    RELOC_JPEG_PIC_PARAMS_PTG(&pJPEGContext->pMTXSetup->ComponentPlane[0].ui32PhysAddr, srf_buf_offset, 
+                              &pTFrame->psb_surface->buf);
     switch (pJPEGContext->eFormat) {
     case IMG_CODEC_PL12:
         RELOC_JPEG_PIC_PARAMS_PTG(&pJPEGContext->pMTXSetup->ComponentPlane[1].ui32PhysAddr,
@@ -535,7 +543,7 @@ static IMG_ERRORCODE SetMTXSetup(
                                   &pTFrame->psb_surface->buf);
         break;
     default:
-        drv_debug_msg(VIDEO_DEBUG_ERROR, " Not supported FOURCC %x!\n", pJPEGContext->eFormat);
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Not supported FOURCC: %x!\n", pJPEGContext->eFormat);
         return IMG_ERR_INVALID_CONTEXT;
     }
 
@@ -1162,7 +1170,7 @@ static VAStatus tng_jpeg_BeginPicture(
     /* Set MTX setup struture */
     ret = SetMTXSetup(jpeg_ctx_p, ps_buf->src_surface);
     if (ret != IMG_ERR_OK)
-        return VA_STATUS_ERROR_UNKNOWN;
+        return ret;
     IssueMTXSetup(jpeg_ctx_p);
 
     /* Initialize the default quantization tables */
