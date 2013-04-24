@@ -45,7 +45,17 @@
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
-static const uint32_t aui32_jpg_mtx_num[PNW_JPEG_MAX_SCAN_NUM] = {0x1, 0x1, 0x1, 0x5, 0x15, 0x15, 0x55};
+/*
+  Balancing the workloads of executing MTX_CMDID_ISSUEBUFF commands to 2-cores:
+  1 commands: 0 (0b/0x0)
+  2 commands: 1-0 (01b/0x1)
+  3 commands: 1-0-0 (001b/0x1)
+  4 commands: 1-0-1-0 (0101b/0x5)
+  5 commands: 1-0-1-0-0 (00101b/0x5)
+  6 commands: 1-0-1-0-1-0 (010101b/0x15)
+  7 commands: 1-0-1-0-1-0-0 (0010101b/0x15)
+*/
+static const uint32_t aui32_jpg_mtx_num[PNW_JPEG_MAX_SCAN_NUM] = {0x0, 0x1, 0x1, 0x5, 0x5, 0x15, 0x15};
 
 static void pnw_jpeg_QueryConfigAttributes(
     VAProfile profile,
@@ -509,7 +519,7 @@ static VAStatus pnw_jpeg_EndPicture(
 	}
         /*i8MTXNumber is the core number.*/
         pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].i8MTXNumber =
-            (aui32_jpg_mtx_num[pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers - 2]
+            (aui32_jpg_mtx_num[pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers - 1]
              >> ui16BCnt) & 0x1;
 
         if (pContext->sScan_Encode_Info.ui16SScan == 0) {
