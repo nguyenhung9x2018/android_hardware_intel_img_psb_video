@@ -1356,7 +1356,7 @@ static void pnw__update_rcdata(
                     psContext->eCodec == IMG_CODEC_MPEG4_VBR)) {
             psPicParams->sInParams.MinQPVal = 1;
         } else {
-            psPicParams->sInParams.MinQPVal = 2;
+            psPicParams->sInParams.MinQPVal = 4;
         }
         break;
 
