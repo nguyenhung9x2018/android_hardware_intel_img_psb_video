@@ -951,11 +951,22 @@ static void tng_jpeg_QueryConfigAttributes(
 static VAStatus tng_jpeg_ValidateConfig(
     object_config_p obj_config)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_ValidateConfig\n");
+    int i;
+    /* Check all attributes */
+    for (i = 0; i < obj_config->attrib_count; i++) {
+        switch (obj_config->attrib_list[i].type) {
+        case VAConfigAttribRTFormat:
+            /* Ignore */
+            break;
+        case VAConfigAttribRateControl:
+            break;
+        default:
+            return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
+        }
+    }
 
-    return vaStatus;
-
+    return VA_STATUS_SUCCESS;
 }
 
 static VAStatus tng_jpeg_CreateContext(

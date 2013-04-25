@@ -1145,9 +1145,26 @@ static void tng_H264ES_QueryConfigAttributes(
 static VAStatus tng_H264ES_ValidateConfig(
     object_config_p obj_config)
 {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    int i;
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
-    return vaStatus;
+    /* Check all attributes */
+    for (i = 0; i < obj_config->attrib_count; i++) {
+        switch (obj_config->attrib_list[i].type) {
+            case VAConfigAttribRTFormat:
+                /* Ignore */
+                break;
+            case VAConfigAttribRateControl:
+                break;
+            case VAConfigAttribEncAutoReference:
+                break;
+            case VAConfigAttribEncMaxRefFrames:
+                break;
+            default:
+                return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
+        }
+    }
+
+    return VA_STATUS_SUCCESS;
 }
 
 static VAStatus tng_H264ES_setup_profile_features(context_ENC_p ctx)
