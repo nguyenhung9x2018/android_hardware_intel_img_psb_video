@@ -2161,88 +2161,6 @@ static void psb__surface_usage(
     }
 }
 
-#ifdef BAYTRAIL
-void psb_csc_for_byt(VADriverContextP ctx, VASurfaceID render_target)
-{
-    INIT_DRIVER_DATA
-    object_surface_p obj_surface;
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_SyncSurface: 0x%08x\n", render_target);
-
-    obj_surface = SURFACE(render_target);
-
-    unsigned char *src, *dst;
-    unsigned char *src1, *src2;
-
-    int j, k;
-
-    psb_buffer_map(&obj_surface->psb_surface->buf, &src);
-#ifdef BYT_USING_GRALLOC_BUF
-    psb_buffer_map(&obj_surface->psb_surface->native_buf, &dst);
-#else
-    dst = obj_surface->psb_surface->virt_addr;
-#endif
-    unsigned char *dst_orig = dst;
-    int srcw = obj_surface->width;
-    int srch = obj_surface->height;
-    int srch_origin = obj_surface->height_origin;
-    int src_stride = obj_surface->psb_surface->stride;
-
-    int align_w = 128;
-    int align_h = 32;
-    int dst_stride = (obj_surface->width + align_w - 1) & ~(align_w - 1);
-    int dsth = (obj_surface->height_origin + align_h - 1) & ~(align_h - 1);
-
-    src2 = src1 = src + src_stride * srch;
-
-    for (j = 0; j < srch_origin; ++j)
-    {
-        memcpy(dst, src, srcw);
-        src += src_stride;
-        dst += dst_stride;
-    }
-    dst += (dsth - srch_origin) * dst_stride;
-    for (j = 0 ; j < srch_origin / 2; ++j)
-    {
-        for (k = 0; k < srcw; ++k)
-        {
-            if ((k%2) == 1) {
-                *dst = *src2;
-                src2++;
-                dst++;
-            } else {
-                src2++;
-            }
-        }
-        src2 += src_stride - srcw;
-        dst += (dst_stride - srcw) / 2;
-    }
-    dst += (dsth - srch_origin) * dst_stride / 2;
-    for(j = 0 ; j < srch_origin /2; ++j)
-    {
-        for(k = 0; k < srcw; ++k)
-        {
-            if((k%2) == 0) {
-                *dst = *src1;
-                src1++;
-                dst++;
-            } else {
-                src1++;
-            }
-        }
-        src1 += src_stride - srcw;
-        dst += (dst_stride - srcw) /2;
-    }
-    if (psb_dump_yuvbuf_fp)
-        fwrite(dst_orig, dst_stride * dsth * 3 / 2, 1, psb_dump_yuvbuf_fp);
-
-    psb_buffer_unmap(&obj_surface->psb_surface->buf);
-#ifdef BYT_USING_GRALLOC_BUF
-    psb_buffer_unmap(&obj_surface->psb_surface->native_buf);
-#endif
-}
-#endif
-
 VAStatus psb_SyncSurface(
     VADriverContextP ctx,
     VASurfaceID render_target
@@ -2312,12 +2230,7 @@ VAStatus psb_SyncSurface(
         /* FIXME: does it need a new surface sync mechanism for FRC? */
     }
 
-#ifdef BAYTRAIL
-    if (driver_data->native_window)
-        psb_csc_for_byt(ctx, render_target);
-#endif
-
-    //psb__dump_NV_buffers(obj_surface->psb_surface, 0, 0, obj_surface->width, obj_surface->height);
+    psb__dump_NV_buffers(obj_surface->psb_surface, 0, 0, obj_surface->width, obj_surface->height);
     //psb__dump_NV_buffers(obj_surface->psb_surface_rotate, 0, 0, obj_surface->height, ((obj_surface->width + 0x1f) & (~0x1f)));
     DEBUG_FAILURE;
     DEBUG_FUNC_EXIT

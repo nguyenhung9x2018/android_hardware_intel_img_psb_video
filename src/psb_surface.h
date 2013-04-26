@@ -57,9 +57,6 @@ typedef struct psb_surface_s *psb_surface_p;
 
 struct psb_surface_s {
     struct psb_buffer_s buf;
-#ifdef BYT_USING_GRALLOC_BUF
-    struct psb_buffer_s native_buf;
-#endif
     struct psb_buffer_s *in_loop_buf;
     struct psb_buffer_s *ref_buf;
     psb_surface_stride_t stride_mode;
@@ -77,9 +74,6 @@ struct psb_surface_s {
     int size;
     unsigned int bc_buffer;
     void *handle;
-#ifdef BAYTRAIL
-    uint32_t *virt_addr;
-#endif
 };
 
 /*

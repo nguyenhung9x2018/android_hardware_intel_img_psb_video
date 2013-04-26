@@ -51,7 +51,6 @@ int gralloc_lock(buffer_handle_t handle,
                 void** vaddr)
 {
     int err, j;
-    unsigned char *tmp_buffer;
 
     if (!mAllocMod) {
         LOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
@@ -66,17 +65,29 @@ int gralloc_lock(buffer_handle_t handle,
                           vaddr);
     LOGV("gralloc_lock: handle is %lx, usage is %x, vaddr is %x.\n", handle, usage, *vaddr);
 
-#ifdef BYT_USING_GRALLOC_BUF
-    tmp_buffer = (unsigned char *)(*vaddr);
-    int align_w = 128;
+//#ifdef BAYTRAIL
+#if 0
+    unsigned char *tmp_buffer = (unsigned char *)(*vaddr);
+    int dst_stride;
+    if (width <= 512)
+        dst_stride = 512;
+    else if (width <= 1024)
+        dst_stride = 1024;
+    else if (width <= 1280)
+        dst_stride = 1280;
+    else if (width <= 2048)
+        dst_stride = 2048;
+
     int align_h = 32;
-    int dst_stride = (width + align_w - 1) & ~(align_w - 1);
     int dsth = (height + align_h - 1) & ~(align_h - 1);
+    LOGD("width is %d, dst_stride is %d, dsth is %d.\n",
+         width, dst_stride, dsth);
 
     for (j = 0; j < dst_stride * dsth * 3 / 2; j = j + 4096) {
         *(tmp_buffer + j) = 0xa5;
         if (*(tmp_buffer + j) !=  0xa5)
-            LOGE("access page failed.\n");
+            LOGE("access page failed, width is %d, dst_stride is %d, dsth is %d.\n",
+                 width, dst_stride, dsth);
     }
 #endif
     if (err){

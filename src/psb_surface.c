@@ -321,10 +321,6 @@ VAStatus psb_surface_set_chroma(psb_surface_p psb_surface, int chroma)
 void psb_surface_destroy(psb_surface_p psb_surface)
 {
     psb_buffer_destroy(&psb_surface->buf);
-#ifdef BYT_USING_GRALLOC_BUF
-    psb_buffer_destroy(&psb_surface->native_buf);
-#endif
-
     if (NULL != psb_surface->in_loop_buf)
         psb_buffer_destroy(psb_surface->in_loop_buf);
 

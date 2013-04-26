@@ -203,16 +203,12 @@ VAStatus psb_CreateSurfacesFromGralloc(
         } else {
             int cache_flag = PSB_USER_BUFFER_UNCACHED;
 
-#ifdef BYT_USING_GRALLOC_BUF
             vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
                     external_buffers, psb_surface, vaddr,
                     cache_flag);
-#endif
-            vaStatus = psb_surface_create(driver_data, width, height, fourcc,
-                    0, psb_surface);
+
             psb_surface->buf.handle = handle;
             obj_surface->share_info = NULL;
-            psb_surface->virt_addr = vaddr;
             gralloc_unlock(handle);
         }
 

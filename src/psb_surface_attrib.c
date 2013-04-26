@@ -59,16 +59,7 @@ VAStatus psb_surface_create_from_ub(
 )
 {
     int ret = 0;
-#ifdef BYT_USING_GRALLOC_BUF
-    int width_align, height_align;
-    int align_w = 128;
-    int align_h = 32;
-    width_align = (width + align_w - 1) & ~(align_w - 1);
-    height_align = (height + align_h - 1) & ~(align_h - 1);
-    ret = psb_buffer_create_from_ub(driver_data, width_align * height_align * 3 / 2,
-            psb_bt_surface, &psb_surface->native_buf,
-            vaddr, flags);
-#else
+
     if ((fourcc == VA_FOURCC_NV12) || (fourcc == VA_FOURCC_YV16) || (fourcc == VA_FOURCC_IYUV)) {
         if ((width <= 0) || (width * height > 5120 * 5120) || (height <= 0)) {
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -128,7 +119,6 @@ VAStatus psb_surface_create_from_ub(
         ret = psb_buffer_create_from_ub(driver_data, psb_surface->size,
                 psb_bt_surface, &psb_surface->buf,
                 vaddr, flags);
-#endif
 
     return ret ? VA_STATUS_ERROR_ALLOCATION_FAILED : VA_STATUS_SUCCESS;
 }
