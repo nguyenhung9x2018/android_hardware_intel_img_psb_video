@@ -1037,7 +1037,7 @@ static void tng__VP8_FE_Registers_Write(context_VP8_p ctx) {
        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_DECODE_PRED_NOT_COEFFS, 1);
        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_MB_NO_COEFF_SKIP, ctx->pic_params->pic_fields.bits.mb_no_coeff_skip);
        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_SIGN_BIAS_FOR_GF, ctx->pic_params->pic_fields.bits.sign_bias_golden);
-       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_SIGN_BIAS_FOR_GF, ctx->pic_params->pic_fields.bits.sign_bias_alternate);
+       REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2, VP8_FE_SIGN_BIAS_FOR_ALTREF, ctx->pic_params->pic_fields.bits.sign_bias_alternate);
        psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_VP8, CR_VEC_VP8_FE_PIC2), reg_value);
 
        reg_value=0;
