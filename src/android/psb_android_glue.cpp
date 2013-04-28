@@ -55,8 +55,6 @@ using namespace android;
 
 #define LOG_TAG "pvr_drv_video"
 
-sp<ISurface> isurface;
-
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
 void initMDC(void* output) {
     psb_android_output_p android_output = (psb_android_output_p)output;

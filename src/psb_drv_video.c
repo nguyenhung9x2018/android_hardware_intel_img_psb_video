@@ -116,8 +116,6 @@
 
 #include <signal.h>
 
-extern int force_texure_1080p_60fps;
-
 #define EXPORT __attribute__ ((visibility("default")))
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
@@ -1964,8 +1962,7 @@ VAStatus psb_BeginPicture(
     }
 #endif
 
-    if (obj_context->interlaced_stream || driver_data->disable_msvdx_rotate ||
-        (driver_data->render_mode == VA_RENDER_MODE_EXTERNAL_GPU && force_texure_1080p_60fps)) {
+    if (obj_context->interlaced_stream || driver_data->disable_msvdx_rotate) {
         int i;
         
         obj_context->msvdx_rotate = 0;
@@ -1988,10 +1985,6 @@ VAStatus psb_BeginPicture(
     SET_SURFACE_INFO_rotate(obj_surface->psb_surface, obj_context->msvdx_rotate);
     if (CONTEXT_ROTATE(obj_context)) {
         psb_CreateRotateSurface(ctx, obj_surface, obj_context->msvdx_rotate);
-        /* for 1080p 60fps clip, need force to use surface texture to display video */
-        if (force_texure_1080p_60fps && driver_data->render_mode == VA_RENDER_MODE_EXTERNAL_GPU &&
-            obj_surface->share_info)
-            obj_surface->share_info->force_output_method = 1;
     }
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {

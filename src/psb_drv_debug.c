@@ -201,19 +201,6 @@ void psb__open_log(void)
     } else {
         psb_dump_yuvbuf_fp = NULL;
     }
-
-    /* psb extra debug option */
-    if(psb_parse_config("PSB_VIDEO_1080P_60FPS", &log_fn[0]) == 0) {
-        if(strstr(log_fn, "texture") != NULL)
-            force_texure_1080p_60fps = 1;
-        else
-            force_texure_1080p_60fps = 0;
-#ifdef ANDROID
-        LOGD("PSB_VIDEO_1080P_60FPS is %d.\n", force_texure_1080p_60fps);
-#endif
-    } else {
-        force_texure_1080p_60fps = 0;
-    }
 }
 
 void psb__close_log(void)

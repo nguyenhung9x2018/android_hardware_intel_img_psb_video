@@ -110,7 +110,6 @@ FILE *psb_dump_vabuf_fp;
 FILE *psb_dump_vabuf_verbose_fp;
 FILE *psb_dump_yuvbuf_fp;
 
-int force_texure_1080p_60fps;
 int psb_video_dump_cmdbuf;
 uint32_t g_hexdump_offset;
 
