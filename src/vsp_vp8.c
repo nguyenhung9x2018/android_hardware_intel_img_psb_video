@@ -227,6 +227,7 @@ static VAStatus vsp_vp8_process_seqence_param(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     vsp_cmdbuf_p cmdbuf = ctx->obj_context->vsp_cmdbuf;
     int i;
+    int ref_frame_width, ref_frame_height;
 
     VAEncSequenceParameterBufferVP8 *va_seq =
             (VAEncSequenceParameterBufferVP8 *) obj_buffer->buffer_data;
@@ -260,9 +261,14 @@ static VAStatus vsp_vp8_process_seqence_param(
 
     seq->concatenate_partitions = 1; //Make 0 not to concatenate partitions
 
+    ref_frame_width = (ctx->frame_width + 2 * 32 + 63) & (~63);
+    ref_frame_height = (ctx->frame_height + 2 * 32 + 63) & (~63);
+
     for (i = 0; i < 4; i++)
     {
         seq->ref_frame_buffers[i].surface_id = va_seq->reference_frames[i];// not used now.
+        seq->ref_frame_buffers[i].width = ref_frame_width;
+        seq->ref_frame_buffers[i].height = ref_frame_height;
     }
 
     for (i = 0; i < 4; i++) {
@@ -296,12 +302,18 @@ static VAStatus vsp_vp8_process_picture_param(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     vsp_cmdbuf_p cmdbuf = ctx->obj_context->vsp_cmdbuf;
 
+    VAEncSequenceParameterBufferVP8 *va_seq =
+            (VAEncSequenceParameterBufferVP8 *) obj_buffer->buffer_data;
     VAEncPictureParameterBufferVP8 *va_pic =
             (VAProcPipelineParameterBuffer *) obj_buffer->buffer_data;
     struct VssVp8encPictureParameterBuffer *pic = cmdbuf->pic_param_p;
     struct VssVp8encSequenceParameterBuffer *seq =
            (struct VssVp8encSequenceParameterBuffer *)cmdbuf->seq_param_p;
     VACodedBufferSegment *p = &obj_buffer->codedbuf_mapinfo[0];
+    int ref_frame_width, ref_frame_height;
+
+    ref_frame_width = (ctx->frame_width + 2 * 32 + 63) & (~63);
+    ref_frame_height = (ctx->frame_height + 2 * 32 + 63) & (~63);
 
     //map parameters
     object_buffer_p pObj = BUFFER(va_pic->coded_buf); //tobe modified
@@ -316,6 +328,11 @@ static VAStatus vsp_vp8_process_picture_param(
     pic->input_frame.width      = ctx->frame_width;
     pic->input_frame.stride     = (ctx->frame_width + 31) & (~31);
     pic->input_frame.format     = 0; /* TODO: Specify NV12 = 0 */
+
+    pic->recon_frame.surface_id = va_seq->reference_frames[0];
+    pic->recon_frame.irq = 0;
+    pic->recon_frame.width = ref_frame_width;
+    pic->recon_frame.height = ref_frame_height;
 
     pic->version = 0;
     pic->pic_flags = (1<< 2) |  /* corresponds to  VP8_EFLAG_NO_REF_GF      */
