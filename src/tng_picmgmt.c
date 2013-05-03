@@ -178,8 +178,8 @@ static VAStatus tng__set_custom_scaling_values(
     IMG_UINT32 *pui32QuantReg;
     IMG_UINT8  *apui8QuantTables[8];
     IMG_UINT32  ui32Table, ui32Val;
-    psb_buffer_p pCustomBuf = &(ctx->ctx_mem[ctx->ui32StreamID].bufs_custom_quant);
-    IMG_UINT32  custom_quant_size = ctx->ctx_mem_size.custom_quant;
+    psb_buffer_p pCustomBuf = NULL;
+    IMG_UINT32  custom_quant_size = 0;
 
     // Scanning order for coefficients, see section 8.5.5 of H.264 specification
     // Note that even for interlaced mode, hardware takes the scaling values as if frame zig-zag scanning were being used
@@ -208,6 +208,10 @@ static VAStatus tng__set_custom_scaling_values(
     if (ctx->bCustomScaling == IMG_FALSE) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
+
+    pCustomBuf = &(ctx->ctx_mem[ctx->ui32StreamID].bufs_custom_quant);
+    custom_quant_size = ctx->ctx_mem_size.custom_quant;
+
 
     /* Copy quantization values (in header order) */
     pui8QuantMem = (IMG_UINT8*)(pCustomBuf);

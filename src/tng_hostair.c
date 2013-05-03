@@ -114,6 +114,8 @@ IMG_UINT32 tng_fill_slice_map(context_ENC_p ctx, IMG_INT32 i32SlotNum, IMG_UINT3
         IMG_UINT8 ui8TotalBUs;
         IMG_UINT8 aui8SliceNumbers[MAX_SLICESPERPIC];
 
+	memset(aui8SliceNumbers, 0, MAX_SLICESPERPIC);
+
         ui8SlicesPerPicture = tng__rand(ctx) % ctx->ui8SlicesPerPicture + 1;
         // Fill slice map
         // Fill number of slices
