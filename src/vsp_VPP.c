@@ -1027,6 +1027,10 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 		for (i = 0; i < num_filters; ++i) {
 			/* find buffer */
 			buf = BUFFER(*(filters + i));
+			if (!buf) {
+				vaStatus = VA_STATUS_ERROR_UNKNOWN;
+				goto err;
+			}
 
 			base = (VAProcFilterParameterBufferBase *)buf->buffer_data;
 			/* check filter buffer setting */

@@ -267,6 +267,9 @@ static VAStatus vsp_vp8_process_seqence_param(
 
     for (i = 0; i < 4; i++) {
         object_surface_p ref_surf = SURFACE(va_seq->reference_frames[i]);
+	if (!ref_surf)
+		return VA_STATUS_ERROR_UNKNOWN;
+
         vsp_cmdbuf_reloc_pic_param(&(seq->ref_frame_buffers[i].base),
                                    ctx->seq_param_offset,
                                    &(ref_surf->psb_surface->buf),
@@ -302,6 +305,9 @@ static VAStatus vsp_vp8_process_picture_param(
 
     //map parameters
     object_buffer_p pObj = BUFFER(va_pic->coded_buf); //tobe modified
+    if (!pObj)
+		return VA_STATUS_ERROR_UNKNOWN;
+
     object_surface_p src_surface = SURFACE(surface_id);
 
     pic->input_frame.surface_id = surface_id;
@@ -330,6 +336,9 @@ static VAStatus vsp_vp8_process_picture_param(
 
     {
         object_surface_p cur_surf = SURFACE(surface_id);
+	if(!cur_surf)
+		return VA_STATUS_ERROR_UNKNOWN;
+
         vsp_cmdbuf_reloc_pic_param(&(pic->input_frame.base),
                                    ctx->pic_param_offset, &(cur_surf->psb_surface->buf),
                                    cmdbuf->param_mem_loc, pic);
