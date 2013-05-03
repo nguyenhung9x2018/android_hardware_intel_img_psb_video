@@ -512,7 +512,7 @@ static VAStatus pnw_jpeg_EndPicture(
         pContext->sScan_Encode_Info.aBufferTable[ui16BCnt].ui16ScanNumber =
             pContext->sScan_Encode_Info.ui16SScan--;
 	if (pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers < 2 ||
-		pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers > (1 + PNW_JPEG_MAX_SCAN_NUM)) {
+		pContext->sScan_Encode_Info.ui8NumberOfCodedBuffers > PNW_JPEG_MAX_SCAN_NUM) {
 	    vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
             return vaStatus;
