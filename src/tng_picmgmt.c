@@ -356,7 +356,7 @@ IMG_UINT32 tng_send_codedbuf(
 
     tng_cmdbuf_insert_command(
         ctx->obj_context, ctx->ui32StreamID,
-        MTX_CMDID_PROVIDE_CODED_BUFFER | MTX_CMDID_PRIORITY,
+        MTX_CMDID_PROVIDE_CODED_BUFFER,
         F_ENCODE(object_buffer->size, MTX_MSG_PROVIDE_CODED_BUFFER_SIZE) |
         F_ENCODE(ui32SlotIndex, MTX_MSG_PROVIDE_CODED_BUFFER_SLOT),
         object_buffer->psb_buffer, tng_align_KB(ui32Offset));
@@ -688,7 +688,7 @@ IMG_UINT32 tng_send_source_frame(
 
     /* Send ProvideBuffer Command */
     tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
-        MTX_CMDID_PROVIDE_SOURCE_BUFFER | MTX_CMDID_PRIORITY,
+        MTX_CMDID_PROVIDE_SOURCE_BUFFER,
         0, &(cmdbuf->frame_mem), frame_mem_index);
 
     ++(cmdbuf->frame_mem_index);
@@ -716,7 +716,7 @@ IMG_UINT32 tng_send_rec_frames(
         F_ENCODE(bLongTerm, MTX_MSG_PROVIDE_REF_BUFFER_LT);
 
     tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
-        MTX_CMDID_PROVIDE_REF_BUFFER | MTX_CMDID_PRIORITY,
+        MTX_CMDID_PROVIDE_REF_BUFFER,
         ui32CmdData, &(rec_surface->psb_surface->buf), 0);
 
     return 0;
@@ -747,7 +747,7 @@ IMG_UINT32 tng_send_ref_frames(
     srf_buf_offset = ref_surface->psb_surface->buf.buffer_ofs;
     /* Send ProvideBuffer Command */
     tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
-        MTX_CMDID_PROVIDE_REF_BUFFER | MTX_CMDID_PRIORITY,
+        MTX_CMDID_PROVIDE_REF_BUFFER,
         ui32CmdData, &(ref_surface->psb_surface->buf), 0);
 
     return VA_STATUS_SUCCESS;
