@@ -129,8 +129,6 @@ VAStatus tng_cmdbuf_create(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int size = CMD_SIZE + RELOC_SIZE;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
-
     cmdbuf->size = 0;
     cmdbuf->cmd_base = NULL;
     cmdbuf->cmd_idx = NULL;
@@ -199,7 +197,7 @@ VAStatus tng_cmdbuf_create(
         tng_cmdbuf_clear(cmdbuf, 4);
         return vaStatus;
     }
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
+
     return vaStatus;
 }
 
@@ -208,8 +206,6 @@ VAStatus tng_cmdbuf_create(
  */
 void tng_cmdbuf_destroy(tng_cmdbuf_p cmdbuf)
 {
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
-
     psb_buffer_destroy(&cmdbuf->frame_mem);
     psb_buffer_destroy(&cmdbuf->jpeg_header_mem);
     psb_buffer_destroy(&cmdbuf->jpeg_pic_params);
@@ -224,7 +220,7 @@ void tng_cmdbuf_destroy(tng_cmdbuf_p cmdbuf)
         cmdbuf->buffer_refs = NULL;
         cmdbuf->buffer_refs_allocated = 0;
     }
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
+    return ;
 }
 
 /*
@@ -473,6 +469,7 @@ int tng_context_get_next_cmdbuf(object_context_p obj_context)
 {
     tng_cmdbuf_p cmdbuf;
     int ret;
+
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start obj_context->tng_cmdbuf = %x\n", __FUNCTION__, obj_context->tng_cmdbuf);
 
     if (obj_context->tng_cmdbuf) {
@@ -493,8 +490,6 @@ int tng_context_get_next_cmdbuf(object_context_p obj_context)
 
 //    tng_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->pic_params);
 //    tng_cmdbuf_buffer_ref(cmdbuf, &cmdbuf->slice_mem);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
-
     return ret;
 }
 

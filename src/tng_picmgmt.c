@@ -376,8 +376,6 @@ static VAStatus tng__set_component_offsets(
     IMG_UINT16 ui16Stride;
     IMG_UINT16 ui16PictureHeight;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-
     if (!ctx)
         return VA_STATUS_ERROR_UNKNOWN;
     // if source slot is NULL then it's just a next portion of slices
@@ -591,7 +589,7 @@ IMG_UINT32 tng_send_source_frame(
     unsigned int srf_buf_offset = src_surface->psb_surface->buf.buffer_ofs;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s: start ui32SlotIndex = %d, ui32DisplayOrder = %d\n",
+        "%s: ui32SlotIndex = %d, ui32DisplayOrder = %d\n",
         __FUNCTION__, ui32SlotIndex, ui32DisplayOrder);
 
     if (cmdbuf->frame_mem_index >= COMM_CMD_FRAME_BUF_NUM) {

@@ -193,9 +193,9 @@ void tng_cmdbuf_add_relocation(tng_cmdbuf_p cmdbuf,
                                IMG_UINT32 dst_buffer, /*Index of the list refered by cmdbuf->buffer_refs */
                                IMG_UINT32 *start_of_dst_buffer);
 
-#define TNG_RELOC_CMDBUF_START(dest, offset, buf)    tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, cmdbuf->cmd_start)
+#define TNG_RELOC_CMDBUF_START(dest, offset, buf)    tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, (IMG_UINT32 *)(cmdbuf->cmd_start))
 /* do relocation in IMG_BUFFER_PARAMS: reference Y/UV base,CodedData */
-#define TNG_RELOC_CMDBUF_FRAMES(dest, offset, buf)   tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(uint32_t *)cmdbuf->frame_mem_p)
+#define TNG_RELOC_CMDBUF_FRAMES(dest, offset, buf)   tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 3,(IMG_UINT32 *)(cmdbuf->frame_mem_p))
 
 /* do relocation in PIC_PARAMS: src/dst Y/UV base, InParamsBase, CodeBase, BellowParamsBase, AboveParamsBase
 #define RELOC_PIC_PARAMS_PTG(dest, offset, buf) tng_cmdbuf_add_relocation(cmdbuf, (IMG_UINT32*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 1, (uint32_t *)cmdbuf->pic_params_p)

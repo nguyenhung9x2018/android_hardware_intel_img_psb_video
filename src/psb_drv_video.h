@@ -76,7 +76,7 @@
 #define max(a, b) ((a) > (b)) ? (a) : (b)
 #endif
 
-#define _TOPAZHP_PDUMP_
+//#define _TOPAZHP_PDUMP_
 #define TOPAZHP_PIPE_NUM 2
 
 #define _TNG_RELOC_

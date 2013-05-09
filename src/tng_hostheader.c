@@ -35,7 +35,9 @@
 #include "psb_def.h"
 #include "psb_drv_debug.h"
 #include "tng_hostheader.h"
-
+#ifdef _TOPAZHP_PDUMP_
+#include "tng_trace.h"
+#endif
 /* Global stores the latest QP information for the DoHeader()
  * routine, should be filled in by the rate control algorithm.
  */
@@ -197,8 +199,6 @@ static void tng__write_upto8bits_elements(
     if (ui16BitCnt==0)
         return ;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "WBS(8) bits %x, cnt = %d\n", ui8WriteBits, ui16BitCnt);
-
 //    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: mtx_hdr->ui32Elments overflow (%d)\n", __FUNCTION__, pMTX_Header->ui32Elements);
     /* WA for klockwork */
 
@@ -278,8 +278,6 @@ static void tng__generate_ue(
     IMG_UINT8 ucZeros;
     IMG_UINT32 uiChunk;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, " UE uiVla %x\n", uiVal);
-
     for (uiLp=1, ucZeros=0;  (uiLp-1) < uiVal ; uiLp=uiLp+uiLp, ucZeros++)
         uiVal=uiVal-uiLp;
     // ucZeros = number of preceding zeros required
@@ -308,8 +306,6 @@ static void tng__generate_se(
 {
     IMG_UINT32 uiCodeNum;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, " SE iVla %x\n", iVal);
- 
     if (iVal > 0)
         uiCodeNum=(IMG_UINT32) (iVal+iVal-1);
     else
@@ -326,8 +322,7 @@ static void tng__insert_element_token(
 {
     IMG_UINT8 ui8Offset = 0;
     IMG_UINT8 *ui8P = NULL;
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s: in element = %d, Token = %d\n", __FUNCTION__, pMTX_Header->ui32Elements, ui32Token);
+
     /* WA for klockwork */
     if ((pMTX_Header->ui32Elements != ELEMENTS_EMPTY) &&
         (pMTX_Header->ui32Elements >= MAXNUMBERELEMENTS)) {
@@ -359,9 +354,6 @@ static void tng__insert_element_token(
 
     aui32ElementPointers[pMTX_Header->ui32Elements]->Element_Type=ui32Token;
     aui32ElementPointers[pMTX_Header->ui32Elements]->ui8Size=0;
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, 
-        "%s: ou element = %d, Token = %d\n",
-        __FUNCTION__, pMTX_Header->ui32Elements, ui32Token);
 }
 
 /*
@@ -399,7 +391,6 @@ static void CheckStartRawDataElement(MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_
 static void tng__insert_prefix_nal_header(MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_ELEMENT **aui32ElementPointers,
         H264_SLICE_HEADER_PARAMS *pSlHParams, IMG_BOOL bCabacEnabled)
 {
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start \n", __FUNCTION__);
     tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
 
     tng__H264_writebits_startcode_prefix_element(pMTX_Header, aui32ElementPointers, pSlHParams->ui8Start_Code_Prefix_Size_Bytes); //Can be 3 or 4 bytes - always 4 bytes in our implementations
@@ -652,11 +643,6 @@ static void tng__H264ES_writebits_sequence_header(
     H264_SCALING_MATRIX_PARAMS * psScalingMatrix,
     IMG_BOOL8 bASO)
 {
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,
-        "%s pSHParams->gaps_in_frame_num_value = %x\n",
-        __FUNCTION__, pSHParams->gaps_in_frame_num_value);
-
     tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
     tng__H264_writebits_startcode_prefix_element(pMTX_Header, aui32ElementPointers, 4);
 
@@ -796,10 +782,7 @@ static void tng__H264ES_writebits_sequence_header(
     tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_INSERTBYTEALIGN_H264);
     // Tell MTX to insert the byte align field (we don't know final stream size for alignment at this point)
 
-    tng_print(pMTX_Header, 64);
-  
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
-
+    //tng_print(pMTX_Header, 64);
     return;
 }
 
@@ -2129,7 +2112,7 @@ static void tng__H264ES_writebits_SEI_picture_timing_header(
     IMG_UINT8 ui8cnt_dropped_flag,
     IMG_UINT8 ui8n_frames,
     IMG_UINT8 ui8time_offset_length,
-    IMG_UINT32 i32time_offset)
+    IMG_INT32 i32time_offset)
 {
     IMG_UINT8 ui8PayloadSizeBits, ui8Tmp;
 #ifdef SEI_NOT_USE_TOKEN_ALIGN
@@ -2516,32 +2499,6 @@ static void tng__H264ES_set_sequence_level_profile(
     return ;
 }
 
-void tng_trace_seq_header_params(H264_SEQUENCE_HEADER_PARAMS *psSHParams)
-{
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucProfile                         = %x\n", __FUNCTION__, psSHParams->ucProfile);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucLevel                           = %x\n", __FUNCTION__, psSHParams->ucLevel);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucWidth_in_mbs_minus1             = %x\n", __FUNCTION__, psSHParams->ucWidth_in_mbs_minus1);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucHeight_in_maps_units_minus1     = %x\n", __FUNCTION__, psSHParams->ucHeight_in_maps_units_minus1);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s log2_max_pic_order_cnt            = %x\n", __FUNCTION__, psSHParams->log2_max_pic_order_cnt);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s max_num_ref_frames                = %x\n", __FUNCTION__, psSHParams->max_num_ref_frames);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s gaps_in_frame_num_value           = %x\n", __FUNCTION__, psSHParams->gaps_in_frame_num_value);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucFrame_mbs_only_flag             = %x\n", __FUNCTION__, psSHParams->ucFrame_mbs_only_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s VUI_Params_Present                = %x\n", __FUNCTION__, psSHParams->VUI_Params_Present);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s seq_scaling_matrix_present_flag   = %x\n", __FUNCTION__, psSHParams->seq_scaling_matrix_present_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bUseDefaultScalingList            = %x\n", __FUNCTION__, psSHParams->bUseDefaultScalingList);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bIsLossless                       = %x\n", __FUNCTION__, psSHParams->bIsLossless);
-  if (psSHParams->VUI_Params_Present) {
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s Time_Scale            = %x\n", __FUNCTION__, psSHParams->VUI_Params.Time_Scale);            //!< Time scale as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bit_rate_value_minus1 = %x\n", __FUNCTION__, psSHParams->VUI_Params.bit_rate_value_minus1); //!< An inter framebitrate/64)-1
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s cbp_size_value_minus1 = %x\n", __FUNCTION__, psSHParams->VUI_Params.cbp_size_value_minus1); //!< An inter frame(bitrate*1.5)/16
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s CBR                   = %x\n", __FUNCTION__, psSHParams->VUI_Params.CBR);                   //!< CBR as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s initial_cpb_removal   = %x\n", __FUNCTION__, psSHParams->VUI_Params.initial_cpb_removal_delay_length_minus1); //!< as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s cpb_removal_delay_length_minus1 = %x\n", __FUNCTION__, psSHParams->VUI_Params.cpb_removal_delay_length_minus1); //!< as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s dpb_output_delay_length_minus1  = %x\n", __FUNCTION__, psSHParams->VUI_Params.dpb_output_delay_length_minus1);  //!< as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s time_offset_length              = %x\n", __FUNCTION__, psSHParams->VUI_Params.time_offset_length);              //!< as defined in the H.264 specification
-    }
-}
-
 void tng__H264ES_prepare_sequence_header(
     void *pHeaderMemory,
     H264_VUI_PARAMS *psVUI_Params,
@@ -2562,7 +2519,7 @@ void tng__H264ES_prepare_sequence_header(
     /* Builds a sequence, picture and slice header with from the given inputs parameters (start of new frame)
      * Essential we initialise our header structures before building
      */
-    H264_SEQUENCE_HEADER_PARAMS SHParams = {0, };
+    H264_SEQUENCE_HEADER_PARAMS SHParams;
     /* Route output elements to memory provided */
     MTX_HEADER_PARAMS  *mtx_hdr = (MTX_HEADER_PARAMS *) pHeaderMemory;
     MTX_HEADER_ELEMENT *This_Element;
@@ -2593,8 +2550,9 @@ void tng__H264ES_prepare_sequence_header(
     SHParams.max_num_ref_frames = ui8MaxNumRefFrames;
     SHParams.bIsLossless = bEnableLossless;
     SHParams.log2_max_pic_order_cnt = 6;
-
+#ifdef _TOPAZHP_PDUMP_
     tng_trace_seq_header_params(&SHParams);
+#endif
     tng__H264ES_writebits_sequence_header(mtx_hdr, aui32ElementPointers, &SHParams, psCropParams, NULL, bASO);
     mtx_hdr->ui32Elements++; /* Has been used as an index, so need to add 1 for a valid element count */
 }
@@ -2786,7 +2744,7 @@ void tng__H264ES_prepare_mvc_sequence_header(
     IMG_BOOL  bEnableLossless,
     IMG_BOOL  bASO)
 {
-    H264_SEQUENCE_HEADER_PARAMS sSHParams = {0, };
+    H264_SEQUENCE_HEADER_PARAMS sSHParams;
     MTX_HEADER_PARAMS * pMTX_Header;
     MTX_HEADER_ELEMENT *This_Element;
     MTX_HEADER_ELEMENT *aui32ElementPointers[MAXNUMBERELEMENTS];
@@ -2804,8 +2762,6 @@ void tng__H264ES_prepare_mvc_sequence_header(
     This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
     aui32ElementPointers[0] = This_Element;
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s start\n", __FUNCTION__);
-
     memset(&sSHParams, 0, sizeof(H264_SEQUENCE_HEADER_PARAMS));
 
     sSHParams.ucProfile = ui8ProfileIdc - 5;
@@ -2820,29 +2776,12 @@ void tng__H264ES_prepare_mvc_sequence_header(
     sSHParams.max_num_ref_frames = ui8MaxNumRefFrames;
     sSHParams.bIsLossless = bEnableLossless;
     sSHParams.log2_max_pic_order_cnt = 6;
-
+#ifdef _TOPAZHP_PDUMP_
     tng_trace_seq_header_params(&sSHParams);
-
+#endif
     tng__H264ES_writebits_mvc_sequence_header(pMTX_Header, aui32ElementPointers, &sSHParams, psCropParams, NULL);
     pMTX_Header->ui32Elements++; //Has been used as an index, so need to add 1 for a valid element count
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
     return ;
-}
-
-static void tng_trace_pic_header_params(H264_PICTURE_HEADER_PARAMS *psSHParams)
-{
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s pic_parameter_set_id;           = %x\n", __FUNCTION__, psSHParams->pic_parameter_set_id);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s seq_parameter_set_id;           = %x\n", __FUNCTION__, psSHParams->seq_parameter_set_id);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s entropy_coding_mode_flag;       = %x\n", __FUNCTION__, psSHParams->entropy_coding_mode_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s weighted_pred_flag;             = %x\n", __FUNCTION__, psSHParams->weighted_pred_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s weighted_bipred_idc;            = %x\n", __FUNCTION__, psSHParams->weighted_bipred_idc);           
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s chroma_qp_index_offset;         = %x\n", __FUNCTION__, psSHParams->chroma_qp_index_offset);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s constrained_intra_pred_flag;    = %x\n", __FUNCTION__, psSHParams->constrained_intra_pred_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s transform_8x8_mode_flag;        = %x\n", __FUNCTION__, psSHParams->transform_8x8_mode_flag);  
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s pic_scaling_matrix_present_flag = %x\n", __FUNCTION__, psSHParams->pic_scaling_matrix_present_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bUseDefaultScalingList;         = %x\n", __FUNCTION__, psSHParams->bUseDefaultScalingList);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s second_chroma_qp_index_offset;  = %x\n", __FUNCTION__, psSHParams->second_chroma_qp_index_offset);
-
 }
 
 void tng__H264ES_prepare_picture_header(
@@ -2858,7 +2797,7 @@ void tng__H264ES_prepare_picture_header(
     IMG_BOOL    bScalingLists)
 {
     MTX_HEADER_PARAMS *pMTX_Header;
-    H264_PICTURE_HEADER_PARAMS sPHParams = {0,};
+    H264_PICTURE_HEADER_PARAMS sPHParams;
 
     /* Route output elements to memory provided */
     pMTX_Header = (MTX_HEADER_PARAMS *) pHeaderMemory;
@@ -2870,7 +2809,8 @@ void tng__H264ES_prepare_picture_header(
     pMTX_Header->ui32Elements = ELEMENTS_EMPTY;
     This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
     aui32ElementPointers[0] = This_Element;
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n",__FUNCTION__);
+
+    memset(&sPHParams, 0, sizeof(H264_PICTURE_HEADER_PARAMS));
 
     sPHParams.pic_parameter_set_id = bMvcPPS ? MVC_PPS_ID : 0;
     sPHParams.seq_parameter_set_id = bMvcPPS ? MVC_SPS_ID : 0;
@@ -2883,12 +2823,12 @@ void tng__H264ES_prepare_picture_header(
     sPHParams.pic_scaling_matrix_present_flag = bScalingMatrix ? 1 : 0;
     sPHParams.bUseDefaultScalingList = !bScalingLists;
     sPHParams.second_chroma_qp_index_offset = i8CQPOffset;
-
+#ifdef _TOPAZHP_PDUMP_
     tng_trace_pic_header_params(&sPHParams);
+#endif
     tng__H264ES_writebits_picture_header(pMTX_Header, aui32ElementPointers, &sPHParams, NULL);
     /* Has been used as an index, so need to add 1 for a valid element count */
     pMTX_Header->ui32Elements++;
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n",__FUNCTION__);
     return ;
 }
 
@@ -2909,30 +2849,30 @@ void tng__H264_prepare_slice_header(
     IMG_BOOL        bIsLongTermRef
 )
 {
-    H264_SLICE_HEADER_PARAMS SlHParams = {0};
+    H264_SLICE_HEADER_PARAMS SlHParams;
     MTX_HEADER_PARAMS *pMTX_Header;
     /* Route output elements to memory provided */
     pMTX_Header = (MTX_HEADER_PARAMS *) pHeaderMemory;
 
-    //MTX_HEADER_PARAMS *pMTX_Header;
-    //// Route output elements to memory provided
-    //pMTX_Header = (MTX_HEADER_PARAMS *) pHeaderMemory;
+    memset(&SlHParams, 0, sizeof(H264_SLICE_HEADER_PARAMS));
+
+
     SlHParams.ui8Start_Code_Prefix_Size_Bytes = 4;
     /* pcb -        I think that this is more correct now*/
-    SlHParams.SliceFrame_Type       = bIntraSlice ? (((ui32FrameNumId % (1 << 5)) == 0) ?
-                                      SLHP_IDR_SLICEFRAME_TYPE : SLHP_I_SLICEFRAME_TYPE) : (bInterBSlice ? SLHP_B_SLICEFRAME_TYPE : SLHP_P_SLICEFRAME_TYPE);
+    SlHParams.SliceFrame_Type = bIntraSlice ? (((ui32FrameNumId % (1 << 5)) == 0) ?
+                                SLHP_IDR_SLICEFRAME_TYPE : SLHP_I_SLICEFRAME_TYPE) : (bInterBSlice ? SLHP_B_SLICEFRAME_TYPE : SLHP_P_SLICEFRAME_TYPE);
     /*
-                    if (bIntraSlice) {
-                            if ((ui32FrameNumId%(1<<5))==0)
-                                    SlHParams.SliceFrame_Type = SLHP_IDR_SLICEFRAME_TYPE;
-                            else
-                                    SlHParams.SliceFrame_Type = SLHP_I_SLICEFRAME_TYPE;
-                    } else {
-                            if (bInterBSlice)
-                                    SlHParams.SliceFrame_Type = SLHP_B_SLICEFRAME_TYPE;
-                            else
-                                    SlHParams.SliceFrame_Type = SLHP_P_SLICEFRAME_TYPE;
-                    }
+    if (bIntraSlice) {
+        if ((ui32FrameNumId%(1<<5))==0)
+            SlHParams.SliceFrame_Type = SLHP_IDR_SLICEFRAME_TYPE;
+        else
+            SlHParams.SliceFrame_Type = SLHP_I_SLICEFRAME_TYPE;
+    } else {
+        if (bInterBSlice)
+            SlHParams.SliceFrame_Type = SLHP_B_SLICEFRAME_TYPE;
+        else
+            SlHParams.SliceFrame_Type = SLHP_P_SLICEFRAME_TYPE;
+    }
     */
     SlHParams.Frame_Num_DO   = (IMG_UINT8) ui32FrameNumId % (1 << 5);
     SlHParams.Idr_Pic_Id     = (IMG_UINT8)(ui32DisplayFrameNumber & 1);
@@ -3313,7 +3253,7 @@ static void tng__H264ES_notforsims_writebits_slice_header(
 {
     bStartNextRawDataElement = IMG_FALSE;
     unsigned char* pdg = (unsigned char*)pMTX_Header;
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: in element = %d, ui16MvcViewIdx = %d\n", __FUNCTION__, pMTX_Header->ui32Elements, pSlHParams->ui16MvcViewIdx);
+
     if (pSlHParams->ui16MvcViewIdx == (IMG_UINT16)(NON_MVC_VIEW)) {
         tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
     } else if (pSlHParams->ui16MvcViewIdx == MVC_BASE_VIEW_IDX) {
@@ -3459,60 +3399,6 @@ static void tng__H264ES_notforsims_writebits_slice_header(
  @param    bIsLongTermRef     : IMG_TRUE if the frame is to be used as a long-term reference
  @return   None
 ******************************************************************************/
-static void tng_trace_slice_header_params(H264_SLICE_HEADER_PARAMS *psSlHParams)
-{
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start addr = 0x%08x\n", __FUNCTION__, psSlHParams);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.ui8Start_Code_Prefix_Size_Bytes 0x%08x\n", psSlHParams->ui8Start_Code_Prefix_Size_Bytes);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.SliceFrame_Type                 0x%08x\n", psSlHParams->SliceFrame_Type);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.First_MB_Address                0x%08x\n", psSlHParams->First_MB_Address);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.Frame_Num_DO                    0x%08x\n", psSlHParams->Frame_Num_DO);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.Idr_Pic_Id                      0x%08x\n", psSlHParams->Idr_Pic_Id);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.log2_max_pic_order_cnt          0x%08x\n", psSlHParams->log2_max_pic_order_cnt);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.Picture_Num_DO                  0x%08x\n", psSlHParams->Picture_Num_DO);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.Disable_Deblocking_Filter_Idc   0x%08x\n", psSlHParams->Disable_Deblocking_Filter_Idc);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bPiCInterlace                   0x%08x\n", psSlHParams->bPiCInterlace);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bFieldType                      0x%08x\n", psSlHParams->bFieldType);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bReferencePicture               0x%08x\n", psSlHParams->bReferencePicture);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.iDebAlphaOffsetDiv2             0x%08x\n", psSlHParams->iDebAlphaOffsetDiv2);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.iDebBetaOffsetDiv2              0x%08x\n", psSlHParams->iDebBetaOffsetDiv2);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.direct_spatial_mv_pred_flag     0x%08x\n", psSlHParams->direct_spatial_mv_pred_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.num_ref_idx_l0_active_minus1    0x%08x\n", psSlHParams->num_ref_idx_l0_active_minus1);
-
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.diff_ref_pic_num[0] 0x%08x\n", psSlHParams->diff_ref_pic_num[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.diff_ref_pic_num[1] 0x%08x\n", psSlHParams->diff_ref_pic_num[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.weighted_pred_flag  0x%08x\n", psSlHParams->weighted_pred_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.weighted_bipred_idc 0x%08x\n", psSlHParams->weighted_bipred_idc);
-
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_log2_weight_denom   0x%08x\n", psSlHParams->luma_log2_weight_denom);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chroma_log2_weight_denom 0x%08x\n", psSlHParams->chroma_log2_weight_denom);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_weight_l0_flag[0]  0x%08x\n",  psSlHParams->luma_weight_l0_flag[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_weight_l0_flag[1]  0x%08x\n",  psSlHParams->luma_weight_l0_flag[1]);
-
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.SlHParams.luma_weight_l0[0] 0x%08x\n", psSlHParams->luma_weight_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.SlHParams.luma_weight_l0[1] 0x%08x\n", psSlHParams->luma_weight_l0[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_offset_l0[0]           0x%08x\n", psSlHParams->luma_offset_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_offset_l0[1]           0x%08x\n", psSlHParams->luma_offset_l0[1]);
-
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chroma_weight_l0_flag[0]    0x%08x\n", psSlHParams->chroma_weight_l0_flag[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chroma_weight_l0_flag[1]    0x%08x\n", psSlHParams->chroma_weight_l0_flag[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaB_weight_l0[0]        0x%08x\n", psSlHParams->chromaB_weight_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaB_offset_l0[0]        0x%08x\n", psSlHParams->chromaB_offset_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaR_weight_l0[0]        0x%08x\n", psSlHParams->chromaR_weight_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaR_offset_l0[0]        0x%08x\n", psSlHParams->chromaR_offset_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaB_weight_l0[1]        0x%08x\n", psSlHParams->chromaB_weight_l0[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaB_offset_l0[1]        0x%08x\n", psSlHParams->chromaB_offset_l0[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaR_weight_l0[1]        0x%08x\n", psSlHParams->chromaR_weight_l0[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaR_offset_l0[1]        0x%08x\n", psSlHParams->chromaR_offset_l0[1]);
- 
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.ui16MvcViewIdx    0x%08x\n", psSlHParams->ui16MvcViewIdx);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bIsLongTermRef    0x%08x\n", psSlHParams->bIsLongTermRef);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.uLongTermRefNum   0x%08x\n", psSlHParams->uLongTermRefNum);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bRefIsLongTermRef[0]  0x%08x\n", psSlHParams->bRefIsLongTermRef[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bRefIsLongTermRef[1]  0x%08x\n", psSlHParams->bRefIsLongTermRef[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.uRefLongTermRefNum[0] 0x%08x\n", psSlHParams->uRefLongTermRefNum[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.uRefLongTermRefNum[1] 0x%08x\n", psSlHParams->uRefLongTermRefNum[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end \n", __FUNCTION__);
-}
 
 void tng__H264ES_notforsims_prepare_sliceheader(
     IMG_UINT8      *slice_mem_p,
@@ -3536,7 +3422,6 @@ void tng__H264ES_notforsims_prepare_sliceheader(
     IMG_BOOL bInterBSlice = (eSliceType == IMG_FRAME_INTER_B);
     IMG_BOOL bIsIDR = ((eSliceType == IMG_FRAME_IDR) || (eSliceType == IMG_FRAME_INTER_P_IDR));
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start\n", __FUNCTION__);
     memset(&SlHParams, 0, sizeof(H264_SLICE_HEADER_PARAMS));
 
     SlHParams.ui8Start_Code_Prefix_Size_Bytes = 4;
@@ -3564,9 +3449,9 @@ void tng__H264ES_notforsims_prepare_sliceheader(
     pMTX_Header->ui32Elements = ELEMENTS_EMPTY;
     This_Element = (MTX_HEADER_ELEMENT *) pMTX_Header->asElementStream;
     aui32ElementPointers[0] = This_Element;
-
+#ifdef _TOPAZHP_PDUMP_
     tng_trace_slice_header_params(&SlHParams);
-
+#endif
     tng__H264ES_notforsims_writebits_slice_header(pMTX_Header, aui32ElementPointers, &SlHParams, bCabacEnabled, bIsIDR);
     pMTX_Header->ui32Elements++; //Has been used as an index, so need to add 1 for a valid element count
 }

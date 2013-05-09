@@ -23,86 +23,28 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *
 */
-#ifndef _topazhp_cmdump_h
-#define _topazhp_cmdump_h
+#ifndef _TNG_TRACE_H_
+#define _TNG_TRACE_H_
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h> /* for libc5 */
+#include <va/va_enc_h264.h>
+#include "psb_drv_video.h"
 
-#ifdef ANDROID
-#define  outl(...)
-#define  outw(...)
-#define  inl(...)   0
-#define  inw(...)   0
-#else
-#include <sys/io.h> /* for glibc */
-#endif
+void tng_trace_setvideo(void *data);
+void tng_H264ES_trace_seq_params(VAEncSequenceParameterBufferH264 *psTraceSeqParams);
+void tng_H264ES_trace_pic_params(VAEncPictureParameterBufferH264 *psTracePicParams);
+void tng_H264ES_trace_slice_params(VAEncSliceParameterBufferH264 *psTraceSliceParams);
+void tng_H264ES_trace_misc_rc_params(VAEncMiscParameterRateControl *psTraceMiscRcParams);
 
-#define MIN(a,b)  ((a)>(b)?(b):(a))
+void tng_trace_seq_header_params(H264_SEQUENCE_HEADER_PARAMS *psSHParams);
+void tng_trace_pic_header_params(H264_PICTURE_HEADER_PARAMS *psSHParams);
+void tng_trace_slice_header_params(H264_SLICE_HEADER_PARAMS *psSlHParams);
 
-struct RegisterInfomation {
-    char *name;
-    int offset;
-};
+void tng__trace_seqconfig(
+    IMG_BOOL bIsBPicture,
+    IMG_BOOL bFieldMode,
+    IMG_UINT8  ui8SwapChromas,
+    IMG_BOOL32 ui32FrameStoreFormat,
+    IMG_UINT8  uiDeblockIDC);
+void tng__trace_seq_header(void* pointer);
 
-#define ui32TopazMulticoreRegId  1
-
-
-
-#define PCI_DEVICE_ID_CFG	0x02	/* 16 bits */
-#define PCI_BASE_ADDRESS_0	0x10	/* 32 bits */
-#define PCI_BASE_ADDRESS_1	0x14	/* 32 bits [htype 0,1 only] */
-#define PCI_BASE_ADDRESS_2	0x18	/* 32 bits [htype 0 only] */
-#define PCI_BASE_ADDRESS_3	0x1c	/* 32 bits */
-#define CONFIG_CMD(bus,device_fn,where)   \
-   (0x80000000|((bus&0xff) << 16)|((device_fn&0xff) << 8)|((where&0xff) & ~3))
-
-static inline unsigned long pci_get_long(int bus,int device_fn, int where)
-{
-    outl(CONFIG_CMD(bus,device_fn,where), 0xCF8);
-    return inl(0xCFC);
-}
-
-static inline int pci_set_long(int bus,int device_fn, int where,unsigned long value)
-{
-    outl(CONFIG_CMD(bus,device_fn,where), 0xCF8);
-    outl(value,0xCFC);
-    return 0;
-}
-
-static inline int pci_get_short(int bus,int device_fn, int where)
-{
-    outl(CONFIG_CMD(bus,device_fn,where), 0xCF8);
-    return inw(0xCFC + (where&2));
-}
-
-
-static inline int pci_set_short(int bus,int device_fn, int where,unsigned short value)
-{
-    outl(CONFIG_CMD(bus,device_fn,where), 0xCF8);
-    outw(value,0xCFC + (where&2));
-    return 0;
-}
-
-#define REG_OFFSET_TOPAZ_MULTICORE                      0x00000000
-#define REG_OFFSET_TOPAZ_DMAC                           0x00000400
-#define REG_OFFSET_TOPAZ_MTX                            0x00000800
-
-#define REGNUM_TOPAZ_CR_MMU_DIR_LIST_BASE_ADDR          0x0030
-
-#ifndef MV_OFFSET_IN_TABLE
-#define MV_OFFSET_IN_TABLE(BDistance, Position) ((BDistance) * MV_ROW_STRIDE + (Position) * sizeof(IMG_MV_SETTINGS))
-#endif
-
-#define MULTICORE_READ32(offset, pointer)                               \
-    do {                                                                \
-	*(pointer) = *((unsigned long *)((unsigned char *)(linear_mmio_topaz) \
-                                         + REG_OFFSET_TOPAZ_MULTICORE + offset)); \
-    } while (0)
-
-int topazhp_dump_command(unsigned int comm_dword[]);
-int tng_command_parameter_dump(int cmdid, void *virt_addr);
-    
 #endif

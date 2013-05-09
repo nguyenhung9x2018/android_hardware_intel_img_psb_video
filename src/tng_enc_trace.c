@@ -23,29 +23,25 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *
 */
-
-#include <errno.h>
-#include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
-#include <stdint.h>
-#include <string.h>
-#include <limits.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdarg.h>
 
+#ifdef PDUMP_TEST
+#include "topazscfwif.h"
+#else
 #include "psb_drv_debug.h"
-#include "tng_hostdefs.h"
+#include "tng_hostcode.h"
 #include "tng_hostheader.h"
 #include "tng_picmgmt.h"
 #include "tng_jpegES.h"
+#endif
+
 #include "tng_trace.h"
-
-#include "hwdefs/topazhp_core_regs.h"
-#include "hwdefs/topazhp_multicore_regs_old.h"
-#include "hwdefs/topaz_db_regs.h"
-#include "hwdefs/topaz_vlc_regs.h"
-#include "hwdefs/mvea_regs.h"
-#include "hwdefs/topazhp_default_params.h"
-
-
 
 #define PRINT_ARRAY_NEW( FEILD, NUM)            \
     for(i=0;i< NUM;i++) {                       \
@@ -92,12 +88,168 @@ do {                                            \
 #define PRINT_ARRAY_ADDR(STR, FEILD, NUM)                       \
 do {                                                            \
     int i = 0;                                                  \
-    unsigned char *virt;                                        \
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n");                     \
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n");                                               \
     for (i=0;i< NUM;i++)  {                                     \
-        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t%s[%02d]=x%08x\n", STR, i, data->FEILD[i]); \
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t%s[%02d]=x%08x = {\t", STR, i, data->FEILD[i]); \
+        if (dump_address_content && data->FEILD[i]) {           \
+            unsigned char *virt = phy2virt(data->FEILD[i]);     \
+            PRINT_ARRAY_BYTE( virt, 64);                        \
+        } else {                                                \
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"}\n");                                      \
+        }                                                       \
     }                                                           \
 } while (0)
+
+
+unsigned int duplicate_setvideo_dump = 0;
+unsigned int dump_address_content = 1;
+static unsigned int last_setvideo_dump = 0;
+static unsigned int hide_setvideo_dump = 0;
+
+static unsigned int linear_fb = 0;
+static unsigned int linear_mmio_topaz = 0;
+static unsigned int phy_fb, phy_mmio;
+static IMG_MTX_VIDEO_CONTEXT *mtx_ctx = NULL; /* MTX context */
+
+static int setup_device()
+{
+    unsigned int linear_mmio;
+    int fd;
+    
+    /* Allow read/write to ALL io ports */
+    ioperm(0, 1024, 1);
+    iopl(3);
+    
+    phy_mmio = pci_get_long(1,0<<3, PCI_BASE_ADDRESS_1);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"MMIO:  PCI base1 for MMIO is 0x%08x\n", phy_mmio);
+    phy_fb = pci_get_long(1,0<<3, PCI_BASE_ADDRESS_2);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"DDRM:  PCI base2 for FB   is 0x%08x\n", phy_fb);
+        
+    phy_mmio &= 0xfff80000;
+    phy_fb &= 0xfffff000;
+
+    fd = open("/dev/mem", O_RDWR);
+    if (fd == -1) {
+        perror("open");
+        exit(-1);
+    }
+    
+    /* map frame buffer to user space(map 128M) */
+    linear_fb = (unsigned int)mmap(NULL,128<<20,PROT_READ | PROT_WRITE, 
+                             MAP_SHARED,fd, phy_fb);
+
+    /* map mmio to user space(1M) */
+    linear_mmio = (unsigned int)mmap(NULL,0x100000,PROT_READ | PROT_WRITE, 
+                              MAP_SHARED,fd, phy_mmio);
+    linear_mmio_topaz = linear_mmio;
+
+    close(fd);
+
+    return 0;
+}
+
+/* convert physicall address to virtual by search MMU */
+static void *phy2virt_mmu(unsigned int phyaddr)
+{
+    unsigned int fb_start, fb_end;
+    int pd_index, pt_index, pg_offset;
+    unsigned int pd_phyaddr, pt_phyaddr; /* phyaddrss of page directory/table */
+    unsigned int mem_start; /* memory start physicall address */
+    unsigned int *pd, *pt;/* virtual of page directory/table */
+    void *mem_virt;
+
+    if (phy_mmio == 0 || phy_fb == 0 || linear_fb == 0 || linear_mmio_topaz == 0) {
+        setup_device();
+    }
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: phy_mmio 0x%08x, phy_fb 0x%08x, linear_fb 0x%08x, linear_mmio_topaz 0x%08x\n", phy_mmio, phy_fb, linear_fb, linear_mmio_topaz);
+#endif
+
+    if (phy_mmio == 0 || phy_fb == 0 || linear_fb == 0 || linear_mmio_topaz == 0) {
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"ERROR:setup_device failed!\n");
+        exit(-1);
+    }
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: phy_mmio 0x%08x, phy_fb 0x%08x, linear_fb 0x%08x, linear_mmio_topaz 0x%08x\n", phy_mmio, phy_fb, linear_fb, linear_mmio_topaz);
+#endif
+
+    /* first map page directory */
+    MULTICORE_READ32(REGNUM_TOPAZ_CR_MMU_DIR_LIST_BASE_ADDR, &pd_phyaddr);
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: page directory 0x%08x, phy addr is 0x%08x\n", pd_phyaddr, phyaddr);
+#endif
+
+    pd_phyaddr &= 0xfffff000;
+    fb_start = phy_fb;
+    fb_end = fb_start + (128<<20);
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: pd_phyaddr 0x%08x, fb_start 0x%08x, fb_end 0x%08x\n", pd_phyaddr, fb_start, fb_end);
+#endif
+
+    if ((pd_phyaddr < fb_start) || (pd_phyaddr > fb_end)) {
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"ERROR: page directory 0x%08x is not fb range [0x%08x, 0x%08x]\n",
+               pd_phyaddr, fb_start, fb_end);
+        exit(-1);
+    }
+
+    pd_index = phyaddr >> 22; /* the top 10bits are pd index */
+    pt_index = (phyaddr >> 12) & 0x3ff; /* the middle 10 bits are pt index */
+    pg_offset = phyaddr & 0xfff;
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: phyaddr 0x%08x, pd_index 0x%08x, pt_index 0x%08x, pg_offset 0x%08x\n", phyaddr, pd_index, pt_index, pg_offset);
+#endif    
+
+    /* find page directory entry */
+    pd = (unsigned int *)(linear_fb + (pd_phyaddr - phy_fb));
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: pd_index 0x%08x, pd 0x%08x, pd[pd_index] 0x%08x\n", pd_index, pd, pd[pd_index]);
+#endif
+    if ((pd[pd_index] & 1) == 0) {/* not valid */
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"Error: the page directory index is invalid, not mapped\n");
+        exit(-1);
+    }
+    pt_phyaddr = pd[pd_index] & 0xfffff000;
+
+    /* process page table entry */
+    if ((pt_phyaddr < fb_start) || (pt_phyaddr > fb_end)) {
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"ERROR: page table 0x%08x is not fb range [0x%08x, 0x%08x]\n",
+               pt_phyaddr, fb_start, fb_end);
+        exit(-1);
+    }
+    pt = (unsigned int *)(linear_fb + (pt_phyaddr - phy_fb));
+#ifdef _TOPAZHP_DEBUG_TRACE_
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"INFO: pt_index 0x%08x, pt 0x%08x, pt[pt_index] 0x%08x\n", pt_index, pt, pt[pt_index]);
+#endif
+    if ((pt[pt_index] & 1) == 0) {
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"Error: the page table index is invalid, not mapped\n");
+        exit(-1);
+    }
+
+    mem_start = pt[pt_index] & 0xfffff000;
+    
+#if 0
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"Phy=0x%08x(PD index=%d, PT index=%d, Page offset=%d)\n",
+           phyaddr, pd_index, pt_index, pg_offset);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"MMU PD Phy=0x%08x, PT Phy=PD[%d]=0x%08x, PT[%d]=0x%08x, means mem real phy(start)=0x%08x\n",
+           pd_phyaddr, pd_index, pd[pd_index], pt_index, pt[pt_index], mem_start);
+#endif    
+    mem_virt = (void *)(linear_fb + (mem_start - phy_fb));
+
+    return mem_virt;
+}
+
+static void *phy2virt(unsigned int phyaddr)
+{
+#ifdef PDUMP_TEST
+    void* phy2virt_pdump(unsigned int phy);
+
+    (void)phy2virt_mmu; /* silence the warning */
+    return phy2virt_pdump(phyaddr);
+#else
+    return phy2virt_mmu(phyaddr);
+#endif
+}
+
 
 static void JPEG_MTX_DMA_dump(JPEG_MTX_DMA_SETUP *data)
 {
@@ -141,6 +293,93 @@ static void JPEG_TABLE_dump(JPEG_MTX_QUANT_TABLE *data)
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	aui8ChromaQuantParams  {");
     PRINT_ARRAY(	aui8ChromaQuantParams, QUANT_TABLE_SIZE_BYTES);
 }
+
+
+static int SETVIDEO_ui32MVSettingsBTable_dump(unsigned int phyaddr)
+{
+    IMG_UINT32 ui32DistanceB, ui32Position;
+    IMG_MV_SETTINGS * pHostMVSettingsBTable;
+        
+    pHostMVSettingsBTable = (IMG_MV_SETTINGS *) phy2virt(phyaddr);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32MVSettingsBTable====)\n");
+    
+    for (ui32DistanceB = 0; ui32DistanceB < MAX_BFRAMES; ui32DistanceB++)
+    {
+        for (ui32Position = 1; ui32Position <= ui32DistanceB + 1; ui32Position++)
+        {
+            IMG_MV_SETTINGS * pMvElement = (IMG_MV_SETTINGS * ) ((IMG_UINT8 *) pHostMVSettingsBTable + MV_OFFSET_IN_TABLE(ui32DistanceB, ui32Position - 1));
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d][ui32Position=%d].ui32MVCalc_Config=0x%08x\n",
+                   ui32DistanceB, ui32Position, pMvElement->ui32MVCalc_Config);
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d][ui32Position=%d].ui32MVCalc_Colocated=0x%08x\n",
+                   ui32DistanceB, ui32Position, pMvElement->ui32MVCalc_Colocated);
+            drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d][ui32Position=%d].ui32MVCalc_Below=0x%08x\n",
+                   ui32DistanceB, ui32Position, pMvElement->ui32MVCalc_Below);
+        }
+    }
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32MVSettingsBTable====)\n");
+
+    return 0;
+}
+
+static int SETVIDEO_ui32MVSettingsHierarchical_dump(unsigned int phyaddr)
+{
+    IMG_UINT32 ui32DistanceB;
+    IMG_MV_SETTINGS * pHostMVSettingsHierarchical;
+        
+    pHostMVSettingsHierarchical = (IMG_MV_SETTINGS *) phy2virt(phyaddr);
+
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32MVSettingsHierarchical====)\n");
+    
+    for (ui32DistanceB = 0; ui32DistanceB < MAX_BFRAMES; ui32DistanceB++) {
+        IMG_MV_SETTINGS *pMvElement = pHostMVSettingsHierarchical + ui32DistanceB;
+
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d].ui32MVCalc_Config=0x%08x\n",
+               ui32DistanceB, pMvElement->ui32MVCalc_Config);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d].ui32MVCalc_Colocated=0x%08x\n",
+               ui32DistanceB, pMvElement->ui32MVCalc_Colocated);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t[ui32DistanceB=%d].ui32MVCalc_Below=0x%08x\n",
+               ui32DistanceB, pMvElement->ui32MVCalc_Below);
+        
+    }
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32MVSettingsHierarchical====)\n");
+
+    return 0;
+}
+
+
+static int SETVIDEO_ui32FlatGopStruct_dump(unsigned int phyaddr)
+{
+    IMG_UINT16 * psGopStructure = (IMG_UINT16 * )phy2virt(phyaddr);
+    int ui8EncodeOrderPos;
+    
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32FlatGopStruct====)\n");
+
+    /* refer to DDK:MiniGop_GenerateFlat */
+    for (ui8EncodeOrderPos = 0; ui8EncodeOrderPos < MAX_GOP_SIZE; ui8EncodeOrderPos++){
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32FlatGopStruct[%d]=0x%04x\n",ui8EncodeOrderPos, psGopStructure[ui8EncodeOrderPos]);
+    }
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32FlatGopStruct====)\n");
+
+    return 0;
+}
+
+
+static int SETVIDEO_ui32HierarGopStruct_dump(unsigned int phyaddr)
+{
+    IMG_UINT16 * psGopStructure = (IMG_UINT16 * )phy2virt(phyaddr);
+    int ui8EncodeOrderPos;
+    
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32HierarGopStruct====)\n");
+
+    /* refer to DDK:MiniGop_GenerateFlat */
+    for (ui8EncodeOrderPos = 0; ui8EncodeOrderPos < MAX_GOP_SIZE; ui8EncodeOrderPos++){
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32HierarGopStruct[%d]=0x%04x\n",ui8EncodeOrderPos, psGopStructure[ui8EncodeOrderPos]);
+    }
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(====ui32HierarGopStruct====)\n");
+
+    return 0;
+}
+
 
 static char *IMG_FRAME_TEMPLATE_TYPE2Str(IMG_FRAME_TEMPLATE_TYPE tmp)
 {
@@ -188,18 +427,13 @@ static int DO_HEADER_dump(MTX_HEADER_PARAMS *data)
     return 0;
 }
 
-void tng_trace_setvideo(void *lpdata)
+static void SETVIDEO_dump(IMG_MTX_VIDEO_CONTEXT *data)
 {
     unsigned int i;
-    IMG_MTX_VIDEO_CONTEXT *data = NULL;
+    mtx_ctx = data;
 
-    if (lpdata == NULL) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR,"%s data pointer is NULL\n", __FUNCTION__);
+    if(hide_setvideo_dump == 1)
         return ;
-    }
-
-    data = (IMG_MTX_VIDEO_CONTEXT *)lpdata;
-
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t==========IMG_MTX_VIDEO_CONTEXT=============\n");
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui64ClockDivBitrate=%lld\n", data->ui64ClockDivBitrate);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32WidthInMbs=%d\n", data->ui32WidthInMbs);
@@ -233,17 +467,25 @@ void tng_trace_setvideo(void *lpdata)
     //PRINT_ARRAY_ADDR( apSliceParamsTemplates, 5);
     for (i=0; i<5; i++) {
         drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapSliceParamsTemplates[%d]=0x%08x  {\n", i, data->apSliceParamsTemplates[i]);
+        apSliceParamsTemplates_dump(phy2virt(data->apSliceParamsTemplates[i]));
         drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
     }
 
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apPicHdrTemplates  {");
     PRINT_ARRAY_ADDR("apPicHdrTemplates", apPicHdrTemplates, 4);
+    MTX_HEADER_PARAMS_dump(phy2virt(data->apPicHdrTemplates[0]));
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32SliceMap  {");
     PRINT_ARRAY_ADDR("aui32SliceMap", 	aui32SliceMap, MAX_SOURCE_SLOTS_SL);
 
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32FlatGopStruct=0x%x\n", data->ui32FlatGopStruct);
+    SETVIDEO_ui32FlatGopStruct_dump(data->ui32FlatGopStruct);
+
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apSeqHeader        =0x%x\n", data->apSeqHeader);
+    if (data->apSeqHeader != 0)
+	DO_HEADER_dump((MTX_HEADER_PARAMS *)(phy2virt(data->apSeqHeader)));
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apSubSetSeqHeader  =0x%x\n", data->apSubSetSeqHeader);
+    if(data->apSubSetSeqHeader != 0)
+        DO_HEADER_dump((MTX_HEADER_PARAMS *)(phy2virt(data->apSubSetSeqHeader)));
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b16NoSequenceHeaders =0x%x\n", data->b16NoSequenceHeaders);
     
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8WeightedPredictionEnabled=%d\n", data->b8WeightedPredictionEnabled);
@@ -251,6 +493,8 @@ void tng_trace_setvideo(void *lpdata)
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32WeightedPredictionVirtAddr  {");
     PRINT_ARRAY(aui32WeightedPredictionVirtAddr, MAX_SOURCE_SLOTS_SL);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32HierarGopStruct=0x%x\n", data->ui32HierarGopStruct);
+    if(data->ui32HierarGopStruct != 0)
+        SETVIDEO_ui32HierarGopStruct_dump(data->ui32HierarGopStruct);
 
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pFirstPassOutParamAddr  {");
     PRINT_ARRAY_ADDR("pFirstPassOutParamAddr",pFirstPassOutParamAddr, MAX_SOURCE_SLOTS_SL);
@@ -290,7 +534,11 @@ void tng_trace_setvideo(void *lpdata)
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
 
     drv_debug_msg(VIDEO_ENCODE_PDUMP," \t	ui32MVSettingsBTable=0x%x\n", data->ui32MVSettingsBTable);
+    SETVIDEO_ui32MVSettingsBTable_dump(data->ui32MVSettingsBTable);
+    
     drv_debug_msg(VIDEO_ENCODE_PDUMP," \t	ui32MVSettingsHierarchical=0x%x\n", data->ui32MVSettingsHierarchical);
+    if(data->ui32MVSettingsHierarchical != 0)
+        SETVIDEO_ui32MVSettingsHierarchical_dump(data->ui32MVSettingsHierarchical);
     
 #ifdef FIRMWARE_BIAS
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32DirectBias_P  {");
@@ -408,8 +656,8 @@ void tng_trace_setvideo(void *lpdata)
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32TransferRate=%d\n",data->sInParams.mode.h264.i32TransferRate);
     
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
-    return;
 }
+
 
 struct header_token {
     int token;
@@ -459,7 +707,7 @@ struct header_token {
 
 static char *header_to_str(int token)
 {
-    unsigned int i;
+    int i;
     struct header_token *p;
     
     for (i=0; i<sizeof(header_tokens)/sizeof(struct header_token); i++) {
@@ -474,7 +722,7 @@ static char *header_to_str(int token)
 static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p)
 {
     MTX_HEADER_ELEMENT *last_element=NULL;
-    unsigned int i;
+    int i;
     
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32Elements=%d\n", p->ui32Elements);
     for (i=0; i<p->ui32Elements; i++) {
@@ -669,196 +917,294 @@ static char * cmd2str(int cmdid)
     }
 }
 
-void tng_H264ES_trace_seq_params(VAEncSequenceParameterBufferH264 *psTraceSeqParams)
+static int command_parameter_dump(int cmdid, unsigned int cmd_data, unsigned int cmd_addr)
 {
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: level_idc = 0x%08x\n", __FUNCTION__, psTraceSeqParams->level_idc);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: max_num_ref_frames = 0x%08x\n", __FUNCTION__, psTraceSeqParams->max_num_ref_frames);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: intra_idr_period = 0x%08x\n", __FUNCTION__, psTraceSeqParams->intra_idr_period);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: intra_period = 0x%08x\n", __FUNCTION__, psTraceSeqParams->intra_period);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ip_period = 0x%08x\n", __FUNCTION__, psTraceSeqParams->ip_period);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: bits_per_second = 0x%08x\n", __FUNCTION__, psTraceSeqParams->bits_per_second);
+    MTX_HEADER_PARAMS *header_para;
+    IMG_MTX_VIDEO_CONTEXT *context;
+    JPEG_MTX_QUANT_TABLE *jpeg_table;
+    MTX_ISSUE_BUFFERS *issue_buffer;
+    JPEG_MTX_DMA_SETUP *jpeg_mtx_dma_setup;
+    void *virt_addr = 0;
+    if (cmd_addr != 0)
+        virt_addr = phy2virt(cmd_addr);
 
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: frame_cropping_flag = 0x%08x\n", __FUNCTION__, psTraceSeqParams->frame_cropping_flag);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: frame_crop_left_offset = 0x%08x\n", __FUNCTION__, psTraceSeqParams->frame_crop_left_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: frame_crop_right_offset = 0x%08x\n", __FUNCTION__, psTraceSeqParams->frame_crop_right_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: frame_crop_top_offset = 0x%08x\n", __FUNCTION__, psTraceSeqParams->frame_crop_top_offset);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: frame_crop_bottom_offset = 0x%08x\n", __FUNCTION__, psTraceSeqParams->frame_crop_bottom_offset);
-    return;
-}
+    switch (cmdid) {
+        case MTX_CMDID_NULL:
+        case MTX_CMDID_SHUTDOWN:
+        case MTX_CMDID_ENDMARKER :         //!< end marker for enum
+        case MTX_CMDID_GETVIDEO:
+            break;
+        case MTX_CMDID_DO_HEADER:
+            header_para = (MTX_HEADER_PARAMS *)virt_addr;
+            DO_HEADER_dump(header_para);
+            if (duplicate_setvideo_dump)
+                SETVIDEO_dump(mtx_ctx);
+            break;
+        case MTX_CMDID_ENCODE_FRAME:
+            if (duplicate_setvideo_dump)
+                SETVIDEO_dump(mtx_ctx);
+            if (last_setvideo_dump == 1)
+                SETVIDEO_dump(mtx_ctx);
+            break;
+        case MTX_CMDID_SETVIDEO:
+            context = (IMG_MTX_VIDEO_CONTEXT *)virt_addr;
+            if (last_setvideo_dump == 1)
+                mtx_ctx = virt_addr;
+            else
+                SETVIDEO_dump(context);
+            break;
+        case MTX_CMDID_PICMGMT :            
+            PICMGMT_dump(cmd_data);
+            break;
+        case  MTX_CMDID_PROVIDE_SOURCE_BUFFER:
+            PROVIDEBUFFER_SOURCE_dump((IMG_SOURCE_BUFFER_PARAMS *)virt_addr);
+            break;
+        case  MTX_CMDID_PROVIDE_REF_BUFFER:
+            PROVIDEBUFFER_dump(cmd_data);
+            break;
+        case MTX_CMDID_PROVIDE_CODED_BUFFER:
+            break;
 
-
-void tng_H264ES_trace_pic_params(VAEncPictureParameterBufferH264 *psTracePicParams)
-{
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: CurrPic.picture_id = 0x%08x\n",__FUNCTION__, psTracePicParams->CurrPic.picture_id);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: coded_buf = 0x%08x\n",__FUNCTION__, psTracePicParams->coded_buf);
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ReferenceFrames[0] = 0x%08x\n",__FUNCTION__, psTracePicParams->ReferenceFrames[0].picture_id);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ReferenceFrames[1] = 0x%08x\n",__FUNCTION__, psTracePicParams->ReferenceFrames[1].picture_id);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ReferenceFrames[2] = 0x%08x\n",__FUNCTION__, psTracePicParams->ReferenceFrames[2].picture_id);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ReferenceFrames[3] = 0x%08x\n",__FUNCTION__, psTracePicParams->ReferenceFrames[3].picture_id);
-                
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: pic_fields = 0x%08x\n",__FUNCTION__, psTracePicParams->pic_fields.value);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: pic_init_qp = 0x%08x\n",__FUNCTION__, psTracePicParams->pic_init_qp);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: last_picture = 0x%08x\n",__FUNCTION__, psTracePicParams->last_picture);
-    return;
-}
-
-
-void tng_H264ES_trace_slice_params(VAEncSliceParameterBufferH264 *psTraceSliceParams)
-{
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: disable_deblocking_filter_idc = 0x%08x\n",__FUNCTION__, psTraceSliceParams->disable_deblocking_filter_idc);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: macroblock_address = 0x%08x\n",__FUNCTION__, psTraceSliceParams->macroblock_address);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: num_macroblocks = 0x%08x\n",__FUNCTION__, psTraceSliceParams->num_macroblocks);
-    return;
-}
-
-void tng_H264ES_trace_misc_rc_params(VAEncMiscParameterRateControl *psTraceMiscRcParams)
-{
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bits_per_second = 0x%08x\n", __FUNCTION__, psTraceMiscRcParams->bits_per_second);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s window_size = 0x%08x\n", __FUNCTION__, psTraceMiscRcParams->window_size);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s initial_qp = 0x%08x\n", __FUNCTION__, psTraceMiscRcParams->initial_qp);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s min_qp = 0x%08x\n", __FUNCTION__, psTraceMiscRcParams->min_qp);
-    return;
-}
-
-/*********************************************************************/
-void tng_trace_seq_header_params(H264_SEQUENCE_HEADER_PARAMS *psSHParams)
-{
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucProfile                         = %x\n", __FUNCTION__, psSHParams->ucProfile);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucLevel                           = %x\n", __FUNCTION__, psSHParams->ucLevel);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucWidth_in_mbs_minus1             = %x\n", __FUNCTION__, psSHParams->ucWidth_in_mbs_minus1);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucHeight_in_maps_units_minus1     = %x\n", __FUNCTION__, psSHParams->ucHeight_in_maps_units_minus1);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s log2_max_pic_order_cnt            = %x\n", __FUNCTION__, psSHParams->log2_max_pic_order_cnt);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s max_num_ref_frames                = %x\n", __FUNCTION__, psSHParams->max_num_ref_frames);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s gaps_in_frame_num_value           = %x\n", __FUNCTION__, psSHParams->gaps_in_frame_num_value);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ucFrame_mbs_only_flag             = %x\n", __FUNCTION__, psSHParams->ucFrame_mbs_only_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s VUI_Params_Present                = %x\n", __FUNCTION__, psSHParams->VUI_Params_Present);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s seq_scaling_matrix_present_flag   = %x\n", __FUNCTION__, psSHParams->seq_scaling_matrix_present_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bUseDefaultScalingList            = %x\n", __FUNCTION__, psSHParams->bUseDefaultScalingList);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bIsLossless                       = %x\n", __FUNCTION__, psSHParams->bIsLossless);
-  if (psSHParams->VUI_Params_Present) {
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s Time_Scale            = %x\n", __FUNCTION__, psSHParams->VUI_Params.Time_Scale);            //!< Time scale as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bit_rate_value_minus1 = %x\n", __FUNCTION__, psSHParams->VUI_Params.bit_rate_value_minus1); //!< An inter framebitrate/64)-1
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s cbp_size_value_minus1 = %x\n", __FUNCTION__, psSHParams->VUI_Params.cbp_size_value_minus1); //!< An inter frame(bitrate*1.5)/16
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s CBR                   = %x\n", __FUNCTION__, psSHParams->VUI_Params.CBR);                   //!< CBR as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s initial_cpb_removal   = %x\n", __FUNCTION__, psSHParams->VUI_Params.initial_cpb_removal_delay_length_minus1); //!< as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s cpb_removal_delay_length_minus1 = %x\n", __FUNCTION__, psSHParams->VUI_Params.cpb_removal_delay_length_minus1); //!< as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s dpb_output_delay_length_minus1  = %x\n", __FUNCTION__, psSHParams->VUI_Params.dpb_output_delay_length_minus1);  //!< as defined in the H.264 specification
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s time_offset_length              = %x\n", __FUNCTION__, psSHParams->VUI_Params.time_offset_length);              //!< as defined in the H.264 specification
+            // JPEG commands
+        case MTX_CMDID_SETQUANT:          //!< (data: #JPEG_MTX_QUANT_TABLE)\n
+            jpeg_table = (JPEG_MTX_QUANT_TABLE *)virt_addr;
+            JPEG_TABLE_dump(jpeg_table);
+            break;
+        case MTX_CMDID_ISSUEBUFF:         //!< (data: #MTX_ISSUE_BUFFERS)\n
+            issue_buffer = (MTX_ISSUE_BUFFERS *)virt_addr;
+            ISSUE_BUFFER_dump(issue_buffer);
+            break;
+        case MTX_CMDID_SETUP:             //!< (data: #JPEG_MTX_DMA_SETUP)\n\n
+            jpeg_mtx_dma_setup = (JPEG_MTX_DMA_SETUP *)virt_addr;
+            JPEG_MTX_DMA_dump(jpeg_mtx_dma_setup);
+            break;
+        default:
+            break;
     }
+    return 0;
 }
+static struct RegisterInfomation multicore_regs[] = {
+    {"MULTICORE_SRST",0x0000},
+    {"MULTICORE_INT_STAT",0x0004},
+    {"MULTICORE_MTX_INT_ENAB",0x0008},
+    {"MULTICORE_HOST_INT_ENAB",0x000C},
+    {"MULTICORE_INT_CLEAR",0x0010},
+    {"MULTICORE_MAN_CLK_GATE",0x0014},
+    {"TOPAZ_MTX_C_RATIO",0x0018},
+    {"MMU_STATUS",0x001C},
+    {"MMU_MEM_REQ",0x0020},
+    {"MMU_CONTROL0",0x0024},
+    {"MMU_CONTROL1",0x0028},
+    {"MMU_CONTROL2",0x002C},
+    {"MMU_DIR_LIST_BASE",0x0030},
+    {"MMU_TILE",0x0038},
+    {"MTX_DEBUG_MSTR",0x0044},
+    {"MTX_DEBUG_SLV",0x0048},
+    {"MULTICORE_CORE_SEL_0",0x0050},
+    {"MULTICORE_CORE_SEL_1",0x0054},
+    {"MULTICORE_HW_CFG",0x0058},
+    {"MULTICORE_CMD_FIFO_WRITE",0x0060},
+    {"MULTICORE_CMD_FIFO_WRITE_SPACE",0x0064},
+    {"TOPAZ_CMD_FIFO_READ",0x0070},
+    {"TOPAZ_CMD_FIFO_READ_AVAILABLE",0x0074},
+    {"TOPAZ_CMD_FIFO_FLUSH",0x0078},
+    {"MMU_TILE_EXT",0x0080},
+    {"FIRMWARE_REG_1",0x0100},
+    {"FIRMWARE_REG_2",0x0104},
+    {"FIRMWARE_REG_3",0x0108},
+    {"CYCLE_COUNTER",0x0110},
+    {"CYCLE_COUNTER_CTRL",0x0114},
+    {"MULTICORE_IDLE_PWR_MAN",0x0118},
+    {"DIRECT_BIAS_TABLE",0x0124},
+    {"INTRA_BIAS_TABLE",0x0128},
+    {"INTER_BIAS_TABLE",0x012C},
+    {"INTRA_SCALE_TABLE",0x0130},
+    {"QPCB_QPCR_OFFSET",0x0134},
+    {"INTER_INTRA_SCALE_TABLE",0x0140},
+    {"SKIPPED_CODED_SCALE_TABLE",0x0144},
+    {"POLYNOM_ALPHA_COEFF_CORE0",0x0148},
+    {"POLYNOM_GAMMA_COEFF_CORE0",0x014C},
+    {"POLYNOM_CUTOFF_CORE0",0x0150},
+    {"POLYNOM_ALPHA_COEFF_CORE1",0x0154},
+    {"POLYNOM_GAMMA_COEFF_CORE1",0x0158},
+    {"POLYNOM_CUTOFF_CORE1",0x015C},
+    {"POLYNOM_ALPHA_COEFF_CORE2",0x0160},
+    {"POLYNOM_GAMMA_COEFF_CORE2",0x0164},
+    {"POLYNOM_CUTOFF_CORE2",0x0168},
+    {"FIRMWARE_REG_4",0x0300},
+    {"FIRMWARE_REG_5",0x0304},
+    {"FIRMWARE_REG_6",0x0308},
+    {"FIRMWARE_REG_7",0x030C},
+    {"MULTICORE_RSVD0",0x03B0},
+    {"TOPAZHP_CORE_ID",0x03C0},
+    {"TOPAZHP_CORE_REV",0x03D0},
+    {"TOPAZHP_CORE_DES1",0x03E0},
+    {"TOPAZHP_CORE_DES2",0x03F0},
+};
 
-void tng_trace_pic_header_params(H264_PICTURE_HEADER_PARAMS *psSHParams)
+
+static struct RegisterInfomation core_regs[] = {
+    {"TOPAZHP_SRST",0x0000},
+    {"TOPAZHP_INTSTAT",0x0004},
+    {"TOPAZHP_MTX_INTENAB",0x0008},
+    {"TOPAZHP_HOST_INTENAB",0x000C},
+    {"TOPAZHP_INTCLEAR",0x0010},
+    {"TOPAZHP_INT_COMB_SEL",0x0014},
+    {"TOPAZHP_BUSY",0x0018},
+    {"TOPAZHP_AUTO_CLOCK_GATING",0x0024},
+    {"TOPAZHP_MAN_CLOCK_GATING",0x0028},
+    {"TOPAZHP_RTM",0x0030},
+    {"TOPAZHP_RTM_VALUE",0x0034},
+    {"TOPAZHP_MB_PERFORMANCE_RESULT",0x0038},
+    {"TOPAZHP_MB_PERFORMANCE_MB_NUMBER",0x003C},
+    {"FIELD_PARITY",0x0188},
+    {"WEIGHTED_PRED_CONTROL",0x03D0},
+    {"WEIGHTED_PRED_COEFFS",0x03D4},
+    {"WEIGHTED_PRED_INV_WEIGHT",0x03E0},
+    {"TOPAZHP_RSVD0",0x03F0},
+    {"TOPAZHP_CRC_CLEAR",0x03F4},
+    {"SPE_ZERO_THRESH",0x0344},
+    {"SPE0_BEST_SAD_SIGNATURE",0x0348},
+    {"SPE1_BEST_SAD_SIGNATURE",0x034C},
+    {"SPE0_BEST_INDEX_SIGNATURE",0x0350},
+    {"SPE1_BEST_INDEX_SIGNATURE",0x0354},
+    {"SPE_INTRA_COST_SIGNATURE",0x0358},
+    {"SPE_MVD_CLIP_RANGE",0x0360},
+    {"SPE_SUBPEL_RESOLUTION",0x0364},
+    {"SPE0_MV_SIZE_SIGNATURE",0x0368},
+    {"SPE1_MV_SIZE_SIGNATURE",0x036C},
+    {"SPE_MB_PERFORMANCE_RESULT",0x0370},
+    {"SPE_MB_PERFORMANCE_MB_NUMBER",0x0374},
+    {"SPE_MB_PERFORMANCE_CLEAR",0x0378},
+    {"MEM_SIGNATURE_CONTROL",0x0060},
+    {"MEM_SIGNATURE_ENC_WDATA",0x0064},
+    {"MEM_SIGNATURE_ENC_RDATA",0x0068},
+    {"MEM_SIGNATURE_ENC_ADDR",0x006C},
+    {"PREFETCH_LRITC_SIGNATURE",0x0070},
+    {"PROC_DMA_CONTROL",0x00E0},
+    {"PROC_DMA_STATUS",0x00E4},
+    {"PROC_ESB_ACCESS_CONTROL",0x00EC},
+    {"PROC_ESB_ACCESS_WORD0",0x00F0},
+    {"PROC_ESB_ACCESS_WORD1",0x00F4},
+    {"PROC_ESB_ACCESS_WORD2",0x00F8},
+    {"PROC_ESB_ACCESS_WORD3",0x00FC},
+
+    {"LRITC_TILE_USE_CONFIG",0x0040},
+    {"LRITC_TILE_USE_STATUS",0x0048},
+    {"LRITC_TILE_FREE_STATUS",0x004C},
+    {"LRITC_CACHE_CHUNK_CONFIG",0x0050},
+    {"LRITC_CACHE_CHUNK_STATUS",0x0054},
+    {"LRITC_SIGNATURE_ADDR",0x0058},
+    {"LRITC_SIGNATURE_RDATA",0x005C},
+    
+    {"SEQ_CUR_PIC_LUMA_BASE_ADDR",0x0100},
+    {"SEQ_CUR_PIC_CB_BASE_ADDR",0x0104},
+    {"SEQ_CUR_PIC_CR_BASE_ADDR",0x0108},
+    {"SEQ_CUR_PIC_ROW_STRIDE",0x010C},
+    {"SEQ_REF_PIC0_LUMA_BASE_ADDR",0x0110},
+    {"SEQ_REF_PIC0_CHROMA_BASE_ADDR",0x0114},
+    {"SEQ_REF_PIC1_LUMA_BASE_ADDR",0x0118},
+    {"SEQ_REF_PIC1_CHROMA_BASE_ADDR",0x011C},
+    {"SEQ_CUR_PIC_CONFIG",0x0120},
+    {"SEQ_CUR_PIC_SIZE",0x0124},
+    {"SEQ_RECON_LUMA_BASE_ADDR",0x0128},
+    {"SEQ_RECON_CHROMA_BASE_ADDR",0x012C},
+    {"SEQ_ABOVE_PARAM_BASE_ADDR",0x0130},
+    {"SEQ_TEMPORAL_COLOCATED_IN_ADDR",0x0134},
+    {"SEQ_TEMPORAL_PIC0_MV_IN_ADDR",0x0138},
+    {"SEQ_TEMPORAL_PIC1_MV_IN_ADDR",0x013C},
+    {"SEQ_TEMPORAL_COLOCATED_OUT_ADDR",0x0140},
+    {"SEQ_TEMPORAL_PIC0_MV_OUT_ADDR",0x0144},
+    {"SEQ_TEMPORAL_PIC1_MV_OUT_ADDR",0x0148},
+    {"SEQ_MB_FIRST_STAGE_OUT_ADDR",0x014C},
+    {"SEQ_MB_CONTROL_IN_ADDR",0x0150},
+    {"SEQUENCER_CONFIG",0x0154},
+    {"SLICE_CONFIG",0x0158},
+    {"SLICE_QP_CONFIG",0x015C},
+    {"SEQUENCER_KICK",0x0160},
+    {"H264COMP_REJECT_THRESHOLD",0x0184},
+    {"H264COMP_CUSTOM_QUANT_SP",0x01A0},
+    {"H264COMP_CUSTOM_QUANT_Q",0x01A4},
+    {"H264COMP_CONTROL",0x01A8},
+    {"H264COMP_INTRA_PRED_MODES",0x01AC},
+    {"H264COMP_MAX_CYCLE_COUNT",0x01B0},
+    {"H264COMP_MAX_CYCLE_MB",0x01B4},
+    {"H264COMP_MAX_CYCLE_RESET",0x01B8},
+    {"H264COMP4X4_PRED_CRC",0x01BC},
+    {"H264COMP4X4_COEFFS_CRC",0x01C0},
+    {"H264COMP4X4_RECON_CRC",0x01C4},
+    {"H264COMP8X8_PRED_CRC",0x01C8},
+    {"H264COMP8X8_COEFFS_CRC",0x01CC},
+    {"H264COMP8X8_RECON_CRC",0x01D0},
+    {"H264COMP16X16_PRED_CRC",0x01D4},
+    {"H264COMP16X16_COEFFS_CRC",0x01D8},
+    {"H264COMP16X16_RECON_CRC",0x01DC},
+    {"H264COMP_ROUND_0",0x01E0},
+    {"H264COMP_ROUND_1",0x01E4},
+    {"H264COMP_ROUND_2",0x01E8},
+    {"H264COMP_ROUND_INIT",0x01EC},
+    {"H264COMP_VIDEO_CONF_CONTROL_0",0x01F0},
+    {"H264COMP_VIDEO_CONF_CONTROL_1",0x01F4},
+    {"H264COMP_VIDEO_CONF_STATUS_0",0x01F8},
+    {"H264COMP_VIDEO_CONF_STATUS_1",0x01FC},
+};
+
+static struct RegisterInfomation mtx_regs[] = {
+    {"MTX_ENABLE",0x0000},
+    {"MTX_STATUS",0x0008},
+    {"MTX_KICK",0x0080},
+    {"MTX_KICKI",0x0088},
+    {"MTX_FAULT0",0x0090},
+    {"MTX_REGISTER_READ_WRITE_DATA",0x00F8},
+    {"MTX_REGISTER_READ_WRITE_REQUEST",0x00FC},
+    {"MTX_RAM_ACCESS_DATA_EXCHANGE",0x0100},
+    {"MTX_RAM_ACCESS_DATA_TRANSFER",0x0104},
+    {"MTX_RAM_ACCESS_CONTROL",0x0108},
+    {"MTX_RAM_ACCESS_STATUS",0x010C},
+    {"MTX_SOFT_RESET",0x0200},
+    {"MTX_SYSC_CDMAC",0x0340},
+    {"MTX_SYSC_CDMAA",0x0344},
+    {"MTX_SYSC_CDMAS0",0x0348},
+    {"MTX_SYSC_CDMAS1",0x034C},
+    {"MTX_SYSC_CDMAT",0x0350}
+};
+
+
+static struct RegisterInfomation dmac_regs[] = {
+    {"DMA_Setup",0x0000},
+    {"DMA_Count",0x0004},
+    {"DMA_Peripheral_param",0x0008},
+    {"DMA_IRQ_Stat",0x000c},
+    {"DMA_2D_Mode",0x0010},
+    {"DMA_Peripheral_addr",0x0014},
+    {"DMA_Per_hold",0x0018},
+    {"DMA_SoftReset",0x0020},
+};
+
+
+int topazhp_dump_command(unsigned int *comm_dword)
 {
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s pic_parameter_set_id;           = %x\n", __FUNCTION__, psSHParams->pic_parameter_set_id);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s seq_parameter_set_id;           = %x\n", __FUNCTION__, psSHParams->seq_parameter_set_id);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s entropy_coding_mode_flag;       = %x\n", __FUNCTION__, psSHParams->entropy_coding_mode_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s weighted_pred_flag;             = %x\n", __FUNCTION__, psSHParams->weighted_pred_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s weighted_bipred_idc;            = %x\n", __FUNCTION__, psSHParams->weighted_bipred_idc);           
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s chroma_qp_index_offset;         = %x\n", __FUNCTION__, psSHParams->chroma_qp_index_offset);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s constrained_intra_pred_flag;    = %x\n", __FUNCTION__, psSHParams->constrained_intra_pred_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s transform_8x8_mode_flag;        = %x\n", __FUNCTION__, psSHParams->transform_8x8_mode_flag);  
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s pic_scaling_matrix_present_flag = %x\n", __FUNCTION__, psSHParams->pic_scaling_matrix_present_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s bUseDefaultScalingList;         = %x\n", __FUNCTION__, psSHParams->bUseDefaultScalingList);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s second_chroma_qp_index_offset;  = %x\n", __FUNCTION__, psSHParams->second_chroma_qp_index_offset);
+    int cmdid;
 
+    if (comm_dword == NULL)
+        return 1;
+    
+    cmdid = (comm_dword[0] & MASK_MTX_MSG_CMD_ID) & ~ MASK_MTX_MSG_PRIORITY;
+
+    (void)multicore_regs;
+    (void)core_regs;
+    (void)mtx_regs;
+    (void)dmac_regs;
+    
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\tSend command to MTX\n");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_ID=%s(High priority:%s)\n", cmd2str(cmdid),
+           (comm_dword[0] & MASK_MTX_MSG_PRIORITY)?"Yes":"No");
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_CORE=%d\n", (comm_dword[0] & MASK_MTX_MSG_CORE) >> SHIFT_MTX_MSG_CORE);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_COUNT=%d\n", (comm_dword[0] & MASK_MTX_MSG_COUNT) >> SHIFT_MTX_MSG_COUNT);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_DATA=0x%08x\n", comm_dword[1]);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_ADDR=0x%08x\n", comm_dword[2]);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tCMDWORD_WBVALUE=0x%08x\n", comm_dword[3]);
+    command_parameter_dump(cmdid, comm_dword[1], comm_dword[2]);
+
+    return 0;
 }
-
-void tng_trace_slice_header_params(H264_SLICE_HEADER_PARAMS *psSlHParams)
-{
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: start addr = 0x%08x\n", __FUNCTION__, psSlHParams);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.ui8Start_Code_Prefix_Size_Bytes 0x%08x\n", psSlHParams->ui8Start_Code_Prefix_Size_Bytes);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.SliceFrame_Type                 0x%08x\n", psSlHParams->SliceFrame_Type);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.First_MB_Address                0x%08x\n", psSlHParams->First_MB_Address);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.Frame_Num_DO                    0x%08x\n", psSlHParams->Frame_Num_DO);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.Idr_Pic_Id                      0x%08x\n", psSlHParams->Idr_Pic_Id);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.log2_max_pic_order_cnt          0x%08x\n", psSlHParams->log2_max_pic_order_cnt);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.Picture_Num_DO                  0x%08x\n", psSlHParams->Picture_Num_DO);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.Disable_Deblocking_Filter_Idc   0x%08x\n", psSlHParams->Disable_Deblocking_Filter_Idc);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bPiCInterlace                   0x%08x\n", psSlHParams->bPiCInterlace);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bFieldType                      0x%08x\n", psSlHParams->bFieldType);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bReferencePicture               0x%08x\n", psSlHParams->bReferencePicture);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.iDebAlphaOffsetDiv2             0x%08x\n", psSlHParams->iDebAlphaOffsetDiv2);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.iDebBetaOffsetDiv2              0x%08x\n", psSlHParams->iDebBetaOffsetDiv2);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.direct_spatial_mv_pred_flag     0x%08x\n", psSlHParams->direct_spatial_mv_pred_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.num_ref_idx_l0_active_minus1    0x%08x\n", psSlHParams->num_ref_idx_l0_active_minus1);
-
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.diff_ref_pic_num[0] 0x%08x\n", psSlHParams->diff_ref_pic_num[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.diff_ref_pic_num[1] 0x%08x\n", psSlHParams->diff_ref_pic_num[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.weighted_pred_flag  0x%08x\n", psSlHParams->weighted_pred_flag);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.weighted_bipred_idc 0x%08x\n", psSlHParams->weighted_bipred_idc);
-
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_log2_weight_denom   0x%08x\n", psSlHParams->luma_log2_weight_denom);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chroma_log2_weight_denom 0x%08x\n", psSlHParams->chroma_log2_weight_denom);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_weight_l0_flag[0]  0x%08x\n",  psSlHParams->luma_weight_l0_flag[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_weight_l0_flag[1]  0x%08x\n",  psSlHParams->luma_weight_l0_flag[1]);
-
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.SlHParams.luma_weight_l0[0] 0x%08x\n", psSlHParams->luma_weight_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.SlHParams.luma_weight_l0[1] 0x%08x\n", psSlHParams->luma_weight_l0[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_offset_l0[0]           0x%08x\n", psSlHParams->luma_offset_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.luma_offset_l0[1]           0x%08x\n", psSlHParams->luma_offset_l0[1]);
-
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chroma_weight_l0_flag[0]    0x%08x\n", psSlHParams->chroma_weight_l0_flag[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chroma_weight_l0_flag[1]    0x%08x\n", psSlHParams->chroma_weight_l0_flag[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaB_weight_l0[0]        0x%08x\n", psSlHParams->chromaB_weight_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaB_offset_l0[0]        0x%08x\n", psSlHParams->chromaB_offset_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaR_weight_l0[0]        0x%08x\n", psSlHParams->chromaR_weight_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaR_offset_l0[0]        0x%08x\n", psSlHParams->chromaR_offset_l0[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaB_weight_l0[1]        0x%08x\n", psSlHParams->chromaB_weight_l0[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaB_offset_l0[1]        0x%08x\n", psSlHParams->chromaB_offset_l0[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaR_weight_l0[1]        0x%08x\n", psSlHParams->chromaR_weight_l0[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.chromaR_offset_l0[1]        0x%08x\n", psSlHParams->chromaR_offset_l0[1]);
- 
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.ui16MvcViewIdx    0x%08x\n", psSlHParams->ui16MvcViewIdx);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bIsLongTermRef    0x%08x\n", psSlHParams->bIsLongTermRef);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.uLongTermRefNum   0x%08x\n", psSlHParams->uLongTermRefNum);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bRefIsLongTermRef[0]  0x%08x\n", psSlHParams->bRefIsLongTermRef[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.bRefIsLongTermRef[1]  0x%08x\n", psSlHParams->bRefIsLongTermRef[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.uRefLongTermRefNum[0] 0x%08x\n", psSlHParams->uRefLongTermRefNum[0]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "SlHParams.uRefLongTermRefNum[1] 0x%08x\n", psSlHParams->uRefLongTermRefNum[1]);
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end \n", __FUNCTION__);
-}
-
-void tng__trace_seqconfig(
-    IMG_BOOL bIsBPicture,
-    IMG_BOOL bFieldMode,
-    IMG_UINT8  ui8SwapChromas,
-    IMG_BOOL32 ui32FrameStoreFormat,
-    IMG_UINT8  uiDeblockIDC)
-{
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(0, TOPAZHP_CR_TEMPORAL_PIC0_BELOW_IN_VALID)                      );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(0, TOPAZHP_CR_TEMPORAL_PIC1_BELOW_IN_VALID)                    );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(0, TOPAZHP_CR_ABOVE_OUT_OF_SLICE_VALID)                        );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(1, TOPAZHP_CR_WRITE_TEMPORAL_PIC0_BELOW_VALID)                 );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(0, TOPAZHP_CR_REF_PIC0_VALID)                                  );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(0, TOPAZHP_CR_REF_PIC1_VALID)                                  );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(!bIsBPicture, TOPAZHP_CR_REF_PIC1_EQUAL_PIC0)                  );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(bFieldMode ? 1 : 0 , TOPAZHP_CR_FIELD_MODE)                    );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(ui8SwapChromas, TOPAZHP_CR_FRAME_STORE_CHROMA_SWAP)            );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(ui32FrameStoreFormat, TOPAZHP_CR_FRAME_STORE_FORMAT)           );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(TOPAZHP_CR_ENCODER_STANDARD_H264, TOPAZHP_CR_ENCODER_STANDARD) );
-  drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s ui32SeqConfig 0x%08x\n", __FUNCTION__, F_ENCODE(uiDeblockIDC == 1 ? 0 : 1, TOPAZHP_CR_DEBLOCK_ENABLE));
-}
-
-void tng__trace_seq_header(void* pointer)
-{
-    context_ENC_p ctx = NULL;
-    if (pointer == NULL)
-        return ;
-
-    ctx = (context_ENC_p)pointer;
-
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ucProfile = %d\n",              __FUNCTION__, ctx->ui8ProfileIdc);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ucLevel = %d\n",                __FUNCTION__, ctx->ui8LevelIdc);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui16Width = %d\n",              __FUNCTION__, ctx->ui16Width);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui16PictureHeight = %d\n",      __FUNCTION__, ctx->ui16PictureHeight);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui32CustomQuantMask = %d\n",    __FUNCTION__, ctx->ui32CustomQuantMask);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui8FieldCount = %d\n",          __FUNCTION__, ctx->ui8FieldCount);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: ui8MaxNumRefFrames = %d\n",     __FUNCTION__, ctx->ui8MaxNumRefFrames);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bPpsScaling = %d\n",            __FUNCTION__, ctx->bPpsScaling);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bUseDefaultScalingList = %d\n", __FUNCTION__, ctx->bUseDefaultScalingList);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bEnableLossless = %d\n",        __FUNCTION__, ctx->bEnableLossless);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: bArbitrarySO = %d\n",           __FUNCTION__, ctx->bArbitrarySO);
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: vui_flag = %d\n",               __FUNCTION__, ctx->sVuiParams.vui_flag);
-}
-
