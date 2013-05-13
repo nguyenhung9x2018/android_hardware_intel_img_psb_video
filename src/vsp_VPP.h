@@ -68,6 +68,8 @@ struct context_VPP_s {
 	unsigned int frame_width;
 	unsigned int frame_height;
 
+	unsigned int rc_mode;
+
 	struct VssProcDenoiseParameterBuffer denoise_deblock_param;
 	struct VssProcColorEnhancementParameterBuffer enhancer_param;
 	struct VssProcSharpenParameterBuffer sharpen_param;

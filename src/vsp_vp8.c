@@ -52,6 +52,9 @@
 #define REF_FRAME_HEIGHT 1088
 #define REF_FRAME_BORDER   32
 
+#define VP8_ENC_CBR 1
+#define VP8_ENC_CBR_HRD 0
+
 #define XMEM_FRAME_BUFFER_SIZE_IN_BYTE ((REF_FRAME_WIDTH + 2 * REF_FRAME_BORDER) * (REF_FRAME_HEIGHT + 2 * REF_FRAME_BORDER) + \
         2 * ((REF_FRAME_WIDTH + 2 * REF_FRAME_BORDER) >> 1) * (REF_FRAME_HEIGHT / 2 + REF_FRAME_BORDER)) // Allocated for HD
 
@@ -77,20 +80,47 @@ static void vsp_VP8_QueryConfigAttributes(
     VAConfigAttrib *attrib_list,
     int num_attribs)
 {
-    /* No VP8 specific attributes for now*/
-    return;
+    int i;
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
+
+    for (i = 0; i < num_attribs; i++) {
+        switch (attrib_list[i].type) {
+	case VAConfigAttribRTFormat:
+	    break;
+	case VAConfigAttribRateControl:
+	    break;
+	case VAConfigAttribEncAutoReference:
+	    attrib_list[i].value = 1;
+	    break;
+	case VAConfigAttribEncMaxRefFrames:
+	    attrib_list[i].value = 4;
+	    break;
+
+	default:
+	    attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
+	    break;
+	}
+    }
 }
 
 static VAStatus vsp_VP8_ValidateConfig(
     object_config_p obj_config)
 {
     int i;
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s\n", __FUNCTION__);
+
     /* Check all attributes */
     for (i = 0; i < obj_config->attrib_count; i++) {
         switch (obj_config->attrib_list[i].type) {
             case VAConfigAttribRTFormat:
                 /* Ignore */
                 break;
+            case VAConfigAttribRateControl:
+		break;
+            case VAConfigAttribEncAutoReference:
+		break;
+            case VAConfigAttribEncMaxRefFrames:
+		break;
 
             default:
                 return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
@@ -100,40 +130,14 @@ static VAStatus vsp_VP8_ValidateConfig(
     return VA_STATUS_SUCCESS;
 }
 
-static VAStatus vsp__VP8_check_legal_picture(object_context_p obj_context, object_config_p obj_config)
-{
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-/*
-    if (NULL == obj_context) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONTEXT;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-
-    if (NULL == obj_config) {
-        vaStatus = VA_STATUS_ERROR_INVALID_CONFIG;
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
-*/
-    return vaStatus;
-}
-
 static VAStatus vsp_VP8_CreateContext(
     object_context_p obj_context,
     object_config_p obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+    /* currently vp8 will use vpp's context since they will use the same cmdbuf */
     context_VPP_p ctx;
     int i;
-
-    /* Validate flag */
-    /* Validate picture dimensions */
-    vaStatus = vsp__VP8_check_legal_picture(obj_context, obj_config);
-    if (VA_STATUS_SUCCESS != vaStatus) {
-        DEBUG_FAILURE;
-        return vaStatus;
-    }
 
     ctx = (context_VPP_p) calloc(1, sizeof(struct context_VPP_s));
     if (NULL == ctx) {
@@ -142,8 +146,12 @@ static VAStatus vsp_VP8_CreateContext(
         return vaStatus;
     }
 
-    ctx->filters = NULL;
-    ctx->num_filters = 0;
+    for (i = 0; i < obj_config->attrib_count; i++) {
+	if (obj_config->attrib_list[i].type == VAConfigAttribRateControl) {
+            ctx->rc_mode = obj_config->attrib_list[i].value;
+	    break;
+	}
+    }
 
     /* set size */
     ctx->param_sz = 0;
@@ -171,23 +179,7 @@ static VAStatus vsp_VP8_CreateContext(
 
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
-/*
-    for (i = 0; i < obj_config->attrib_count; ++i) {
-        if (VAConfigAttribRTFormat == obj_config->attrib_list[i].type) {
-            switch (obj_config->attrib_list[i].value) {
-                case VA_RT_FORMAT_YUV420:
-                    ctx->format = VSP_NV12;
-                    break;
-                case VA_RT_FORMAT_YUV422:
-                    ctx->format = VSP_NV16;
-                default:
-                    ctx->format = VSP_NV12;
-                    break;
-            }
-        break;
-        }
-    }
-*/
+
     return vaStatus;
 
 out:
@@ -240,23 +232,23 @@ static VAStatus vsp_vp8_process_seqence_param(
     /*cmd structures initializations*/
     seq->frame_width       = va_seq->frame_width;
     seq->frame_height      = va_seq->frame_height;
-    seq->rc_target_bitrate = va_seq->bits_per_second;
+    seq->rc_target_bitrate = va_seq->bits_per_second / 1000;
     seq->max_intra_rate    = 0;
-    seq->rc_undershoot_pct = 100;
-    seq->rc_overshoot_pct  = 100;
+    seq->rc_undershoot_pct = va_seq->rc_undershoot;
+    seq->rc_overshoot_pct  = va_seq->rc_overshoot;
     /* FIXME: API doc says max 5000, but for current default test vector we still use 6000 */
-    seq->rc_buf_sz         = 6000;
-    seq->rc_buf_initial_sz = 4000;
-    seq->rc_buf_optimal_sz = 5000;
-    seq->rc_min_quantizer  = 4;
-    seq->rc_max_quantizer  = 63;
-    seq->kf_max_dist       = 30; //va_seq->kf_max_dist ;
-    seq->kf_min_dist       = 0 ;
+    seq->rc_buf_sz         = va_seq->hrd_buf_size;
+    seq->rc_buf_initial_sz = va_seq->hrd_buf_initial_fullness;
+    seq->rc_buf_optimal_sz = va_seq->hrd_buf_optimal_fullness;
+    seq->rc_min_quantizer  = va_seq->min_qp;
+    seq->rc_max_quantizer  = va_seq->max_qp;
+    seq->kf_max_dist       = va_seq->kf_max_dist;
+    seq->kf_min_dist       = va_seq->kf_min_dist;
     seq->frame_rate        = va_seq->frame_rate;
-    seq->error_resilient   = 0;
+    seq->error_resilient   = va_seq->error_resilient;
     seq->num_token_partitions = 2; // (log2: 2^2 = 4)
-    seq->rc_end_usage         = 0;   /* CBR */
-    seq->kf_mode              = 1;   /* AUTO */
+    seq->rc_end_usage         = (ctx->rc_mode == VA_RC_CBR) ? VP8_ENC_CBR_HRD : VP8_ENC_CBR;  /* CBR */
+    seq->kf_mode              = va_seq->kf_auto;   /* AUTO */
     seq->cyclic_intra_refresh = 0;
 
     seq->concatenate_partitions = 1; //Make 0 not to concatenate partitions
@@ -469,7 +461,7 @@ static VAStatus vsp_VP8_EndPicture(
         cmdbuf->frc_param_p = NULL;
      }
 
-    ctx->obj_context->frame_count++;
+//    ctx->obj_context->frame_count++;
 
     if (vsp_context_flush_cmdbuf(ctx->obj_context))
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VPP: flush deblock cmdbuf error\n");
