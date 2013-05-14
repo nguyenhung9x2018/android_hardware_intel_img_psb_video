@@ -234,6 +234,15 @@ static VAStatus tng__MPEG4ES_process_sequence_param(context_ENC_p ctx, object_bu
 
     ctx->ui32IdrPeriod = psSeqParams->intra_period;
     ctx->ui32IntraCnt = psSeqParams->intra_period;
+
+    if (ctx->ui32IntraCnt == 0) {
+        ctx->ui32IntraCnt = INT_MAX;
+        ctx->ui32IdrPeriod = 1;
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,
+           "%s: only ONE I frame in the sequence, %d\n",
+           __FUNCTION__, ctx->ui32IdrPeriod);
+    }
+
     ctx->bCustomScaling = IMG_FALSE;
     ctx->bUseDefaultScalingList = IMG_FALSE;
 
