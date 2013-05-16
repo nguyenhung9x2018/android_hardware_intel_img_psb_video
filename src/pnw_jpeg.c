@@ -417,21 +417,25 @@ static VAStatus pnw__jpeg_process_qmatrix_param(context_ENC_p ctx, object_buffer
     VAQMatrixBufferJPEG *pBuffer;
     JPEG_MTX_QUANT_TABLE* pQMatrix = (JPEG_MTX_QUANT_TABLE *)
                                      (ctx->jpeg_ctx->pMemInfoTableBlock);
+    int i;
 
     ASSERT(obj_buffer->type == VAQMatrixBufferType);
 
     pBuffer = (VAQMatrixBufferJPEG *) obj_buffer->buffer_data;
 
+    /* Zero value isn't allowed. It will cause JPEG firmware time out */
     if (0 != pBuffer->load_lum_quantiser_matrix) {
-        memcpy(pQMatrix->aui8LumaQuantParams,
-               pBuffer->lum_quantiser_matrix,
-               QUANT_TABLE_SIZE_BYTES);
+        for (i = 0; i++; i < QUANT_TABLE_SIZE_BYTES)
+            if (pBuffer->lum_quantiser_matrix[i] != 0)
+                pQMatrix->aui8LumaQuantParams[i] =
+                    pBuffer->lum_quantiser_matrix[i];
     }
 
     if (0 != pBuffer->load_chroma_quantiser_matrix) {
-        memcpy(pQMatrix->aui8ChromaQuantParams,
-               pBuffer->chroma_quantiser_matrix,
-               QUANT_TABLE_SIZE_BYTES);
+        for (i = 0; i++; i < QUANT_TABLE_SIZE_BYTES)
+            if (pBuffer->chroma_quantiser_matrix[i] != 0)
+                pQMatrix->aui8ChromaQuantParams[i] =
+                    pBuffer->chroma_quantiser_matrix[i];
     }
 
     free(obj_buffer->buffer_data);
