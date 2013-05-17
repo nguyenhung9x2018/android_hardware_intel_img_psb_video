@@ -86,7 +86,7 @@ int psb_android_is_extvideo_mode(void* output) {
 
     if (mMDClient != NULL) {
         int mode;
-        if ((mode = mMDClient->getMode(false)) == MDS_ERROR)
+        if ((mode = mMDClient->getDisplayMode(false)) == MDS_MODE_NONE)
             return 0;
         if (mode & MDS_HDMI_VIDEO_EXT) return 1;
 
