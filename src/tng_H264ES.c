@@ -201,6 +201,9 @@ static VAStatus tng__H264ES_process_misc_framerate_param(context_ENC_p ctx, obje
     if (psMiscFrameRateParam == NULL)
         return VA_STATUS_ERROR_INVALID_BUFFER;
 
+    if (psMiscFrameRateParam->framerate < 1 || psMiscFrameRateParam->framerate > 65535)
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+
     if ((psMiscFrameRateParam->framerate != psRCParams->ui32FrameRate) &&
         (psMiscFrameRateParam->framerate > 0)) {
         psRCParams->ui32FrameRate = psMiscFrameRateParam->framerate;
@@ -244,6 +247,11 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: rate control changed from %d to %d\n", __FUNCTION__,
         psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
+
+    if (psMiscRcParams->window_size > 2000) {
+	drv_debug_msg(VIDEO_DEBUG_ERROR, "window_size is too much!\n");
+	return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
 
     if (psMiscRcParams->window_size != 0)
         ctx->uiCbrBufferTenths = psMiscRcParams->window_size / 100;
@@ -336,6 +344,12 @@ static VAStatus tng__H264ES_process_misc_air_param(context_ENC_p ctx, object_buf
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }*/
 
+    if (psMiscAirParams->air_num_mbs > 65535) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: ERROR: air_num_mbs = %d should not bigger than 65536\n",
+            __FUNCTION__, psMiscAirParams->air_num_mbs);
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
     if (psMiscAirParams->air_num_mbs > ui32MbNum)
         psMiscAirParams->air_num_mbs = ui32MbNum;
 
@@ -363,7 +377,6 @@ static VAStatus tng__H264ES_process_misc_air_param(context_ENC_p ctx, object_buf
     
     return VA_STATUS_SUCCESS;
 }
-
 
 static IMG_UINT8 tng__H264ES_calculate_level(context_ENC_p ctx)
 {
