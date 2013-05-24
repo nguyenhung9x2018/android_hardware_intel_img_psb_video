@@ -318,7 +318,10 @@ static VAStatus vsp_vp8_process_picture_param(
     pic->input_frame.irq        = 1;
     pic->input_frame.height     = ctx->frame_height;
     pic->input_frame.width      = ctx->frame_width;
-    pic->input_frame.stride     = (ctx->frame_width + 31) & (~31);
+    /* NOTE: In VIED API doc, stride must be the nearest integer multiple of 32 */
+    /* use vaCreateSurfaceWithAttribute with VAExternalMemoryNULL to create surface*/
+    //pic->input_frame.stride     = (ctx->frame_width + 31) & (~31);
+    pic->input_frame.stride     = ctx->obj_context->current_render_target->psb_surface->stride;
     pic->input_frame.format     = 0; /* TODO: Specify NV12 = 0 */
 
     pic->recon_frame.surface_id = va_seq->reference_frames[0];

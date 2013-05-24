@@ -613,10 +613,8 @@ int psb_codedbuf_map_mangle(
                 /* multi segments*/
 		struct VssVp8encEncodedFrame *t = (struct VssVp8encEncodedFrame *) (raw_codedbuf);
 
-		printf("t->status=%d, t->frame_size=%d, t->frame_flags=%d, t->partitions=%d\n",
-                        t->status, t->frame_size, t->frame_flags, t->partitions);
-		printf("t=%p, raw_codedbuf=%p, t->coded_data=%p, t->partition_start[0]=%p\n",
-                        t, raw_codedbuf,  t->coded_data, t-> partition_start[0]);
+		//printf("t->status=%x, t->frame_size=%d, t->frame_flags=%d, t->partitions=%d\n",
+                  //      t->status, t->frame_size, t->frame_flags, t->partitions);
 
 		/* partitions are concatenate */
 		p->buf = t->coded_data;
