@@ -67,7 +67,10 @@ struct context_DEC_s {
     int colocated_buffers_size;
     int colocated_buffers_idx;
     context_yuv_processor_p yuv_ctx;
-
+#ifdef SLICE_HEADER_PARSING
+    uint32_t parse_enabled;
+    uint32_t parse_key;
+#endif
     /* scaling coeff reg */
     uint32_t scaler_coeff_reg[2][2][4];
     uint32_t h_scaler_ctrl;

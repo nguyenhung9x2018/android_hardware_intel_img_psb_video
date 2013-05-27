@@ -1687,6 +1687,9 @@ VAStatus psb__CreateBuffer(
     case VASliceGroupMapBufferType:
     case VAEncCodedBufferType:
     case VAProtectedSliceDataBufferType:
+#ifdef SLICE_HEADER_PARSING
+    case VAParseSliceHeaderGroupBufferType:
+#endif
         vaStatus = psb__allocate_BO_buffer(driver_data, obj_buffer, size * num_elements, data, obj_buffer->type);
         DEBUG_FAILURE;
         break;
@@ -1706,6 +1709,9 @@ VAStatus psb__CreateBuffer(
     case VAHuffmanTableBufferType:
     case VAProcPipelineParameterBufferType:
     case VAProcFilterParameterBufferType:
+#ifdef SLICE_HEADER_PARSING
+    case VAParsePictureParameterBufferType:
+#endif
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate new malloc buffers for vaCreateBuffer:type=%s,size=%d, buffer_data=%p.\n",
                                  buffer_type_to_string(type), size, obj_buffer->buffer_data);
         vaStatus = psb__allocate_malloc_buffer(obj_buffer, size * num_elements);
@@ -1780,6 +1786,10 @@ VAStatus psb_CreateBuffer(
     case VAHuffmanTableBufferType:
     case VAProcPipelineParameterBufferType:
     case VAProcFilterParameterBufferType:
+#ifdef SLICE_HEADER_PARSING
+    case VAParsePictureParameterBufferType:
+    case VAParseSliceHeaderGroupBufferType:
+#endif
         break;
 
     default:

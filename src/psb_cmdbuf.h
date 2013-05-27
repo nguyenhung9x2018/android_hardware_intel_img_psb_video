@@ -66,6 +66,9 @@ struct psb_cmdbuf_s {
     /* CMD stream data */
     int cmd_count;
     int deblock_count;
+#ifdef SLICE_HEADER_PARSING
+    int parse_count;
+#endif
     int oold_count;
     int host_be_opp_count;
     int frame_info_count;
@@ -241,6 +244,11 @@ void psb_cmdbuf_dma_write_bitstream(psb_cmdbuf_p cmdbuf,
                                       uint32_t offset_in_bits,
                                       uint32_t flags);
 
+#ifdef SLICE_HEADER_PARSING
+void psb_cmdbuf_dma_write_key(psb_cmdbuf_p cmdbuf,
+                                      uint32_t flags,
+                                      uint32_t key);
+#endif
 /*
  * Create a command to set registers
  */

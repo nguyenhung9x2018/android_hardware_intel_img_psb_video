@@ -194,7 +194,9 @@ int psb_cmdbuf_reset(psb_cmdbuf_p cmdbuf)
     cmdbuf->oold_count = 0;
     cmdbuf->host_be_opp_count = 0;
     cmdbuf->frame_info_count = 0;
-
+#ifdef SLICE_HEADER_PARSING
+    cmdbuf->parse_count = 0;
+#endif
     ret = psb_buffer_map(&cmdbuf->buf, &cmdbuf->cmd_base);
     if (ret) {
         return ret;
@@ -826,10 +828,18 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
     int ret;
     unsigned int item_size = FW_DEVA_DECODE_SIZE; /* Size of a render/deocde msg */
 
+#ifdef SLICE_HEADER_PARSING
+    if ((NULL == cmdbuf) ||
+        (0 == (cmdbuf->cmd_count + cmdbuf->deblock_count + cmdbuf->host_be_opp_count +
+            cmdbuf->frame_info_count + cmdbuf->parse_count))) {
+        return 0; // Nothing to do
+    }
+#else
     if ((NULL == cmdbuf) ||
         (0 == (cmdbuf->cmd_count + cmdbuf->deblock_count + cmdbuf->host_be_opp_count + cmdbuf->frame_info_count))) {
         return 0; // Nothing to do
     }
+#endif
 
     uint32_t msg_size = 0;
     uint32_t *msg = (uint32_t *)cmdbuf->MTX_msg;
@@ -894,7 +904,11 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
     for (i = 1; i <= cmdbuf->host_be_opp_count; i++) {
         msg_size += FW_VA_HOST_BE_OPP_SIZE;
     }
-
+#ifdef SLICE_HEADER_PARSING
+    for (i = 1; i <= cmdbuf->parse_count; i++) {
+        msg_size += sizeof(struct fw_slice_header_extract_msg);
+    }
+#endif
     /* Now calculate the total number of relocations */
     reloc_offset = cmdbuf->reloc_base - cmdbuf->MTX_msg;
     num_relocs = (((unsigned char *) cmdbuf->reloc_idx) - cmdbuf->reloc_base) / sizeof(struct drm_psb_reloc);
@@ -1293,6 +1307,20 @@ void psb_cmdbuf_dma_write_bitstream(psb_cmdbuf_p cmdbuf,
     *cmdbuf->cmd_idx++ = (CMD_BITSTREAM_DMA | size_in_bytes);
     RELOC(*cmdbuf->cmd_idx++, buffer_offset, bitstream_buf);
 }
+
+#ifdef SLICE_HEADER_PARSING
+/*
+ * Write a CMD_SR_SETUP referencing a bitstream buffer to the command buffer
+ */
+void psb_cmdbuf_dma_write_key(psb_cmdbuf_p cmdbuf,
+                                      uint32_t flags,
+                                      uint32_t key)
+{
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pass key, flags is 0x%x, key is 0x%x.\n", flags, key);
+    *cmdbuf->cmd_idx++ = CMD_SR_SETUP | flags;
+    *cmdbuf->cmd_idx++ = key;
+}
+#endif
 
 /*
  * Chain a LLDMA bitstream command to the previous one

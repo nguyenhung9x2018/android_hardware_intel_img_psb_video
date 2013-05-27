@@ -269,11 +269,13 @@ VAStatus vld_dec_process_slice(context_DEC_p ctx,
 
     if ((slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_BEGIN) ||
         (slice_param->slice_data_flag == VA_SLICE_DATA_FLAG_ALL)) {
+#ifndef SLICE_HEADER_PARSING
         if (0 == slice_param->slice_data_size) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
             return vaStatus;
         }
+#endif
         ASSERT(!ctx->split_buffer_pending);
 
         if (psb_context_get_next_cmdbuf(ctx->obj_context)) {
@@ -284,8 +286,14 @@ VAStatus vld_dec_process_slice(context_DEC_p ctx,
         vld_dec_FE_state(ctx->obj_context, ctx->preload_buffer);
         ctx->begin_slice(ctx, slice_param);
         ctx->slice_data_buffer = obj_buffer->psb_buffer;
-
-        psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
+#ifdef SLICE_HEADER_PARSING
+        if (ctx->parse_enabled == 1)
+            psb_cmdbuf_dma_write_key(ctx->obj_context->cmdbuf,
+                                         ctx->SR_flags,
+                                         ctx->parse_key);
+        else
+#endif
+            psb_cmdbuf_dma_write_bitstream(ctx->obj_context->cmdbuf,
                                          obj_buffer->psb_buffer,
                                          obj_buffer->psb_buffer->buffer_ofs + slice_param->slice_data_offset,
                                          slice_param->slice_data_size,

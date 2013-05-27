@@ -73,7 +73,9 @@ extern "C" {
         /* Test Messages */
         VA_MSGID_TEST1,
         DAVA_MSGID_HOST_BE_OPP,
-
+#ifdef SLICE_HEADER_PARSING
+        VA_MSGID_SLICE_HEADER_EXTRACT = 0x87,
+#endif
         /*! Sent by the mtx firmware to itself.
          */
         VA_MSGID_RENDER_MC_INTERRUPT,

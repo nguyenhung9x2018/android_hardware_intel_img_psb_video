@@ -169,6 +169,9 @@ typedef enum DMA_TYPE
 #define CMD_SR_SETUP                            (0xB0000000)
 #define CMD_ENABLE_RBDU_EXTRACTION              (0x00000001)
 #define CMD_SR_VERIFY_STARTCODE                 (0x00000004)
+#ifdef SLICE_HEADER_PARSING
+#define CMD_SR_BITSTR_PARSE_KEY                 (0x00000010)
+#endif
 #define CMD_BITSTREAM_DMA                       (0xA0000000)
 typedef struct {
     IMG_UINT32 ui32Cmd;

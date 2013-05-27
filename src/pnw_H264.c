@@ -41,11 +41,15 @@
 #include "hwdefs/msvdx_vec_reg_io2.h"
 #include "hwdefs/msvdx_vec_h264_reg_io2.h"
 #include "hwdefs/dxva_fw_ctrl.h"
-
+#ifdef SLICE_HEADER_PARSING
+#include "hwdefs/dxva_cmdseq_msg.h"
+#include "hwdefs/dxva_msg.h"
+#endif
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 
+#define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
 #define GET_SURFACE_INFO_is_used(psb_surface) ((int) (psb_surface->extra_info[0]))
 #define SET_SURFACE_INFO_is_used(psb_surface, val) psb_surface->extra_info[0] = (uint32_t) val;
@@ -705,6 +709,103 @@ static VAStatus psb__H264_process_slice_group_map(context_H264_p ctx, object_buf
 
     return VA_STATUS_SUCCESS;
 }
+
+#ifdef SLICE_HEADER_PARSING
+static VAStatus psb__H264_process_slice_header_group(context_H264_p ctx, object_buffer_p obj_buffer)
+{
+    ASSERT(obj_buffer->type == VAParsePictureParameterBufferType);
+    object_context_p obj_context = ctx->obj_context;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    /* Transfer ownership of VAPictureParameterBufferH264 data */
+    VAParsePictureParameterBuffer *pic_param_buf = (VAParsePictureParameterBuffer *) obj_buffer->buffer_data;
+
+    object_buffer_p frame_obj_buffer = BUFFER(pic_param_buf->frame_buf_id);
+    if (NULL == frame_obj_buffer) {
+        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    object_buffer_p slice_header_obj_buffer = BUFFER(pic_param_buf->slice_headers_buf_id);
+    if (NULL == slice_header_obj_buffer) {
+        vaStatus = VA_STATUS_ERROR_INVALID_BUFFER;
+        DEBUG_FAILURE;
+        return vaStatus;
+    }
+
+    psb_context_get_next_cmdbuf(obj_context);
+    psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
+
+    uint32_t msg_size = sizeof(struct fw_slice_header_extract_msg);
+    uint32_t *msg = (uint32_t *)cmdbuf->MTX_msg;
+    memset(msg, 0, msg_size);
+    struct fw_slice_header_extract_msg *extract_msg;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Send nal parse cmd\n");
+    if (cmdbuf->cmd_count) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "nal parse cmdbuf has other msgs!\n");
+    }
+    extract_msg = (struct fw_slice_header_extract_msg *)msg;
+    extract_msg->header.bits.msg_size = sizeof(struct fw_slice_header_extract_msg);
+    extract_msg->header.bits.msg_type = VA_MSGID_SLICE_HEADER_EXTRACT;
+    extract_msg->flags.bits.flags = FW_VA_RENDER_HOST_INT;
+
+    extract_msg->src_size = pic_param_buf->frame_size;
+    extract_msg->dst_size = pic_param_buf->slice_headers_size;
+    extract_msg->flag_bitfield.bits.expected_pps_id =
+        pic_param_buf->expected_pic_parameter_set_id;
+
+    extract_msg->flag_bitfield.bits.continue_parse_flag = 0;
+    extract_msg->flag_bitfield.bits.frame_mbs_only_flag =
+        pic_param_buf->flags.bits.frame_mbs_only_flag;
+    extract_msg->flag_bitfield.bits.pic_order_present_flag =
+        pic_param_buf->flags.bits.pic_order_present_flag;
+    extract_msg->flag_bitfield.bits.delta_pic_order_always_zero_flag =
+        pic_param_buf->flags.bits.delta_pic_order_always_zero_flag;
+    extract_msg->flag_bitfield.bits.redundant_pic_cnt_present_flag =
+        pic_param_buf->flags.bits.redundant_pic_cnt_present_flag;
+    extract_msg->flag_bitfield.bits.weighted_pred_flag =
+        pic_param_buf->flags.bits.weighted_pred_flag;
+    extract_msg->flag_bitfield.bits.entropy_coding_mode_flag =
+        pic_param_buf->flags.bits.entropy_coding_mode_flag;
+    extract_msg->flag_bitfield.bits.deblocking_filter_control_present_flag =
+        pic_param_buf->flags.bits.deblocking_filter_control_present_flag;
+    extract_msg->flag_bitfield.bits.weighted_bipred_idc =
+        pic_param_buf->flags.bits.weighted_bipred_idc;
+    extract_msg->flag_bitfield.bits.residual_colour_transform_flag =
+        pic_param_buf->residual_colour_transform_flag;
+    extract_msg->flag_bitfield.bits.chroma_format_idc =
+        pic_param_buf->chroma_format_idc;
+
+    extract_msg->pic_param0.bits.num_slice_groups_minus1 =
+        pic_param_buf->num_slice_groups_minus1;
+    extract_msg->pic_param0.bits.slice_group_map_type =
+        pic_param_buf->slice_group_map_type;
+    extract_msg->pic_param0.bits.log2_slice_group_change_cycle =
+        pic_param_buf->log2_slice_group_change_cycle;
+    extract_msg->pic_param0.bits.num_ref_idc_l0_active_minus1 =
+        pic_param_buf->num_ref_idc_l0_active_minus1;
+
+    extract_msg->pic_param1.bits.log2_max_pic_order_cnt_lsb_minus4 =
+        pic_param_buf->log2_max_pic_order_cnt_lsb_minus4;
+    extract_msg->pic_param1.bits.pic_order_cnt_type =
+        pic_param_buf->pic_order_cnt_type;
+    extract_msg->pic_param1.bits.log2_max_frame_num_minus4 =
+        pic_param_buf->log2_max_frame_num_minus4;
+    extract_msg->pic_param1.bits.num_ref_idc_l1_active_minus1 =
+        pic_param_buf->num_ref_idc_l1_active_minus1;
+
+    RELOC_MSG(extract_msg->src, frame_obj_buffer->psb_buffer->buffer_ofs, frame_obj_buffer->psb_buffer);
+    RELOC_MSG(extract_msg->dst, slice_header_obj_buffer->psb_buffer->buffer_ofs, slice_header_obj_buffer->psb_buffer);
+
+    cmdbuf->parse_count++;
+
+    if (psb_context_flush_cmdbuf(obj_context))
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_H264: flush parse cmdbuf error\n");
+
+    return vaStatus;
+}
+#endif
 
 #define SCALING_LIST_4x4_SIZE   ((4*4))
 #define SCALING_LIST_8x8_SIZE   ((8*8))
@@ -1391,14 +1492,22 @@ static void psb__H264_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferB
 {
     VASliceParameterBufferH264 *slice_param = (VASliceParameterBufferH264 *) vld_slice_param;
     context_H264_p ctx = (context_H264_p)dec_ctx;
-
+#ifdef SLICE_HEADER_PARSING
+    if (dec_ctx->parse_enabled == 1)
+        dec_ctx->parse_key = slice_param->slice_data_bit_offset;
+#endif
     psb__H264_preprocess_slice(ctx, slice_param);
     psb__H264_write_VLC_tables(ctx);
 
     dec_ctx->bits_offset = slice_param->slice_data_bit_offset;
 
     /* CMD_SR_VERIFY_STARTCODE, clean this flag to work when no start code in slice data */
-    dec_ctx->SR_flags = CMD_ENABLE_RBDU_EXTRACTION;
+#ifdef SLICE_HEADER_PARSING
+    if (dec_ctx->parse_enabled == 1)
+        dec_ctx->SR_flags = CMD_ENABLE_RBDU_EXTRACTION | CMD_SR_BITSTR_PARSE_KEY;
+    else
+#endif
+        dec_ctx->SR_flags = CMD_ENABLE_RBDU_EXTRACTION;
     ctx->slice_param = slice_param;
 }
 
@@ -1506,7 +1615,13 @@ static VAStatus pnw_H264_process_buffer(
             vaStatus = psb__H264_process_slice_group_map(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
-
+#ifdef SLICE_HEADER_PARSING
+        case VAParsePictureParameterBufferType:
+            dec_ctx->parse_enabled = 1;
+            vaStatus = psb__H264_process_slice_header_group(ctx, obj_buffer);
+            DEBUG_FAILURE;
+            break;
+#endif
         default:
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
             DEBUG_FAILURE;
