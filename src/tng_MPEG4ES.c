@@ -76,6 +76,10 @@ static void tng_MPEG4ES_QueryConfigAttributes(
             attrib_list[i].value = 1;
             break;
 
+        case VAConfigAttribEncMaxRefFrames:
+            attrib_list[i].value = 2;
+            break;
+
         case VAConfigAttribRateControl:
             attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR | VA_RC_VCM;
             break;

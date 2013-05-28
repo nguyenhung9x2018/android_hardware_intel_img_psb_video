@@ -69,12 +69,16 @@ static void tng_H263ES_QueryConfigAttributes(
     /* RateControl attributes */
     for (i = 0; i < num_attribs; i++) {
         switch (attrib_list[i].type) {
-            case VAConfigAttribRTFormat:
-                break;
+	case VAConfigAttribRTFormat:
+	    break;
 
-            case VAConfigAttribEncAutoReference:
-                attrib_list[i].value = 1;
-                break;
+	case VAConfigAttribEncAutoReference:
+	    attrib_list[i].value = 1;
+	    break;
+
+	case VAConfigAttribEncMaxRefFrames:
+	    attrib_list[i].value = 2;
+            break;
 
             case VAConfigAttribRateControl:
             attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR | VA_RC_VCM;
