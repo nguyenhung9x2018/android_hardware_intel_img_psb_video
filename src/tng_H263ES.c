@@ -274,7 +274,6 @@ static VAStatus tng__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     psRCParams->ui32IntraFreq = psSeqParams->intra_period;
     psRCParams->ui32InitialQp = psSeqParams->initial_qp;
     psRCParams->iMinQP = psSeqParams->min_qp;
-    ctx->ui32BasicUnit = psSeqParams->min_qp;
     //psRCParams->ui32BUSize = psSeqParams->basic_unit_size;
     //ctx->ui32KickSize = psRCParams->ui32BUSize;
     psRCParams->ui32FrameRate = psSeqParams->frame_rate;
