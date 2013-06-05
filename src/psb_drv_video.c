@@ -2291,7 +2291,9 @@ VAStatus psb_QuerySurfaceStatus(
     /* try to get frameskip flag for encode */
     psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
 #ifndef BAYTRAIL
-    if (encode && rc_enable) {
+    if (!decode) {
+        /* The rendering surface may not be associated with any context. So driver should
+           check the frame skip flag even variable encode is 0 */
 #ifdef PSBVIDEO_MRFL
         if (IS_MRFL(driver_data))
             tng_surface_get_frameskip(driver_data, obj_surface->psb_surface, &frame_skip);
