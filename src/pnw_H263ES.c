@@ -215,6 +215,7 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     ctx->sRCParams.MinQP = pSequenceParams->min_qp;
     ctx->sRCParams.BUSize = 0; /* default 0, and will be set in pnw__setup_busize */
 
+    ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond;
     frame_size = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
     /*
         IMG_UINT16 MBRows = 0;
@@ -252,7 +253,6 @@ static VAStatus pnw__H263ES_process_sequence_param(context_ENC_p ctx, object_buf
     else
         ctx->sRCParams.BufferSize = (5 * ctx->sRCParams.BitsPerSecond) >> 1;*/
 
-    ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond;
     if (ctx->raw_frame_count == 0) { /* Add Register IO behind begin Picture */
         for (i = (ctx->ParallelCores - 1); i >= 0; i--)
             pnw_set_bias(ctx, i);
