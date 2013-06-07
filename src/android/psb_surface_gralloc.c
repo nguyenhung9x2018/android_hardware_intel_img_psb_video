@@ -196,6 +196,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
         /* usage hack for byt */
         usage |= GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
+        /* usage hack to force pages alloc and CPU/GPU cache flush */
+        usage |= GRALLOC_USAGE_HW_VIDEO_ENCODER;
 
         handle = (unsigned int)external_buffers->buffers[i];
         if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr)) {
