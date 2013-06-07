@@ -648,6 +648,8 @@ inline static char * buffer_type_to_string(int type)
 	return "VAProbabilityBufferType";
     case VAHuffmanTableBufferType:
         return "VAHuffmanTableBufferType";
+    case VAQMatrixBufferType:
+        return "VAQMatrixBufferType";
     default:
         return "UnknowBuffer";
     }

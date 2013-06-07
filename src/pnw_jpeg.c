@@ -425,14 +425,14 @@ static VAStatus pnw__jpeg_process_qmatrix_param(context_ENC_p ctx, object_buffer
 
     /* Zero value isn't allowed. It will cause JPEG firmware time out */
     if (0 != pBuffer->load_lum_quantiser_matrix) {
-        for (i = 0; i++; i < QUANT_TABLE_SIZE_BYTES)
+        for (i=0; i<QUANT_TABLE_SIZE_BYTES; ++i)
             if (pBuffer->lum_quantiser_matrix[i] != 0)
                 pQMatrix->aui8LumaQuantParams[i] =
                     pBuffer->lum_quantiser_matrix[i];
     }
 
     if (0 != pBuffer->load_chroma_quantiser_matrix) {
-        for (i = 0; i++; i < QUANT_TABLE_SIZE_BYTES)
+        for (i=0; i<QUANT_TABLE_SIZE_BYTES; ++i)
             if (pBuffer->chroma_quantiser_matrix[i] != 0)
                 pQMatrix->aui8ChromaQuantParams[i] =
                     pBuffer->chroma_quantiser_matrix[i];
@@ -461,7 +461,7 @@ static VAStatus pnw_jpeg_RenderPicture(
 
         switch (obj_buffer->type) {
         case VAQMatrixBufferType:
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_RenderPicture got VAEncSliceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_jpeg_RenderPicture got VAQMatrixBufferType\n");
             vaStatus = pnw__jpeg_process_qmatrix_param(ctx, obj_buffer);
             DEBUG_FAILURE;
             break;
