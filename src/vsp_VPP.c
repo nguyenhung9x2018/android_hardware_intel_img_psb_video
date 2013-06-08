@@ -513,7 +513,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		goto out;
 	}
 
-#ifdef PSBVIDEO_MSVDX_DEC_TILING
+#ifdef PSBVIDEO_VPP_TILING
 	/* Tiling available for 1080P*/
 	if (input_surface->width > 1280)
 		tiled = 1;
