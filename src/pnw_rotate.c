@@ -79,6 +79,32 @@ do {                                                            \
 
 //#define OVERLAY_ENABLE_MIRROR
 
+#ifdef PSBVIDEO_MRFL_VPP
+#define VPP_STATUS_STORAGE "/data/data/com.intel.vpp/shared_prefs/vpp_settings.xml"
+static int isVppOn() {
+    FILE *handle = fopen(VPP_STATUS_STORAGE, "r");
+    if(handle == NULL)
+        return 0;
+
+    const int MAXLEN = 1024;
+    char buf[MAXLEN];
+    memset(buf, 0 ,MAXLEN);
+    if(fread(buf, 1, MAXLEN, handle) <= 0) {
+        fclose(handle);
+        return 0;
+    }
+    buf[MAXLEN - 1] = '\0';
+
+    if(strstr(buf, "true") == NULL) {
+        fclose(handle);
+        return 0;
+    }
+
+    fclose(handle);
+    return 1;
+}
+#endif
+
 void psb_InitRotate(VADriverContextP ctx)
 {
     char env_value[64];
@@ -103,6 +129,13 @@ void psb_InitRotate(VADriverContextP ctx)
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSVDX: disable MSVDX rotation\n");
         driver_data->disable_msvdx_rotate = 1;
     }
+    /* FIXME: Disable rotation when VPP enabled, just a workround here*/
+#ifdef PSBVIDEO_MRFL_VPP
+    if (isVppOn()) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "For VPP: disable MSVDX rotation\n");
+        driver_data->disable_msvdx_rotate = 1;
+    }
+#endif
     driver_data->disable_msvdx_rotate_backup = driver_data->disable_msvdx_rotate;
 }
 
