@@ -81,7 +81,7 @@ static void tng_H263ES_QueryConfigAttributes(
             break;
 
             case VAConfigAttribRateControl:
-            attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR | VA_RC_VCM;
+            attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR;
             break;
 
         default:
