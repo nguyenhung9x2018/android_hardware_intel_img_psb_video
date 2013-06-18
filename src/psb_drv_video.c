@@ -742,8 +742,7 @@ VAStatus psb_CreateSurfaces2(
         }
     }
 
-    if ((memory_type == 0 && pExternalBufDesc != NULL) ||
-            (memory_type !=0 && pExternalBufDesc == NULL)) {
+    if ((memory_type !=0 && pExternalBufDesc == NULL)) {
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
     else if(memory_type !=0 && pExternalBufDesc != NULL) {
