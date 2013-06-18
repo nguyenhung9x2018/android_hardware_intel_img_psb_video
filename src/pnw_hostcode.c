@@ -978,6 +978,7 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)cmdbuf->pic_params_p;
     PIC_PARAMS *psPicParamsSlave = NULL;
+    unsigned int val = 0;
 
     ctx->AccessUnitNum++;
 
@@ -985,9 +986,17 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
         if (ctx->raw_frame_count == 0)
             pnw_SetupRCParam(ctx);
         else  if (ctx->sRCParams.bBitrateChanged) {
+            /* Toggle the last bit to make sure encoder firmare recalculate the
+               RC params even if the target bitrate isn't changed.*/
+            val = ~(ctx->sRCParams.BitsPerSecond & 0x1);
+            ctx->sRCParams.BitsPerSecond &= ~1;
+            ctx->sRCParams.BitsPerSecond |= (val & 1);
+
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "bitrate is changed to %d, "
                     "update the rc data accordingly\n", ctx->sRCParams.BitsPerSecond);
             pnw__update_rcdata(ctx, psPicParams, &ctx->sRCParams);
+            if (ctx->sRCParams.MinQP)
+                psPicParams->sInParams.MinQPVal = ctx->sRCParams.MinQP;
             memcpy(&ctx->in_params_cache, (unsigned char *)&psPicParams->sInParams, sizeof(IN_RC_PARAMS));
             /* Save rate control info in slave core as well */
             for (i = 1; i < ctx->ParallelCores; i++) {
@@ -1378,15 +1387,15 @@ static void pnw__update_rcdata(
             /* for SD and above we can target 95% (122/128) of maximum bitrate */
             psPicParams->sInParams.VCMBitrateMargin = 122;
         } else {
-            /* for less and SD we target 90% (115/128) of maximum bitrate */
-            psPicParams->sInParams.VCMBitrateMargin = 115;
+            /* for less and SD we target 99% of maximum bitrate */
+            psPicParams->sInParams.VCMBitrateMargin = 127;
         }
         if (i32BufferSizeInFrames < 15) {
             /* when we have a very small window size we reduce the target
              * further to avoid too much skipping */
             psPicParams->sInParams.VCMBitrateMargin -= 5;
         }
-        psPicParams->sInParams.ForeceSkipMargin = 500; /* start skipping MBs when within 500 bits of slice or frame limit */
+        psPicParams->sInParams.ForeceSkipMargin = 0; /* start skipping MBs when within 500 bits of slice or frame limit */
         if (psRCParams->BitsPerSecond < 1000000) {      // 1 Mbits/s
             psPicParams->sInParams.ScaleFactor = 0;
         } else if (psRCParams->BitsPerSecond < 2000000) { // 2 Mbits/s

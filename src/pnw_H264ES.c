@@ -264,6 +264,12 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
                 "\n clip to %d bps\n", pSequenceParams->bits_per_second, max_bps);
         ctx->sRCParams.BitsPerSecond = max_bps;
     } else {
+        /* See 110% target bitrate for VCM. Otherwise, the resulted bitrate is much lower
+           than target bitrate */
+        if (ctx->eCodec == IMG_CODEC_H264_VCM)
+            pSequenceParams->bits_per_second =
+                pSequenceParams->bits_per_second / 100 * 110;
+
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Bitrate is set to %d\n",
                 pSequenceParams->bits_per_second);
         ctx->sRCParams.BitsPerSecond = pSequenceParams->bits_per_second;
@@ -326,7 +332,6 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     else
         pVUI_Params->CBR = 1;
 
-    pVUI_Params->CBR = ((IMG_CODEC_H264_CBR == ctx->eCodec) ? 1 : 0);
     pVUI_Params->initial_cpb_removal_delay_length_minus1 = BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE - 1;
     pVUI_Params->cpb_removal_delay_length_minus1 = PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE - 1;
     pVUI_Params->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
@@ -969,6 +974,7 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
     VAEncMiscParameterHRD *hrd_param;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int max_bps;
+    unsigned int frame_size;
 
     ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
 
@@ -1041,15 +1047,19 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
                 break;
             }
 
+            /* Check if any none-zero RC parameter is changed*/
             if ((rate_control_param->bits_per_second == 0 ||
                         rate_control_param->bits_per_second == ctx->sRCParams.BitsPerSecond) &&
-                    (rate_control_param->window_size != 0) &&
-                    (ctx->sRCParams.BufferSize == ctx->sRCParams.BitsPerSecond / 1000 * rate_control_param->window_size) &&
+                    (rate_control_param->window_size == 0 ||
+                    ctx->sRCParams.BufferSize == ctx->sRCParams.BitsPerSecond / 1000 * rate_control_param->window_size) &&
                     (ctx->sRCParams.MinQP == rate_control_param->min_qp) &&
                     (ctx->sRCParams.InitialQp == rate_control_param->initial_qp) &&
                     (rate_control_param->basic_unit_size == 0 ||
-                     ctx->sRCParams.BUSize == rate_control_param->basic_unit_size))
+                     ctx->sRCParams.BUSize == rate_control_param->basic_unit_size)) {
+		     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s No RC parameter is changed\n",
+				     __FUNCTION__);
                 break;
+	    }
             else if (ctx->raw_frame_count != 0 || ctx->eCodec == IMG_CODEC_H264_VCM)
                 ctx->sRCParams.bBitrateChanged = IMG_TRUE;
 
@@ -1085,33 +1095,54 @@ static VAStatus pnw__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
                             "\n clip to %d bps\n", rate_control_param->bits_per_second, max_bps);
                     ctx->sRCParams.BitsPerSecond = max_bps;
                 } else {
+                    /* See 110% target bitrate for VCM. Otherwise, the resulted bitrate is much lower
+                       than target bitrate */
+                    if (ctx->eCodec == IMG_CODEC_H264_VCM)
+                        rate_control_param->bits_per_second =
+                            rate_control_param->bits_per_second / 100 * 110;
                     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Bitrate is set to %d\n",
                             rate_control_param->bits_per_second);
                     ctx->sRCParams.BitsPerSecond = rate_control_param->bits_per_second;
                 }
             }
 
-            /* except VCM, the following parameters aren't allowed to be
-               changed during encoding */
-            if (ctx->raw_frame_count == 0 || ctx->eCodec == IMG_CODEC_H264_VCM) {
-                if (rate_control_param->window_size != 0)
-                    ctx->sRCParams.BufferSize = ctx->sRCParams.BitsPerSecond * rate_control_param->window_size / 1000;
-                if (rate_control_param->initial_qp != 0)
-                    ctx->sRCParams.InitialQp = rate_control_param->initial_qp;
-                if (rate_control_param->min_qp != 0)
-                    ctx->sRCParams.MinQP = rate_control_param->min_qp;
-                if (rate_control_param->basic_unit_size != 0)
-                    ctx->sRCParams.BUSize = rate_control_param->basic_unit_size;
+            if (rate_control_param->min_qp != 0)
+                ctx->sRCParams.MinQP = rate_control_param->min_qp;
+            if (rate_control_param->window_size != 0) {
+                ctx->sRCParams.BufferSize =
+                    ctx->sRCParams.BitsPerSecond / 1000 * rate_control_param->window_size;
+		if (ctx->sRCParams.FrameRate == 0) {
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "frame rate can't be zero. Set it to 30");
+                    ctx->sRCParams.FrameRate = 30;
+                }
 
-                drv_debug_msg(VIDEO_DEBUG_GENERAL,
-                        "Set Misc parameters(frame %d): window_size %d, initial qp %d\n" \
-                        "\tmin qp %d, bunit size %d\n",
-                        ctx->raw_frame_count,
-                        rate_control_param->window_size,
-                        rate_control_param->initial_qp,
-                        rate_control_param->min_qp,
-                        rate_control_param->basic_unit_size);
+                frame_size = ctx->sRCParams.BitsPerSecond / ctx->sRCParams.FrameRate;
+                if (frame_size == 0) {
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "Bitrate is too low %d\n",
+                            ctx->sRCParams.BitsPerSecond);
+                    break;
+                }
+                ctx->sRCParams.InitialLevel = (3 * ctx->sRCParams.BufferSize) >> 4;
+                ctx->sRCParams.InitialLevel += (frame_size / 2);
+                ctx->sRCParams.InitialLevel /= frame_size;
+                ctx->sRCParams.InitialLevel *= frame_size;
+                ctx->sRCParams.InitialDelay =
+                    ctx->sRCParams.BufferSize - ctx->sRCParams.InitialLevel;
             }
+
+            if (rate_control_param->initial_qp != 0)
+                ctx->sRCParams.InitialQp = rate_control_param->initial_qp;
+            if (rate_control_param->basic_unit_size != 0)
+                ctx->sRCParams.BUSize = rate_control_param->basic_unit_size;
+
+            drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                    "Set Misc parameters(frame %d): window_size %d, initial qp %d\n" \
+                    "\tmin qp %d, bunit size %d\n",
+                    ctx->raw_frame_count,
+                    rate_control_param->window_size,
+                    rate_control_param->initial_qp,
+                    rate_control_param->min_qp,
+                    rate_control_param->basic_unit_size);
             break;
 
         case VAEncMiscParameterTypeMaxSliceSize:
