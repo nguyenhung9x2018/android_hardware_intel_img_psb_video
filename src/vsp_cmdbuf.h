@@ -72,8 +72,8 @@ typedef struct vsp_cmdbuf_s *vsp_cmdbuf_p;
 #define VSP_RELOC_CMDBUF(dest, offset, buf) vsp_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, (uint32_t *)cmdbuf->cmd_start)
 
 /* operation number is inserted by DRM */
-#define vsp_cmdbuf_insert_command(cmdbuf,ref_buf,type,offset,size)	\
-	do { *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = type;\
+#define vsp_cmdbuf_insert_command(cmdbuf,context_id, ref_buf,type,offset,size)	\
+	do { *cmdbuf->cmd_idx++ = context_id; *cmdbuf->cmd_idx++ = type;\
 	     VSP_RELOC_CMDBUF(cmdbuf->cmd_idx++, offset, ref_buf);\
 	     *cmdbuf->cmd_idx++ = size; *cmdbuf->cmd_idx++ = 0;\
 	     *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0; \

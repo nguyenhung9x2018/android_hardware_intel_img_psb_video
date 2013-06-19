@@ -508,7 +508,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	if (pipeline_param->pipeline_flags & VA_PIPELINE_FLAG_END) {
 		cell_end_param->num_input_pictures = 0;
 		cell_end_param->num_output_pictures = 0;
-		vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcPictureCommand,
+		vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VPP_ID, &cmdbuf->param_mem, VssProcPictureCommand,
 					  ctx->end_param_offset, sizeof(struct VssProcPictureParameterBuffer));
 		goto out;
 	}
@@ -586,7 +586,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		cell_proc_picture_param->output_picture[i].tiled = tiled;
 	}
 
-	vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcPictureCommand,
+	vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VPP_ID, &cmdbuf->param_mem, VssProcPictureCommand,
 				  ctx->pic_param_offset, sizeof(struct VssProcPictureParameterBuffer));
 
 
@@ -660,7 +660,7 @@ static VAStatus vsp_VPP_BeginPicture(
 	cmdbuf = obj_context->vsp_cmdbuf;
 
 	if (ctx->obj_context->frame_count == 0) /* first picture */
-		vsp_cmdbuf_insert_command(cmdbuf, ctx->context_buf, VspSetContextCommand,
+		vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VPP_ID, ctx->context_buf, VspSetContextCommand,
 					  0, VSP_PROC_CONTEXT_SIZE);
 
 	/* map param mem */
@@ -1247,7 +1247,7 @@ finished:
 				cell_pipeline_param->filter_pipeline[j - 1] = tmp;
 			}
 
-	vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem, VssProcPipelineParameterCommand,
+	vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VPP_ID, &cmdbuf->param_mem, VssProcPipelineParameterCommand,
 				  ctx->pipeline_param_offset, sizeof(struct VssProcPipelineParameterBuffer));
 out:
 	return vaStatus;
@@ -1276,6 +1276,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			cell_denoiser_param->type = VssProcDeblock;
 
 			vsp_cmdbuf_insert_command(cmdbuf,
+					          CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcDenoiseParameterCommand,
 						  ctx->denoise_param_offset,
@@ -1289,6 +1290,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			cell_denoiser_param->type = VssProcDegrain;
 
 			vsp_cmdbuf_insert_command(cmdbuf,
+					          CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcDenoiseParameterCommand,
 						  ctx->denoise_param_offset,
@@ -1301,6 +1303,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			       sizeof(ctx->sharpen_param));
 
 			vsp_cmdbuf_insert_command(cmdbuf,
+					          CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcSharpenParameterCommand,
 						  ctx->sharpen_param_offset,
@@ -1313,6 +1316,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			       sizeof(ctx->enhancer_param));
 
 			vsp_cmdbuf_insert_command(cmdbuf,
+					          CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcColorEnhancementParameterCommand,
 						  ctx->enhancer_param_offset,
@@ -1346,6 +1350,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			}
 
 			vsp_cmdbuf_insert_command(cmdbuf,
+					          CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcFrcParameterCommand,
 						  ctx->frc_param_offset,

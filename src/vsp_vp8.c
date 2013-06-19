@@ -274,7 +274,7 @@ static VAStatus vsp_vp8_process_seqence_param(
                                    cmdbuf->param_mem_loc, seq);
     }
 
-    vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem,
+    vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VP8_ID, &cmdbuf->param_mem,
                               VssVp8encSetSequenceParametersCommand,
                               ctx->seq_param_offset,
                               sizeof(struct VssVp8encSequenceParameterBuffer));
@@ -362,7 +362,7 @@ static VAStatus vsp_vp8_process_picture_param(
     //                        sizeof(VssVp8encPictureParameterBuffer));
     //vsp_cmdbuf_fence_pic_param(cmdbuf, wsbmKBufHandle(wsbmKBuf(cmdbuf->param_mem.drm_buf)));
 
-    do { *cmdbuf->cmd_idx++ = 0;\
+    do { *cmdbuf->cmd_idx++ = 1;\
          *cmdbuf->cmd_idx++ = VssVp8encEncodeFrameCommand;\
          VSP_RELOC_CMDBUF(cmdbuf->cmd_idx++, ctx->pic_param_offset, &cmdbuf->param_mem);\
          *cmdbuf->cmd_idx++ = sizeof(struct VssVp8encPictureParameterBuffer);\
@@ -429,7 +429,7 @@ static VAStatus vsp_VP8_BeginPicture(
 
     if (ctx->obj_context->frame_count == 0) /* first picture */
     {
-        vsp_cmdbuf_insert_command(cmdbuf, ctx->context_buf, Vss_Sys_STATE_BUF_COMMAND,
+        vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VP8_ID, ctx->context_buf, Vss_Sys_STATE_BUF_COMMAND,
                                   0, VSP_VP8ENC_STATE_SIZE);
     }
 
