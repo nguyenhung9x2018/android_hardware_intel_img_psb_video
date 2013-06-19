@@ -361,7 +361,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
         else {
 #ifdef PSBVIDEO_MRFL
             usage |= GRALLOC_USAGE_SW_WRITE_OFTEN;
-            LOGE("will lock with usage %x", usage);
 #endif
         }
 
