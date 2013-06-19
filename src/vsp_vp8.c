@@ -70,6 +70,29 @@ enum filter_status {
     printf("EXIT %s.\n",__FUNCTION__);
 
 
+typedef union{
+        struct {
+            /* force this frame to be a keyframe */
+            unsigned int force_kf                       : 1;
+	    /* don't reference the last frame */
+            unsigned int no_ref_last                    : 1;
+	    /* don't reference the golden frame */
+            unsigned int no_ref_gf                      : 1;
+	    /* don't reference the alternate reference frame */
+            unsigned int no_ref_arf                     : 1;
+
+         unsigned int upd_last                     : 1;
+         unsigned int upd_gf                     : 2;
+         unsigned int upd_arf                     : 2;
+         unsigned int no_upd_last                     : 1;
+         unsigned int no_upd_gf                     : 1;
+         unsigned int no_upd_arf                     : 1;
+         unsigned int no_upd_entropy                     : 1;
+        } bits;
+        unsigned int value;
+    } vp8_fw_pic_flags;
+
+
 static void vsp_VP8_DestroyContext(object_context_p obj_context);
 
 static VAStatus vsp__VP8_check_legal_picture(object_context_p obj_context, object_config_p obj_config);
@@ -263,6 +286,8 @@ static VAStatus vsp_vp8_process_seqence_param(
         seq->ref_frame_buffers[i].height = ref_frame_height;
     }
 
+    ctx->vp8_seq_param = * seq;
+
     for (i = 0; i < 4; i++) {
         object_surface_p ref_surf = SURFACE(va_seq->reference_frames[i]);
 	if (!ref_surf)
@@ -279,9 +304,57 @@ static VAStatus vsp_vp8_process_seqence_param(
                               ctx->seq_param_offset,
                               sizeof(struct VssVp8encSequenceParameterBuffer));
 
+    ctx->vp8_seq_cmd_send = 1;
     return vaStatus;
 }
 
+static VAStatus vsp_vp8_process_dynamic_seqence_param(
+    context_VPP_p ctx)
+{
+
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    vsp_cmdbuf_p cmdbuf = ctx->obj_context->vsp_cmdbuf;
+    int i;
+    int ref_frame_width, ref_frame_height;
+
+    struct VssVp8encSequenceParameterBuffer *seq =
+            (struct VssVp8encSequenceParameterBuffer *)cmdbuf->seq_param_p;
+
+    if( ctx->vp8_seq_cmd_send )
+    {  //just change the command buffer
+       seq->frame_rate = ctx->frame_rate;
+	seq->rc_min_quantizer = ctx->min_qp;
+	seq->cyclic_intra_refresh = ctx->cyclic_intra_refresh;
+	seq->rc_target_bitrate = ctx->bits_per_second / 1000 ;
+	seq->max_intra_rate = ctx->max_frame_size *30 * 1000 / ctx->bits_per_second;
+	return vaStatus;
+    }
+
+    *seq = ctx->vp8_seq_param ;
+     seq->frame_rate = ctx->frame_rate;
+     seq->rc_min_quantizer = ctx->min_qp;
+     seq->cyclic_intra_refresh = ctx->cyclic_intra_refresh;
+     seq->rc_target_bitrate = ctx->bits_per_second / 1000 ;
+     seq->max_intra_rate = ctx->max_frame_size *30 * 1000 / ctx->bits_per_second;
+
+    for (i = 0; i < 4; i++) {
+        object_surface_p ref_surf = SURFACE(seq->ref_frame_buffers[i].surface_id);
+	if (!ref_surf)
+		return VA_STATUS_ERROR_UNKNOWN;
+
+        vsp_cmdbuf_reloc_pic_param(&(seq->ref_frame_buffers[i].base),
+                                   ctx->seq_param_offset,
+                                   &(ref_surf->psb_surface->buf),
+                                   cmdbuf->param_mem_loc, seq);
+    }
+
+    vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VP8_ID, &cmdbuf->param_mem,
+                              VssVp8encSetSequenceParametersCommand,
+                              ctx->seq_param_offset,
+                              sizeof(struct VssVp8encSequenceParameterBuffer));
+
+    return vaStatus;
+}
 
 
 static VAStatus vsp_vp8_process_picture_param(
@@ -330,14 +403,33 @@ static VAStatus vsp_vp8_process_picture_param(
     pic->recon_frame.height = ref_frame_height;
 
     pic->version = 0;
+#if 0
     pic->pic_flags = (1<< 2) |  /* corresponds to  VP8_EFLAG_NO_REF_GF      */
                      (1<< 3) |  /* corresponds to  VP8_EFLAG_NO_REF_ARF     */
                      (1<< 12);   /* corresponds to ~VP8_EFLAG_NO_UPD_ENTROPY */
+#else
+   vp8_fw_pic_flags flags;
+   flags.value =0;
+
+   flags.bits.force_kf = va_pic->pic_flags.bits.force_kf;
+   flags.bits.no_ref_last = va_pic->pic_flags.bits.no_ref_last;
+   flags.bits.no_ref_gf = va_pic->pic_flags.bits.no_ref_gf;
+   flags.bits.no_ref_arf = va_pic->pic_flags.bits.no_ref_arf;
+   flags.bits.upd_last  = va_pic->pic_flags.bits.refresh_last;
+   flags.bits.upd_gf  =0;//= va_pic->pic_flags.bits.refresh_golden_frame;
+   flags.bits.upd_arf  =0;//= va_pic->pic_flags.bits.refresh_alternate_frame;
+   flags.bits.no_upd_last  = !va_pic->pic_flags.bits.refresh_last;
+   flags.bits.no_upd_gf  = !va_pic->pic_flags.bits.refresh_golden_frame;
+   flags.bits.no_upd_arf  = !va_pic->pic_flags.bits.refresh_alternate_frame;
+   flags.bits.no_upd_entropy  = !va_pic->pic_flags.bits.refresh_entropy_probs;
+
+   pic->pic_flags = flags.value;
+#endif
     pic->prev_frame_dropped = 0; /* Not yet used */
     pic->cpuused            = 5;
-    pic->sharpness          = 0;
-    pic->num_token_partitions = 2; /* 2^2 = 4 partitions */
-    pic->encoded_frame_size = ((sizeof(struct VssVp8encEncodedFrame) + 2*1024*1024 - 1) + 31) & (~31); //pObj->size;
+    pic->sharpness          = va_pic->sharpness_level;
+    pic->num_token_partitions = va_pic->pic_flags.bits.num_token_partitions; /* 2^2 = 4 partitions */
+    pic->encoded_frame_size = pObj->size & ~31;
     pic->encoded_frame_base = pObj->buffer_data  ;//tobe modified
 
     {
@@ -373,6 +465,98 @@ static VAStatus vsp_vp8_process_picture_param(
     return vaStatus;
 }
 
+static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p obj_buffer)
+{
+    VAEncMiscParameterBuffer *pBuffer;
+    VAEncMiscParameterAIR *air_param;
+    VAEncMiscParameterBufferMaxFrameSize *max_frame_size_param;
+    VAEncMiscParameterFrameRate *frame_rate_param;
+    VAEncMiscParameterRateControl *rate_control_param;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
+    pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
+    obj_buffer->size = 0;
+    switch (pBuffer->type) {
+    case VAEncMiscParameterTypeFrameRate:
+        frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
+        if (frame_rate_param->framerate < 1 || frame_rate_param->framerate > 65535) {
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        if (ctx->frame_rate == frame_rate_param->framerate)
+            break;
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "frame rate changed from %d to %d\n",
+                      ctx->frame_rate,
+                      frame_rate_param->framerate);
+        ctx->frame_rate = frame_rate_param->framerate;
+        ctx->re_send_seq_params = 1 ;
+        break;
+    case VAEncMiscParameterTypeRateControl:
+        rate_control_param = (VAEncMiscParameterRateControl *)pBuffer->data;
+        if (rate_control_param->initial_qp > 63 ||
+            rate_control_param->min_qp > 63) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp(%d) and min_qpinitial_qp(%d) "
+                          "are invalid.\nQP shouldn't be larger than 63 for VP8\n",
+                          rate_control_param->initial_qp, rate_control_param->min_qp);
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        if (rate_control_param->min_qp == ctx->min_qp
+            && rate_control_param->bits_per_second  == ctx->bits_per_second) {
+            break;
+        }
+        if (rate_control_param->min_qp != ctx->min_qp) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "min_qp was changed from %d to %d\n",
+                          ctx->min_qp, rate_control_param->min_qp);
+            ctx->min_qp = rate_control_param->min_qp;
+        }
+        if (rate_control_param->initial_qp != ctx->initial_qp) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp was changed from %d to %d\n",
+                          ctx->initial_qp, rate_control_param->initial_qp);
+            ctx->initial_qp = rate_control_param->initial_qp;
+        }
+        if (rate_control_param->bits_per_second != ctx->bits_per_second) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp was changed from %d to %d\n",
+                          ctx->bits_per_second, rate_control_param->bits_per_second);
+            ctx->bits_per_second = rate_control_param->bits_per_second;
+        }
+        ctx->re_send_seq_params = 1 ;
+        break;
+    case VAEncMiscParameterTypeMaxFrameSize:
+        max_frame_size_param = (VAEncMiscParameterBufferMaxFrameSize *)pBuffer->data;
+        if (max_frame_size_param->max_frame_size < 1 || frame_rate_param->framerate > 65535) {
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        if (ctx->max_frame_size == max_frame_size_param->max_frame_size)
+            break;
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "max frame size changed from %d to %d\n",
+                      ctx->max_frame_size, max_frame_size_param->max_frame_size);
+        ctx->max_frame_size = max_frame_size_param->max_frame_size ;
+        ctx->re_send_seq_params = 1 ;
+        break;
+    case VAEncMiscParameterTypeAIR:
+        air_param = (VAEncMiscParameterAIR *)pBuffer->data;
+        if (air_param->air_num_mbs > 65535 ||
+            air_param->air_threshold > 65535) {
+            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+            break;
+        }
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "air slice size changed to num_air_mbs %d "
+                      "air_threshold %d, air_auto %d\n",
+                      air_param->air_num_mbs, air_param->air_threshold,
+                      air_param->air_auto);
+        ctx->cyclic_intra_refresh = air_param->air_threshold;
+        break;
+    default:
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
+        DEBUG_FAILURE;
+        break;
+    }
+    free(obj_buffer->buffer_data);
+    obj_buffer->buffer_data = NULL;
+    return vaStatus;
+}
 static VAStatus vsp_VP8_RenderPicture(
     object_context_p obj_context,
     object_buffer_p *buffers,
@@ -396,6 +580,9 @@ static VAStatus vsp_VP8_RenderPicture(
         case VAEncPictureParameterBufferType:
             surface_id = obj_context->current_render_surface_id;
             vaStatus = vsp_vp8_process_picture_param(driver_data,ctx, obj_buffer,surface_id);
+            break;
+        case VAEncMiscParameterBufferType:
+            vaStatus = vsp_vp8_process_misc_param(ctx, obj_buffer);
             break;
         default:
             vaStatus = VA_STATUS_SUCCESS;//VA_STATUS_ERROR_UNKNOWN;
@@ -441,7 +628,8 @@ static VAStatus vsp_VP8_BeginPicture(
 
     cmdbuf->pic_param_p = cmdbuf->param_mem_p;
     cmdbuf->seq_param_p = cmdbuf->param_mem_p + ctx->seq_param_offset;
-
+    ctx->vp8_seq_cmd_send = 0;
+    ctx->re_send_seq_params = 0;
     return VA_STATUS_SUCCESS;
 }
 
@@ -451,6 +639,11 @@ static VAStatus vsp_VP8_EndPicture(
     INIT_CONTEXT_VPP;
     psb_driver_data_p driver_data = obj_context->driver_data;
     vsp_cmdbuf_p cmdbuf = obj_context->vsp_cmdbuf;
+
+    if(ctx->re_send_seq_params)
+    {
+        vsp_vp8_process_dynamic_seqence_param(ctx);
+    }
 
     if (cmdbuf->param_mem_p != NULL) {
         psb_buffer_unmap(&cmdbuf->param_mem);
@@ -465,6 +658,7 @@ static VAStatus vsp_VP8_EndPicture(
      }
 
 //    ctx->obj_context->frame_count++;
+
 
     if (vsp_context_flush_cmdbuf(ctx->obj_context))
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VPP: flush deblock cmdbuf error\n");

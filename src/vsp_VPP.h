@@ -68,14 +68,22 @@ struct context_VPP_s {
 	unsigned int frc_param_offset;
 	unsigned int seq_param_sz;
 	unsigned int seq_param_offset;
-	unsigned int frame_width;
-	unsigned int frame_height;
-
-	unsigned int rc_mode;
-
 	struct VssProcDenoiseParameterBuffer denoise_deblock_param;
 	struct VssProcColorEnhancementParameterBuffer enhancer_param;
 	struct VssProcSharpenParameterBuffer sharpen_param;
+	//used for vp8 only
+	unsigned int frame_width;
+	unsigned int frame_height;
+    unsigned int frame_rate;
+	unsigned int rc_mode;
+    unsigned int initial_qp;
+    unsigned int min_qp;
+    unsigned int bits_per_second;
+    unsigned int max_frame_size;
+    unsigned int cyclic_intra_refresh;
+	unsigned int vp8_seq_cmd_send;
+    unsigned int re_send_seq_params;
+    struct VssVp8encSequenceParameterBuffer vp8_seq_param;
 };
 
 typedef struct context_VPP_s *context_VPP_p;
