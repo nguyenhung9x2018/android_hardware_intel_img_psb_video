@@ -673,7 +673,7 @@ VAStatus psb_CreateSurfaces2(
     driver_data->protected = (VA_RT_FORMAT_PROTECTED & format);
     unsigned long fourcc;
     unsigned int flags = 0;
-    int memory_type = 0;
+    int memory_type = -1;
     VASurfaceAttribExternalBuffers  *pExternalBufDesc = NULL;
     VASurfaceAttributeTPI attribute_tpi;
 
@@ -744,10 +744,11 @@ VAStatus psb_CreateSurfaces2(
         }
     }
 
-    if ((memory_type !=0 && pExternalBufDesc == NULL)) {
+    if ((memory_type == -1 && pExternalBufDesc != NULL) ||
+            (memory_type != -1 && pExternalBufDesc == NULL)) {
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
-    else if(memory_type !=0 && pExternalBufDesc != NULL) {
+    else if(memory_type !=-1 && pExternalBufDesc != NULL) {
         attribute_tpi.type = memory_type;
         return psb_CreateSurfacesWithAttribute(ctx, width, height, format, num_surfaces, surface_list, &attribute_tpi);
     }
