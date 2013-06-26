@@ -81,7 +81,7 @@ static void tng__trace_cmdbuf(tng_cmdbuf_p cmdbuf)
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end\n", __FUNCTION__);
 
-    return ;
+    return;
 }
 
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
@@ -281,6 +281,36 @@ static const IMG_UINT8 gMarkerDataChromaAc[] = {
     0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA
 };
 
+static int CustomizeQuantizationTables(unsigned char *luma_matrix,
+                                         unsigned char *chroma_matrix,
+                                         unsigned int ui32Quality)
+{
+    unsigned int uc_qVal;
+    unsigned int uc_j;
+
+    if((NULL == luma_matrix) || (NULL == chroma_matrix) || 
+       (ui32Quality < 1) || (ui32Quality > 100))
+        return 1;
+
+    /* Compute luma quantization table */
+    ui32Quality = (ui32Quality<50) ? (5000/ui32Quality) : (200-ui32Quality*2);
+    for(uc_j=0; uc_j<QUANT_TABLE_SIZE_BYTES; ++uc_j) {
+        uc_qVal = (gQuantLuma[uc_j] * ui32Quality + 50) / 100;
+        uc_qVal =  (uc_qVal>0xFF)? 0xFF:uc_qVal;
+        uc_qVal =  (uc_qVal<1)? 1:uc_qVal;
+        luma_matrix[uc_j] = (unsigned char)uc_qVal;
+    }
+
+    /* Compute chroma quantization table */
+    for(uc_j=0; uc_j<QUANT_TABLE_SIZE_BYTES; ++uc_j) {
+        uc_qVal = (gQuantChroma[uc_j] * ui32Quality + 50) / 100;
+        uc_qVal =  (uc_qVal>0xFF)? 0xFF:uc_qVal;
+        uc_qVal =  (uc_qVal<1)? 1:uc_qVal;
+        chroma_matrix[uc_j] = (unsigned char)uc_qVal;
+    }
+
+    return 0;
+}
 
 static void SetDefaultQmatix(void *pMemInfoTableBlock)
 {
@@ -941,10 +971,32 @@ static void tng_jpeg_QueryConfigAttributes(
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_QueryConfigAttributes\n");
 
-    /* RateControl attributes */
+    /* Return supported attributes */
     for (i = 0; i < num_attribs; i++) {
         switch (attrib_list[i].type) {
         case VAConfigAttribRTFormat:
+            /* Already handled in psb_GetConfigAttributes */
+            break;
+        case VAConfigAttribEncJPEG:
+            /* The below JPEG ENC capabilities are fixed by TopazHP and not changable. */
+            {
+                VAConfigAttribValEncJPEG* ptr = (VAConfigAttribValEncJPEG *)&(attrib_list[i].value);
+                (ptr->bits).arithmatic_coding_mode = 0; /* Unsupported */
+                (ptr->bits).progressive_dct_mode = 0; /* Unsupported */
+                (ptr->bits).non_interleaved_mode = 1; /* Supported */
+                (ptr->bits).differential_mode = 0; /* Unsupported */
+                (ptr->bits).max_num_components = MTX_MAX_COMPONENTS; /* Only 3 is supported */
+                (ptr->bits).max_num_scans = PTG_JPEG_MAX_SCAN_NUM;
+                (ptr->bits).max_num_huffman_tables = 4; /* Only 4 is supported */
+                (ptr->bits).max_num_huffman_tables = 2; /* Only 2 is supported */
+            }
+            break;
+        case VAConfigAttribMaxPictureWidth:
+        case VAConfigAttribMaxPictureHeight:
+            /* No pure limitation on an image's width or height seperately, 
+               as long as the image's MCUs need less than max_num_scans rounds of encoding
+               and a surface of that source size is allocatable. */
+            attrib_list[i].value = 0; /* No pure limitation */
             break;
         default:
             attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
@@ -1218,6 +1270,8 @@ static VAStatus ProcessPictureParam(context_ENC_p ctx, object_buffer_p obj_buffe
     VAEncPictureParameterBufferJPEG *pBuffer = NULL;
     BUFFER_HEADER *pBufHeader = NULL;
     TOPAZHP_JPEG_ENCODER_CONTEXT *jpeg_ctx = ctx->jpeg_ctx;
+    JPEG_MTX_QUANT_TABLE* pQMatrix = (JPEG_MTX_QUANT_TABLE *)
+                                     (ctx->jpeg_ctx->pMemInfoTableBlock);
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
     IMG_ERRORCODE rc;
     
@@ -1231,6 +1285,26 @@ static VAStatus ProcessPictureParam(context_ENC_p ctx, object_buffer_p obj_buffe
 
     /* Lookup and get coded buffer */
     pBuffer = (VAEncPictureParameterBufferJPEG *)obj_buffer->buffer_data;
+
+    /* Parameters checking */
+    if (((pBuffer->pic_flags).bits.profile != 0) || /* Only "0 - Baseline" is supported */
+       ((pBuffer->pic_flags).bits.progressive != 0) || /* Only "0 - sequential" is supported */
+       ((pBuffer->pic_flags).bits.huffman != 1) || /* Only "1 - huffman" is supported */
+       ((pBuffer->pic_flags).bits.interleaved != 0) || /* Only "0 - non interleaved" is supported */
+       ((pBuffer->pic_flags).bits.differential != 0)) /* Only "0 - non differential" is supported */
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+    if ((pBuffer->sample_bit_depth != 8) || /* Only 8-bits sample depth is supported */
+       (pBuffer->num_components != MTX_MAX_COMPONENTS) || /* Only 3 components setting is supported */
+       (pBuffer->quality > 100))
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+    /* Set quality */
+    if (pBuffer->quality != 0) { /* Quality value is set */
+        CustomizeQuantizationTables(pQMatrix->aui8LumaQuantParams, 
+                                    pQMatrix->aui8ChromaQuantParams,
+                                    pBuffer->quality);
+    }
 
     ASSERT(ctx->ui16Width == pBuffer->picture_width);
     ASSERT(ctx->ui16FrameHeight == pBuffer->picture_height);
@@ -1311,6 +1385,12 @@ static VAStatus tng_jpeg_RenderPicture(
         case VAEncPictureParameterBufferType:
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_RenderPicture got VAEncPictureParameterBufferType\n");
             vaStatus = ProcessPictureParam(ctx, obj_buffer);
+            DEBUG_FAILURE;
+            break;
+        case VAEncSliceParameterBufferType:
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_jpeg_RenderPicture got VAEncSliceParameterBufferType\n");
+            drv_debug_msg(VIDEO_DEBUG_WARNING, "VAEncSliceParameterBufferType is ignored on TopazHP\n");
+            vaStatus = VA_STATUS_SUCCESS;
             DEBUG_FAILURE;
             break;
         default:

@@ -75,16 +75,16 @@
 /////////////////////////////////////////////////////////////////////////////////////
 
 
-const IMG_UINT8 gQuantLuma[QUANT_TABLE_SIZE_BYTES] = {   16, 11, 10, 16, 24, 40, 51, 61,
-        12, 12, 14, 19, 26, 58, 60, 55,
-        14, 13, 16, 24, 40, 57, 69, 56,
-        14, 17, 22, 29, 51, 87, 80, 62,
-        18, 22, 37, 56, 68, 109, 103, 77,
-        24, 35, 55, 64, 81, 104, 113, 92,
-        49, 64, 78, 87, 103, 121, 120, 101,
-        72, 92, 95, 98, 112, 100, 103, 99
-                                                     };
-
+const IMG_UINT8 gQuantLuma[QUANT_TABLE_SIZE_BYTES] = {
+    16, 11, 10, 16, 24, 40, 51, 61,
+    12, 12, 14, 19, 26, 58, 60, 55,
+    14, 13, 16, 24, 40, 57, 69, 56,
+    14, 17, 22, 29, 51, 87, 80, 62,
+    18, 22, 37, 56, 68, 109, 103, 77,
+    24, 35, 55, 64, 81, 104, 113, 92,
+    49, 64, 78, 87, 103, 121, 120, 101,
+    72, 92, 95, 98, 112, 100, 103, 99
+};
 
 /*const IMG_UINT8 DEBUG_gQuantLumaForCoverage[QUANT_TABLE_SIZE_BYTES] =
 {
@@ -437,7 +437,36 @@ const IMG_UINT8 gSize[] = {
     5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5
 };
 
+int customize_quantization_tables(unsigned char *luma_matrix,
+                                  unsigned char *chroma_matrix,
+                                  unsigned int ui32Quality)
+{
+    unsigned int uc_qVal;
+    unsigned int uc_j;
 
+    if((NULL == luma_matrix) || (NULL == chroma_matrix) || 
+       (ui32Quality < 1) || (ui32Quality > 100))
+        return 1;
+
+    /* Compute luma quantization table */
+    ui32Quality = (ui32Quality<50) ? (5000/ui32Quality) : (200-ui32Quality*2);
+    for(uc_j=0; uc_j<QUANT_TABLE_SIZE_BYTES; ++uc_j) {
+        uc_qVal = (gQuantLuma[uc_j] * ui32Quality + 50) / 100;
+        uc_qVal =  (uc_qVal>0xFF)? 0xFF:uc_qVal;
+        uc_qVal =  (uc_qVal<1)? 1:uc_qVal;
+        luma_matrix[uc_j] = (unsigned char)uc_qVal;
+    }
+
+    /* Compute chroma quantization table */
+    for(uc_j=0; uc_j<QUANT_TABLE_SIZE_BYTES; ++uc_j) {
+        uc_qVal = (gQuantChroma[uc_j] * ui32Quality + 50) / 100;
+        uc_qVal =  (uc_qVal>0xFF)? 0xFF:uc_qVal;
+        uc_qVal =  (uc_qVal<1)? 1:uc_qVal;
+        chroma_matrix[uc_j] = (unsigned char)uc_qVal;
+    }
+
+    return 0;
+}
 
 /*****************************************************************************/
 /*                                                                           */

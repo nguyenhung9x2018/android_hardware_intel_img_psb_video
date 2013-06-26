@@ -31,6 +31,7 @@
 #define _PNW_JPEG_H_
 
 #include "psb_drv_video.h"
+#include "va/va_enc_jpeg.h"
 
 #define PNW_JPEG_MAX_SCAN_NUM 7
 extern struct format_vtable_s pnw_JPEG_vtable;

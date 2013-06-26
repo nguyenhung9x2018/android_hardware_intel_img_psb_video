@@ -632,6 +632,10 @@ typedef struct context_jpeg_ENC_s {
 //////////////////////////////////////////////////////
 //Function Declarations unchanged by TopazSC
 //////////////////////////////////////////////////////
+int customize_quantization_tables(unsigned char *luma_matrix,
+                                  unsigned char *chroma_matrix,
+                                  unsigned int ui32Quality);
+
 void SetCompInfoFromFormat(IMG_FORMAT eFormat, IMG_UINT32 ui32Width, IMG_UINT32 ui32Height, IMG_JPEG_INFO       *psJpegInfo);
 /* This function will copy data from one buffer to another where the destination has a different stride */
 void APP_CopyToWithStride(IMG_UINT8* pSrc, IMG_UINT8* pDest , IMG_UINT32 ui32SrcWidth, IMG_UINT32 ui32SrcPhysWidth, IMG_UINT32 ui32SrcStep, IMG_UINT32 ui32SrcHeight, IMG_UINT32 ui32DestPhysWidth, IMG_UINT32 ui32DestPhysHeight);

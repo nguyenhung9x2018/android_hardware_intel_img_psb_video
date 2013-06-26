@@ -29,6 +29,7 @@
 
 #include "img_types.h"
 #include "tng_hostdefs.h"
+#include "va/va_enc_jpeg.h"
 
 #define QUANT_TABLE_SIZE_BYTES  (64)
 #define MTX_MAX_COMPONENTS  (3)
