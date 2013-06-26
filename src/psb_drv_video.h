@@ -476,6 +476,7 @@ struct object_surface_s {
     unsigned long display_timestamp; /* record the time point of put surface*/
     void *rotate_vaddr;
     struct psb_surface_share_info_s *share_info;
+    int is_ref_surface; /* If true, vaDeriveImage returns error */
 };
 
 #define PSB_CODEDBUF_SLICE_NUM_MASK (0xff)

@@ -476,6 +476,13 @@ VAStatus psb_DeriveImage(
     CHECK_SURFACE(obj_surface);
     CHECK_INVALID_PARAM(image == NULL);
 
+    /* Can't derive image from reconstrued frame which is in tiled format */
+    if (obj_surface->is_ref_surface == 1) {
+	drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't derive reference surface" \
+		      "which is tiled format\n");
+	return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
+
     if (IS_MFLD(driver_data) && (psb_CheckIEDStatus(ctx) == 1)) {
         vaStatus = VA_STATUS_ERROR_INVALID_SURFACE;
         return vaStatus;
@@ -699,6 +706,86 @@ static VAStatus lnc_unpack_topaz_rec(int src_width, int src_height,
     return VA_STATUS_SUCCESS;
 }
 
+/*
+* Convert the memroy format from tiled to linear
+*/
+static VAStatus tng_unpack_topaz_rec(
+    int src_width, int src_height,
+    unsigned char *p_srcY, unsigned char *p_srcUV,
+    unsigned char *p_dstY, unsigned char *p_dstU, unsigned char *p_dstV,
+    int dstY_stride, int dstU_stride, int dstV_stride,
+    int surface_height)
+{
+    unsigned char *tmp_dstY = p_dstY;
+    unsigned char *tmp_dstU = p_dstU;
+    unsigned char *tmp_dstV = p_dstV;
+    unsigned char *tmp_srcY = p_srcY;
+    unsigned char *tmp_srcX = p_srcUV;
+
+    int i, j, n, t;
+    int mb_src_y_w = src_width >> 4;
+    int mb_src_y_h = src_height >> 5;
+    int mb_src_y_p = src_height - (mb_src_y_h << 5);
+
+    /*  Copy Y data */
+    for (j = 0; j < mb_src_y_h; j++) {
+        tmp_dstY = p_dstY + j * dstY_stride * 32;
+        for (i = 0; i < mb_src_y_w; i++) {
+            for (n = 0; n < 32; n++) {
+                memcpy(tmp_dstY + dstY_stride * n, tmp_srcY,16);
+                tmp_srcY += 16;
+            }
+            tmp_dstY += 16;
+        }
+    }
+
+    if(mb_src_y_p != 0) {
+        tmp_dstY = p_dstY + j * dstY_stride * 32;
+        for (i = 0; i < mb_src_y_w; i++) {
+            for (n = 0; n < mb_src_y_p; n++) {
+                memcpy(tmp_dstY + dstY_stride * n, tmp_srcY,16);
+                tmp_srcY += 16;
+            }
+            for (; n < 32; n++) {
+                tmp_srcY += 16;
+            }
+            tmp_dstY += 16;
+        }
+    }
+
+    for (j = 0; j < mb_src_y_h; j++) {
+        tmp_dstU = p_dstU + j * dstY_stride * 16;
+        for (i = 0; i < mb_src_y_w; i++) {
+            for (n = 0; n < 16; n++) {
+                for (t = 0; t < 16; t++) {
+                    tmp_dstU[(n * dstY_stride) + t] = tmp_srcX[t];
+                }
+                tmp_srcX += 16;
+            }
+            tmp_dstU += 16;
+        }
+    }
+    mb_src_y_p >>= 1;
+    if(mb_src_y_p != 0) {
+        tmp_dstU = p_dstU + j * dstY_stride * 16;
+        for (i = 0; i < mb_src_y_w; i++) {
+            for (n = 0; n < mb_src_y_p; n++) {
+                for (t = 0; t < 16; t++) {
+                   tmp_dstU[(n * dstY_stride) + t] = tmp_srcX[t];
+                }
+                tmp_srcX += 16;
+            }
+
+            for (; n < 16; n++) {
+                tmp_srcX += 16;
+            }
+
+            tmp_dstU += 16;
+        }
+    }
+
+    return VA_STATUS_SUCCESS;
+}
 
 VAStatus psb_GetImage(
     VADriverContextP ctx,
@@ -760,25 +847,48 @@ VAStatus psb_GetImage(
 
     switch (obj_image->image.format.fourcc) {
     case VA_FOURCC_NV12: {
-        unsigned char *source_y, *src_uv, *dst_y, *dst_uv;
+        unsigned char *src_y, *src_uv, *dst_y, *dst_uv;
+	unsigned char *dst_u, *dst_v;
         unsigned int i;
-        /* copy Y plane */
-        dst_y = image_data;
-        source_y = surface_data + y * psb_surface->stride + x;
-        for (i = 0; i < height; i++)  {
-            memcpy(dst_y, source_y, width);
-            dst_y += obj_image->image.pitches[0];
-            source_y += psb_surface->stride;
-        }
 
-        /* copy UV plane */
-        dst_uv = image_data + obj_image->image.offsets[1];
-        src_uv = surface_data + psb_surface->stride * obj_surface->height + (y / 2) * psb_surface->stride + x;;
-        for (i = 0; i < obj_image->image.height / 2; i++) {
-            memcpy(dst_uv, src_uv, width);
-            dst_uv += obj_image->image.pitches[1];
-            src_uv += psb_surface->stride;
-        }
+	/*
+	 * For reconstructed frame, tiled to linear conversion
+	 * must be done.
+	*/
+	if (obj_surface->is_ref_surface == 1) {
+	    src_y = surface_data + y * psb_surface->stride + x;
+	    src_uv = surface_data + ((height + 0x1f) & (~0x1f)) * width;;
+
+	    dst_y = image_data;
+	    dst_u = image_data + obj_image->image.offsets[1],
+	    dst_v = dst_u + (height * width) / 4;
+
+	    tng_unpack_topaz_rec(width, height, \
+				 src_y, src_uv, \
+			         dst_y, dst_u, dst_v, \
+			         obj_image->image.pitches[0], \
+			         obj_image->image.width / 2, \
+			         obj_image->image.width / 2, \
+			         obj_surface->height);
+	} else {
+            /* copy Y plane */
+            dst_y = image_data;
+            src_y = surface_data + y * psb_surface->stride + x;
+            for (i = 0; i < height; i++)  {
+		memcpy(dst_y, src_y, width);
+		dst_y += obj_image->image.pitches[0];
+		src_y += psb_surface->stride;
+            }
+
+	    /* copy UV plane */
+	    dst_uv = image_data + obj_image->image.offsets[1];
+            src_uv = surface_data + psb_surface->stride * obj_surface->height + (y / 2) * psb_surface->stride + x;;
+            for (i = 0; i < obj_image->image.height / 2; i++) {
+		memcpy(dst_uv, src_uv, width);
+		dst_uv += obj_image->image.pitches[1];
+		src_uv += psb_surface->stride;
+	    }
+	}
         break;
     }
 #if 0

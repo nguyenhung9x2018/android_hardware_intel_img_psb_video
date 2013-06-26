@@ -752,8 +752,10 @@ static VAStatus tng__H264ES_process_picture_param_base(context_ENC_p ctx, unsign
 #else
     {
         ps_buf->rec_surface = SURFACE(psPicParams->CurrPic.picture_id);
-        for (i = 0; i < 4; i++)
+        for (i = 0; i < 4; i++) {
             ps_buf->ref_surface[i] = SURFACE(psPicParams->ReferenceFrames[i].picture_id);
+	    ps_buf->ref_surface[i]->is_ref_surface = 1;
+	}
     }
 #endif
 
