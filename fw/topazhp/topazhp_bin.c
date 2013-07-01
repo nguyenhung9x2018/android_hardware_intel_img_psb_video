@@ -30,7 +30,6 @@
 
 #include <stdio.h>
 
-
 #include "JPEGMasterFirmware_bin.h"
 
 #include "H264MasterFirmware_bin.h"
@@ -61,6 +60,8 @@
 #include "H264MVCMasterFirmwareLLRC_bin.h"
 
 #include "thread0_bin.h"
+
+#include "Primary_VRL.txt"
 
 
 #define FW_VER 0x5D
@@ -135,12 +136,127 @@ struct fw_table_s {
 
 typedef struct fw_table_s fw_table_t;
 
+struct fw_table_secure {
+    unsigned int addr;
+    unsigned int test_size;
+    unsigned int data_size;
+    unsigned int reloc;
+};
+
+#define SECURE_ALIGN 16
+#define SECURE_VRL_HEADER 728
+#define SECURE_FIP_HEADER 296
+
+static void secure_firmware(fw_table_t *tng_fw_table, FILE *fp)
+{
+    struct fw_table_secure sec_t[FW_NUM];
+    const unsigned int ui_secure_align = SECURE_ALIGN - 1;
+    unsigned int i = 0;
+    int iter = 0;
+    int size = 0;
+    static unsigned char uc_pad = 0;
+
+    printf("fm num is %d\n", FW_NUM);
+    /////////////////////////////////////////////////
+    fwrite(vrl_bin_image, SECURE_VRL_HEADER, 1, fp);
+
+    uc_pad = 0x0;
+    for (iter = 0; iter < SECURE_FIP_HEADER; iter++) {
+        fwrite(&uc_pad, 1, 1, fp);
+    }
+    /////////////////////////////////////////////////
+    uc_pad = 0x0;
+    iter = 0;
+
+    sec_t[iter].addr = FW_NUM * 16 + SECURE_VRL_HEADER + SECURE_FIP_HEADER;
+    sec_t[iter].test_size = tng_fw_table[iter].header.text_size * 4;
+    sec_t[iter].data_size = tng_fw_table[iter].header.data_size * 4;
+    sec_t[iter].reloc     = tng_fw_table[iter].header.data_location;
+    fwrite(&(sec_t[iter]), sizeof(struct fw_table_secure), 1, fp);
+
+    iter = 1;
+
+
+    /* write fw table into the file */
+    while (iter < FW_NUM) {
+        sec_t[iter - 1].test_size = (sec_t[iter - 1].test_size + ui_secure_align) & (~ui_secure_align);
+        sec_t[iter - 1].data_size = (sec_t[iter - 1].data_size + ui_secure_align) & (~ui_secure_align);
+
+        sec_t[iter].addr = sec_t[iter-1].addr + sec_t[iter-1].test_size + sec_t[iter-1].data_size;
+        sec_t[iter].test_size = tng_fw_table[iter].header.text_size * 4;
+        sec_t[iter].data_size = tng_fw_table[iter].header.data_size * 4;
+        sec_t[iter].reloc     = tng_fw_table[iter].header.data_location;
+        fwrite(&(sec_t[iter]), sizeof(struct fw_table_secure), 1, fp);
+        ++iter;
+    }
+
+    sec_t[iter - 1].test_size = (sec_t[iter - 1].test_size + ui_secure_align) & (~ui_secure_align);
+    sec_t[iter - 1].data_size = (sec_t[iter - 1].data_size + ui_secure_align) & (~ui_secure_align);
+
+    iter = 0;
+    while (iter < FW_NUM) {
+        /* record the size use bytes */
+        tng_fw_table[iter].header.data_size *= 4;
+        tng_fw_table[iter].header.text_size *= 4;
+
+        /* write text */
+        size = tng_fw_table[iter].header.text_size;
+        fwrite(tng_fw_table[iter].fw_text, 1, size, fp);
+
+        for (i = 0; i < (sec_t[iter].test_size - size); i++)
+               fwrite(&uc_pad, 1, 1, fp);
+
+        /* write data */
+        size = tng_fw_table[iter].header.data_size;
+        fwrite(tng_fw_table[iter].fw_data, 1, size, fp);
+
+        for (i = 0; i < (sec_t[iter].data_size - size); i++)
+               fwrite(&uc_pad, 1, 1, fp);
+
+        fflush(fp);
+
+        ++iter;
+    }
+    return ;
+}
+
+static void normal_firmware(fw_table_t *topaz_fw_table, FILE *fp)
+{
+    struct fw_table_secure sec_t[FW_NUM];
+    const unsigned int ui_secure_align = SECURE_ALIGN - 1;
+    unsigned int i = 0;
+    topaz_fw_codec_t iter = FW_MASTER_JPEG;
+    int size = 0;
+    static unsigned char uc_pad = 0;
+
+    printf("fm num is %d\n", FW_NUM);
+
+    /* write fw table into the file */
+    while (iter < FW_NUM) {
+        /* record the size use bytes */
+        topaz_fw_table[iter].header.data_size *= 4;
+        topaz_fw_table[iter].header.text_size *= 4;
+
+        /* write header */
+        fwrite(&(topaz_fw_table[iter].header), sizeof(topaz_fw_table[iter].header), 1, fp);
+
+        /* write text */
+        size = topaz_fw_table[iter].header.text_size;
+        fwrite(topaz_fw_table[iter].fw_text, 1, size, fp);
+
+        /* write data */
+        size = topaz_fw_table[iter].header.data_size;
+        fwrite(topaz_fw_table[iter].fw_data, 1, size, fp);
+
+        ++iter;
+    }
+}
+
+
+
 int main()
 {
     FILE *fp = NULL;
-    topaz_fw_codec_t iter = FW_MASTER_JPEG;
-    unsigned int size = 0;
-    unsigned int i;
 
     fw_table_t topaz_fw_table[] = {
         FW_MASTER_INFO(JPEG, JPEG),	//FW_MASTER_JPEG = 0,                         //!< JPEG
@@ -164,31 +280,14 @@ int main()
         FW_MASTER_INFO(H264MVC_VBR, H264MVCVBR),//FW_MASTER_H264MVC_VBR,          //!< MVC H264 variable bitrate
         FW_MASTER_INFO(H264MVC_LLRC, H264MVCLLRC),//FW_MASTER_H264MVC_LLRC,         //!< MVC H264 low-latency rate control
     };
+
     /* open file  */
     fp = fopen(FW_FILE_NAME, "w");
 
     if (NULL == fp)
         return -1;
 
-    /* write fw table into the file */
-    while (iter < FW_NUM) {
-        /* record the size use bytes */
-        topaz_fw_table[iter].header.data_size *= 4;
-        topaz_fw_table[iter].header.text_size *= 4;
-
-        /* write header */
-        fwrite(&(topaz_fw_table[iter].header), sizeof(topaz_fw_table[iter].header), 1, fp);
-
-        /* write text */
-        size = topaz_fw_table[iter].header.text_size;
-        fwrite(topaz_fw_table[iter].fw_text, 1, size, fp);
-
-        /* write data */
-        size = topaz_fw_table[iter].header.data_size;
-        fwrite(topaz_fw_table[iter].fw_data, 1, size, fp);
-
-        ++iter;
-    }
+    secure_firmware(topaz_fw_table, fp);
 
     /* close file */
     fclose(fp);
