@@ -1220,7 +1220,7 @@ static void tng__VP8_set_bool_coder_context(context_VP8_p ctx) {
         psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
         REGIO_WRITE_FIELD_LITE (bool_init, MSVDX_VEC, CR_VEC_BOOL_INIT, BOOL_INIT_RANGE, ctx->pic_params->bool_coder_ctx.range);
-        REGIO_WRITE_FIELD_LITE (bool_init, MSVDX_VEC, CR_VEC_BOOL_INIT, BOOL_INIT_VALUE, (ctx->pic_params->bool_coder_ctx.value >> 24) & 0xff);  /* Set only MSB of value param of bool context */
+        REGIO_WRITE_FIELD_LITE (bool_init, MSVDX_VEC, CR_VEC_BOOL_INIT, BOOL_INIT_VALUE, (ctx->pic_params->bool_coder_ctx.value) & 0xff);  /* Set only MSB of value param of bool context */
         psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC, CR_VEC_BOOL_INIT), bool_init);
 
         psb_cmdbuf_reg_end_block(cmdbuf);
