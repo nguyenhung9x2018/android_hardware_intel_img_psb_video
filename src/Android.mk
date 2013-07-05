@@ -93,9 +93,8 @@ LOCAL_CFLAGS := -DLINUX -DANDROID -g -Wall -Wno-unused
 
 ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail bigcore),)
 LOCAL_C_INCLUDES :=                     \
-    $(TOPDIR)hardware/libhardware/include/hardware         \
-    $(TOPDIR)hardware/intel/include         \
-    $(TOPDIR)framework/base/include                          \
+    $(call include-path-for, libhardware)/hardware         \
+    $(call include-path-for, frameworks-base)                          \
     $(TARGET_OUT_HEADERS)/libva \
     $(TOPDIR)$(KERNEL_SRC_DIR)/include/drm     \
     $(TARGET_OUT_HEADERS)/libttm        \
@@ -105,10 +104,9 @@ LOCAL_C_INCLUDES :=                     \
     $(LOCAL_PATH)/hwdefs
 else
 LOCAL_C_INCLUDES :=			\
-    $(TOPDIR)hardware/libhardware/include/hardware         \
-    $(TOPDIR)vendor/intel/hardware/include         \
+    $(call include-path-for, libhardware)/hardware         \
     $(TOPDIR)vendor/intel/hardware/PRIVATE/pvr/eurasia/pvr2d              \
-    $(TOPDIR)framework/base/include                          \
+    $(call include-path-for, frameworks-base)                          \
     $(TARGET_OUT_HEADERS)/libva	\
     $(TARGET_OUT_HEADERS)/pvr/pvr2d	\
     $(TOPDIR)$(KERNEL_SRC_DIR)/include/drm     \
