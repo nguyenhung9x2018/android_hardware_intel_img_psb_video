@@ -580,7 +580,6 @@ int psb_codedbuf_map_mangle(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int next_buf_off;
     int i;
-    int frame_size_vp8 = 0;
 
     CHECK_INVALID_PARAM(pbuf == NULL);
 
@@ -644,21 +643,35 @@ int psb_codedbuf_map_mangle(
             {
                 /* multi segments*/
 		struct VssVp8encEncodedFrame *t = (struct VssVp8encEncodedFrame *) (raw_codedbuf);
+		int concatenate = 1;
 
-		//printf("t->status=%x, t->frame_size=%d, t->frame_flags=%d, t->partitions=%d\n",
-                  //      t->status, t->frame_size, t->frame_flags, t->partitions);
+		for (i = 0; i < t->partitions - 1; i++) {
+                    if (t->partition_start[i+1] != t->partition_start[i] + t->partition_size[i])
+                        concatenate = 0;
+		}
 
-		/* partitions are concatenate */
-		p->buf = t->coded_data;
-		p->size = t->frame_size;
-#if 0
-		p->buf = t->coded_data + t->partition_start[i] - t->partition_start[0]; // not correctif partition not consecutive
-	        p->next = &p[1];
-		printf("p->size=%d, p->buf=%p, offset=%p\n", p->size, p->buf,t->partition_start[i]);
-		p++;
-		p--;
-#endif
-		p->next = NULL;
+		/* reference frame surface_id */
+		p->reserved = t->reserved[0];
+
+		if (concatenate) {
+                    //printf("t->status=%x, t->frame_size=%d, t->frame_flags=%d, t->partitions=%d\n",
+                    //        t->status, t->frame_size, t->frame_flags, t->partitions);
+
+                    /* partitions are concatenate */
+                    p->buf = t->coded_data;
+                    p->size = t->frame_size;
+                    p->next = NULL;
+		} else {
+                    for (i = 0; i < t->partitions; i++) {
+                        /* partition not consecutive */
+                        p->buf = t->coded_data + t->partition_start[i] - t->partition_start[0];
+                        p->next = &p[1];
+                        p++;
+		    }
+		    p--;
+		    p->next = NULL;
+		}
+
 		break;
             }
             case VAProfileJPEGBaseline:

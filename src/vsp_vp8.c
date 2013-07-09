@@ -63,6 +63,10 @@ enum filter_status {
     FILTER_ENABLED
 };
 
+typedef struct _Ref_frame_surface {
+    struct VssProcPictureVP8 ref_frame_buffers[4];
+} ref_frame_surface;
+
 #define FUNCTION_NAME \
     printf("ENTER %s.\n",__FUNCTION__);
 
@@ -111,6 +115,7 @@ static void vsp_VP8_QueryConfigAttributes(
 	case VAConfigAttribRTFormat:
 	    break;
 	case VAConfigAttribRateControl:
+	    attrib_list[i].value = VA_RC_CBR | VA_RC_VBR;
 	    break;
 	case VAConfigAttribEncAutoReference:
 	    attrib_list[i].value = 1;
@@ -182,10 +187,13 @@ static VAStatus vsp_VP8_CreateContext(
     ctx->param_sz += ctx->pic_param_sz;
     ctx->seq_param_sz = ALIGN_TO_128(sizeof(struct VssVp8encSequenceParameterBuffer));
     ctx->param_sz += ctx->seq_param_sz;
+    ctx->ref_param_sz = ALIGN_TO_128(sizeof(ref_frame_surface));
+    ctx->param_sz += ctx->ref_param_sz;
 
     /* set offset */
     ctx->pic_param_offset = 0;
     ctx->seq_param_offset = ctx->pic_param_sz;
+    ctx->ref_param_offset = ctx->pic_param_sz + ctx->seq_param_sz;
 
     ctx->context_buf = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
     if (NULL == ctx->context_buf) {
@@ -249,6 +257,9 @@ static VAStatus vsp_vp8_process_seqence_param(
     struct VssVp8encSequenceParameterBuffer *seq =
             (struct VssVp8encSequenceParameterBuffer *)cmdbuf->seq_param_p;
 
+    ref_frame_surface *ref =
+	    (struct ref_frame_surface*)cmdbuf->ref_param_p;
+
     ctx->frame_width = va_seq->frame_width;
     ctx->frame_height = va_seq->frame_height;
 
@@ -279,32 +290,40 @@ static VAStatus vsp_vp8_process_seqence_param(
     ref_frame_width = (ctx->frame_width + 2 * 32 + 63) & (~63);
     ref_frame_height = (ctx->frame_height + 2 * 32 + 63) & (~63);
 
-    for (i = 0; i < 4; i++)
-    {
-        seq->ref_frame_buffers[i].surface_id = va_seq->reference_frames[i];// not used now.
-        seq->ref_frame_buffers[i].width = ref_frame_width;
-        seq->ref_frame_buffers[i].height = ref_frame_height;
-    }
+    ctx->frame_rate = seq->frame_rate;
+    ctx->bits_per_second = va_seq->bits_per_second;
 
     ctx->vp8_seq_param = * seq;
-
-    for (i = 0; i < 4; i++) {
-        object_surface_p ref_surf = SURFACE(va_seq->reference_frames[i]);
-	if (!ref_surf)
-		return VA_STATUS_ERROR_UNKNOWN;
-
-        vsp_cmdbuf_reloc_pic_param(&(seq->ref_frame_buffers[i].base),
-                                   ctx->seq_param_offset,
-                                   &(ref_surf->psb_surface->buf),
-                                   cmdbuf->param_mem_loc, seq);
-    }
 
     vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VP8_ID, &cmdbuf->param_mem,
                               VssVp8encSetSequenceParametersCommand,
                               ctx->seq_param_offset,
                               sizeof(struct VssVp8encSequenceParameterBuffer));
-
     ctx->vp8_seq_cmd_send = 1;
+
+    /* pass 4 ref frame surface to kernel driver */
+    for (i = 0; i < 4; i++) {
+        ref->ref_frame_buffers[i].surface_id = va_seq->reference_frames[i];
+        ref->ref_frame_buffers[i].width = ref_frame_width;
+        ref->ref_frame_buffers[i].height = ref_frame_height;
+    }
+
+    for (i = 0; i < 4; i++) {
+	object_surface_p ref_surf = SURFACE(va_seq->reference_frames[i]);
+	if (!ref_surf)
+	    return VA_STATUS_ERROR_UNKNOWN;
+
+	vsp_cmdbuf_reloc_pic_param(&(ref->ref_frame_buffers[i].base),
+			           ctx->ref_param_offset,
+				   &(ref_surf->psb_surface->buf),
+				   cmdbuf->param_mem_loc, ref);
+    }
+
+    vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VP8_ID,
+                              &cmdbuf->param_mem, Vss_Sys_Ref_Frame_COMMAND,
+                              ctx->ref_param_offset,
+                              sizeof(ref_frame_surface));
+
     return vaStatus;
 }
 
@@ -337,16 +356,6 @@ static VAStatus vsp_vp8_process_dynamic_seqence_param(
      seq->rc_target_bitrate = ctx->bits_per_second / 1000 ;
      seq->max_intra_rate = ctx->max_frame_size *30 * 1000 / ctx->bits_per_second;
 
-    for (i = 0; i < 4; i++) {
-        object_surface_p ref_surf = SURFACE(seq->ref_frame_buffers[i].surface_id);
-	if (!ref_surf)
-		return VA_STATUS_ERROR_UNKNOWN;
-
-        vsp_cmdbuf_reloc_pic_param(&(seq->ref_frame_buffers[i].base),
-                                   ctx->seq_param_offset,
-                                   &(ref_surf->psb_surface->buf),
-                                   cmdbuf->param_mem_loc, seq);
-    }
 
     vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VP8_ID, &cmdbuf->param_mem,
                               VssVp8encSetSequenceParametersCommand,
@@ -397,7 +406,6 @@ static VAStatus vsp_vp8_process_picture_param(
     pic->input_frame.stride     = ctx->obj_context->current_render_target->psb_surface->stride;
     pic->input_frame.format     = 0; /* TODO: Specify NV12 = 0 */
 
-    pic->recon_frame.surface_id = va_seq->reference_frames[0];
     pic->recon_frame.irq = 0;
     pic->recon_frame.width = ref_frame_width;
     pic->recon_frame.height = ref_frame_height;
@@ -454,7 +462,7 @@ static VAStatus vsp_vp8_process_picture_param(
     //                        sizeof(VssVp8encPictureParameterBuffer));
     //vsp_cmdbuf_fence_pic_param(cmdbuf, wsbmKBufHandle(wsbmKBuf(cmdbuf->param_mem.drm_buf)));
 
-    do { *cmdbuf->cmd_idx++ = 1;\
+    do { *cmdbuf->cmd_idx++ = CONTEXT_VP8_ID;\
          *cmdbuf->cmd_idx++ = VssVp8encEncodeFrameCommand;\
          VSP_RELOC_CMDBUF(cmdbuf->cmd_idx++, ctx->pic_param_offset, &cmdbuf->param_mem);\
          *cmdbuf->cmd_idx++ = sizeof(struct VssVp8encPictureParameterBuffer);\
@@ -624,6 +632,7 @@ static VAStatus vsp_VP8_BeginPicture(
 
     cmdbuf->pic_param_p = cmdbuf->param_mem_p;
     cmdbuf->seq_param_p = cmdbuf->param_mem_p + ctx->seq_param_offset;
+    cmdbuf->ref_param_p = cmdbuf->param_mem_p + ctx->ref_param_offset;
     ctx->vp8_seq_cmd_send = 0;
     ctx->re_send_seq_params = 0;
     return VA_STATUS_SUCCESS;
@@ -651,6 +660,7 @@ static VAStatus vsp_VP8_EndPicture(
         cmdbuf->enhancer_param_p = NULL;
         cmdbuf->sharpen_param_p = NULL;
         cmdbuf->frc_param_p = NULL;
+        cmdbuf->ref_param_p = NULL;
      }
 
 //    ctx->obj_context->frame_count++;

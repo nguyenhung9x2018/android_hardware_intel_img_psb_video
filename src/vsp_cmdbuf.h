@@ -65,6 +65,7 @@ struct vsp_cmdbuf_s {
 	unsigned char *enhancer_param_p;
 	unsigned char *sharpen_param_p;
 	unsigned char *frc_param_p;
+	unsigned char *ref_param_p;
 };
 
 typedef struct vsp_cmdbuf_s *vsp_cmdbuf_p;
