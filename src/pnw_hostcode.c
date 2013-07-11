@@ -1265,8 +1265,8 @@ static void pnw__update_rcdata(
             psPicParams->sInParams.RCScaleFactor = 16;
         }
         else {
-            psPicParams->sInParams.MaxQPVal = 40;
-            psPicParams->sInParams.RCScaleFactor = 30;
+            psPicParams->sInParams.MaxQPVal = 51;
+            psPicParams->sInParams.RCScaleFactor = 16;
         }
 
         /* Setup MAX and MIN Quant Values */

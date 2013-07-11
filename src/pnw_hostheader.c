@@ -421,16 +421,10 @@ static void pnw__H264_writebits_VUI_params(
                 4);
 
     /* num_units_in_tick (32 bits) = 1 in Topaz */
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 8);
+    pnw__write_upto32bits_elements(mtx_hdr, elt_p, VUIParams->num_units_in_tick, 32);
 
     /* time_scale (32 bits) = frame rate */
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, 0, 8);
-    pnw__write_upto8bits_elements(mtx_hdr, elt_p, (IMG_UINT8)  VUIParams->Time_Scale, 8);
+    pnw__write_upto32bits_elements(mtx_hdr, elt_p, VUIParams->Time_Scale, 32);
 
     /* fixed_frame_rate_flag (1 bit) = 1 in Topaz */
     pnw__write_upto8bits_elements(mtx_hdr, elt_p, 1, 1);

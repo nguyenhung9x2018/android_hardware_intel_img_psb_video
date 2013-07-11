@@ -322,7 +322,6 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
             pnw_set_bias(ctx, i);
     }
 
-    pVUI_Params->Time_Scale = ctx->sRCParams.FrameRate * 2;
     pVUI_Params->bit_rate_value_minus1 = ctx->sRCParams.BitsPerSecond / 64 - 1;
     pVUI_Params->cbp_size_value_minus1 = ctx->sRCParams.BufferSize / 64 - 1;
     if (IMG_CODEC_H264_CBR != ctx->eCodec ||
@@ -337,6 +336,18 @@ static VAStatus pnw__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     pVUI_Params->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
     pVUI_Params->time_offset_length = 24;
     ctx->bInsertVUI = pSequenceParams->vui_parameters_present_flag ? IMG_TRUE: IMG_FALSE;
+    if (ctx->bInsertVUI) {
+        if (pSequenceParams->num_units_in_tick !=0 && pSequenceParams->time_scale !=0
+                && (pSequenceParams->time_scale > pSequenceParams->num_units_in_tick) ) {
+            pVUI_Params->Time_Scale = pSequenceParams->time_scale;
+            pVUI_Params->num_units_in_tick = pSequenceParams->num_units_in_tick;
+        }
+        else {
+            pVUI_Params->num_units_in_tick = 1;
+            pVUI_Params->Time_Scale = ctx->sRCParams.FrameRate * 2;
+        }
+    }
+
     if (ctx->bInsertVUI && pSequenceParams->vui_fields.bits.aspect_ratio_info_present_flag &&
             (pSequenceParams->aspect_ratio_idc == 0xff /* Extended_SAR */)) {
         pVUI_Params->aspect_ratio_info_present_flag = IMG_TRUE;
