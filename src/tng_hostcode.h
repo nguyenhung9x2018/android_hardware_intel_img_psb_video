@@ -448,6 +448,7 @@ struct context_ENC_s {
     IMG_UINT32 uMBspS;
     IMG_BOOL   bSkipDuplicateVectors;
     IMG_BOOL   bNoOffscreenMv;
+    IMG_BOOL   idr_force_flag;
 
     IMG_BOOL   bNoSequenceHeaders;
     IMG_BOOL   bUseFirmwareALLRC; //!< Defines if aLL RC firmware to be loaded

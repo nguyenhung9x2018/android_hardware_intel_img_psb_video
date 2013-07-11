@@ -3369,6 +3369,21 @@ static VAStatus tng__update_bitrate(context_ENC_p ctx, IMG_UINT32 ui32StreamInde
     return vaStatus;
 }
 
+static VAStatus tng__update_frametype(context_ENC_p ctx, IMG_FRAME_TYPE eFrameType)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    IMG_UINT32 ui32CmdData = 0;
+
+    ui32CmdData = F_ENCODE(IMG_PICMGMT_REF_TYPE, MTX_MSG_PICMGMT_SUBTYPE) |
+                F_ENCODE(eFrameType, MTX_MSG_PICMGMT_DATA);
+
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
+        MTX_CMDID_PICMGMT ,
+        ui32CmdData, 0, 0);
+
+    return vaStatus;
+}
+
 static VAStatus tng__cmdbuf_send_picmgmt(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -3558,6 +3573,15 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
     if (vaStatus != VA_STATUS_SUCCESS) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "provide buffer");
     }
+
+    if (ctx->idr_force_flag == 1){
+         vaStatus = tng__update_frametype(ctx, IMG_FRAME_IDR);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "send picmgmt IDR");
+        }
+        ctx->idr_force_flag =0;
+    }
+
 
     if ((ctx->sRCParams.eRCMode == IMG_RCMODE_VCM) && (ctx->bEnableAIR == IMG_TRUE)) {
         tng_air_set_input_control(ctx, 0);

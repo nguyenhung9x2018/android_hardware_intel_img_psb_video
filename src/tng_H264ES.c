@@ -184,6 +184,7 @@ static void tng__H264ES_init_context(object_context_p obj_context,
     ctx->bInsertHRDParams = 0;
     ctx->bArbitrarySO = IMG_FALSE;
     ctx->ui32BasicUnit = 0;
+    ctx->idr_force_flag = 0;
     ctx->bVPAdaptiveRoundingDisable = IMG_FALSE;
 }
 
@@ -558,6 +559,9 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
                 ctx->ui32IntraCnt += ui32IPCount - (ctx->ui32IntraCnt % ui32IPCount);
         }
     }
+
+    if (ctx->ui32FrameCount[ctx->ui32StreamID] % (ctx->ui32IdrPeriod*ctx->ui32IntraCnt) != 0)
+        ctx->idr_force_flag = 1; 
 
     ctx->ui8SlotsInUse = ui32IPCount + 1; //Bframes + 2
 
