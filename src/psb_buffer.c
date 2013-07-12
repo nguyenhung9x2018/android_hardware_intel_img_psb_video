@@ -486,6 +486,8 @@ static void psb__trace_coded(VACodedBufferSegment *vaCodedBufSeg)
 }
 #endif
 
+#define PROFILE_H264(profile) ((profile>=VAProfileH264Baseline && profile <=VAProfileH264High) || \
+                               (profile == VAProfileH264ConstrainedBaseline))
 static void tng_get_coded_data(
     object_buffer_p obj_buffer,
     unsigned char *raw_codedbuf
@@ -497,11 +499,26 @@ static void tng_get_coded_data(
     unsigned int uiPipeNum = tng_get_pipe_number(obj_context);
     unsigned int uiBufOffset = tng_align_KB(obj_buffer->size >> 1);
     unsigned long *ptmp = NULL;
+    int tmp;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s pipenum = 0x%x\n", __FUNCTION__, uiPipeNum);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s offset  = 0x%x\n", __FUNCTION__, uiBufOffset);
 
-    vaCodedBufSeg[iPipeIndex].size = *(unsigned long *)((unsigned long)raw_codedbuf);
+    tmp = vaCodedBufSeg[iPipeIndex].size = *(unsigned long *)((unsigned long)raw_codedbuf);
+
+    /*
+     * This is used for DRM over WiDi which only uses H264 BP
+     * Tangier IED encryption operates on the chunks with 16bytes, and we must include
+     * the extra bytes beyond slice data as a whole chunk for decrption
+     * We simply include the padding bytes regardless of IED enable or disable
+     */
+    if (PROFILE_H264(obj_context->profile) && (tmp % 16 != 0)) {
+	tmp = (tmp + 15) & (~15);
+	drv_debug_msg(VIDEO_DEBUG_GENERAL, "Force slice size from %d to %d\n",
+                      vaCodedBufSeg[iPipeIndex].size, tmp);
+	vaCodedBufSeg[iPipeIndex].size  = tmp;
+    }
+
     vaCodedBufSeg[iPipeIndex].buf = (unsigned char *)(((unsigned long *)((unsigned long)raw_codedbuf)) + 16); /* skip 4DWs */
 
     ptmp = (unsigned long *)((unsigned long)raw_codedbuf); 
@@ -515,7 +532,22 @@ static void tng_get_coded_data(
          * is the second part of encoded clip.*/
         ++iPipeIndex;
         vaCodedBufSeg[iPipeIndex - 1].next = &vaCodedBufSeg[iPipeIndex];
-        vaCodedBufSeg[iPipeIndex].size = *(unsigned long *)((unsigned long)raw_codedbuf + uiBufOffset);
+        tmp = vaCodedBufSeg[iPipeIndex].size = *(unsigned long *)((unsigned long)raw_codedbuf + uiBufOffset);
+
+        /*
+         * This is used for DRM over WiDi which only uses H264 BP
+         * Tangier IED encryption operates on the chunks with 16bytes, and we must include
+         * the extra bytes beyond slice data as a whole chunk for decryption
+         * We simply include the padding bytes regardless of IED enable or disable
+         */
+        if (PROFILE_H264(obj_context->profile) && (tmp % 16 != 0)) {
+            tmp = (tmp + 15) & (~15);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL,"Force slice size from %d to %d\n",
+                          vaCodedBufSeg[iPipeIndex].size, tmp);
+
+            vaCodedBufSeg[iPipeIndex].size  = tmp;
+        }
+
         vaCodedBufSeg[iPipeIndex].buf = (unsigned char *)(((unsigned long *)((unsigned long)raw_codedbuf + uiBufOffset)) + 16); /* skip 4DWs */
         vaCodedBufSeg[iPipeIndex].reserved = vaCodedBufSeg[iPipeIndex - 1].reserved;
         vaCodedBufSeg[iPipeIndex].next = NULL;
