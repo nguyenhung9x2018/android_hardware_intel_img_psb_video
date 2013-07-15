@@ -2064,11 +2064,14 @@ static void tng__H264ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
 
-    memset(psVuiParams, 0, sizeof(H264_VUI_PARAMS));
+//    memset(psVuiParams, 0, sizeof(H264_VUI_PARAMS));
 
     if (psRCParams->eRCMode != IMG_RCMODE_NONE) {
         psVuiParams->vui_flag = 1;
-        psVuiParams->Time_Scale = psRCParams->ui32FrameRate * 2;
+        if (psVuiParams->num_units_in_tick == 0 || psVuiParams->Time_Scale == 0) {
+            psVuiParams->num_units_in_tick = 1;
+            psVuiParams->Time_Scale = psRCParams->ui32FrameRate * 2;
+        }
         psVuiParams->bit_rate_value_minus1 = psRCParams->ui32BitsPerSecond / 64 - 1;
         psVuiParams->cbp_size_value_minus1 = psRCParams->ui32BufferSize / 64 - 1;
         psVuiParams->CBR = ((psRCParams->eRCMode == IMG_RCMODE_CBR) && (!psRCParams->bDisableBitStuffing))?1:0;

@@ -486,6 +486,7 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
     H264_CROP_PARAMS* psCropParams = &(ctx->sCropParams);
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     FRAME_ORDER_INFO *psFrameInfo = &(ctx->sFrameOrderInfo);
+    H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
     IMG_UINT32 ui32MaxUnit32 = (IMG_UINT32)0x7ffa;
     IMG_UINT32 ui32IPCount = 0;
     IMG_UINT64 ui64Temp = 0;
@@ -633,6 +634,14 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
         ctx->ui32VertMVLimit = 1023 ;//(255.75 in qpel increments)
     else if (ctx->ui8LevelIdc >= SH_LEVEL_11)
         ctx->ui32VertMVLimit = 511 ;//(127.75 in qpel increments)
+
+    //set VUI info
+    memset(psVuiParams, 0, sizeof(H264_VUI_PARAMS));
+    if (psSeqParams->time_scale != 0 && psSeqParams->num_units_in_tick != 0
+		&& (psSeqParams->time_scale > psSeqParams->num_units_in_tick)) {
+        psVuiParams->Time_Scale = psSeqParams->time_scale;
+        psVuiParams->num_units_in_tick = psSeqParams->num_units_in_tick;
+    }
 
 out1:
     free(obj_buffer->buffer_data);

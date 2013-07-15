@@ -211,6 +211,7 @@ typedef struct _SLICE_PARAMS_ {
 typedef struct _H264_VUI_PARAMS_STRUC {
     IMG_UINT32 vui_flag;
     IMG_UINT32 Time_Scale;
+    IMG_UINT32 num_units_in_tick;
     IMG_UINT32 bit_rate_value_minus1; /* bitrate/64)-1 */
     IMG_UINT32 cbp_size_value_minus1; /* (bitrate*1.5)/16 */
     IMG_UINT8 CBR;

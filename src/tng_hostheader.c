@@ -448,17 +448,10 @@ static void tng__H264_writebits_VUI_params(
 	(1),												// timing_info_present_flag (1 bit) = 1 in Topaz
 	5);
 	// num_units_in_tick (32 bits) = 1 in Topaz
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8);
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8);
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8);
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 8);
+        tng__write_upto32bits_elements(pMTX_Header, aui32ElementPointers, VUIParams->num_units_in_tick, 32);
 
 	// time_scale (32 bits) = frame rate
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8);
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8);
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 0, 8);
-	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers,(IMG_UINT8)  VUIParams->Time_Scale, 8);
-
+	tng__write_upto32bits_elements(pMTX_Header, aui32ElementPointers, VUIParams->Time_Scale, 32);
 	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);	// fixed_frame_rate_flag (1 bit) = 1 in Topaz
 	tng__write_upto8bits_elements(pMTX_Header, aui32ElementPointers, 1, 1);	// nal_hrd_parameters_present_flag (1 bit) = 1 in Topaz
 	//** Definitions for nal_hrd_parameters() contained in VUI structure for Topaz
