@@ -151,7 +151,7 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
     int mode = 0;
 #endif
 
-    if (mode || (driver_data->va_rotate != 0)) {
+    if (mode) {
         if (driver_data->mipi0_rotation != 0) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Clear display rotate for extended video mode or meta data rotate");
             driver_data->mipi0_rotation = 0;
