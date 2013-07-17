@@ -335,6 +335,7 @@ VAStatus psb_CreateSurfacesForUserPtr(
         obj_surface->width_r = width;
         obj_surface->height_r = height;
         obj_surface->height_origin = height_origin;
+	obj_surface->is_ref_surface = 0;
 
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
         if (NULL == psb_surface) {
@@ -469,6 +470,7 @@ VAStatus  psb_CreateSurfaceFromKBuf(
     obj_surface->width_r = width;
     obj_surface->height_r = height;
     obj_surface->height_origin = height;
+    obj_surface->is_ref_surface = 0;
 
     psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
     if (NULL == psb_surface) {
@@ -565,6 +567,7 @@ VAStatus  psb_CreateSurfaceFromUserspace(
         obj_surface->height = attribute_tpi->height;
         obj_surface->width_r = attribute_tpi->width;
         obj_surface->height_r = attribute_tpi->height;
+	obj_surface->is_ref_surface = 0;
 
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
         if (NULL == psb_surface) {
@@ -684,6 +687,7 @@ VAStatus  psb_CreateSurfaceFromION(
         obj_surface->height = attribute_tpi->height;
         obj_surface->width_r = attribute_tpi->width;
         obj_surface->height_r = attribute_tpi->height;
+	obj_surface->is_ref_surface = 0;
 
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
         if (NULL == psb_surface) {

@@ -331,6 +331,9 @@ static VAStatus tng__MPEG4ES_process_picture_param(context_ENC_p ctx, object_buf
 #ifndef _TNG_FRAMES_
     ps_buf->ref_surface[0] = ps_buf->ref_surface[2] = SURFACE(psPicParams->reference_picture);
     ps_buf->ref_surface[1] = ps_buf->ref_surface[3] = SURFACE(psPicParams->reconstructed_picture);
+
+    ps_buf->ref_surface[0]->is_ref_surface = ps_buf->ref_surface[2]->is_ref_surface = 1;
+    ps_buf->ref_surface[1]->is_ref_surface = ps_buf->ref_surface[3]->is_ref_surface = 1;
 #else
     ps_buf->ref_surface = SURFACE(psPicParams->reference_picture);
     ps_buf->rec_surface = SURFACE(psPicParams->reconstructed_picture);

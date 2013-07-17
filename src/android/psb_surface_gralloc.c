@@ -162,6 +162,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
         obj_surface->width_r = width;
         obj_surface->height_r = height;
         obj_surface->height_origin = height_origin;
+	obj_surface->is_ref_surface = 0;
 
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
         if (NULL == psb_surface) {
