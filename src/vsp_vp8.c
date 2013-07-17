@@ -524,10 +524,6 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
         break;
     case VAEncMiscParameterTypeMaxFrameSize:
         max_frame_size_param = (VAEncMiscParameterBufferMaxFrameSize *)pBuffer->data;
-        if (max_frame_size_param->max_frame_size < 1 || frame_rate_param->framerate > 65535) {
-            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-            break;
-        }
         if (ctx->max_frame_size == max_frame_size_param->max_frame_size)
             break;
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "max frame size changed from %d to %d\n",
