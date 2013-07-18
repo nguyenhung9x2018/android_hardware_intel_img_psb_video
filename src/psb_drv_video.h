@@ -456,6 +456,10 @@ struct psb_surface_share_info_s {
     unsigned int rotate_luma_stride;
     unsigned int rotate_chroma_u_stride;
     unsigned int rotate_chroma_v_stride;
+
+    long long hwc_timestamp;
+    unsigned int layer_transform;
+
     void *native_window;
 };
 

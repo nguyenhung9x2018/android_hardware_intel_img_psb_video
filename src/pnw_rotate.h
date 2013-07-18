@@ -40,8 +40,24 @@ static uint32_t VAROTATION2HAL(int va_rotate) {
             return 0;
         }
 }
+
+
+static uint32_t HAL2VAROTATION(int hal_rotate) {
+        switch (hal_rotate) {
+        case HAL_TRANSFORM_ROT_90:
+            return VA_ROTATION_90;
+        case HAL_TRANSFORM_ROT_180:
+            return VA_ROTATION_180;
+        case HAL_TRANSFORM_ROT_270:
+            return VA_ROTATION_270;
+        default:
+            return 0;
+        }
+}
+
 #else
 #define VAROTATION2HAL(a) a
+#define HAL2VAROTATION(a) a
 #define psb_android_is_extvideo_mode(a) 0
 #define psb_android_surfaceflinger_rotate(a, b)
 #endif

@@ -175,6 +175,25 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
         if (driver_data->mipi0_rotation != display_rotate) {
             driver_data->mipi0_rotation = display_rotate;
         }
+    } else if (driver_data->protected) {
+        long long hwc_timestamp = 0;
+        int index = -1;
+
+        for (i = 0; i < obj_context->num_render_targets; i++) {
+            object_surface_p obj_surface = SURFACE(obj_context->render_targets[i]);
+            /* traverse all surfaces' share info to find out the latest transform info */
+            if (obj_surface && obj_surface->share_info) {
+                if (obj_surface->share_info->hwc_timestamp > hwc_timestamp) {
+                    hwc_timestamp = obj_surface->share_info->hwc_timestamp;
+                    index = i;
+                }
+            }
+        }
+        if (index >= 0) {
+            object_surface_p obj_surface = SURFACE(obj_context->render_targets[index]);
+            int transform = obj_surface->share_info->layer_transform;
+            driver_data->mipi0_rotation = HAL2VAROTATION(transform);
+        }
     }
 
     /* calc VA rotation and WM rotation, and assign to the final rotation degree */
