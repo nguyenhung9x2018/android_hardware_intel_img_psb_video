@@ -248,6 +248,13 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
         "%s: rate control changed from %d to %d\n", __FUNCTION__,
         psRCParams->ui32BitsPerSecond, psMiscRcParams->bits_per_second);
 
+    if (psMiscRcParams->rc_flags.value != 0) {
+       if (psMiscRcParams->rc_flags.bits.disable_bit_stuffing)
+           ctx->sRCParams.bDisableBitStuffing = IMG_TRUE;
+       drv_debug_msg(VIDEO_DEBUG_GENERAL, "bDisableBitStuffing is %d\n",
+           ctx->sRCParams.bDisableBitStuffing);
+    }
+
     if (psMiscRcParams->window_size > 2000) {
 	drv_debug_msg(VIDEO_DEBUG_ERROR, "window_size is too much!\n");
 	return VA_STATUS_ERROR_INVALID_PARAMETER;

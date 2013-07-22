@@ -580,11 +580,12 @@ static VAStatus tng__init_rc_params(context_ENC_p ctx, object_config_p obj_confi
     }
 
     ctx->sRCParams.bRCEnable = IMG_TRUE;
+    ctx->sRCParams.bDisableBitStuffing = IMG_FALSE;
+
     if (eRCmode == VA_RC_NONE) {
         ctx->sRCParams.bRCEnable = IMG_FALSE;
         ctx->sRCParams.eRCMode = IMG_RCMODE_NONE;
     } else if (eRCmode == VA_RC_CBR) {
-        ctx->sRCParams.bDisableBitStuffing = IMG_FALSE;
         ctx->sRCParams.eRCMode = IMG_RCMODE_CBR;
     } else if (eRCmode == VA_RC_VBR) {
         ctx->sRCParams.eRCMode = IMG_RCMODE_VBR;
@@ -2074,7 +2075,7 @@ static void tng__H264ES_send_seq_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
         }
         psVuiParams->bit_rate_value_minus1 = psRCParams->ui32BitsPerSecond / 64 - 1;
         psVuiParams->cbp_size_value_minus1 = psRCParams->ui32BufferSize / 64 - 1;
-        psVuiParams->CBR = ((psRCParams->eRCMode == IMG_RCMODE_CBR) && (!psRCParams->bDisableBitStuffing))?1:0;
+        psVuiParams->CBR = ((psRCParams->eRCMode == IMG_RCMODE_CBR) && (!psRCParams->bDisableBitStuffing)) ? 1 : 0;
         psVuiParams->initial_cpb_removal_delay_length_minus1 = BPH_SEI_NAL_INITIAL_CPB_REMOVAL_DELAY_SIZE - 1;
         psVuiParams->cpb_removal_delay_length_minus1 = PTH_SEI_NAL_CPB_REMOVAL_DELAY_SIZE - 1;
         psVuiParams->dpb_output_delay_length_minus1 = PTH_SEI_NAL_DPB_OUTPUT_DELAY_SIZE - 1;
