@@ -310,6 +310,7 @@ static VAStatus vsp_vp8_process_seqence_param(
 
     for (i = 0; i < 4; i++) {
 	object_surface_p ref_surf = SURFACE(va_seq->reference_frames[i]);
+	ref_surf->is_ref_surface = 2;
 	if (!ref_surf)
 	    return VA_STATUS_ERROR_UNKNOWN;
 

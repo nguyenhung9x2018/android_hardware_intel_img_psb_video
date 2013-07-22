@@ -475,9 +475,8 @@ VAStatus psb_DeriveImage(
 
     CHECK_SURFACE(obj_surface);
     CHECK_INVALID_PARAM(image == NULL);
-
     /* Can't derive image from reconstrued frame which is in tiled format */
-    if (obj_surface->is_ref_surface == 1) {
+    if (obj_surface->is_ref_surface == 1 || obj_surface->is_ref_surface == 2) {
 	drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't derive reference surface" \
 		      "which is tiled format\n");
 	return VA_STATUS_ERROR_OPERATION_FAILED;
@@ -709,6 +708,44 @@ static VAStatus lnc_unpack_topaz_rec(int src_width, int src_height,
 /*
 * Convert the memroy format from tiled to linear
 */
+static VAStatus tng_unpack_vsp_rec(
+    int src_width, int src_height,
+    unsigned char *p_srcY, unsigned char *p_srcUV,
+    unsigned char *p_dstY, unsigned char *p_dstU,
+    int dstY_stride, int dstU_stride, int dstV_stride,
+    int surface_height)
+{
+    unsigned char *tmp_dstY = p_dstY;
+    unsigned char *tmp_dstU = p_dstU;
+
+    int n, t,x,y;
+
+   //"	Y_address(x,y) =    Y_base + (((H            +64+63)/64) * (x/64) + (y/64))*4096 + (y%64)*64 + (x%64)
+   //"	U_address(x,y) = UV_base + ((((H+1)/2+32+63)/64) * (x/32) + (y/64))*4096 + (y%64)*64 + (x%32)*2
+   //"	V_address(x,y) = UV_base + ((((H+1)/2+32+63)/64) * (x/32) + (y/64))*4096 + (y%64)*64 + (x%32)*2 + 1
+
+    /*  Copy Y data */
+    for (y = 36; y < src_height +36; y++) {
+        for (x= 32;x < src_width+32; x++) {
+            * tmp_dstY++ =  *( p_srcY + (((src_height+64+63)/64) * (x/64) + (y/64))*4096 + (y%64)*64 + (x%64));
+            }
+            tmp_dstY += dstY_stride - src_width;
+    }
+
+    /*  Copy UV data */
+    for (y = 18; y < 18+ ((src_height+1)>>1) ; y++) {
+        for (x= 16;x < 16+( (src_width+1)>>1); x++) {
+            * tmp_dstU++ = * ( p_srcUV + ((((src_height+1)/2+32+63)/64) * (x/32) + (y/64))*4096 + (y%64)*64 + (x%32)*2);
+            * tmp_dstU++ = * ( p_srcUV + ((((src_height+1)/2+32+63)/64) * (x/32) + (y/64))*4096 + (y%64)*64 + (x%32)*2 +1);
+            }
+           tmp_dstU += dstU_stride - ((src_width));
+    }
+
+    return VA_STATUS_SUCCESS;
+}
+/*
+* Convert the memroy format from tiled to linear
+*/
 static VAStatus tng_unpack_topaz_rec(
     int src_width, int src_height,
     unsigned char *p_srcY, unsigned char *p_srcUV,
@@ -843,7 +880,9 @@ VAStatus psb_GetImage(
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
+
     image_data += obj_surface->psb_surface->buf.buffer_ofs;
+
 
     switch (obj_image->image.format.fourcc) {
     case VA_FOURCC_NV12: {
@@ -857,7 +896,7 @@ VAStatus psb_GetImage(
 	*/
 	if (obj_surface->is_ref_surface == 1) {
 	    src_y = surface_data + y * psb_surface->stride + x;
-	    src_uv = surface_data + ((height + 0x1f) & (~0x1f)) * width;;
+	    src_uv = surface_data + ((height + 0x1f) & (~0x1f)) * width;
 
 	    dst_y = image_data;
 	    dst_u = image_data + obj_image->image.offsets[1],
@@ -870,7 +909,20 @@ VAStatus psb_GetImage(
 			         obj_image->image.width / 2, \
 			         obj_image->image.width / 2, \
 			         obj_surface->height);
-	} else {
+	} else if (obj_surface->is_ref_surface == 2) {
+	    src_y = surface_data + y * psb_surface->stride + x;
+	    src_uv = surface_data + ((height + 2*32 + 63)/64*64) * ((width  + 2*32 + 63)/64*64);
+	    dst_y = image_data;
+	    dst_u = image_data +  obj_image->image.offsets[1];
+
+	    tng_unpack_vsp_rec(width, height, \
+				 src_y, src_uv, \
+			         dst_y, dst_u, \
+			         obj_image->image.pitches[0], \
+			         obj_image->image.pitches[1], \
+			         obj_image->image.pitches[1], \
+			         obj_surface->height);
+	} else{
             /* copy Y plane */
             dst_y = image_data;
             src_y = surface_data + y * psb_surface->stride + x;
