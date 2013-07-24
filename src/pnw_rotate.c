@@ -196,6 +196,18 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
         }
     }
 
+#ifdef PSBVIDEO_MRFL
+    if ((mode == 1) && driver_data->native_window) {
+        int display_rotate = 0;
+        psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
+
+        if (driver_data->mipi0_rotation != display_rotate) {
+            driver_data->mipi0_rotation = display_rotate;
+        }
+    }
+#endif
+
     /* calc VA rotation and WM rotation, and assign to the final rotation degree */
     angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->mipi0_rotation);
     driver_data->local_rotation = Angle2Rotation(angle);
