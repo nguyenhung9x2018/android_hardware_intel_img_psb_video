@@ -407,6 +407,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
                                          __FUNCTION__, surfaceID, vaddr[GRALLOC_SUB_BUFFER0], vaddr[GRALLOC_SUB_BUFFER1]);
             }
             gralloc_unlock(handle);
+            psb_surface->buf.user_ptr = NULL;
         }
                 
         if (VA_STATUS_SUCCESS != vaStatus) {
