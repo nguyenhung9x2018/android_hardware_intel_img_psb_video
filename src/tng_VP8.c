@@ -330,8 +330,6 @@ struct context_VP8_s {
     struct psb_buffer_s probability_data_2nd_part;
 
     struct psb_buffer_s intra_buffer;
-
-    struct psb_buffer_s aux_line_buffer;
 };
 
 typedef struct context_VP8_s	*context_VP8_p;
@@ -525,23 +523,6 @@ static VAStatus tng_VP8_CreateContext(
         DEBUG_FAILURE;
     }
 
-    /* allocate Aux Line buffer */
-    if (vaStatus == VA_STATUS_SUCCESS) {
-        vaStatus = psb_buffer_create(obj_context->driver_data,
-                                     AUX_LINE_BUFFER_SIZE,
-                                     psb_bt_cpu_vpu,
-                                     &ctx->aux_line_buffer);
-        DEBUG_FAILURE;
-    }
-
-    if (vaStatus == VA_STATUS_SUCCESS) {
-        vaStatus = psb_buffer_create(obj_context->driver_data,
-                                     AUX_LINE_BUFFER_VLD_SIZE,
-                                     psb_bt_cpu_vpu,
-                                     &ctx->dec_ctx.aux_line_buffer_vld);
-        DEBUG_FAILURE;
-    }
-
     if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = vld_dec_CreateContext(&ctx->dec_ctx, obj_context);
         DEBUG_FAILURE;
@@ -568,8 +549,6 @@ static void tng_VP8_DestroyContext(
     psb_buffer_destroy(&ctx->probability_data_1st_part);
     psb_buffer_destroy(&ctx->probability_data_2nd_part);
     psb_buffer_destroy(&ctx->intra_buffer);
-    psb_buffer_destroy(&ctx->aux_line_buffer);
-    psb_buffer_destroy(&ctx->dec_ctx.aux_line_buffer_vld);
 
     if (ctx->pic_params) {
         free(ctx->pic_params);
@@ -951,11 +930,6 @@ static void tng__CMDS_registers_write(context_VP8_p ctx) {
     // psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->MB_flags_buffer, ctx->MB_flags_buffer.buffer_ofs);
     psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->intra_buffer, ctx->intra_buffer.buffer_ofs);
     // psb_cmdbuf_rendec_write_address(cmdbuf, &forward_ref_surface->buf, forward_ref_surface->buf.buffer_ofs + forward_ref_surface->chroma_offset);
-    psb_cmdbuf_rendec_end(cmdbuf);
-
-    psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, AUX_LINE_BUFFER_BASE_ADDRESS));
-    psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->aux_line_buffer, ctx->aux_line_buffer.buffer_ofs);
-    // psb_cmdbuf_rendec_write_address(cmdbuf, &golden_ref_surface->buf, golden_ref_surface->buf.buffer_ofs + golden_ref_surface->chroma_offset);
     psb_cmdbuf_rendec_end(cmdbuf);
 
     vld_dec_setup_alternative_frame(ctx->obj_context);  /* port from CVldDecoder::ProgramOutputModeRegisters */

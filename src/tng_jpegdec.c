@@ -321,14 +321,6 @@ static VAStatus tng_JPEG_CreateContext(
     }
 
     if (vaStatus == VA_STATUS_SUCCESS) {
-        vaStatus = psb_buffer_create(obj_context->driver_data,
-                                     AUX_LINE_BUFFER_VLD_SIZE,
-                                     psb_bt_cpu_vpu,
-                                     &ctx->dec_ctx.aux_line_buffer_vld);
-        DEBUG_FAILURE;
-    }
-
-    if (vaStatus == VA_STATUS_SUCCESS) {
         vaStatus = vld_dec_CreateContext(&ctx->dec_ctx, obj_context);
         DEBUG_FAILURE;
     }
@@ -348,7 +340,6 @@ static void tng_JPEG_DestroyContext(
     vld_dec_DestroyContext(&ctx->dec_ctx);
 
     psb_buffer_destroy(&ctx->vlc_packed_table);
-    psb_buffer_destroy(&ctx->dec_ctx.aux_line_buffer_vld);
 
     if (ctx->pic_params) {
         free(ctx->pic_params);

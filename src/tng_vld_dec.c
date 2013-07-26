@@ -421,6 +421,8 @@ void vld_dec_DestroyContext(context_DEC_p ctx)
     int i;
     ctx->preload_buffer = NULL;
 
+    psb_buffer_destroy(&ctx->aux_line_buffer_vld);
+
     if (ctx->slice_param_list) {
         free(ctx->slice_param_list);
         ctx->slice_param_list = NULL;

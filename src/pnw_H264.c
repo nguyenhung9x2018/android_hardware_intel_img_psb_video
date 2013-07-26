@@ -474,7 +474,6 @@ static void pnw_H264_DestroyContext(
     psb_buffer_destroy(&ctx->reference_cache);
     psb_buffer_destroy(&ctx->preload_buffer);
     psb_buffer_destroy(&ctx->vlc_packed_table);
-    psb_buffer_destroy(&ctx->dec_ctx.aux_line_buffer_vld);
 
     if (ctx->pic_params) {
         free(ctx->pic_params);
