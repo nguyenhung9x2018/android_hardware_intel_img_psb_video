@@ -33,7 +33,7 @@
 #include <linux/vsp_fw.h>
 
 #define CONTEXT_VPP_ID 0
-#define CONTEXT_VP8_ID 0
+#define CONTEXT_VP8_ID 1
 
 struct context_VPP_s {
 	object_context_p obj_context; /* back reference */
