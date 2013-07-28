@@ -2029,6 +2029,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
             psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->forward_ref_surface->psb_surface->buf, ctx->forward_ref_surface->psb_surface->buf.buffer_ofs);
             psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->forward_ref_surface->psb_surface->buf, ctx->forward_ref_surface->psb_surface->\
                                             buf.buffer_ofs + ctx->forward_ref_surface->psb_surface->chroma_offset);
+            (ctx->forward_ref_surface->psb_surface->buf).unfence_flag = 1;
         }
 
         /*************** BACKWARD REFERENCE *****************/
@@ -2036,6 +2037,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
             psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->backward_ref_surface->psb_surface->buf, ctx->backward_ref_surface->psb_surface->buf.buffer_ofs);
             psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->backward_ref_surface->psb_surface->buf, ctx->backward_ref_surface->psb_surface\
                                             ->buf.buffer_ofs + ctx->backward_ref_surface->psb_surface->chroma_offset);
+            (ctx->backward_ref_surface->psb_surface->buf).unfence_flag = 1;
         }
         psb_cmdbuf_rendec_end(cmdbuf);
     }
