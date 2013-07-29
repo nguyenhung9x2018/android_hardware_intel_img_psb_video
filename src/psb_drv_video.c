@@ -2933,7 +2933,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     tpi = (struct VADriverVTableTPI *)ctx->vtable_tpi;
     tpi->vaCreateSurfacesWithAttribute = psb_CreateSurfacesWithAttribute;
     tpi->vaPutSurfaceBuf = psb_PutSurfaceBuf;
-    tpi->vaSetTimestampForSurface = psb_SetTimestampForSurface;
+	tpi->vaSetTimestampForSurface = psb_SetTimestampForSurface;
 
     ctx->vtable_egl = calloc(1, sizeof(struct VADriverVTableEGL));
     if (NULL == ctx->vtable_egl)

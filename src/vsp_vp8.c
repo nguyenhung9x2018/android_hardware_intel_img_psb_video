@@ -195,6 +195,13 @@ static VAStatus vsp_VP8_CreateContext(
     ctx->seq_param_offset = ctx->pic_param_sz;
     ctx->ref_param_offset = ctx->pic_param_sz + ctx->seq_param_sz;
 
+    ctx->min_qp = 4;
+    ctx->max_qp = 63;
+    ctx->rc_undershoot = 100;
+    ctx->buffer_size = 6000;
+    ctx->initial_buffer_fullness = 4000;
+    ctx->optimal_buffer_fullness = 5000;
+
     ctx->context_buf = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
     if (NULL == ctx->context_buf) {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -268,17 +275,17 @@ static VAStatus vsp_vp8_process_seqence_param(
     seq->frame_height      = va_seq->frame_height;
     seq->rc_target_bitrate = va_seq->bits_per_second / 1000;
     seq->max_intra_rate    = 0;
-    seq->rc_undershoot_pct = va_seq->rc_undershoot;
-    seq->rc_overshoot_pct  = va_seq->rc_overshoot;
+    seq->rc_undershoot_pct = ctx->rc_undershoot;
+    seq->rc_overshoot_pct  = 100;
     /* FIXME: API doc says max 5000, but for current default test vector we still use 6000 */
-    seq->rc_buf_sz         = va_seq->hrd_buf_size;
-    seq->rc_buf_initial_sz = va_seq->hrd_buf_initial_fullness;
-    seq->rc_buf_optimal_sz = va_seq->hrd_buf_optimal_fullness;
-    seq->rc_min_quantizer  = va_seq->min_qp;
-    seq->rc_max_quantizer  = va_seq->max_qp;
+    seq->rc_buf_sz         = ctx->buffer_size;
+    seq->rc_buf_initial_sz = ctx->initial_buffer_fullness;
+    seq->rc_buf_optimal_sz = ctx->optimal_buffer_fullness;
+    seq->rc_min_quantizer  = ctx->min_qp;
+    seq->rc_max_quantizer  = ctx->max_qp;
     seq->kf_max_dist       = va_seq->kf_max_dist;
     seq->kf_min_dist       = va_seq->kf_min_dist;
-    seq->frame_rate        = va_seq->frame_rate;
+    seq->frame_rate        = ctx->frame_rate;
     seq->error_resilient   = va_seq->error_resilient;
     seq->num_token_partitions = 2; // (log2: 2^2 = 4)
     seq->rc_end_usage         = (ctx->rc_mode == VA_RC_CBR) ? VP8_ENC_CBR_HRD : VP8_ENC_CBR;  /* CBR */
@@ -420,10 +427,10 @@ static VAStatus vsp_vp8_process_picture_param(
    vp8_fw_pic_flags flags;
    flags.value =0;
 
-   flags.bits.force_kf = va_pic->pic_flags.bits.force_kf;
-   flags.bits.no_ref_last = va_pic->pic_flags.bits.no_ref_last;
-   flags.bits.no_ref_gf = va_pic->pic_flags.bits.no_ref_gf;
-   flags.bits.no_ref_arf = va_pic->pic_flags.bits.no_ref_arf;
+   flags.bits.force_kf = va_pic->ref_flags.bits.force_kf;
+   flags.bits.no_ref_last = va_pic->ref_flags.bits.no_ref_last;
+   flags.bits.no_ref_gf = va_pic->ref_flags.bits.no_ref_gf;
+   flags.bits.no_ref_arf = va_pic->ref_flags.bits.no_ref_arf;
    flags.bits.upd_last  = va_pic->pic_flags.bits.refresh_last;
    flags.bits.upd_gf  =0;//= va_pic->pic_flags.bits.refresh_golden_frame;
    flags.bits.upd_arf  =0;//= va_pic->pic_flags.bits.refresh_alternate_frame;
@@ -481,6 +488,7 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
     VAEncMiscParameterBufferMaxFrameSize *max_frame_size_param;
     VAEncMiscParameterFrameRate *frame_rate_param;
     VAEncMiscParameterRateControl *rate_control_param;
+    VAEncMiscParameterHRD *hrd_param;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
     pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
@@ -519,6 +527,11 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
                           ctx->min_qp, rate_control_param->min_qp);
             ctx->min_qp = rate_control_param->min_qp;
         }
+        if (rate_control_param->max_qp != ctx->max_qp) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "max_qp was changed from %d to %d\n",
+                          ctx->max_qp, rate_control_param->max_qp);
+            ctx->max_qp = rate_control_param->max_qp;
+        }
         if (rate_control_param->initial_qp != ctx->initial_qp) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp was changed from %d to %d\n",
                           ctx->initial_qp, rate_control_param->initial_qp);
@@ -529,6 +542,12 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
                           ctx->bits_per_second, rate_control_param->bits_per_second);
             ctx->bits_per_second = rate_control_param->bits_per_second;
         }
+        if (rate_control_param->target_percentage != ctx->rc_undershoot) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "rc_undershoot was changed from %d to %d\n",
+                          ctx->rc_undershoot, rate_control_param->target_percentage);
+            ctx->rc_undershoot = rate_control_param->target_percentage;
+        }
+
         ctx->re_send_seq_params = 1 ;
         break;
     case VAEncMiscParameterTypeMaxFrameSize:
@@ -553,6 +572,14 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
                       air_param->air_auto);
         ctx->cyclic_intra_refresh = air_param->air_threshold;
         break;
+    case VAEncMiscParameterTypeHRD:
+	hrd_param = (VAEncMiscParameterHRD *)pBuffer->data;
+	ctx->buffer_size = hrd_param->buffer_size;
+	ctx->initial_buffer_fullness = hrd_param->initial_buffer_fullness;
+	ctx->optimal_buffer_fullness = hrd_param->optimal_buffer_fullness;
+	break;
+    case VAEncMiscParameterTypeQualityLevel:
+	break;
     default:
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         DEBUG_FAILURE;

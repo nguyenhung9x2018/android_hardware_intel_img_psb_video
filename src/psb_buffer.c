@@ -645,10 +645,12 @@ int psb_codedbuf_map_mangle(
 		struct VssVp8encEncodedFrame *t = (struct VssVp8encEncodedFrame *) (raw_codedbuf);
 		int concatenate = 1;
 
+#if 0
 		for (i = 0; i < t->partitions - 1; i++) {
                     if (t->partition_start[i+1] != t->partition_start[i] + t->partition_size[i])
                         concatenate = 0;
 		}
+#endif
 
 		/* reference frame surface_id */
 		p->reserved = t->reserved[0];
@@ -665,6 +667,7 @@ int psb_codedbuf_map_mangle(
                     for (i = 0; i < t->partitions; i++) {
                         /* partition not consecutive */
                         p->buf = t->coded_data + t->partition_start[i] - t->partition_start[0];
+                        p->size += t->partition_size[i];
                         p->next = &p[1];
                         p++;
 		    }
