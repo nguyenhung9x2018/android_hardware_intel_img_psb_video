@@ -191,8 +191,10 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
         }
         if (index >= 0) {
             object_surface_p obj_surface = SURFACE(obj_context->render_targets[index]);
-            int transform = obj_surface->share_info->layer_transform;
-            driver_data->mipi0_rotation = HAL2VAROTATION(transform);
+            if (obj_surface && obj_surface->share_info) {
+                int transform = obj_surface->share_info->layer_transform;
+                driver_data->mipi0_rotation = HAL2VAROTATION(transform);
+            }
         }
     }
 
