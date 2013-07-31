@@ -510,6 +510,7 @@ static void psb__H264_trace_pic_params(VAPictureParameterBufferH264 *p)
 static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffer_p obj_buffer)
 {
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
+    object_surface_p obj_surface = ctx->obj_context->current_render_target;
     uint32_t reg_value;
     VAStatus vaStatus;
 
@@ -556,6 +557,10 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
 
     ctx->picture_width_mb = pic_params->picture_width_in_mbs_minus1 + 1;
     ctx->picture_height_mb = pic_params->picture_height_in_mbs_minus1 + 1;
+
+    /* assign correct height value to share_info */
+    if (obj_surface->share_info)
+        obj_surface->share_info->height = ctx->picture_height_mb * 16;
 
     ctx->size_mb = ctx->picture_width_mb * ctx->picture_height_mb;              /* (7-25) */
 

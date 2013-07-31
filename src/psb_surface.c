@@ -209,9 +209,23 @@ VAStatus psb_surface_create_from_kbuf(
     if ((width <= 0) || (width > 5120) || (height <= 0) || (height > 5120))
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
 
-    psb_surface->stride_mode = STRIDE_NA;
     psb_surface->stride = luma_stride;
 
+    if (0) {
+        ;
+    } else if (512 == luma_stride) {
+        psb_surface->stride_mode = STRIDE_512;
+    } else if (1024 == luma_stride) {
+        psb_surface->stride_mode = STRIDE_1024;
+    } else if (1280 == luma_stride) {
+        psb_surface->stride_mode = STRIDE_1280;
+    } else if (2048 == luma_stride) {
+        psb_surface->stride_mode = STRIDE_2048;
+    } else if (4096 == luma_stride) {
+        psb_surface->stride_mode = STRIDE_4096;
+    } else {
+        psb_surface->stride_mode = STRIDE_NA;
+    }
 
     psb_surface->luma_offset = luma_offset;
     psb_surface->chroma_offset = chroma_u_offset;

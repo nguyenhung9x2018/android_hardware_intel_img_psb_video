@@ -387,7 +387,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
                 obj_surface->share_info->tiling = external_buffers->tiling;
 #endif
                 obj_surface->share_info->width = obj_surface->width;
-                obj_surface->share_info->height = obj_surface->height;
+                obj_surface->share_info->height = obj_surface->height_origin;
 
                 obj_surface->share_info->luma_stride = psb_surface->stride;
                 obj_surface->share_info->chroma_u_stride = psb_surface->stride;

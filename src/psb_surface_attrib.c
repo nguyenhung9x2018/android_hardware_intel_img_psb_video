@@ -405,7 +405,8 @@ VAStatus  psb_CreateSurfaceFromKBuf(
     unsigned int chroma_v_stride,
     unsigned int luma_offset, /* could be 0 */
     unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
-    unsigned int chroma_v_offset
+    unsigned int chroma_v_offset,
+    unsigned int tiling
 )
 {
     INIT_DRIVER_DATA
@@ -507,6 +508,9 @@ VAStatus  psb_CreateSurfaceFromKBuf(
     /* by default, surface fourcc is NV12 */
     memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
     psb_surface->extra_info[4] = kBuf_fourcc;
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+    psb_surface->extra_info[7] = tiling;
+#endif
     obj_surface->psb_surface = psb_surface;
 
     /* Error recovery */
@@ -743,12 +747,14 @@ VAStatus psb_CreateSurfacesWithAttribute(
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int i;
+    int tiling;
 
     CHECK_INVALID_PARAM(attribute_tpi == NULL);
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Create %d surface(%dx%d) with type %d\n",
             num_surfaces, width, height, attribute_tpi->type);
 
+    tiling = attribute_tpi->tiling;
     attribute_tpi->tiling = 0; /* FIXME libmix doesn't clear this flag */
     switch (attribute_tpi->type) {
     case VAExternalMemoryNULL:
@@ -774,7 +780,7 @@ VAStatus psb_CreateSurfacesWithAttribute(
                 attribute_tpi->size, attribute_tpi->pixel_format,
                 attribute_tpi->luma_stride, attribute_tpi->chroma_u_stride,
                 attribute_tpi->chroma_v_stride, attribute_tpi->luma_offset,
-                attribute_tpi->chroma_u_offset, attribute_tpi->chroma_v_offset);
+                attribute_tpi->chroma_u_offset, attribute_tpi->chroma_v_offset, tiling);
             CHECK_VASTATUS();
         }
         return vaStatus;

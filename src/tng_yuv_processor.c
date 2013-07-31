@@ -222,7 +222,7 @@ static VAStatus tng__yuv_processor_execute(context_DEC_p dec_ctx, object_buffer_
         //ctx->display_width = ((vpp_params->surface_region->width + 0xf) & ~0xf);
         //ctx->display_height = ((vpp_params->surface_region->height + 0x1f) & ~0x1f);
         ctx->display_width = ((obj_surface->width + 0xf) & ~0xf);
-        ctx->display_height = ((obj_surface->height + 0x1f) & ~0x1f);
+        ctx->display_height = ((obj_surface->height + 0xf) & ~0xf);
         ctx->coded_width = ctx->display_width;
         ctx->coded_height = ctx->display_height;
 
@@ -233,6 +233,23 @@ static VAStatus tng__yuv_processor_execute(context_DEC_p dec_ctx, object_buffer_
         ctx->proc_param = vpp_params;
         obj_buffer->buffer_data = NULL;
         obj_buffer->size = 0;
+
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+        object_context_p obj_context = dec_ctx->obj_context;
+	psb_driver_data_p driver_data = obj_context->driver_data;
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "attempt to update tile context\n");
+        if (GET_SURFACE_INFO_tiling(ctx->src_surface)) {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "update tile context\n");
+
+            unsigned long msvdx_tile = psb__tile_stride_log2_256(rotate_surface->stride);
+            obj_context->msvdx_tile &= 0xf; /* clear rotate tile */
+            obj_context->msvdx_tile |= (msvdx_tile << 4);
+            obj_context->ctp_type &= (~PSB_CTX_TILING_MASK); /* clear tile context */
+            obj_context->ctp_type |= ((obj_context->msvdx_tile & 0xff) << 16);
+            psb_update_context(driver_data, obj_context->ctp_type);
+            LOGE("update tile context, msvdx_tiled is 0x%08x", obj_context->msvdx_tile);
+        }
+#endif
     }
 
 #ifdef ADNROID
@@ -519,9 +536,9 @@ VAStatus ved_QueryVideoProcPipelineCaps(
         switch (base->type) {
         case VAProcFilterNone:
             pipeline_caps->rotation_flags = VA_ROTATION_NONE;
-            pipeline_caps->rotation_flags |= VA_ROTATION_90;
-            pipeline_caps->rotation_flags |= VA_ROTATION_180;
-            pipeline_caps->rotation_flags |= VA_ROTATION_270;
+            pipeline_caps->rotation_flags |= (1 << VA_ROTATION_90);
+            pipeline_caps->rotation_flags |= (1 << VA_ROTATION_180);
+            pipeline_caps->rotation_flags |= (1 << VA_ROTATION_270);
             break;
 
         default:
