@@ -310,6 +310,10 @@ static VAStatus tng__H263ES_process_picture_param(context_ENC_p ctx, object_buff
     obj_buffer->buffer_data = NULL;
     obj_buffer->size = 0;
 
+    /* Save the actual width/height for picture header template */
+    ctx->h263_actual_width = psPicParams->picture_width;
+    ctx->h263_actual_height = psPicParams->picture_height;
+
     ASSERT(ctx->ui16Width == psPicParams->picture_width);
     ASSERT(ctx->ui16PictureHeight == psPicParams->picture_height);
 #ifndef _TNG_FRAMES_
@@ -338,7 +342,7 @@ static VAStatus tng__H263ES_process_picture_param(context_ENC_p ctx, object_buff
         ctx->ui8H263SourceFormat = _352x288_CIF;
     else if ((ctx->ui16Width == 704) && (ctx->ui16FrameHeight == 576))
         ctx->ui8H263SourceFormat = _704x576_4CIF;
-    else if ((ctx->ui16Width <= 720) && (ctx->ui16FrameHeight <= 576))
+    else if ((ctx->ui16Width <= 2048) && (ctx->ui16FrameHeight <= 1152))
         ctx->ui8H263SourceFormat = 7;
     else {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Unsupported resolution!\n");

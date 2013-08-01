@@ -460,6 +460,10 @@ struct context_ENC_s {
 
     //JPEG encode context data
     TOPAZHP_JPEG_ENCODER_CONTEXT *jpeg_ctx;
+
+    /* Save actual H263 width/height */
+    IMG_UINT16 h263_actual_width;
+    IMG_UINT16 h263_actual_height;
 };
 
 typedef struct context_ENC_s *context_ENC_p;

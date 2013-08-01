@@ -2000,8 +2000,12 @@ void tng__mpeg4_generate_pic_hdr_template(
 
 }
 
-void tng__h263_generate_pic_hdr_template(context_ENC_p ctx,
-       IMG_FRAME_TEMPLATE_TYPE eFrameType)
+void tng__h263_generate_pic_hdr_template(
+    context_ENC_p ctx,
+    IMG_FRAME_TEMPLATE_TYPE eFrameType,
+    IMG_UINT16 ui16Width,
+    IMG_UINT16 ui16Heigh)
+
 {
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ctx->ui32StreamID]);
     MTX_HEADER_PARAMS * pPicHeaderMem = NULL;
@@ -2016,8 +2020,6 @@ void tng__h263_generate_pic_hdr_template(context_ENC_p ctx,
     pPicHeaderMem = (MTX_HEADER_PARAMS *)((IMG_UINT8*)(ps_mem->bufs_pic_template.virtual_addr + (ctx->ctx_mem_size.pic_template * eFrameType)));
 
     IMG_UINT8 ui8FrameRate = (IMG_UINT8)ctx->sRCParams.ui32FrameRate;
-    IMG_UINT32 ui32PictureWidth = ctx->ui16Width;
-    IMG_UINT32 ui32PictureHeigth  = ctx->ui16FrameHeight;
 
     // Get a pointer to the memory the header will be written to
     tng__H263_notforsims_prepare_video_pictureheader(
@@ -2025,8 +2027,8 @@ void tng__h263_generate_pic_hdr_template(context_ENC_p ctx,
         ePictureCodingType,
         ctx->ui8H263SourceFormat,
         ui8FrameRate,
-        ui32PictureWidth,
-        ui32PictureHeigth );
+        ui16Width,
+        ui16Heigh);
 
     psb_buffer_unmap(&(ps_mem->bufs_pic_template));
 
@@ -2369,10 +2371,10 @@ static VAStatus tng__prepare_templates(context_ENC_p ctx, IMG_UINT32 ui32StreamI
 	    break;
 	case IMG_STANDARD_H263:
 	    tng__generate_slice_params_template(ctx, (IMG_UINT32)IMG_FRAME_INTER_B, (IMG_UINT32)IMG_FRAME_INTER_B, ui32StreamIndex);
-	    tng__h263_generate_pic_hdr_template(ctx, IMG_FRAME_IDR);
-            tng__h263_generate_pic_hdr_template(ctx, IMG_FRAME_INTRA);
-            tng__h263_generate_pic_hdr_template(ctx, IMG_FRAME_INTER_P);
-	    tng__h263_generate_pic_hdr_template(ctx, IMG_FRAME_INTER_B);
+	    /* Here H263 uses the actual width and height */
+	    tng__h263_generate_pic_hdr_template(ctx, IMG_FRAME_IDR, ctx->h263_actual_width, ctx->h263_actual_height);
+            tng__h263_generate_pic_hdr_template(ctx, IMG_FRAME_INTRA, ctx->h263_actual_width, ctx->h263_actual_height);
+            tng__h263_generate_pic_hdr_template(ctx, IMG_FRAME_INTER_P, ctx->h263_actual_width, ctx->h263_actual_height);
 	    break;
 	case IMG_STANDARD_MPEG4:
 	    tng__generate_slice_params_template(ctx, (IMG_UINT32)IMG_FRAME_INTER_B, (IMG_UINT32)IMG_FRAME_INTER_P, ui32StreamIndex);
