@@ -656,9 +656,6 @@ VAStatus pnw_jpeg_AppendMarkers(object_context_p obj_context, unsigned char *raw
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Append 2 bytes Reset Interval %d "
                                      "to Coded Buffer Part %d\n", ui16BCnt - 1, ui16BCnt);
 
-             while(*(pSegStart +sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed - 1) == 0xff)
-                 pBufHeader->ui32BytesUsed--;
-
             while(*(pSegStart +sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed - 1) == 0xff)
                 pBufHeader->ui32BytesUsed--;
 
