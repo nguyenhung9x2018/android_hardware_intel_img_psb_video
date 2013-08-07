@@ -67,6 +67,9 @@
 #define FW_VER 0x5D
 #define FW_FILE_NAME "topazhp_fw.bin"
 
+static const unsigned char pad_val = 0x0;
+
+
 #define FW_MASTER_INFO(codec,prefix) \
         { FW_MASTER_##codec,\
           { FW_VER,\
@@ -93,7 +96,7 @@ struct topaz_fw_info_item_s {
     unsigned short ver;
     unsigned short codec;
 
-    unsigned int  text_size;
+    unsigned int text_size;
     unsigned int data_size;
     unsigned int data_location;
 };
@@ -136,82 +139,137 @@ struct fw_table_s {
 
 typedef struct fw_table_s fw_table_t;
 
-struct fw_table_secure {
-    unsigned int addr;
-    unsigned int test_size;
-    unsigned int data_size;
-    unsigned int reloc;
-};
-
-#define SECURE_ALIGN 16
+#define SECURE_ALIGN 1
 #define SECURE_VRL_HEADER 728
 #define SECURE_FIP_HEADER 296
 
-static void secure_firmware(fw_table_t *tng_fw_table, FILE *fp)
+struct fw_table_A0 {
+    unsigned int addr;
+    unsigned int text_size_bytes;
+    unsigned int data_size_bytes;
+    unsigned int data_relocation;
+};
+
+static void create_firmware_A0(fw_table_t *tng_fw_table, FILE *fp)
 {
-    struct fw_table_secure sec_t[FW_NUM];
+    struct fw_table_A0 sec_t[FW_NUM];
     const unsigned int ui_secure_align = SECURE_ALIGN - 1;
-    unsigned int i = 0;
+    int i = 0;
     int iter = 0;
     int size = 0;
-    static unsigned char uc_pad = 0;
 
     printf("fm num is %d\n", FW_NUM);
     /////////////////////////////////////////////////
-    fwrite(vrl_bin_image, SECURE_VRL_HEADER, 1, fp);
+    size = SECURE_VRL_HEADER + SECURE_FIP_HEADER;
 
-    uc_pad = 0x0;
-    for (iter = 0; iter < SECURE_FIP_HEADER; iter++) {
-        fwrite(&uc_pad, 1, 1, fp);
+    for (iter = 0; iter < size; iter++) {
+        fwrite(&pad_val, 1, 1, fp);
     }
     /////////////////////////////////////////////////
-    uc_pad = 0x0;
     iter = 0;
 
     sec_t[iter].addr = FW_NUM * 16 + SECURE_VRL_HEADER + SECURE_FIP_HEADER;
-    sec_t[iter].test_size = tng_fw_table[iter].header.text_size * 4;
-    sec_t[iter].data_size = tng_fw_table[iter].header.data_size * 4;
-    sec_t[iter].reloc     = tng_fw_table[iter].header.data_location;
-    fwrite(&(sec_t[iter]), sizeof(struct fw_table_secure), 1, fp);
+    sec_t[iter].text_size_bytes = tng_fw_table[iter].header.text_size * 4;
+    sec_t[iter].data_size_bytes = tng_fw_table[iter].header.data_size * 4;
+    sec_t[iter].data_relocation = tng_fw_table[iter].header.data_location;
+    fwrite(&(sec_t[iter]), sizeof(struct fw_table_A0), 1, fp);
 
     iter = 1;
 
 
     /* write fw table into the file */
     while (iter < FW_NUM) {
-        sec_t[iter - 1].test_size = (sec_t[iter - 1].test_size + ui_secure_align) & (~ui_secure_align);
-        sec_t[iter - 1].data_size = (sec_t[iter - 1].data_size + ui_secure_align) & (~ui_secure_align);
+        sec_t[iter - 1].text_size_bytes = (sec_t[iter - 1].text_size_bytes + ui_secure_align) & (~ui_secure_align);
+        sec_t[iter - 1].data_size_bytes = (sec_t[iter - 1].data_size_bytes + ui_secure_align) & (~ui_secure_align);
 
-        sec_t[iter].addr = sec_t[iter-1].addr + sec_t[iter-1].test_size + sec_t[iter-1].data_size;
-        sec_t[iter].test_size = tng_fw_table[iter].header.text_size * 4;
-        sec_t[iter].data_size = tng_fw_table[iter].header.data_size * 4;
-        sec_t[iter].reloc     = tng_fw_table[iter].header.data_location;
-        fwrite(&(sec_t[iter]), sizeof(struct fw_table_secure), 1, fp);
+        sec_t[iter].addr = sec_t[iter-1].addr + sec_t[iter-1].text_size_bytes + sec_t[iter-1].data_size_bytes;
+
+        sec_t[iter].text_size_bytes = tng_fw_table[iter].header.text_size * 4;
+        sec_t[iter].data_size_bytes = tng_fw_table[iter].header.data_size * 4;
+	sec_t[iter].data_relocation = tng_fw_table[iter].header.data_location;
+        fwrite(&(sec_t[iter]), sizeof(struct fw_table_A0), 1, fp);
         ++iter;
     }
 
-    sec_t[iter - 1].test_size = (sec_t[iter - 1].test_size + ui_secure_align) & (~ui_secure_align);
-    sec_t[iter - 1].data_size = (sec_t[iter - 1].data_size + ui_secure_align) & (~ui_secure_align);
+    sec_t[iter - 1].text_size_bytes = (sec_t[iter - 1].text_size_bytes + ui_secure_align) & (~ui_secure_align);
+    sec_t[iter - 1].data_size_bytes = (sec_t[iter - 1].data_size_bytes + ui_secure_align) & (~ui_secure_align);
 
     iter = 0;
     while (iter < FW_NUM) {
-        /* record the size use bytes */
-        tng_fw_table[iter].header.data_size *= 4;
-        tng_fw_table[iter].header.text_size *= 4;
 
         /* write text */
-        size = tng_fw_table[iter].header.text_size;
+        size = tng_fw_table[iter].header.text_size * 4;
         fwrite(tng_fw_table[iter].fw_text, 1, size, fp);
+        for (i = 0; i < (sec_t[iter].text_size_bytes - size); i++)
+            fwrite(&pad_val, 1, 1, fp);
 
-        for (i = 0; i < (sec_t[iter].test_size - size); i++)
-               fwrite(&uc_pad, 1, 1, fp);
 
         /* write data */
-        size = tng_fw_table[iter].header.data_size;
+        size = tng_fw_table[iter].header.data_size * 4;
         fwrite(tng_fw_table[iter].fw_data, 1, size, fp);
+        for (i = 0; i < (sec_t[iter].data_size_bytes - size); i++)
+            fwrite(&pad_val, 1, 1, fp);
 
-        for (i = 0; i < (sec_t[iter].data_size - size); i++)
-               fwrite(&uc_pad, 1, 1, fp);
+        fflush(fp);
+
+        ++iter;
+    }
+    return ;
+}
+
+struct fw_table_B0 {
+    unsigned int addr;
+    unsigned int text_size_dword;
+    unsigned int data_size_dword;
+    unsigned int text_size_bytes;
+};
+
+static void create_firmware_B0(fw_table_t *tng_fw_table, FILE *fp)
+{
+    struct fw_table_B0 sec_t[FW_NUM];
+    unsigned int i = 0;
+    int iter = 0;
+    int size = 0;
+
+    printf("fm num is %d\n", FW_NUM);
+    /////////////////////////////////////////////////
+    size = SECURE_FIP_HEADER ;
+    for (iter = 0; iter < size; iter++) {
+        fwrite(&pad_val, 1, 1, fp);
+    }
+    /////////////////////////////////////////////////
+    iter = 0;
+
+    sec_t[iter].addr = FW_NUM * 16 + SECURE_VRL_HEADER + SECURE_FIP_HEADER;
+    sec_t[iter].text_size_dword = tng_fw_table[iter].header.text_size;
+    sec_t[iter].data_size_dword = tng_fw_table[iter].header.data_size;
+    sec_t[iter].text_size_bytes = tng_fw_table[iter].header.text_size * 4;
+    fwrite(&(sec_t[iter]), sizeof(struct fw_table_B0), 1, fp);
+
+    iter = 1;
+
+
+    /* write fw table into the file */
+    while (iter < FW_NUM) {
+        sec_t[iter].addr = sec_t[iter-1].addr + sec_t[iter-1].text_size_bytes + (sec_t[iter-1].data_size_dword * 4);
+
+        sec_t[iter].text_size_dword = tng_fw_table[iter].header.text_size;
+        sec_t[iter].data_size_dword = tng_fw_table[iter].header.data_size;
+	sec_t[iter].text_size_bytes = tng_fw_table[iter].header.text_size * 4;
+        fwrite(&(sec_t[iter]), sizeof(struct fw_table_B0), 1, fp);
+        ++iter;
+    }
+
+    iter = 0;
+    while (iter < FW_NUM) {
+
+        /* write text */
+        size = tng_fw_table[iter].header.text_size * 4;
+        fwrite(tng_fw_table[iter].fw_text, 1, size, fp);
+
+        /* write data */
+        size = tng_fw_table[iter].header.data_size * 4;
+        fwrite(tng_fw_table[iter].fw_data, 1, size, fp);
 
         fflush(fp);
 
@@ -222,12 +280,9 @@ static void secure_firmware(fw_table_t *tng_fw_table, FILE *fp)
 
 static void normal_firmware(fw_table_t *topaz_fw_table, FILE *fp)
 {
-    struct fw_table_secure sec_t[FW_NUM];
-    const unsigned int ui_secure_align = SECURE_ALIGN - 1;
     unsigned int i = 0;
-    topaz_fw_codec_t iter = FW_MASTER_JPEG;
+    topaz_fw_codec_t iter = 0;
     int size = 0;
-    static unsigned char uc_pad = 0;
 
     printf("fm num is %d\n", FW_NUM);
 
@@ -287,7 +342,7 @@ int main()
     if (NULL == fp)
         return -1;
 
-    secure_firmware(topaz_fw_table, fp);
+    create_firmware_A0(topaz_fw_table, fp);
 
     /* close file */
     fclose(fp);
