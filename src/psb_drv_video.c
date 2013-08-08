@@ -2409,6 +2409,89 @@ VAStatus psb_QuerySurfaceError(
     return vaStatus;
 }
 
+#define PSB_MAX_SURFACE_ATTRIBUTES 16
+
+VAStatus psb_QuerySurfaceAttributes(VADriverContextP ctx,
+                            VAConfigID config,
+                            VASurfaceAttrib *attrib_list,
+                            unsigned int *num_attribs)
+{
+    DEBUG_FUNC_ENTER
+    INIT_DRIVER_DATA
+
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    object_config_p obj_config;
+    unsigned int i = 0;
+
+    CHECK_INVALID_PARAM(num_attribs == NULL);
+
+    if (attrib_list == NULL) {
+        *num_attribs = PSB_MAX_SURFACE_ATTRIBUTES;
+        return VA_STATUS_SUCCESS;
+    }
+
+    obj_config = CONFIG(config);
+    CHECK_CONFIG(obj_config);
+
+    VASurfaceAttrib *attribs = NULL;
+    attribs = malloc(PSB_MAX_SURFACE_ATTRIBUTES *sizeof(VASurfaceAttrib));
+    if (attribs == NULL)
+        return VA_STATUS_ERROR_ALLOCATION_FAILED;
+
+    attribs[i].type = VASurfaceAttribPixelFormat;
+    attribs[i].value.type = VAGenericValueTypeInteger;
+    attribs[i].flags = VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE;
+    attribs[i].value.value.i = VA_FOURCC('N', 'V', '1', '2');
+    i++;
+
+    attribs[i].type = VASurfaceAttribMemoryType;
+    attribs[i].value.type = VAGenericValueTypeInteger;
+    attribs[i].flags = VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE;
+    attribs[i].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_VA |
+        VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM |
+        VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR |
+        VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC |
+        VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_ION;
+    i++;
+
+    attribs[i].type = VASurfaceAttribExternalBufferDescriptor;
+    attribs[i].value.type = VAGenericValueTypePointer;
+    attribs[i].flags = VA_SURFACE_ATTRIB_SETTABLE;
+    attribs[i].value.value.p = NULL;
+    i++;
+
+    //modules have speical formats to support
+    if (obj_config->entrypoint == VAEntrypointVLD) { /* decode */
+
+    } else if (obj_config->entrypoint == VAEntrypointEncSlice ||  /* encode */
+                   obj_config->entrypoint == VAEntrypointEncPicture) {
+    #ifdef PSBVIDEO_MFLD
+        if (IS_MFLD(driver_data)) {}
+    #endif
+    #ifdef PSBVIDEO_MRFL
+        if (IS_MRFL(driver_data)) {}
+    #endif
+    #ifdef BAYTRAIL
+        if (IS_BAYTRAIL(driver_data)) {}
+    #endif
+    }
+    else if (obj_config->entrypoint == VAEntrypointVideoProc) { /* vpp */
+
+    }
+
+    if (i > *num_attribs) {
+        *num_attribs = i;
+        return VA_STATUS_ERROR_MAX_NUM_EXCEEDED;
+    }
+
+    *num_attribs = i;
+    memcpy(attrib_list, attribs, i * sizeof(*attribs));
+    free(attribs);
+
+    DEBUG_FUNC_EXIT
+    return vaStatus;
+}
+
 VAStatus psb_LockSurface(
     VADriverContextP ctx,
     VASurfaceID surface,
@@ -2911,6 +2994,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     ctx->vtable->vaQueryDisplayAttributes = psb_QueryDisplayAttributes;
     ctx->vtable->vaGetDisplayAttributes = psb_GetDisplayAttributes;
     ctx->vtable->vaSetDisplayAttributes = psb_SetDisplayAttributes;
+    ctx->vtable->vaQuerySurfaceAttributes = psb_QuerySurfaceAttributes;
     ctx->vtable->vaBufferInfo = psb_BufferInfo;
     ctx->vtable->vaLockSurface = psb_LockSurface;
     ctx->vtable->vaUnlockSurface = psb_UnlockSurface;
