@@ -34,9 +34,12 @@
 
 #define MTX_SIZE (40*1024)
 #define MTX_SIZE1 (56*1024)
+#define MTX_SIZE2 (56*1024)
+#define MTX_SIZE3 (84*1024)
 #define STACKGUARDWORD          ( 0x10101010 )
 #define UNINITILISE_MEM         ( 0xcd )
 #define LINKED_LIST_SIZE	( 32*5 )
+#define FIP_SIZE		( 296 )
 
 struct msvdx_fw {
     unsigned int ver;
@@ -61,6 +64,7 @@ int main()
     fw_DE3 = sFirmware_SS; /* VXD3xx_DEVA_DDK_3_2_4 */
     //fw_DE3 = sFirmware0000_SS; /* 1366based, for VP only, be able to disable WDT in Csim */
     fw_DE3 = sFirmware_SS_DE3_3_20;
+    //fw_DE3 = sFirmware_SS_1472_3_8;
 
     fw.ver = 0x0496;
     fw.text_size = fw_DE3.uiTextSize / 4;
@@ -90,7 +94,7 @@ int main()
     }
     fp_ll_dma = fopen("linked_list_struct", "r");
     if (fp_ll_dma == NULL) {
-        fprintf(stderr, "Cannot open linked_list_sturct failed\n");
+        fprintf(stderr, "Cannot open linked_list_struct failed %d\n", __LINE__);
         exit(-1);
     }
 
@@ -125,7 +129,7 @@ int main()
     }
     fp_ll_dma = fopen("linked_list_struct_56k", "r");
     if (fp_ll_dma == NULL) {
-        fprintf(stderr, "Cannot open linked_list_sturct failed\n");
+        fprintf(stderr, "Cannot open linked_list_sturct_56k failed\n");
         exit(-1);
     }
 
@@ -151,6 +155,60 @@ int main()
         fwrite(&fw_DE3.pui8Data[i*4], 4, 1, ptr);
     }
     fclose(ptr);
+
+    /* Create mrfl unsigned image */
+    ptr = fopen("unsigned_msvdx_fw_mrfl.bin", "w");
+    if (ptr == NULL) {
+        fprintf(stderr, "Create unsigned_msvdx_fw_mrfl.bin failed\n");
+        exit(-1);
+    }
+    fp_ll_dma = fopen("linked_list_struct_mrfld", "r");
+    if (fp_ll_dma == NULL) {
+        fprintf(stderr, "Cannot open linked_list_sturct_mrfld failed\n");
+        exit(-1);
+    }
+
+    unsigned int buf2[MTX_SIZE3];
+    unsigned char FIP_HEADER[FIP_SIZE];
+    int fw_size = (MTX_SIZE3 - LINKED_LIST_SIZE);
+
+    memset(FIP_HEADER, 0, FIP_SIZE);
+    fwrite(FIP_HEADER, 1, FIP_SIZE, ptr);
+
+    fread(buf2, 1, LINKED_LIST_SIZE, fp_ll_dma);
+    //buf2[17] = 0x000053d7; //DWORDs = (84kb - 160)/4 - 1;
+    //buf2[38] = 0x153fc; //0x53d7*4 + 0x4A0 (728 + 296 + 160)
+    //buf2[15] >>= 4;
+    //buf2[23] >>= 4;
+    //buf2[31] >>= 4;
+
+    //buf2[11] = 0x04000000;
+    //buf2[19] = 0x04000000;
+    //buf2[27] = 0x04000000;
+    //buf2[35] = 0x04000000;
+
+    fwrite(buf2, 1, LINKED_LIST_SIZE, ptr);
+
+    memset(buf2, UNINITILISE_MEM, fw_size);
+    buf2[fw_size/sizeof(unsigned int) - 1] = STACKGUARDWORD;
+
+    fwrite(buf2, 1, fw_size, ptr);
+
+    fseek(ptr, LINKED_LIST_SIZE + FIP_SIZE, SEEK_SET);
+    //fwrite(&fw, sizeof(fw), 1, ptr);
+
+    for (i = 0; i < fw.text_size; i++) {
+        fwrite(&fw_DE3.pui8Text[i*4], 4, 1, ptr);
+    }
+
+    //fseek(ptr, LINKED_LIST_SIZE + fw_DE3.DataOffset + sizeof(fw), SEEK_SET);
+    fseek(ptr, FIP_SIZE + LINKED_LIST_SIZE + fw_DE3.DataOffset, SEEK_SET);
+
+    for (i = 0; i < fw.data_size; i++) {
+        fwrite(&fw_DE3.pui8Data[i*4], 4, 1, ptr);
+    }
+    fclose(ptr);
+
 
     return 0;
 }
