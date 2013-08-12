@@ -64,6 +64,8 @@
 #define tng_align_64(X)  (((X)+63) &~63)
 #define tng_align_4(X)  (((X)+3) &~3)
 
+#define MTX_CONTEXT_ITEM_OFFSET(type, member) (size_t)&(((type*)0)->member)
+
 #define DEFAULT_CABAC_DB_MARGIN    (0x190)
 #define NOT_USED_BY_TOPAZ 0
 /*
@@ -2532,7 +2534,6 @@ static void VIDEO_CalcCoefs_FromPitch (IMG_FLOAT	fPitch, IMG_UINT8 aui8Table[4][
 }
 #endif
 
-
 static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 {
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
@@ -3369,6 +3370,31 @@ static VAStatus tng__update_bitrate(context_ENC_p ctx, IMG_UINT32 ui32StreamInde
     return vaStatus;
 }
 
+/*
+ * Update IMG_MTX_VIDEO_CONTEXT buffer.
+ * NOTE: Offset must be 4 byte aligned.
+*/
+static VAStatus tng__update_mtx_context(context_ENC_p ctx, unsigned int offset, int value, unsigned int stream_id)
+{
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    context_ENC_cmdbuf *ps_cmd = &(ctx->ctx_cmdbuf[stream_id]);
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+
+    if ((offset < 0) || (offset % 4) || (value < 0)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid parameter");
+	return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
+	MTX_CMDID_SW_UPDATE_MTX_CONTEXT,
+        0, 0, 0);
+
+    tng_cmdbuf_insert_command_param(offset);
+    tng_cmdbuf_insert_command_param(value);
+
+    return vaStatus;
+}
+
 static VAStatus tng__update_frametype(context_ENC_p ctx, IMG_FRAME_TYPE eFrameType)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -3537,6 +3563,8 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+    unsigned int offset;
+    int value;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: ctx->ui8SlicesPerPicture = %d, ctx->ui32FrameCount[0] = %d\n",
          __FUNCTION__, ctx->ui8SlicesPerPicture, ctx->ui32FrameCount[0]);
@@ -3569,19 +3597,24 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         }
     }
 
-    vaStatus = tng__cmdbuf_provide_buffer(ctx, ctx->ui32StreamID);
-    if (vaStatus != VA_STATUS_SUCCESS) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "provide buffer");
-    }
-
     if (ctx->idr_force_flag == 1){
-         vaStatus = tng__update_frametype(ctx, IMG_FRAME_IDR);
+        vaStatus = tng__update_frametype(ctx, IMG_FRAME_IDR);
         if (vaStatus != VA_STATUS_SUCCESS) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "send picmgmt IDR");
+        }
+	offset = (unsigned int)MTX_CONTEXT_ITEM_OFFSET(IMG_MTX_VIDEO_CONTEXT, ui32IntraLoopCnt);
+	value = ctx->ui32IntraCnt;
+	vaStatus = tng__update_mtx_context(ctx, offset, value, 0);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "update mtx context");
         }
         ctx->idr_force_flag =0;
     }
 
+    vaStatus = tng__cmdbuf_provide_buffer(ctx, ctx->ui32StreamID);
+    if (vaStatus != VA_STATUS_SUCCESS) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "provide buffer");
+    }
 
     if ((ctx->sRCParams.eRCMode == IMG_RCMODE_VCM) && (ctx->bEnableAIR == IMG_TRUE)) {
         tng_air_set_input_control(ctx, 0);
