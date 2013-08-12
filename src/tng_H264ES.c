@@ -560,8 +560,8 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
         }
     }
 
-    if (ctx->ui32FrameCount[ctx->ui32StreamID] % (ctx->ui32IdrPeriod*ctx->ui32IntraCnt) != 0)
-        ctx->idr_force_flag = 1; 
+    if (ctx->ui32FrameCount[ctx->ui32StreamID] > 0)
+        ctx->idr_force_flag = 1;
 
     ctx->ui8SlotsInUse = ui32IPCount + 1; //Bframes + 2
 
