@@ -399,13 +399,10 @@ VAStatus ved_QueryVideoProcFilters(
         goto err;
     }
 
-    if (IS_MFLD(driver_data)) {
-        count = 0;
-        filters[count++] = VAProcFilterNone;
-        *num_filters = count;
-    } else {
-        *num_filters = 0;
-    }
+    count = 0;
+    filters[count++] = VAProcFilterNone;
+    *num_filters = count;
+
 err:
     return vaStatus;
 }
@@ -452,25 +449,21 @@ VAStatus ved_QueryVideoProcFilterCaps(
     }
 
     /* check if curent HW support and return corresponding caps */
-    if (IS_MFLD(driver_data)) {
         /* FIXME: we should use a constant table to return caps */
-        switch (type) {
-        case VAProcFilterNone:
-            no_cap = filter_caps;
-            no_cap->range.min_value = 0;
-            no_cap->range.max_value = 0;
-            no_cap->range.default_value = 0;
-            no_cap->range.step = 0;
-            *num_filter_caps = 1;
-            break;
-        default:
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "invalide filter type %d\n", type);
-            vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
-            *num_filter_caps = 0;
-            goto err;
-        }
-    } else {
+    switch (type) {
+    case VAProcFilterNone:
+        no_cap = filter_caps;
+        no_cap->range.min_value = 0;
+        no_cap->range.max_value = 0;
+        no_cap->range.default_value = 0;
+        no_cap->range.step = 0;
+        *num_filter_caps = 1;
+        break;
+    default:
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "invalide filter type %d\n", type);
+        vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
         *num_filter_caps = 0;
+        goto err;
     }
 
 err:
@@ -521,33 +514,26 @@ VAStatus ved_QueryVideoProcPipelineCaps(
 
     memset(pipeline_caps, 0, sizeof(*pipeline_caps));
 
-    if (IS_MFLD(driver_data)) {
-        /* find buffer */
-        buf = BUFFER(*(filters));
+    buf = BUFFER(*(filters));
 
-        if (buf == NULL){
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid filter buffer: NULL \n");
-            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-            goto err;
-        }
+    if (buf == NULL){
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid filter buffer: NULL \n");
+        vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+        goto err;
+    }
 
-        base = (VAProcFilterParameterBufferBase *)buf->buffer_data;
-        /* check filter buffer setting */
-        switch (base->type) {
-        case VAProcFilterNone:
-            pipeline_caps->rotation_flags = VA_ROTATION_NONE;
-            pipeline_caps->rotation_flags |= (1 << VA_ROTATION_90);
-            pipeline_caps->rotation_flags |= (1 << VA_ROTATION_180);
-            pipeline_caps->rotation_flags |= (1 << VA_ROTATION_270);
-            break;
+    base = (VAProcFilterParameterBufferBase *)buf->buffer_data;
+    /* check filter buffer setting */
+    switch (base->type) {
+    case VAProcFilterNone:
+        pipeline_caps->rotation_flags = VA_ROTATION_NONE;
+        pipeline_caps->rotation_flags |= (1 << VA_ROTATION_90);
+        pipeline_caps->rotation_flags |= (1 << VA_ROTATION_180);
+        pipeline_caps->rotation_flags |= (1 << VA_ROTATION_270);
+        break;
 
-        default:
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "Do NOT support the filter type %d\n", base->type);
-            vaStatus = VA_STATUS_ERROR_UNKNOWN;
-            goto err;
-        }
-    } else {
-        drv_debug_msg(VIDEO_DEBUG_ERROR, "no HW support\n");
+    default:
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Do NOT support the filter type %d\n", base->type);
         vaStatus = VA_STATUS_ERROR_UNKNOWN;
         goto err;
     }

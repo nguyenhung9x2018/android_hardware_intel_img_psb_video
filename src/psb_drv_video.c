@@ -1154,13 +1154,12 @@ VAStatus psb_CreateContext(
                 cmdbuf = calloc(1, sizeof(struct pnw_cmdbuf_s));
 #endif
         } else if (proc) { /* VSP VPP context */
-#ifdef PSBVIDEO_MRFL_VPP
-            if (IS_MRFL(obj_context->driver_data))
-                cmdbuf = calloc(1, sizeof(struct vsp_cmdbuf_s));
-#endif
-#ifdef PSBVIDEO_MFLD /* VPP in CTP/MFLD use MSVDX context */
-            if (IS_MFLD(obj_context->driver_data))
+            /* VED two pass rotation under VPP API */
+            if (driver_data->ved_vpp)
                 cmdbuf =  calloc(1, sizeof(struct psb_cmdbuf_s));
+#ifdef PSBVIDEO_MRFL_VPP
+            else if (IS_MRFL(obj_context->driver_data))
+                cmdbuf = calloc(1, sizeof(struct vsp_cmdbuf_s));
 #endif
         } else /* MSVDX decode context */
 #endif
@@ -1184,15 +1183,12 @@ VAStatus psb_CreateContext(
                 vaStatus = pnw_cmdbuf_create(obj_context, driver_data, (pnw_cmdbuf_p)cmdbuf);
 #endif
         } else if (proc) { /* VSP VPP context */
+            if (driver_data->ved_vpp)
+                vaStatus = psb_cmdbuf_create(obj_context, driver_data, (psb_cmdbuf_p)cmdbuf);
 #ifdef PSBVIDEO_MRFL_VPP
-            if (IS_MRFL(obj_context->driver_data))
+            else if (IS_MRFL(obj_context->driver_data))
                 vaStatus = vsp_cmdbuf_create(obj_context, driver_data, (vsp_cmdbuf_p)cmdbuf);
 #endif
-#ifdef PSBVIDEO_MFLD
-            if (IS_MFLD(obj_context->driver_data))
-                vaStatus = psb_cmdbuf_create(obj_context, driver_data, (psb_cmdbuf_p)cmdbuf);
-#endif
-
         } else /* MSVDX decode context */
 #endif
             vaStatus = psb_cmdbuf_create(obj_context, driver_data, (psb_cmdbuf_p)cmdbuf);
@@ -1220,13 +1216,11 @@ VAStatus psb_CreateContext(
                 obj_context->pnw_cmdbuf_list[i] = (pnw_cmdbuf_p)cmdbuf;
 #endif
         } else if (proc) { /* VSP VPP context */
-#ifdef PSBVIDEO_MRFL_VPP
-            if (IS_MRFL(obj_context->driver_data))
-                obj_context->vsp_cmdbuf_list[i] = (vsp_cmdbuf_p)cmdbuf;
-#endif
-#ifdef PSBVIDEO_MFLD
-            if (IS_MFLD(obj_context->driver_data))
+            if (driver_data->ved_vpp)
                 obj_context->cmdbuf_list[i] = (psb_cmdbuf_p)cmdbuf;
+#ifdef PSBVIDEO_MRFL_VPP
+            else if (IS_MRFL(obj_context->driver_data))
+                obj_context->vsp_cmdbuf_list[i] = (vsp_cmdbuf_p)cmdbuf;
 #endif
         } else /* MSVDX decode context */
 #endif
@@ -3143,6 +3137,20 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     }
 #endif
 
+#ifdef PSBVIDEO_MRFL
+    if (IS_MRFL(driver_data)) {
+        if (*((unsigned int *)ctx->native_dpy) == 0x56454450 /* VEDP */) {
+
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "merrifield ved vpp\n");
+            driver_data->vpp_profile = &tng_yuv_processor_vtable;
+            ctx->vtable_vpp->vaQueryVideoProcFilters = ved_QueryVideoProcFilters;
+            ctx->vtable_vpp->vaQueryVideoProcFilterCaps = ved_QueryVideoProcFilterCaps;
+            ctx->vtable_vpp->vaQueryVideoProcPipelineCaps = ved_QueryVideoProcPipelineCaps;
+            driver_data->ved_vpp = 1;
+        }
+    }
+#endif
+
 #ifdef PSBVIDEO_MFLD
     if (IS_MFLD(driver_data)) {
         driver_data->profile2Format[VAProfileH263Baseline][VAEntrypointEncSlice] = &pnw_H263ES_vtable;
@@ -3167,6 +3175,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointVLD] = &pnw_H264_vtable;
 
         driver_data->vpp_profile = &tng_yuv_processor_vtable;
+        driver_data->ved_vpp = 1;
     }
 #endif
 

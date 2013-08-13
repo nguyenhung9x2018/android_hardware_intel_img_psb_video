@@ -298,6 +298,7 @@ struct psb_driver_data_s {
     uint32_t xrandr_update;
     /*only VAProfileH264ConstrainedBaseline profile enable error concealment*/
     uint32_t ec_enabled;
+    uint32_t ved_vpp;
 
     uint32_t pre_surfaceid;
     psb_decode_info_t decode_info;
