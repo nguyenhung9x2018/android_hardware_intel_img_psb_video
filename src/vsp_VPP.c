@@ -56,12 +56,16 @@
 #define VSP_COLOR_ENHANCE_FEATURES 2
 
 #define ALIGN_TO_128(value) ((value + 128 - 1) & ~(128 - 1))
+#define ALIGN_TO_16(value) ((value + 16 - 1) & ~(16 - 1))
 
 #define QVGA_AREA (320 * 240)
 #define VGA_AREA (640 * 480)
 #define SD_AREA (720 * 576)
 #define HD720P_AREA (1280 * 720)
-#define HD1080P_AREA (1920 * 1080)
+#define HD1080P_AREA (1920 * 1088)
+
+#define MIN_SUPPORTED_HEIGHT 96
+#define MAX_SUPPORTED_HEIGHT 1088
 
 /**
  * The number of supported filter is 5:
@@ -389,7 +393,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	object_surface_p input_surface = NULL;
 	object_surface_p cur_output_surf = NULL;
 	unsigned int rotation_angle;
-	int tiled = 0;
+	int tiled = 0, width = 0;
 
 	if (pipeline_param->surface_region != NULL) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Cann't scale\n");
@@ -518,13 +522,18 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	if (input_surface->width > 1280)
 		tiled = 1;
 #endif
+	/*  According to VIED's design, the width must be multiple of 16 */
+	width = ALIGN_TO_16(input_surface->width);
+	if (width > input_surface->psb_surface->stride)
+		width = input_surface->psb_surface->stride;
+
 	/* Setup input surface */
 	cell_proc_picture_param->num_input_pictures  = 1;
 	cell_proc_picture_param->input_picture[0].surface_id = pipeline_param->surface;
 	vsp_cmdbuf_reloc_pic_param(&(cell_proc_picture_param->input_picture[0].base), ctx->pic_param_offset, &(input_surface->psb_surface->buf),
 				   cmdbuf->param_mem_loc, cell_proc_picture_param);
 	cell_proc_picture_param->input_picture[0].height = input_surface->height_origin;
-	cell_proc_picture_param->input_picture[0].width = input_surface->width;
+	cell_proc_picture_param->input_picture[0].width = width;
 	cell_proc_picture_param->input_picture[0].irq = 0;
 	cell_proc_picture_param->input_picture[0].stride = input_surface->psb_surface->stride;
 	cell_proc_picture_param->input_picture[0].format = ctx->format;
@@ -554,6 +563,10 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 				goto out;
 			}
 		}
+	        /*  According to VIED's design, the width must be multiple of 16 */
+		width = ALIGN_TO_16(cur_output_surf->width);
+		if (width > cur_output_surf->psb_surface->stride)
+			width = cur_output_surf->psb_surface->stride;
 
 		cell_proc_picture_param->output_picture[i].surface_id = wsbmKBufHandle(wsbmKBuf(cur_output_surf->psb_surface->buf.drm_buf));
 
@@ -561,7 +574,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 					   ctx->pic_param_offset, &(cur_output_surf->psb_surface->buf),
 					   cmdbuf->param_mem_loc, cell_proc_picture_param);
 		cell_proc_picture_param->output_picture[i].height = cur_output_surf->height_origin;
-		cell_proc_picture_param->output_picture[i].width = cur_output_surf->width;
+		cell_proc_picture_param->output_picture[i].width = width;
 		cell_proc_picture_param->output_picture[i].stride = cur_output_surf->psb_surface->stride;
 		cell_proc_picture_param->output_picture[i].irq = 1;
 		/* keep the same first, modify to dest format when feature's avaliable */
@@ -960,13 +973,16 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 		goto err;
 	}
 
-	/* check if filters and num_filters and pipeline-caps are right */
+	/* Don't check the filter number.
+	 * According to VIED's design, without any filter, HW will just copy input data
+	 */
+#if 0
 	if (num_filters == 0) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid num_filters %d\n", num_filters);
 		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
 		goto err;
 	}
-
+#endif
 	if (NULL == filters || pipeline_caps == NULL) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid filters %p or pipeline_caps %p\n", filters, pipeline_caps);
 		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -1370,7 +1386,7 @@ static int check_resolution(int width, int height)
 	int ret;
 	int image_area;
 
-	if (height < 96 || height > 1080)
+	if (height < MIN_SUPPORTED_HEIGHT || height > MAX_SUPPORTED_HEIGHT)
 		return NOT_SUPPORTED_RESOLUTION;
 
 	image_area = height * width;
