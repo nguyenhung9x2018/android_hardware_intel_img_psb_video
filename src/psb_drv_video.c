@@ -1326,7 +1326,7 @@ static VAStatus psb__allocate_malloc_buffer(object_buffer_p obj_buffer, int size
 
 static VAStatus psb__unmap_buffer(object_buffer_p obj_buffer);
 
-static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_buffer_p obj_buffer, int size, unsigned char *data, VABufferType type)
+static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_context_p obj_context, object_buffer_p obj_buffer, int size, unsigned char *data, VABufferType type)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
@@ -1382,7 +1382,10 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_bu
 #endif
             else if (obj_buffer->type == VAEncCodedBufferType)
 #ifdef ANDROID
-                vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_cached, obj_buffer->psb_buffer);
+               if(obj_context && obj_context->profile == VAProfileVP8Version0_3) /*VP8 Encoder need  uncacheable coded buf*/
+                  vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
+               else
+                  vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_cached, obj_buffer->psb_buffer);
 #else
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
 #endif
@@ -1692,7 +1695,7 @@ VAStatus psb__CreateBuffer(
 #ifdef SLICE_HEADER_PARSING
     case VAParseSliceHeaderGroupBufferType:
 #endif
-        vaStatus = psb__allocate_BO_buffer(driver_data, obj_buffer, size * num_elements, data, obj_buffer->type);
+        vaStatus = psb__allocate_BO_buffer(driver_data, obj_context,obj_buffer, size * num_elements, data, obj_buffer->type);
         DEBUG_FAILURE;
         break;
     case VAPictureParameterBufferType:
