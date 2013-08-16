@@ -519,6 +519,7 @@ static PPVR2DMEMINFO psb_wrap_surface_pvr2dbuf(psb_driver_data_p driver_data, VA
     return NULL;
 }
 
+#if 0
 void psb_putsurface_textureblit(
     VADriverContextP ctx, unsigned char *dst, VASurfaceID surface, int src_x, int src_y, int src_w,
     int src_h, int dst_x, int dst_y, int dst_w, int dst_h, unsigned int subtitle,
@@ -709,6 +710,7 @@ void psb_putsurface_textureblit(
     driver_data->last_displaying_surface = VA_INVALID_SURFACE;
     obj_surface->display_timestamp = 0;
 }
+#endif
 
 static void
 psb_setup_coeffs(struct psb_texture_s * pPriv)
