@@ -1346,9 +1346,9 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			frc_param = (VAProcFilterParameterBufferFrameRateConversion *)ctx->filter_buf[i]->buffer_data;
 			ratio = frc_param->output_fps / (float)frc_param->input_fps;
 
-			/* fixed to use medium quality */
-			cell_proc_frc_param->quality = VssFrcMediumQuality;
-			/* cell_proc_frc_param->quality = VssFrcHighQuality; */
+			/* set the FRC quality */
+			/* cell_proc_frc_param->quality = VssFrcMediumQuality; */
+			cell_proc_frc_param->quality = VssFrcHighQuality;
 			
 			/* check if the input fps is in the range of HW capability */
 			if (ratio == 2)
