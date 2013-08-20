@@ -301,11 +301,8 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
-    if ((psRCParams->eRCMode == IMG_RCMODE_NONE) ||
-        (psRCParams->ui32InitialQp == 0)) {
-        psRCParams->ui32InitialQp = psMiscRcParams->initial_qp;
-        psRCParams->iMinQP = psMiscRcParams->min_qp;
-    }
+    psRCParams->ui32InitialQp = psMiscRcParams->initial_qp;
+    psRCParams->iMinQP = psMiscRcParams->min_qp;
 
     return VA_STATUS_SUCCESS;
 }

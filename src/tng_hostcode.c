@@ -1607,13 +1607,12 @@ static void tng__setup_rcdata(context_ENC_p ctx)
 
     psPicParams->sInParams.i32InitialDelay	= psRCParams->i32InitialDelay;
     psPicParams->sInParams.i32InitialLevel	= psRCParams->i32InitialLevel;
-    psRCParams->ui32InitialQp				= psPicParams->sInParams.ui8SeInitQP;
+    psRCParams->ui32InitialQp = psPicParams->sInParams.ui8SeInitQP;
 
     /* The rate control uses this value to adjust the reaction rate to larger than expected frames */
     if (ctx->eStandard == IMG_STANDARD_H264) {
         if (psPicParams->sInParams.i32BitsPerFrm) {
             const IMG_INT32 bitsPerGop = (psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate) * psRCParams->ui32IntraFreq;
-
             psPicParams->sInParams.mode.h264.ui32RCScaleFactor = (bitsPerGop * 256) /
                 (psPicParams->sInParams.i32BufferSize - psPicParams->sInParams.i32InitialLevel);
         } else {
@@ -3340,14 +3339,14 @@ static VAStatus tng__update_bitrate(context_ENC_p ctx, IMG_UINT32 ui32StreamInde
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     IMG_UINT32 ui32CmdData = 0;
-    IMG_UINT32 ui32NewBitrate = 0;
+    IMG_UINT32 ui32NewBitsPerFrame = 0;
     IMG_UINT8 ui8NewVCMIFrameQP = 0;
 
     if (psRCParams->bBitrateChanged == IMG_FALSE) {
         return vaStatus;
     }
 
-    //tng__setup_rcdata(ctx);
+    tng__setup_rcdata(ctx);
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
         "%s: ui32BitsPerSecond = %d, ui32FrameRate = %d, ui32InitialQp = %d\n",
         __FUNCTION__, psRCParams->ui32BitsPerSecond,
@@ -3356,14 +3355,14 @@ static VAStatus tng__update_bitrate(context_ENC_p ctx, IMG_UINT32 ui32StreamInde
         "%s: frame_count[%d] = %d\n", __FUNCTION__,
         ui32StreamIndex, ctx->ui32FrameCount[ui32StreamIndex]);
 
-    ui32NewBitrate = psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate;
+    ui32NewBitsPerFrame = psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate;
     ui8NewVCMIFrameQP = (IMG_UINT8)psRCParams->ui32InitialQp;
 
     ui32CmdData = F_ENCODE(ui8NewVCMIFrameQP, MTX_MSG_RC_UPDATE_QP) |
-                F_ENCODE(ui32NewBitrate, MTX_MSG_RC_UPDATE_BITRATE);
+                F_ENCODE(ui32NewBitsPerFrame, MTX_MSG_RC_UPDATE_BITRATE);
 
     tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
-        MTX_CMDID_PICMGMT | MTX_CMDID_PRIORITY,
+        MTX_CMDID_RC_UPDATE,
         ui32CmdData, 0, 0);
 
     psRCParams->bBitrateChanged = IMG_FALSE;
@@ -3590,8 +3589,8 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         }
     }
 
-    if (ctx->sRCParams.eRCMode == IMG_RCMODE_VCM) {
-         vaStatus = tng__update_bitrate(ctx, ctx->ui32StreamID);
+    if (ctx->sRCParams.eRCMode != IMG_RCMODE_NONE) {
+        vaStatus = tng__update_bitrate(ctx, ctx->ui32StreamID);
         if (vaStatus != VA_STATUS_SUCCESS) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "send picmgmt");
         }
