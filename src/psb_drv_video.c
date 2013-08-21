@@ -710,6 +710,7 @@ VAStatus psb_CreateSurfaces2(
                     attribute_tpi.luma_offset = pExternalBufDesc->offsets[0];
                     attribute_tpi.chroma_u_offset = pExternalBufDesc->offsets[1];
                     attribute_tpi.chroma_v_offset = pExternalBufDesc->offsets[2];
+                    attribute_tpi.reserved[0] = (unsigned int) pExternalBufDesc->private_data;
                 }
                 break;
             case VASurfaceAttribMemoryType:
