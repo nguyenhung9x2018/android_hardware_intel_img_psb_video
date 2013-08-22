@@ -65,7 +65,8 @@
 
 
 #define FW_VER 0x5D
-#define FW_FILE_NAME "topazhp_fw.bin"
+#define FW_FILE_NAME_A0 "topazhp_fw.bin"
+#define FW_FILE_NAME_B0 "topazhp_fw_b0.bin"
 
 static const unsigned char pad_val = 0x0;
 
@@ -140,6 +141,7 @@ struct fw_table_s {
 typedef struct fw_table_s fw_table_t;
 
 #define SECURE_ALIGN 1
+#define B0_ALIGN 4
 #define SECURE_VRL_HEADER 728
 #define SECURE_FIP_HEADER 296
 
@@ -224,16 +226,30 @@ struct fw_table_B0 {
     unsigned int text_size_bytes;
 };
 
+static const char FIP_Header[] = {
+	0x24, 0x56, 0x45, 0x43,
+	0x01, 0x00, 0x01, 0x00,
+	0x4a, 0x00, 0x00, 0x00,
+	0x8e, 0x00, 0x00, 0x00,
+	0x22, 0x00, 0x9c, 0x00,
+	0x0e, 0x00, 0x00, 0x00
+};
 static void create_firmware_B0(fw_table_t *tng_fw_table, FILE *fp)
 {
     struct fw_table_B0 sec_t[FW_NUM];
+    const unsigned int i_align = B0_ALIGN - 1;
+    const unsigned int data_loco = 0x0ffff;
     unsigned int i = 0;
     int iter = 0;
     int size = 0;
 
     printf("fm num is %d\n", FW_NUM);
     /////////////////////////////////////////////////
-    size = SECURE_FIP_HEADER ;
+    size = sizeof(FIP_Header);
+    fwrite(FIP_Header, size, 1, fp);
+    printf("FIP header is %d, 296\n", size);
+
+    size = SECURE_FIP_HEADER - sizeof(FIP_Header);
     for (iter = 0; iter < size; iter++) {
         fwrite(&pad_val, 1, 1, fp);
     }
@@ -241,21 +257,24 @@ static void create_firmware_B0(fw_table_t *tng_fw_table, FILE *fp)
     iter = 0;
 
     sec_t[iter].addr = FW_NUM * 16 + SECURE_VRL_HEADER + SECURE_FIP_HEADER;
-    sec_t[iter].text_size_dword = tng_fw_table[iter].header.text_size;
-    sec_t[iter].data_size_dword = tng_fw_table[iter].header.data_size;
-    sec_t[iter].text_size_bytes = tng_fw_table[iter].header.text_size * 4;
+    sec_t[iter].text_size_bytes = tng_fw_table[iter].header.data_location & data_loco;
+    sec_t[iter].text_size_dword = sec_t[iter].text_size_bytes >> 2;
+
+    sec_t[iter].data_size_dword = (tng_fw_table[iter].header.data_size + i_align) & (~i_align);
     fwrite(&(sec_t[iter]), sizeof(struct fw_table_B0), 1, fp);
 
     iter = 1;
 
-
     /* write fw table into the file */
     while (iter < FW_NUM) {
-        sec_t[iter].addr = sec_t[iter-1].addr + sec_t[iter-1].text_size_bytes + (sec_t[iter-1].data_size_dword * 4);
+        sec_t[iter].addr = sec_t[iter-1].addr +
+		sec_t[iter-1].text_size_bytes +
+		(sec_t[iter-1].data_size_dword << 2);
 
-        sec_t[iter].text_size_dword = tng_fw_table[iter].header.text_size;
-        sec_t[iter].data_size_dword = tng_fw_table[iter].header.data_size;
-	sec_t[iter].text_size_bytes = tng_fw_table[iter].header.text_size * 4;
+        sec_t[iter].text_size_bytes = tng_fw_table[iter].header.data_location & data_loco;
+        sec_t[iter].text_size_dword = sec_t[iter].text_size_bytes >> 2;
+
+        sec_t[iter].data_size_dword = (tng_fw_table[iter].header.data_size + i_align) & (~i_align);
         fwrite(&(sec_t[iter]), sizeof(struct fw_table_B0), 1, fp);
         ++iter;
     }
@@ -266,10 +285,15 @@ static void create_firmware_B0(fw_table_t *tng_fw_table, FILE *fp)
         /* write text */
         size = tng_fw_table[iter].header.text_size * 4;
         fwrite(tng_fw_table[iter].fw_text, 1, size, fp);
+        for (i = 0; i < (sec_t[iter].text_size_bytes - size); i++)
+            fwrite(&pad_val, 1, 1, fp);
+
 
         /* write data */
         size = tng_fw_table[iter].header.data_size * 4;
         fwrite(tng_fw_table[iter].fw_data, 1, size, fp);
+        for (i = 0; i < ((sec_t[iter].data_size_dword << 2) - size); i++)
+            fwrite(&pad_val, 1, 1, fp);
 
         fflush(fp);
 
@@ -336,8 +360,22 @@ int main()
         FW_MASTER_INFO(H264MVC_LLRC, H264MVCLLRC),//FW_MASTER_H264MVC_LLRC,         //!< MVC H264 low-latency rate control
     };
 
+#ifdef B0_DEBUG
+    printf("fw_num is %d, fw = %d\n", FW_NUM, (int)sizeof(topaz_fw_table));
+    for(i = 0; i < FW_NUM; i++) {
+        topaz_fw_table[i].index = i;
+        topaz_fw_table[i].header.ver = FW_VER;
+        topaz_fw_table[i].header.codec = FW_MASTER_H264_NO_RC;
+        topaz_fw_table[i].header.text_size = 6883;
+        topaz_fw_table[i].header.data_size = 2997;
+        topaz_fw_table[i].header.data_location = 0x82886b90;
+        topaz_fw_table[i].fw_text = aui32H264_MasterMTXTOPAZFWText;
+        topaz_fw_table[i].fw_data = aui32H264_MasterMTXTOPAZFWData;
+    }
+#endif
+  
     /* open file  */
-    fp = fopen(FW_FILE_NAME, "w");
+    fp = fopen(FW_FILE_NAME_A0, "w");
 
     if (NULL == fp)
         return -1;
@@ -346,5 +384,16 @@ int main()
 
     /* close file */
     fclose(fp);
+
+    fp = fopen(FW_FILE_NAME_B0, "w");
+
+    if (NULL == fp)
+        return -1;
+
+    create_firmware_B0(topaz_fw_table, fp);
+
+    /* close file */
+    fclose(fp);
+
     return 0;
 }
