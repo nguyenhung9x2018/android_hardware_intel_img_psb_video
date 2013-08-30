@@ -106,7 +106,7 @@ static int isVppOn() {
 }
 #endif
 
-void psb_InitRotate(VADriverContextP ctx)
+void psb_InitOutLoop(VADriverContextP ctx)
 {
     char env_value[64];
     INIT_DRIVER_DATA;
@@ -140,14 +140,14 @@ void psb_InitRotate(VADriverContextP ctx)
     driver_data->disable_msvdx_rotate_backup = driver_data->disable_msvdx_rotate;
 }
 
-void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
+void psb_RecalcAlternativeOutput(object_context_p obj_context)
 {
-    INIT_DRIVER_DATA;
-    INIT_OUTPUT_PRIV;
+    psb_driver_data_p driver_data = obj_context->driver_data;
     int angle, new_rotate, i;
     int old_rotate = driver_data->msvdx_rotate_want;
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-    int mode = psb_android_is_extvideo_mode((void*)output);
+    int scaling_width, scaling_height;
+    int mode = psb_android_is_extvideo_mode((void*)driver_data->ws_priv);
 #else
     int mode = 0;
 #endif
@@ -251,6 +251,22 @@ void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context)
         driver_data->msvdx_rotate_want = new_rotate;
     }
 
+#ifdef TARGET_HAS_MULTIPLE_DISPLAY
+    psb_android_get_video_resolution((void*)driver_data->ws_priv, &scaling_width, &scaling_height);
+
+    /* turn off ved downscaling if width and height are 0.
+     * Besides, scaling_width and scaling_height must be a multiple of 2.
+     */
+    if ((!scaling_width || !scaling_height) || (scaling_width & 1) || (scaling_height & 1)) {
+        obj_context->msvdx_scaling = 0;
+        obj_context->scaling_width = 0;
+        obj_context->scaling_height = 0;
+    } else {
+        obj_context->msvdx_scaling = 1;
+        obj_context->scaling_width = scaling_width;
+        obj_context->scaling_height = scaling_height;
+    }
+#endif
 }
 
 
@@ -320,16 +336,16 @@ VAStatus psb_DestroyRotateSurface(
 )
 {
     INIT_DRIVER_DATA;
-    psb_surface_p psb_surface = obj_surface->psb_surface_rotate;
+    psb_surface_p psb_surface = obj_surface->out_loop_surface;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     /* Allocate alternative output surface */
     if (psb_surface) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Try to allocate surface for alternative rotate output\n");
-        psb_surface_destroy(obj_surface->psb_surface_rotate);
+        psb_surface_destroy(obj_surface->out_loop_surface);
         free(psb_surface);
 
-        obj_surface->psb_surface_rotate = NULL;
+        obj_surface->out_loop_surface = NULL;
         obj_surface->width_r = obj_surface->width;
         obj_surface->height_r = obj_surface->height;
     }
@@ -337,11 +353,113 @@ VAStatus psb_DestroyRotateSurface(
     return vaStatus;
 }
 #endif
+#ifdef TARGET_HAS_MULTIPLE_DISPLAY
+/*
+ * Create and attach a downscaling surface to obj_surface
+ */
+VAStatus psb_CreateScalingSurface(
+        object_context_p obj_context,
+        object_surface_p obj_surface
+)
+{
+    psb_surface_p psb_surface;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    psb_surface_share_info_p share_info = obj_surface->share_info;
+    unsigned int set_flags, clear_flags;
+    int ret = 0;
+
+    if (obj_context->video_crop.width <= obj_context->scaling_width || obj_context->video_crop.height <= obj_context->scaling_height) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Either downscaling is not required or upscaling is needed for the target resolution\n");
+        obj_context->msvdx_scaling = 0; /* Disable downscaling */
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+    }
+
+    psb_surface = obj_surface->scaling_surface;
+    /* Check if downscaling resolution has been changed */
+    if (psb_surface) {
+        if (obj_surface->width_s != obj_context->scaling_width || obj_surface->height_s != obj_context->scaling_height) {
+            psb_surface_destroy(psb_surface);
+            free(psb_surface);
+            psb_surface = NULL;
+
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "downscaling buffer realloc: %d x %d -> %d x %d\n",
+                    obj_surface->width_s, obj_surface->height_s, obj_context->scaling_width, obj_context->scaling_height);
+
+            if (share_info != NULL) {
+                share_info->width_s = 0;
+                share_info->height_s = 0;
+                share_info->scaling_khandle = 0;
+
+                share_info->scaling_luma_stride = 0;
+                share_info->scaling_chroma_u_stride = 0;
+                share_info->scaling_chroma_v_stride = 0;
+            }
+        }
+    }
+
+    if (!psb_surface) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "Try to allocate surface for alternative scaling output: %dx%d\n",
+                      obj_context->scaling_width, obj_context->scaling_height);
+        psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
+        CHECK_ALLOCATION(psb_surface);
+
+        vaStatus = psb_surface_create(obj_context->driver_data, obj_context->scaling_width,
+                                      (obj_context->scaling_height + 0x1f) & ~0x1f, VA_FOURCC_NV12,
+                                      0, psb_surface);
+
+        //set_flags = WSBM_PL_FLAG_CACHED | DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_SHARED;
+        //clear_flags = WSBM_PL_FLAG_UNCACHED | WSBM_PL_FLAG_WC;
+        //ret = psb_buffer_setstatus(&psb_surface->buf, set_flags, clear_flags);
+
+        if (VA_STATUS_SUCCESS != vaStatus || ret) {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "allocate scaling buffer fail\n");
+            free(psb_surface);
+            obj_surface->scaling_surface = NULL;
+            vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+            DEBUG_FAILURE;
+            return vaStatus;
+        }
+
+        obj_surface->width_s = obj_context->scaling_width;
+        obj_surface->height_s = obj_context->scaling_height;
+        obj_context->scaling_update = 1;
+    }
+    obj_surface->scaling_surface = psb_surface;
+
+    /* derive the protected flag from the primay surface */
+    SET_SURFACE_INFO_protect(psb_surface,
+                             GET_SURFACE_INFO_protect(obj_surface->psb_surface));
+
+    /*notify hwc that rotated buffer is ready to use.
+        * TODO: Do these in psb_SyncSurface()
+        */
+    if (share_info != NULL) {
+        share_info->width_s = obj_surface->width_s;
+        share_info->height_s = obj_surface->height_s;
+        share_info->scaling_khandle =
+        (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+
+        share_info->scaling_luma_stride = psb_surface->stride;
+        share_info->scaling_chroma_u_stride = psb_surface->stride;
+        share_info->scaling_chroma_v_stride = psb_surface->stride;
+    }
+    return vaStatus;
+}
+#else
+VAStatus psb_CreateScalingSurface(
+        object_context_p obj_context,
+        object_surface_p obj_surface
+)
+{
+        return VA_STATUS_ERROR_OPERATION_FAILED;
+}
+#endif
+
 /*
  * Create and attach a rotate surface to obj_surface
  */
 VAStatus psb_CreateRotateSurface(
-    VADriverContextP ctx,
+    object_context_p obj_context,
     object_surface_p obj_surface,
     int msvdx_rotate
 )
@@ -352,7 +470,9 @@ VAStatus psb_CreateRotateSurface(
     int need_realloc = 0;
     unsigned int flags = 0;
     psb_surface_share_info_p share_info = obj_surface->share_info;
-    INIT_DRIVER_DATA;
+    psb_driver_data_p driver_data = obj_context->driver_data;
+
+    psb_surface = obj_surface->out_loop_surface;
 
     if (msvdx_rotate == 0
 #ifdef OVERLAY_ENABLE_MIRROR
@@ -362,14 +482,13 @@ VAStatus psb_CreateRotateSurface(
         )
         return vaStatus;
 
-    psb_surface = obj_surface->psb_surface_rotate;
     if (psb_surface) {
         CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need_realloc);
         if (need_realloc == 0) {
             goto exit;
         } else { /* free the old rotate surface */
             /*FIX ME: it is not safe to do that because surfaces may be in use for rendering.*/
-            psb_surface_destroy(obj_surface->psb_surface_rotate);
+            psb_surface_destroy(obj_surface->out_loop_surface);
             memset(psb_surface, 0, sizeof(*psb_surface));
         }
     } else {
@@ -400,7 +519,7 @@ VAStatus psb_CreateRotateSurface(
 
     if (VA_STATUS_SUCCESS != vaStatus) {
         free(psb_surface);
-        obj_surface->psb_surface_rotate = NULL;
+        obj_surface->out_loop_surface = NULL;
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
         return vaStatus;
@@ -425,8 +544,8 @@ VAStatus psb_CreateRotateSurface(
     }
 #endif
 
-    obj_surface->psb_surface_rotate = psb_surface;
 exit:
+    obj_surface->out_loop_surface = psb_surface;
     SET_SURFACE_INFO_rotate(psb_surface, msvdx_rotate);
     /* derive the protected flag from the primay surface */
     SET_SURFACE_INFO_protect(psb_surface,
@@ -438,14 +557,14 @@ exit:
     if (share_info != NULL) {
         share_info->width_r = psb_surface->stride;
         share_info->height_r = obj_surface->height_r;
-        share_info->rotate_khandle =
+        share_info->out_loop_khandle =
             (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
         share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
         share_info->surface_rotate = VAROTATION2HAL(msvdx_rotate);
 
-        share_info->rotate_luma_stride = psb_surface->stride;
-        share_info->rotate_chroma_u_stride = psb_surface->stride;
-        share_info->rotate_chroma_v_stride = psb_surface->stride;
+        share_info->out_loop_luma_stride = psb_surface->stride;
+        share_info->out_loop_chroma_u_stride = psb_surface->stride;
+        share_info->out_loop_chroma_v_stride = psb_surface->stride;
     }
 
     return vaStatus;

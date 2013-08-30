@@ -122,7 +122,7 @@ VAStatus psb_initOutput(VADriverContextP ctx)
     driver_data->cur_displaying_surface = VA_INVALID_SURFACE;
     driver_data->last_displaying_surface = VA_INVALID_SURFACE;
 
-    psb_InitRotate(ctx);
+    psb_InitOutLoop(ctx);
 
 #ifdef ANDROID
     ws_priv = psb_android_output_init(ctx);

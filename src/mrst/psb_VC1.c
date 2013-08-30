@@ -1804,7 +1804,7 @@ static void psb__VC1_setup_alternative_frame(context_VC1_p ctx)
 {
     uint32_t cmd;
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->out_loop_surface;
     object_context_p obj_context = ctx->obj_context;
 
     if (GET_SURFACE_INFO_rotate(rotate_surface) != obj_context->msvdx_rotate)

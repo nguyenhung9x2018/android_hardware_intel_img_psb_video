@@ -572,8 +572,12 @@ void psb__destroy_surface(psb_driver_data_p driver_data, object_surface_p obj_su
 	psb_surface_sync(obj_surface->psb_surface);
         psb_surface_destroy(obj_surface->psb_surface);
 
-        if (obj_surface->psb_surface_rotate) {
-            psb_surface_destroy(obj_surface->psb_surface_rotate);
+        if (obj_surface->out_loop_surface) {
+            psb_surface_destroy(obj_surface->out_loop_surface);
+        }
+
+        if (obj_surface->scaling_surface) {
+            psb_surface_destroy(obj_surface->scaling_surface);
         }
 
         free(obj_surface->psb_surface);
@@ -1024,6 +1028,13 @@ VAStatus psb_CreateContext(
     obj_context->picture_width = picture_width;
     obj_context->picture_height = picture_height;
     obj_context->num_render_targets = num_render_targets;
+    obj_context->video_crop.x = 0;
+    obj_context->video_crop.y = 0;
+    obj_context->video_crop.width = picture_width;
+    obj_context->video_crop.height = picture_height;
+    obj_context->msvdx_scaling = 0;
+    obj_context->scaling_width = 0;
+    obj_context->scaling_height = 0;
     obj_context->render_targets = (VASurfaceID *) calloc(1, num_render_targets * sizeof(VASurfaceID));
     if (obj_context->render_targets == NULL) {
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
@@ -1980,7 +1991,7 @@ VAStatus psb_BeginPicture(
      */
     if ((obj_config->entrypoint != VAEntrypointEncSlice) &&
         (obj_config->entrypoint != VAEntrypointEncPicture)) {
-        psb_RecalcRotate(ctx, obj_context);
+        psb_RecalcAlternativeOutput(obj_context);
     }
 #endif
 
@@ -2001,12 +2012,20 @@ VAStatus psb_BeginPicture(
 
     /* the main surface track current rotate information
      * try to reuse the allocated rotate surfaces and don't destroy them
-     * thus the rotation info in obj_surface->psb_surface_rotate may not be updated
+     * thus the rotation info in obj_surface->out_loop_surface may not be updated
      */
 
     SET_SURFACE_INFO_rotate(obj_surface->psb_surface, obj_context->msvdx_rotate);
+
+     if (CONTEXT_SCALING(obj_context) && obj_config->entrypoint != VAEntrypointEncSlice)
+          if(VA_STATUS_SUCCESS != psb_CreateScalingSurface(obj_context, obj_surface)) {
+             obj_context->msvdx_scaling = 0;
+             ALOGE("%s: fail to allocate scaling surface", __func__);
+          }
+
     if (CONTEXT_ROTATE(obj_context)) {
-        psb_CreateRotateSurface(ctx, obj_surface, obj_context->msvdx_rotate);
+        if (VA_STATUS_SUCCESS != psb_CreateRotateSurface(obj_context, obj_surface, obj_context->msvdx_rotate))
+            ALOGE("%s: fail to allocate out loop surface", __func__);
     }
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {
@@ -2126,6 +2145,8 @@ VAStatus psb_EndPicture(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "FrameCount = %03d\n", obj_context->frame_count);
     psb__trace_message(NULL);
 
+
+    //psb_SyncSurface(ctx, obj_context->current_render_surface_id);
     DEBUG_FUNC_EXIT
     return vaStatus;
 }
@@ -2252,8 +2273,10 @@ VAStatus psb_SyncSurface(
         /* FIXME: does it need a new surface sync mechanism for FRC? */
     }
 
-    psb__dump_NV_buffers(obj_surface->psb_surface, 0, 0, obj_surface->width, obj_surface->height);
+    //psb__dump_NV_buffers(obj_surface->psb_surface, 0, 0, obj_surface->width, obj_surface->height);
     //psb__dump_NV_buffers(obj_surface->psb_surface_rotate, 0, 0, obj_surface->height, ((obj_surface->width + 0x1f) & (~0x1f)));
+    if (obj_surface->scaling_surface)
+        psb__dump_NV12_buffers(obj_surface->scaling_surface, 0, 0, obj_surface->width_s, obj_surface->height_s);
     DEBUG_FAILURE;
     DEBUG_FUNC_EXIT
     return vaStatus;
@@ -2661,6 +2684,29 @@ VAStatus psb_SetTimestampForSurface(
     } else {
         return VA_STATUS_ERROR_UNKNOWN;
     }
+}
+
+VAStatus psb_SetVideoCrops(
+    VADriverContextP ctx,
+    VAContextID context,
+    VARectangle *crop
+)
+{
+    INIT_DRIVER_DATA;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    object_context_p obj_context = CONTEXT(context);
+
+    CHECK_CONTEXT(obj_context);
+
+    if (!crop)
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+    if (crop->x < 0 || crop->y < 0 || crop->width > 4096 || crop->height > 4096)
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+
+    memcpy(&obj_context->video_crop, crop, sizeof(*crop));
+
+    return vaStatus;
 }
 
 

@@ -259,7 +259,7 @@ VAStatus psb_putsurface_ctexture(
         surface_width = obj_surface->width;
         surface_height = obj_surface->height;
     } else {
-        psb_surface = obj_surface->psb_surface_rotate;
+        psb_surface = obj_surface->out_loop_surface;
         if (driver_data->va_rotate != VA_ROTATION_180) {
             tmp = srcw;
             srcw = srch;

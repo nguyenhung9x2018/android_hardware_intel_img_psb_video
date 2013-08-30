@@ -94,6 +94,25 @@ int psb_android_is_extvideo_mode(void* output) {
     }
     return 0;
 }
+
+void psb_android_get_video_resolution(void* output, int* width, int* height) {
+#ifdef PSBVIDEO_MSVDX_DOWNSCALING
+    psb_android_output_p android_output = (psb_android_output_p)output;
+    MultiDisplayClient* mMDClient = (MultiDisplayClient *)android_output->mMDClient;
+
+    if (!android_output->mMDClient) {
+        initMDC(output);
+        mMDClient = (MultiDisplayClient *)android_output->mMDClient;
+    }
+
+    if (mMDClient != NULL)
+        mMDClient->getVideoResolution(width, height);
+#else
+    *width = 0;
+    *height = 0;
+#endif
+}
+
 #endif
 
 unsigned int update_forced;

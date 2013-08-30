@@ -869,7 +869,7 @@ static void I830PutImageFlipRotateSurface(
 
     if (pipeId == PIPEA) {
         if (driver_data->local_rotation != VA_ROTATION_NONE) {
-            psb_surface = obj_surface->psb_surface_rotate;
+            psb_surface = obj_surface->out_loop_surface;
             width = obj_surface->width_r;
             height = obj_surface->height_r;
             if (driver_data->local_rotation != VA_ROTATION_180) {
@@ -892,7 +892,7 @@ static void I830PutImageFlipRotateSurface(
             pPriv->rotation = 0;
     } else if (pipeId == PIPEB) {
         if (driver_data->extend_rotation != VA_ROTATION_NONE) {
-            psb_surface = obj_surface->psb_surface_rotate;
+            psb_surface = obj_surface->out_loop_surface;
             width = obj_surface->width_r;
             height = obj_surface->height_r;
             if (driver_data->extend_rotation != VA_ROTATION_180) {
@@ -945,7 +945,7 @@ static void I830PutImageFlipRotateDebug(
     if (pipeId != 0)
         return;
 
-    psb_surface = obj_surface->psb_surface_rotate;
+    psb_surface = obj_surface->out_loop_surface;
     psb_buffer_p buf = &psb_surface->buf;
     unsigned char *data, *chroma, *buffer, *header;
     static FILE *pf = NULL;

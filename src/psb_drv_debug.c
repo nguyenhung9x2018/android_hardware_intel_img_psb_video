@@ -330,7 +330,7 @@ void drv_debug_msg(DEBUG_LEVEL debug_level, const char *msg, ...)
     }
 }
 
-void psb__dump_NV_buffers(
+void psb__dump_I420_buffers(
     psb_surface_p psb_surface,
     short srcx,
     short srcy,
@@ -378,6 +378,41 @@ void psb__dump_NV_buffers(
             mapped_buffer2 += psb_surface->stride-srcw;
         }
 
+        psb_buffer_unmap(&psb_surface->buf);
+    }
+}
+
+void psb__dump_NV12_buffers(
+    psb_surface_p psb_surface,
+    short srcx,
+    short srcy,
+    unsigned short srcw,
+    unsigned short srch)
+{
+    void *mapped_buffer;
+    void *mapped_start;
+
+    if (psb_dump_yuvbuf_fp) {
+        psb_buffer_map(&psb_surface->buf, &mapped_buffer);
+        if(mapped_buffer == NULL)
+            return VA_STATUS_ERROR_INVALID_BUFFER;
+
+        int i;
+        int row = srch;
+
+	mapped_start = mapped_buffer;
+        for(i = 0; i < row; ++i)
+        {
+            fwrite(mapped_buffer,  srcw, 1, psb_dump_yuvbuf_fp);
+            mapped_buffer += psb_surface->stride;
+        }
+
+        mapped_buffer = mapped_start + psb_surface->chroma_offset;
+        for(i = 0; i < row/2; ++i)
+        {
+            fwrite(mapped_buffer,  srcw, 1, psb_dump_yuvbuf_fp);
+            mapped_buffer += psb_surface->stride;
+        }
         psb_buffer_unmap(&psb_surface->buf);
     }
 }

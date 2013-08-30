@@ -1961,7 +1961,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     vld_dec_setup_alternative_frame(ctx->obj_context);
 
     if (ctx->pic_params->picture_fields.bits.frame_coding_mode == VC1_FCM_P && CONTEXT_ROTATE(ctx->obj_context))
-        deblock_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+        deblock_surface = ctx->obj_context->current_render_target->out_loop_surface;
 
     /* CHUNK: 3 */
     psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));

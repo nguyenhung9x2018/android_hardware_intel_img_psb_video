@@ -1670,7 +1670,7 @@ static VAStatus pnw_H264_EndPicture(
 
     if (ctx->two_pass_mode) {
         psb_buffer_p colocated_target_buffer = vld_dec_lookup_colocated_buffer(&ctx->dec_ctx, target_surface);
-        psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+        psb_surface_p rotate_surface = ctx->obj_context->current_render_target->out_loop_surface;
         uint32_t rotation_flags = 0;
         uint32_t ext_stride_a = 0;
 
@@ -1763,6 +1763,15 @@ static VAStatus pnw_H264_EndPicture(
     }
 #endif
 
+    /* if scaling is enabled, rotate is not performed in 1st pass */
+    if (CONTEXT_ROTATE(obj_context) && CONTEXT_SCALING(obj_context))
+    {
+        vld_dec_yuv_rotate(obj_context,
+                ctx->picture_width_mb * 16,
+                ctx->picture_height_mb * 16);
+        ctx->dec_ctx.process_buffer = pnw_H264_process_buffer;
+    }
+
     if (psb_context_flush_cmdbuf(ctx->obj_context)) {
         return VA_STATUS_ERROR_UNKNOWN;
     }
@@ -1776,17 +1785,6 @@ static VAStatus pnw_H264_EndPicture(
         free(ctx->iq_matrix);
         ctx->iq_matrix = NULL;
     }
-
-/*
-    obj_context->msvdx_rotate = 1;
-    driver_data->msvdx_rotate_want = 1;
-    if (CONTEXT_ROTATE(obj_context))
-    {
-        vld_dec_yuv_rotate(obj_context,
-                ctx->picture_width_mb * 16,
-                ctx->picture_height_mb * 16);
-    }
-*/
 
     return VA_STATUS_SUCCESS;
 }

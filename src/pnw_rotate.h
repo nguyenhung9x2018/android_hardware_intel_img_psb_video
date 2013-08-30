@@ -62,16 +62,16 @@ static uint32_t HAL2VAROTATION(int hal_rotate) {
 #define psb_android_surfaceflinger_rotate(a, b)
 #endif
 
-void psb_InitRotate(VADriverContextP ctx);
-void psb_RecalcRotate(VADriverContextP ctx, object_context_p obj_context);
+void psb_InitOutLoop(VADriverContextP ctx);
+void psb_RecalcAlternativeOutput(object_context_p obj_context);
 void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_param_tmp);
 VAStatus psb_DestroyRotateSurface(
     VADriverContextP ctx,
     object_surface_p obj_surface,
     int rotate
 );
-VAStatus psb_CreateRotateSurface(
-    VADriverContextP ctx,
+VAStatus psb_CreateOutLoopSurface(
+    object_context_p obj_context,
     object_surface_p obj_surface,
     int msvdx_rotate
 );

@@ -410,6 +410,12 @@ struct object_context_s {
 
     uint32_t msvdx_context;
 
+    int scaling_width;
+    int scaling_height;
+    int scaling_update;
+
+    VARectangle video_crop;
+
     /* Debug */
     uint32_t frame_count;
     uint32_t slice_count;
@@ -417,8 +423,7 @@ struct object_context_s {
 
 #define ROTATE_VA2MSVDX(va_rotate)  (va_rotate)
 #define CONTEXT_ROTATE(obj_context) (obj_context->msvdx_rotate != ROTATE_VA2MSVDX(VA_ROTATION_NONE))
-/* #define CONTEXT_SCALING(obj_context) (obj_context->msvdx_scaling) */
-#define CONTEXT_SCALING(obj_context) (0)
+#define CONTEXT_SCALING(obj_context) (obj_context->msvdx_scaling)
 #define CONTEXT_ALTERNATIVE_OUTPUT(obj_context) (CONTEXT_ROTATE(obj_context) || CONTEXT_SCALING(obj_context))
 
 enum force_output_method_t {
@@ -440,7 +445,7 @@ struct psb_surface_share_info_s {
     1 : force gpu render;
     2 : force overlay render.*/
     int force_output_method;
-    unsigned int rotate_khandle;
+    unsigned int out_loop_khandle;
     unsigned int renderStatus;
     unsigned int used_by_widi;
     int bob_deinterlace;
@@ -454,14 +459,21 @@ struct psb_surface_share_info_s {
     unsigned int khandle;
     long long timestamp;
 
-    unsigned int rotate_luma_stride;
-    unsigned int rotate_chroma_u_stride;
-    unsigned int rotate_chroma_v_stride;
+    unsigned int out_loop_luma_stride;
+    unsigned int out_loop_chroma_u_stride;
+    unsigned int out_loop_chroma_v_stride;
 
     long long hwc_timestamp;
     unsigned int layer_transform;
 
     void *native_window;
+    unsigned int scaling_khandle;
+    unsigned int width_s;
+    unsigned int height_s;
+
+    unsigned int scaling_luma_stride;
+    unsigned int scaling_chroma_u_stride;
+    unsigned int scaling_chroma_v_stride;
 };
 
 struct object_surface_s {
@@ -473,8 +485,11 @@ struct object_surface_s {
     int height_origin;
     int width_r;
     int height_r;
+    int width_s;
+    int height_s;
     struct psb_surface_s *psb_surface;
-    struct psb_surface_s *psb_surface_rotate; /* Alternative output surface for rotation */
+    struct psb_surface_s *out_loop_surface; /* Alternative output surface for rotation */
+    struct psb_surface_s *scaling_surface; /* Alternative output surface for scaling */
     void *subpictures;/* if not NULL, have subpicture information */
     unsigned int subpic_count; /* to ensure output have enough space for PDS & RAST */
     unsigned int derived_imgcnt; /* is the surface derived by a VAImage? */

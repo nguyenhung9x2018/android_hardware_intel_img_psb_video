@@ -225,15 +225,25 @@ static void tng_calculate_scaler_coeff(    float   fPitch,
 void tng_calculate_scaler_coff_reg(object_context_p obj_context)
 {
     context_DEC_p ctx = (context_DEC_p) obj_context->format_data;
+    object_surface_p src_surface = obj_context->current_render_target;
+
     /* If the surfaces are smaller that the size the object was constructed with, then we need to downscale */
     float fHorzPitch;
     float fVertPitch;
     int scale_acc = 11;
     int i;
 
+#ifndef PSBVIDEO_MFLD
+    scale_acc = 12;
+#endif
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "content crop is %dx%d",
+		obj_context->video_crop.width, obj_context->video_crop.height);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "scaling dest is %dx%d",
+		obj_context->current_render_target->width_s, obj_context->current_render_target->height_s);
     /* The unscaled dimensions in the pitch calculation below MUST match the Display Width and Height sent to the hardware */
-    fHorzPitch = obj_context->picture_width / (float) 1280;
-    fVertPitch = obj_context->picture_height / (float) 720;
+    fHorzPitch = obj_context->video_crop.width / (float) obj_context->current_render_target->width_s;
+    fVertPitch = obj_context->video_crop.height / (float) obj_context->current_render_target->height_s;
 
     IMG_UINT32 reg_value;
     IMG_UINT8 calc_table[4][16];
@@ -304,20 +314,21 @@ void tng_ved_write_scale_reg(object_context_p obj_context)
     static b_scaling_init = 0;
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     context_DEC_p ctx = (context_DEC_p) obj_context->format_data;
+    object_surface_p src_surface = obj_context->current_render_target;
     unsigned int lc, hv, x;
 
     /* setup scaling coeffs */
-    if (!b_scaling_init) {
-        b_scaling_init = 1;
+    if (obj_context->scaling_update) {
         tng_calculate_scaler_coff_reg(obj_context);
+        obj_context->scaling_update = 0;
     }
 
     {
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, SCALED_DISPLAY_SIZE));
 
         cmd = 0;
-        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, SCALED_DISPLAY_SIZE, SCALE_DISPLAY_WIDTH, obj_context->picture_width - 1);
-        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, SCALED_DISPLAY_SIZE, SCALE_DISPLAY_HEIGHT,  obj_context->picture_height - 1);
+        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, SCALED_DISPLAY_SIZE, SCALE_DISPLAY_WIDTH, obj_context->video_crop.width - 1);
+        REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, SCALED_DISPLAY_SIZE, SCALE_DISPLAY_HEIGHT, obj_context->video_crop.height - 1);
         psb_cmdbuf_rendec_write(cmdbuf, cmd);
         psb_cmdbuf_rendec_write(cmdbuf, ctx->h_scaler_ctrl );
         psb_cmdbuf_rendec_write(cmdbuf, ctx->v_scaler_ctrl ); //58

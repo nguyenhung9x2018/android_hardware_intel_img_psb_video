@@ -47,6 +47,7 @@ extern "C"
     void initMDC(void* output);
     void deinitMDC(void* output);
     int psb_android_is_extvideo_mode(void* output);
+    void psb_android_get_video_resolution(void* output, int* width, int* height);
 #endif
 #ifdef __cplusplus
 }

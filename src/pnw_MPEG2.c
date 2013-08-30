@@ -1204,7 +1204,7 @@ static void psb__MEPG2_send_highlevel_cmd(context_MPEG2_p ctx)
     uint32_t cmd;
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
-    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->out_loop_surface;
 
     psb_cmdbuf_reg_start_block(cmdbuf, 0);
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_CMDS, DISPLAY_PICTURE_SIZE), ctx->display_picture_size);
@@ -1260,7 +1260,7 @@ static void psb__MEPG2_send_blit_cmd(context_MPEG2_p ctx)
 {
     uint32_t cmd;
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
-    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->psb_surface_rotate;
+    psb_surface_p rotate_surface = ctx->obj_context->current_render_target->out_loop_surface;
 
     psb_cmdbuf_reg_start_block(cmdbuf, 0);
     cmd = 0;

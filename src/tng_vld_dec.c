@@ -76,34 +76,34 @@ void vld_dec_setup_alternative_frame(object_context_p obj_context)
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     context_DEC_p ctx = (context_DEC_p) obj_context->format_data;
     psb_surface_p src_surface = obj_context->current_render_target->psb_surface;
-    psb_surface_p out_loop_surface = obj_context->current_render_target->psb_surface_rotate;
+    psb_surface_p out_loop_surface = obj_context->current_render_target->out_loop_surface;
+    int ved_scaling = (CONTEXT_SCALING(obj_context) && !ctx->yuv_ctx);
 
     /*  In VPP ctx, current_render_target is rotated surface */
-    if (ctx->yuv_ctx) {
+    if (ctx->yuv_ctx && (VAEntrypointVideoProc == obj_context->entry_point)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Setup second-pass rotation\n");
         out_loop_surface = src_surface;
         src_surface = ctx->yuv_ctx->src_surface;
     }
 
     if (CONTEXT_ALTERNATIVE_OUTPUT(obj_context)) {
+        if (ved_scaling) {
+            out_loop_surface = obj_context->current_render_target->scaling_surface;
+#ifndef BAYTRAIL
+            tng_ved_write_scale_reg(obj_context);
+
+            REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION, SCALE_INPUT_SIZE_SEL, 1);
+            REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION, SCALE_ENABLE, 1);
+#endif
+        }
+
         if (out_loop_surface == NULL) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "out-loop surface is NULL, abort msvdx alternative output\n");
             return;
         }
 
-        if (GET_SURFACE_INFO_rotate(out_loop_surface) != obj_context->msvdx_rotate)
+        if (GET_SURFACE_INFO_rotate(out_loop_surface) != obj_context->msvdx_rotate && !ved_scaling)
             drv_debug_msg(VIDEO_DEBUG_WARNING, "Display rotate mode does not match surface rotate mode!\n");
-
-        if (CONTEXT_SCALING(obj_context)) {
-            tng_ved_write_scale_reg(obj_context);
-
-            REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION, SCALE_INPUT_SIZE_SEL, 1);
-            REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION, SCALE_ENABLE, 1);
-            if (CONTEXT_ROTATE(obj_context)) {
-                drv_debug_msg(VIDEO_DEBUG_WARNING, "msvdx cannot simultaneously perform rotation and scaling\n");
-                cmd = 0;
-            }
-        }
 
         /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));

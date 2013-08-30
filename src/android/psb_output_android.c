@@ -432,7 +432,7 @@ static int psb_check_outputmethod(
     }
 
     srf_rotate = GET_SURFACE_INFO_rotate(obj_surface->psb_surface);
-    rotate_surface = obj_surface->psb_surface_rotate;
+    rotate_surface = obj_surface->out_loop_surface;
     if (rotate_surface != NULL)
         rotate_srf_rotate = GET_SURFACE_INFO_rotate(rotate_surface);
 
