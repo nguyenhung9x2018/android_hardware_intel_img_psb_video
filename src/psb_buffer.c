@@ -92,6 +92,8 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
     case psb_bt_surface:
         allignment = 0;
         placement = DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_SHARED;
+        if (IS_CTP(driver_data))  /* CTP support cache snoop */
+            placement |= WSBM_PL_FLAG_CACHED;
         break;
     case psb_bt_surface_tt:
         allignment = 0;
