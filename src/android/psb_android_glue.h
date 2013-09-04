@@ -44,10 +44,9 @@ extern "C"
     void psb_android_dynamic_source_destroy();
     int psb_android_surfaceflinger_rotate(void* native_window, int *rotation);
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-    void initMDC(void* output);
-    void deinitMDC(void* output);
-    int psb_android_is_extvideo_mode(void* output);
-    void psb_android_get_video_resolution(void* output, int* width, int* height);
+    int  psb_android_get_mds_mode(void* output);
+    void psb_android_get_video_resolution(void* output,
+                                int* width, int* height);
 #endif
 #ifdef __cplusplus
 }

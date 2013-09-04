@@ -147,7 +147,7 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
     int old_rotate = driver_data->msvdx_rotate_want;
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
     int scaling_width, scaling_height;
-    int mode = psb_android_is_extvideo_mode((void*)driver_data->ws_priv);
+    int mode = psb_android_get_mds_mode((void*)driver_data->ws_priv);
 #else
     int mode = 0;
 #endif

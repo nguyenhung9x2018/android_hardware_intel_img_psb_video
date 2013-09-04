@@ -41,13 +41,14 @@
 #include <ui/Rect.h>
 #include <system/window.h>
 #include <system/graphics.h>
-
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-#include "MultiDisplayClient.h"
-#include "MultiDisplayType.h"
+#ifdef USE_MDS_LEGACY
+#include <display/MultiDisplayClient.h>
+#else
+#include <display/MultiDisplayService.h>
+#endif
 #endif
 
-using namespace android;
 
 #ifdef  LOG_TAG
 #undef  LOG_TAG
@@ -55,58 +56,55 @@ using namespace android;
 
 #define LOG_TAG "pvr_drv_video"
 
+using namespace android;
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-void initMDC(void* output) {
-    psb_android_output_p android_output = (psb_android_output_p)output;
+#ifndef USE_MDS_LEGACY
+using namespace android::intel;
+#endif
+#endif
 
-    if(android_output->mMDClient == NULL) {
-        LOGV("%s: new MultiDisplayClient", __func__);
-        android_output->mMDClient = new MultiDisplayClient();
-    }
-}
+#ifdef TARGET_HAS_MULTIPLE_DISPLAY
 
-void deinitMDC(void* output) {
-    psb_android_output_p android_output = (psb_android_output_p)output;
-
-    if (android_output->mMDClient) {
-        LOGV("%s: delete MultiDisplayClient", __func__);
-        delete (MultiDisplayClient *)(android_output->mMDClient);
-        android_output->mMDClient = NULL;
-    }
-}
-
-int psb_android_is_extvideo_mode(void* output) {
-    psb_android_output_p android_output = (psb_android_output_p)output;
-    MultiDisplayClient* mMDClient = (MultiDisplayClient *)android_output->mMDClient;
-
-    if (!android_output->mMDClient) {
-        initMDC(output);
-        mMDClient = (MultiDisplayClient *)android_output->mMDClient;
-    }
-
-    if (mMDClient != NULL) {
-        int mode;
-        if ((mode = mMDClient->getDisplayMode(false)) == MDS_MODE_NONE)
+int psb_android_get_mds_mode(void* output) {
+    psb_android_output_p aoutput = (psb_android_output_p)output;
+#ifdef USE_MDS_LEGACY
+    MultiDisplayClient* mds = new MultiDisplayClient();
+    if (mds == NULL)
+       return 0;
+#else
+    sp<IServiceManager> sm = defaultServiceManager();
+    if (sm == NULL)
+        return 0;
+    sp<IMDService> imds = interface_cast<IMDService>(
+            sm->getService(String16(INTEL_MDS_SERVICE_NAME)));
+    if (imds == NULL)
+        return 0;
+    sp<IMultiDisplayInfoProvider> mds = imds->getInfoProvider();
+#endif
+    if (mds != NULL) {
+        int mode = mds->getDisplayMode(false);
+        if (mode == MDS_MODE_NONE)
             return 0;
-        if (mode & MDS_HDMI_VIDEO_EXT) return 1;
-
-        if (mode & MDS_WIDI_ON) return 2;
+#ifdef USE_MDS_LEGACY
+        else if (mode & MDS_HDMI_VIDEO_EXT)
+#else
+        else if (mode & (MDS_HDMI_CONNECTED | MDS_VIDEO_ON))
+#endif
+            return 1;
+        else if (mode & MDS_WIDI_ON)
+            return 2;
     }
+#ifdef USE_MDS_LEGACY
+    delete mds;
+#endif
+    mds = NULL;
     return 0;
 }
 
 void psb_android_get_video_resolution(void* output, int* width, int* height) {
 #ifdef PSBVIDEO_MSVDX_DOWNSCALING
-    psb_android_output_p android_output = (psb_android_output_p)output;
-    MultiDisplayClient* mMDClient = (MultiDisplayClient *)android_output->mMDClient;
-
-    if (!android_output->mMDClient) {
-        initMDC(output);
-        mMDClient = (MultiDisplayClient *)android_output->mMDClient;
-    }
-
-    if (mMDClient != NULL)
-        mMDClient->getVideoResolution(width, height);
+    *width = 0;
+    *height = 0;
 #else
     *width = 0;
     *height = 0;
@@ -116,17 +114,6 @@ void psb_android_get_video_resolution(void* output, int* width, int* height) {
 #endif
 
 unsigned int update_forced;
-
-#if 0
-int psb_android_surfaceflinger_status(void** android_isurface, int *sf_compositioin, int *rotation, int *widi)
-{
-    return 0;
-}
-
-void psb_android_get_destbox(short* destx, short* desty, unsigned short* destw, unsigned short* desth)
-{
-}
-#endif
 
 int psb_android_surfaceflinger_rotate(void* native_window, int *rotation)
 {

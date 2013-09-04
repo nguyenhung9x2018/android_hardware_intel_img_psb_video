@@ -28,7 +28,6 @@
  *    Binglin Chen <binglin.chen@intel.com>
  *
  */
-
 #include <va/va_backend.h>
 #include "psb_output.h"
 #include "psb_surface.h"
@@ -137,11 +136,6 @@ VAStatus psb_android_output_deinit(VADriverContextP ctx)
     INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
     //psb_android_output_p output = GET_OUTPUT_DATA(ctx);
-#ifdef TARGET_HAS_MULTIPLE_DISPLAY
-    if (output->mMDClient) {
-        deinitMDC(output);
-    }
-#endif
     return VA_STATUS_SUCCESS;
 }
 

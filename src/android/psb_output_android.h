@@ -45,8 +45,6 @@ typedef struct _psb_android_output_s {
     unsigned short destw;
     unsigned short desth;
     int new_destbox;
-    /*save proxy info for mutidisplay service*/
-    void* mMDClient;
 } psb_android_output_s, *psb_android_output_p;
 
 #endif /*_PSB_OUTPUT_ANDROID_H_*/
