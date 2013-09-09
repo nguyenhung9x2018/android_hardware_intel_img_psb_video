@@ -725,18 +725,18 @@ static VAStatus tng_unpack_vsp_rec(
    //"	V_address(x,y) = UV_base + ((((H+1)/2+32+63)/64) * (x/32) + (y/64))*4096 + (y%64)*64 + (x%32)*2 + 1
 
     /*  Copy Y data */
-    for (y = 36; y < src_height +36; y++) {
-        for (x= 32;x < src_width+32; x++) {
-            * tmp_dstY++ =  *( p_srcY + (((src_height+64+63)/64) * (x/64) + (y/64))*4096 + (y%64)*64 + (x%64));
+    for (y = 32; y < src_height + 32; y++) {
+        for (x= 32;x < src_width + 32; x++) {
+            * tmp_dstY++ =  *(p_srcY + (((src_height+64+63)/64) * (x/64) + (y/64))*4096 + (y%64)*64 + (x%64));
             }
             tmp_dstY += dstY_stride - src_width;
     }
 
     /*  Copy UV data */
-    for (y = 18; y < 18+ ((src_height+1)>>1) ; y++) {
-        for (x= 16;x < 16+( (src_width+1)>>1); x++) {
-            * tmp_dstU++ = * ( p_srcUV + ((((src_height+1)/2+32+63)/64) * (x/32) + (y/64))*4096 + (y%64)*64 + (x%32)*2);
-            * tmp_dstU++ = * ( p_srcUV + ((((src_height+1)/2+32+63)/64) * (x/32) + (y/64))*4096 + (y%64)*64 + (x%32)*2 +1);
+    for (y = 16; y < 16 + ((src_height+1)>>1) ; y++) {
+        for (x= 16;x < 16 + ( (src_width+1)>>1); x++) {
+            * tmp_dstU++ = * (p_srcUV + ((((src_height+1)/2+32+63)/64) * (x/32) + (y/64))*4096 + (y%64)*64 + (x%32)*2);
+            * tmp_dstU++ = * (p_srcUV + ((((src_height+1)/2+32+63)/64) * (x/32) + (y/64))*4096 + (y%64)*64 + (x%32)*2 +1);
             }
            tmp_dstU += dstU_stride - ((src_width));
     }

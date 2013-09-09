@@ -250,6 +250,7 @@ static void vsp_VP8_DestroyContext(
 }
 
 static VAStatus vsp_vp8_process_seqence_param(
+    psb_driver_data_p driver_data,
     context_VPP_p ctx,
     object_buffer_p obj_buffer)
 {
@@ -296,6 +297,36 @@ static VAStatus vsp_vp8_process_seqence_param(
 
     ref_frame_width = (ctx->frame_width + 2 * 32 + 63) & (~63);
     ref_frame_height = (ctx->frame_height + 2 * 32 + 63) & (~63);
+    int chroma_height = (ref_frame_height / 2 + 63) & (~63);
+    int ref_size = ref_frame_width * (ref_frame_height + chroma_height);
+
+    seq->recon_buffer_mode = vss_vp8enc_seq_param_recon_buffer_mode_per_seq;
+    for (i = 0; i < 4; i++) {
+        seq->ref_frame_buffers[i].surface_id = va_seq->reference_frames[i];
+        seq->ref_frame_buffers[i].width = ref_frame_width;
+        seq->ref_frame_buffers[i].height = ref_frame_height;
+    }
+
+    for (i = 0; i < 4; i++) {
+        object_surface_p ref_surf = SURFACE(va_seq->reference_frames[i]);
+	if (!ref_surf)
+	    return VA_STATUS_ERROR_UNKNOWN;
+	ref_surf->is_ref_surface = 2;
+
+        if (ref_surf->psb_surface->size < ref_size) {
+            /* re-alloc buffer */
+            ref_surf->psb_surface->size = ref_size;
+            psb_buffer_destroy(&ref_surf->psb_surface->buf);
+            vaStatus = psb_buffer_create(driver_data, ref_surf->psb_surface->size, psb_bt_surface, &ref_surf->psb_surface->buf);
+            if (VA_STATUS_SUCCESS != vaStatus)
+                return VA_STATUS_ERROR_ALLOCATION_FAILED;
+        }
+
+	vsp_cmdbuf_reloc_pic_param(&(seq->ref_frame_buffers[i].base),
+			           0,
+				   &(ref_surf->psb_surface->buf),
+				   cmdbuf->param_mem_loc, seq);
+    }
 
     ctx->frame_rate = seq->frame_rate;
     ctx->bits_per_second = va_seq->bits_per_second;
@@ -307,30 +338,6 @@ static VAStatus vsp_vp8_process_seqence_param(
                               ctx->seq_param_offset,
                               sizeof(struct VssVp8encSequenceParameterBuffer));
     ctx->vp8_seq_cmd_send = 1;
-
-    /* pass 4 ref frame surface to kernel driver */
-    for (i = 0; i < 4; i++) {
-        ref->ref_frame_buffers[i].surface_id = va_seq->reference_frames[i];
-        ref->ref_frame_buffers[i].width = ref_frame_width;
-        ref->ref_frame_buffers[i].height = ref_frame_height;
-    }
-
-    for (i = 0; i < 4; i++) {
-	object_surface_p ref_surf = SURFACE(va_seq->reference_frames[i]);
-	if (!ref_surf)
-	    return VA_STATUS_ERROR_UNKNOWN;
-	ref_surf->is_ref_surface = 2;
-
-	vsp_cmdbuf_reloc_pic_param(&(ref->ref_frame_buffers[i].base),
-			           ctx->ref_param_offset,
-				   &(ref_surf->psb_surface->buf),
-				   cmdbuf->param_mem_loc, ref);
-    }
-
-    vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VP8_ID,
-                              &cmdbuf->param_mem, Vss_Sys_Ref_Frame_COMMAND,
-                              ctx->ref_param_offset,
-                              sizeof(ref_frame_surface));
 
     return vaStatus;
 }
@@ -460,8 +467,12 @@ static VAStatus vsp_vp8_process_picture_param(
 		return VA_STATUS_ERROR_UNKNOWN;
 
         vsp_cmdbuf_reloc_pic_param(&(pic->input_frame.base),
-                                   ctx->pic_param_offset, &(cur_surf->psb_surface->buf),
+                                   0, &(cur_surf->psb_surface->buf),
                                    cmdbuf->param_mem_loc, pic);
+        vsp_cmdbuf_reloc_pic_param(&(pic->input_frame.base_uv),
+			           pic->input_frame.stride * ctx->obj_context->current_render_target->height,
+				   &(cur_surf->psb_surface->buf),
+				   cmdbuf->param_mem_loc, pic);
     }
 
     //vsp_cmdbuf_insert_command(cmdbuf, &cmdbuf->param_mem,
@@ -538,7 +549,7 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
             ctx->initial_qp = rate_control_param->initial_qp;
         }
         if (rate_control_param->bits_per_second != ctx->bits_per_second) {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp was changed from %d to %d\n",
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "bitrate was changed from %d to %d\n",
                           ctx->bits_per_second, rate_control_param->bits_per_second);
             ctx->bits_per_second = rate_control_param->bits_per_second;
         }
@@ -607,7 +618,7 @@ static VAStatus vsp_VP8_RenderPicture(
         object_buffer_p obj_buffer = buffers[i];
         switch (obj_buffer->type) {
         case VAEncSequenceParameterBufferType:
-            vaStatus = vsp_vp8_process_seqence_param(ctx, obj_buffer);
+            vaStatus = vsp_vp8_process_seqence_param(driver_data, ctx, obj_buffer);
             break;
         case VAEncPictureParameterBufferType:
             surface_id = obj_context->current_render_surface_id;

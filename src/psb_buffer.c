@@ -655,7 +655,8 @@ int psb_codedbuf_map_mangle(
 #endif
 
 		/* reference frame surface_id */
-		p->reserved = t->reserved[0];
+                /* default is recon_buffer_mode ==0 */
+                p->reserved = t->surfaceId_of_ref_frame[3];
 
 		if (concatenate) {
                     //printf("t->status=%x, t->frame_size=%d, t->frame_flags=%d, t->partitions=%d\n",
