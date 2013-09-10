@@ -3641,16 +3641,17 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
     }
 
     if (ctx->idr_force_flag == 1){
-        vaStatus = tng__update_frametype(ctx, IMG_FRAME_IDR);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "send picmgmt IDR");
-        }
-	offset = (unsigned int)MTX_CONTEXT_ITEM_OFFSET(IMG_MTX_VIDEO_CONTEXT, ui32IntraLoopCnt);
+    	offset = (unsigned int)MTX_CONTEXT_ITEM_OFFSET(IMG_MTX_VIDEO_CONTEXT, ui32IntraLoopCnt);
 	value = ctx->ui32IntraCnt;
 	vaStatus = tng__update_mtx_context(ctx, offset, value, 0);
         if (vaStatus != VA_STATUS_SUCCESS) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "update mtx context");
         }
+        vaStatus = tng__update_frametype(ctx, IMG_FRAME_IDR);
+        if (vaStatus != VA_STATUS_SUCCESS) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "send picmgmt IDR");
+        }
+
         ctx->idr_force_flag =0;
     }
 
