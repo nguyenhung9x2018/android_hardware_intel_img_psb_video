@@ -189,7 +189,7 @@ static VAStatus tng__alloc_context_buffer(context_ENC_p ctx, IMG_UINT8 ui8IsJpeg
 
     //command buffer use
     ps_mem_size->pic_template = ps_mem_size->slice_template = 
-    ps_mem_size->sei_header = ps_mem_size->seq_header = tng_align_KB(TNG_HEADER_SIZE);
+    ps_mem_size->seq_header = tng_align_KB(TNG_HEADER_SIZE);
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->seq_header,
         psb_bt_cpu_vpu, &(ps_mem->bufs_seq_header));
 
@@ -206,6 +206,11 @@ static VAStatus tng__alloc_context_buffer(context_ENC_p ctx, IMG_UINT8 ui8IsJpeg
     ps_mem_size->mtx_context = tng_align_KB(MTX_CONTEXT_SIZE);
     tng__alloc_init_buffer(ps_driver_data, ps_mem_size->mtx_context,
         psb_bt_cpu_vpu, &(ps_mem->bufs_mtx_context));
+
+    //sei header(AUDHeader+SEIBufferPeriodMem+SEIPictureTimingHeaderMem)
+    ps_mem_size->sei_header = tng_align_KB(64);
+    tng__alloc_init_buffer(ps_driver_data, 3 * ps_mem_size->sei_header,
+        psb_bt_cpu_vpu, &(ps_mem->bufs_sei_header));
 
     //gop header
     ps_mem_size->flat_gop = ps_mem_size->hierar_gop = tng_align_KB(64);
@@ -307,6 +312,7 @@ static void tng__free_context_buffer(context_ENC_p ctx, unsigned char is_JPEG, u
     psb_buffer_destroy(&(ps_mem->bufs_pic_template));
     psb_buffer_destroy(&(ps_mem->bufs_slice_template));
     psb_buffer_destroy(&(ps_mem->bufs_mtx_context));
+    psb_buffer_destroy(&(ps_mem->bufs_sei_header));
 
     psb_buffer_destroy(&(ps_mem->bufs_flat_gop));
     psb_buffer_destroy(&(ps_mem->bufs_hierar_gop));
@@ -790,6 +796,9 @@ VAStatus tng_CreateContext(
         DEBUG_FAILURE;
         return vaStatus;
     }
+
+    memset((void*)ctx, 0, sizeof(struct context_ENC_s));
+
     obj_context->format_data = (void*) ctx;
     ctx->obj_context = obj_context;
 
@@ -1334,6 +1343,13 @@ static void tng__setup_rcdata(context_ENC_p ctx)
     IMG_INT32 i32FrameRate, i32TmpQp;
     double        L1, L2, L3,L4, L5, L6, flBpp;
     IMG_INT32 i32BufferSizeInFrames;
+
+    if (ctx->bInsertHRDParams &&
+       (ctx->eStandard == IMG_STANDARD_H264)) {
+       psRCParams->ui32BufferSize = ctx->buffer_size;
+       psRCParams->i32InitialLevel = ctx->buffer_size - ctx->initial_buffer_fullness;
+       psRCParams->i32InitialDelay = ctx->initial_buffer_fullness;
+    }
 
     // If Bit Rate and Basic Units are not specified then set to default values.
     if (psRCParams->ui32BitsPerSecond == 0 && !ctx->bEnableMVC) {
@@ -2174,10 +2190,26 @@ static void tng__H264ES_send_pic_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
 
 static void tng__H264ES_send_hrd_header(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
 {
+    unsigned int ui32nal_initial_cpb_removal_delay;
+    unsigned int ui32nal_initial_cpb_removal_delay_offset;
+    uint32_t ui32cpb_removal_delay;
+    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
     H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
     IMG_UINT8 aui8clocktimestampflag[1];
     aui8clocktimestampflag[0] = IMG_FALSE;
+
+    ui32nal_initial_cpb_removal_delay =
+        90000 * (1.0 * psRCParams->i32InitialDelay / psRCParams->ui32BitsPerSecond);
+    ui32nal_initial_cpb_removal_delay_offset =
+        90000 * (1.0 * ctx->buffer_size / psRCParams->ui32BitsPerSecond)
+        - ui32nal_initial_cpb_removal_delay;
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Insert SEI buffer period message with "
+            "ui32nal_initial_cpb_removal_delay(%d) and "
+            "ui32nal_initial_cpb_removal_delay_offset(%d)\n",
+            ui32nal_initial_cpb_removal_delay,
+            ui32nal_initial_cpb_removal_delay_offset);
 
     psb_buffer_map(&(ps_mem->bufs_sei_header), &(ps_mem->bufs_sei_header.virtual_addr));
     if (ps_mem->bufs_sei_header.virtual_addr == NULL) {
@@ -2194,18 +2226,29 @@ static void tng__H264ES_send_hrd_header(context_ENC_p ctx, IMG_UINT32 ui32Stream
         0,// ui8cpb_cnt_minus1,
         psVuiParams->initial_cpb_removal_delay_length_minus1+1, //ui8initial_cpb_removal_delay_length,
         1, //ui8NalHrdBpPresentFlag,
-        14609, // ui32nal_initial_cpb_removal_delay,
-        62533, //ui32nal_initial_cpb_removal_delay_offset,
+        ui32nal_initial_cpb_removal_delay, // ui32nal_initial_cpb_removal_delay,
+        ui32nal_initial_cpb_removal_delay_offset, //ui32nal_initial_cpb_removal_delay_offset,
         0, //ui8VclHrdBpPresentFlag - CURRENTLY HARD CODED TO ZERO IN TOPAZ
         NOT_USED_BY_TOPAZ, // ui32vcl_initial_cpb_removal_delay, (not used when ui8VclHrdBpPresentFlag = 0)
         NOT_USED_BY_TOPAZ); // ui32vcl_initial_cpb_removal_delay_offset (not used when ui8VclHrdBpPresentFlag = 0)
+
+    /* ui32cpb_removal_delay is zero for 1st frame and will be reset
+     * after a IDR frame */
+    if (ctx->ui32FrameCount[ui32StreamIndex] == 0) {
+        if (ctx->ui32RawFrameCount == 0)
+            ui32cpb_removal_delay = 0;
+        else
+            ui32cpb_removal_delay =
+                ctx->ui32IdrPeriod * ctx->ui32IntraCnt * 2;
+    } else
+        ui32cpb_removal_delay = 2 * ctx->ui32FrameCount[ui32StreamIndex];
 
     tng__H264ES_prepare_SEI_picture_timing_header(
         ps_mem->bufs_sei_header.virtual_addr + (ctx->ctx_mem_size.sei_header * 2),
         1, //ui8CpbDpbDelaysPresentFlag,
         psVuiParams->cpb_removal_delay_length_minus1, //cpb_removal_delay_length_minus1,
         psVuiParams->dpb_output_delay_length_minus1, //dpb_output_delay_length_minus1,
-        20, //ui32cpb_removal_delay,
+        ui32cpb_removal_delay, //ui32cpb_removal_delay,
         2, //ui32dpb_output_delay,
         0, //ui8pic_struct_present_flag (contained in the sequence header, Topaz hard-coded default to 0)
         NOT_USED_BY_TOPAZ, //ui8pic_struct, (not used when ui8pic_struct_present_flag = 0)
@@ -3562,6 +3605,7 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[0]);
     unsigned int offset;
     int value;
 
@@ -3629,6 +3673,10 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         }
         tng__MPEG4ES_send_seq_header(ctx, ctx->ui32StreamID);
     }
+
+    if (ctx->bInsertHRDParams)
+	tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
+	    MTX_CMDID_DO_HEADER, 0, &(ps_mem->bufs_sei_header), 0);
 
     tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_ENCODE_FRAME, 0, 0, 0);

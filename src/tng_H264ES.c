@@ -181,7 +181,7 @@ static void tng__H264ES_init_context(object_context_p obj_context,
     //Weighted Prediction is not supported in TopazHP Version 3.0
     ctx->bWeightedPrediction = IMG_FALSE;
     ctx->ui8VPWeightedImplicitBiPred = 0;
-    ctx->bInsertHRDParams = 0;
+    ctx->bInsertHRDParams = IMG_FALSE;
     ctx->bArbitrarySO = IMG_FALSE;
     ctx->ui32BasicUnit = 0;
     ctx->idr_force_flag = 0;
@@ -309,12 +309,45 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
 
 static VAStatus tng__H264ES_process_misc_hrd_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
     VAEncMiscParameterBuffer *pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
     VAEncMiscParameterHRD *psMiscHrdParams = NULL;
+    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     ASSERT(obj_buffer->type == VAEncMiscParameterTypeHRD);
     ASSERT(obj_buffer->size == sizeof(VAEncMiscParameterHRD));
     psMiscHrdParams = (VAEncMiscParameterHRD *)pBuffer->data;
- 
+
+    if (psMiscHrdParams->buffer_size == 0
+	|| psMiscHrdParams->initial_buffer_fullness == 0) {
+	drv_debug_msg(VIDEO_DEBUG_ERROR, "Find zero value for buffer_size "
+		"and initial_buffer_fullness.\n");
+	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+	return vaStatus;
+    }
+
+    if (ctx->initial_buffer_fullness > ctx->buffer_size) {
+	drv_debug_msg(VIDEO_DEBUG_ERROR, "initial_buffer_fullnessi(%d) shouldn't be"
+		" larger that buffer_size(%d)!\n",
+		psMiscHrdParams->initial_buffer_fullness,
+		psMiscHrdParams->buffer_size);
+	vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+	return vaStatus;
+    }
+
+    if (!psRCParams->bRCEnable) {
+	drv_debug_msg(VIDEO_DEBUG_ERROR, "Only when rate control is enabled,"
+		" VAEncMiscParameterTypeHRD will take effect.\n");
+	vaStatus = VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
+	return vaStatus;
+    }
+
+    ctx->buffer_size = psMiscHrdParams->buffer_size;
+    ctx->initial_buffer_fullness = psMiscHrdParams->initial_buffer_fullness;
+    ctx->bInsertHRDParams = IMG_TRUE;
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "hrd param buffer_size set to %d "
+	"initial buffer fullness set to %d\n",
+	ctx->buffer_size, ctx->initial_buffer_fullness);
+
     return VA_STATUS_SUCCESS;
 }
 

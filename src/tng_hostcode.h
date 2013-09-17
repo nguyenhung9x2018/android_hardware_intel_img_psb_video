@@ -465,6 +465,9 @@ struct context_ENC_s {
     /* Save actual H263 width/height */
     IMG_UINT16 h263_actual_width;
     IMG_UINT16 h263_actual_height;
+
+    uint32_t buffer_size;
+    uint32_t initial_buffer_fullness;
 };
 
 typedef struct context_ENC_s *context_ENC_p;

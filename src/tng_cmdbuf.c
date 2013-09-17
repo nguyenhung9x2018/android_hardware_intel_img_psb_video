@@ -441,7 +441,7 @@ void tng_cmdbuf_insert_command(
             __FUNCTION__, *(cmdbuf->cmd_idx - 1));
 
 	if (data_addr)
-	    *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf((*data_addr).drm_buf));
+	    *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(data_addr->drm_buf));
     }
 
     if (cmd_id == MTX_CMDID_SETUP_INTERFACE) {
