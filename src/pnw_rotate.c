@@ -95,7 +95,8 @@ static int isVppOn() {
     }
     buf[MAXLEN - 1] = '\0';
 
-    if(strstr(buf, "true") == NULL) {
+    if((strstr(buf, "1vpp") == NULL)
+            && (strstr(buf, "1frc") == NULL)) {
         fclose(handle);
         return 0;
     }
