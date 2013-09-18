@@ -1608,6 +1608,10 @@ static VAStatus pnw_H264_BeginPicture(
 {
     INIT_CONTEXT_H264
 
+#ifdef SLICE_HEADER_PARSING
+    obj_context->msvdx_frame_end = 0;
+#endif
+
     if (ctx->pic_params) {
         free(ctx->pic_params);
         ctx->pic_params = NULL;
@@ -1771,6 +1775,10 @@ static VAStatus pnw_H264_EndPicture(
             }
         }
     }
+#endif
+#ifdef SLICE_HEADER_PARSING
+    if (driver_data->protected)
+        obj_context->msvdx_frame_end = 1;
 #endif
 
     /* if scaling is enabled, rotate is not performed in 1st pass */

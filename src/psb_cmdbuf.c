@@ -88,6 +88,7 @@
 
 #define CMD_MARGIN            (0x0400)
 #define LLDMA_MARGIN          (0x0400)
+#define PSB_SLICE_EXTRACT_UPDATE (0x2)
 
 /*
  * Create command buffer
@@ -930,6 +931,10 @@ int psb_context_flush_cmdbuf(object_context_p obj_context)
     else
         fence_flags = DRM_PSB_FENCE_NO_USER;
 
+#ifdef SLICE_HEADER_PARSING
+    if (obj_context->msvdx_frame_end)
+        fence_flags |= PSB_SLICE_EXTRACT_UPDATE;
+#endif
     /* cmdbuf will be validated as part of the buffer list */
     /* Submit */
     wsbmWriteLockKernelBO();

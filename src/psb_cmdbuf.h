@@ -68,6 +68,7 @@ struct psb_cmdbuf_s {
     int deblock_count;
 #ifdef SLICE_HEADER_PARSING
     int parse_count;
+    int decode_flag;
 #endif
     int oold_count;
     int host_be_opp_count;

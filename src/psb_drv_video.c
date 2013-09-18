@@ -1041,6 +1041,9 @@ VAStatus psb_CreateContext(
     obj_context->video_crop.width = picture_width;
     obj_context->video_crop.height = picture_height;
     obj_context->msvdx_scaling = 0;
+#ifdef SLICE_HEADER_PARSING
+    obj_context->msvdx_frame_end = 0;
+#endif
     obj_context->scaling_width = 0;
     obj_context->scaling_height = 0;
     obj_context->render_targets = (VASurfaceID *) calloc(1, num_render_targets * sizeof(VASurfaceID));
