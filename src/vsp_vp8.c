@@ -52,8 +52,8 @@
 #define REF_FRAME_HEIGHT 1088
 #define REF_FRAME_BORDER   32
 
-#define VP8_ENC_CBR 1
-#define VP8_ENC_CBR_HRD 0
+#define VP8_ENC_CBR 0
+#define VP8_ENC_CBR_HRD 1
 
 #define XMEM_FRAME_BUFFER_SIZE_IN_BYTE ((REF_FRAME_WIDTH + 2 * REF_FRAME_BORDER) * (REF_FRAME_HEIGHT + 2 * REF_FRAME_BORDER) + \
         2 * ((REF_FRAME_WIDTH + 2 * REF_FRAME_BORDER) >> 1) * (REF_FRAME_HEIGHT / 2 + REF_FRAME_BORDER)) // Allocated for HD
@@ -439,8 +439,8 @@ static VAStatus vsp_vp8_process_picture_param(
    flags.bits.no_ref_gf = va_pic->ref_flags.bits.no_ref_gf;
    flags.bits.no_ref_arf = va_pic->ref_flags.bits.no_ref_arf;
    flags.bits.upd_last  = va_pic->pic_flags.bits.refresh_last;
-   flags.bits.upd_gf  =0;//= va_pic->pic_flags.bits.refresh_golden_frame;
-   flags.bits.upd_arf  =0;//= va_pic->pic_flags.bits.refresh_alternate_frame;
+   flags.bits.upd_gf  = va_pic->pic_flags.bits.copy_buffer_to_golden;
+   flags.bits.upd_arf  = va_pic->pic_flags.bits.copy_buffer_to_alternate;
    flags.bits.no_upd_last  = !va_pic->pic_flags.bits.refresh_last;
    flags.bits.no_upd_gf  = !va_pic->pic_flags.bits.refresh_golden_frame;
    flags.bits.no_upd_arf  = !va_pic->pic_flags.bits.refresh_alternate_frame;
