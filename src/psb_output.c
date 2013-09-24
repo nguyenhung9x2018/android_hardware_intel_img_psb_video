@@ -477,9 +477,14 @@ VAStatus psb_DeriveImage(
     CHECK_INVALID_PARAM(image == NULL);
     /* Can't derive image from reconstrued frame which is in tiled format */
     if (obj_surface->is_ref_surface == 1 || obj_surface->is_ref_surface == 2) {
-	drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't derive reference surface" \
-		      "which is tiled format\n");
-	return VA_STATUS_ERROR_OPERATION_FAILED;
+	if (getenv("PSB_VIDEO_IGNORE_TILED_FORMAT")) {
+	    drv_debug_msg(VIDEO_DEBUG_GENERAL, "Ignore tiled memory format" \
+			"of rec-frames\n");
+	} else {
+	    drv_debug_msg(VIDEO_DEBUG_ERROR, "Can't derive reference surface" \
+			"which is tiled format\n");
+	    return VA_STATUS_ERROR_OPERATION_FAILED;
+	}
     }
 
     if (IS_MFLD(driver_data) && (psb_CheckIEDStatus(ctx) == 1)) {

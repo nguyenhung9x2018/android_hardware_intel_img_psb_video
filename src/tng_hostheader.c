@@ -1958,7 +1958,7 @@ static void tng__H264ES_writebits_AUD_header(
     return;
 }
 
-#define SEI_NOT_USE_TOKEN_ALIGN
+//#define SEI_NOT_USE_TOKEN_ALIGN
 
 static void tng__H264ES_writebits_SEI_buffering_period_header(
     MTX_HEADER_PARAMS *pMTX_Header,
@@ -2081,7 +2081,7 @@ static void tng__H264ES_writebits_SEI_buffering_period_header(
     return;
 }
 
-#define SEI_HOSTCALC_CPB_DPB
+//#define SEI_HOSTCALC_CPB_DPB
 
 static void tng__H264ES_writebits_SEI_picture_timing_header(
     MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_ELEMENT **aui32ElementPointers,
