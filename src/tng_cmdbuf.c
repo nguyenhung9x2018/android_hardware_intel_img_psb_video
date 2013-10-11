@@ -515,8 +515,8 @@ ptgDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 {
     drm_psb_cmdbuf_arg_t ca;
     struct psb_validate_arg *arg_list;
-    int i;
-    int ret;
+    int i, ret;
+    unsigned int retry = 0;
     uint64_t mask = PSB_GPU_ACCESS_MASK;
 
     arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg) * buffer_count);
@@ -563,7 +563,16 @@ ptgDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 
     do {
         ret = drmCommandWrite(fd, ioctl_offset, &ca, sizeof(ca));
-    } while (ret == EAGAIN);
+        if (ret == -EAGAIN || ret == -EBUSY) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "drmCommandWrite returns with %s, retry\n",
+                          ret==-EAGAIN?"EAGAIN":"EBUSY");
+            retry++;
+        }
+    } while (ret == -EAGAIN || ret == -EBUSY);
+
+    if (retry > 0)
+        drv_debug_msg(VIDEO_DEBUG_ERROR,"drmCommandWrite tries %d time, finally %s with ret=%d\n",
+                      retry, ret==0?"okay":"failed!", ret);
 
     if (ret)
         goto out;
