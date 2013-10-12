@@ -502,9 +502,17 @@ VAStatus psb_CreateConfig(
     } else {
         driver_data->ec_enabled = 0;
     }
+
+    if (profile == VAProfileMPEG4Simple ||
+        profile == VAProfileMPEG4AdvancedSimple ||
+        profile == VAProfileMPEG4Main ||
+        profile == VAProfileVP8Version0_3)
+        driver_data->ec_enabled = 1;
+
 #else
     driver_data->ec_enabled = 0;
 #endif
+
     DEBUG_FUNC_EXIT
     return vaStatus;
 }
@@ -2424,12 +2432,10 @@ VAStatus psb_QuerySurfaceError(
         }
         i = 0;
         for (i = 0; i < decode_status->num_region; ++i) {
-/*
             driver_data->surface_mb_error[i].status = 1;
-            driver_data->surface_mb_error[i].start_mb = decode_status->start_error_mb_list[i];
-            driver_data->surface_mb_error[i].end_mb = decode_status->end_error_mb_list[i];
-            driver_data->surface_mb_error[i].decode_error_type = decode_status->slice_missing_or_error[i];
-*/
+            //driver_data->surface_mb_error[i].start_mb = decode_status->start_error_mb_list[i];
+            //driver_data->surface_mb_error[i].end_mb = decode_status->end_error_mb_list[i];
+            //driver_data->surface_mb_error[i].decode_error_type = decode_status->slice_missing_or_error[i];
         }
 #endif
         driver_data->surface_mb_error[i].status = -1;

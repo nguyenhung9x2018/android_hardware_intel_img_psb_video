@@ -526,7 +526,7 @@ VAStatus ved_QueryVideoProcPipelineCaps(
     /* check filter buffer setting */
     switch (base->type) {
     case VAProcFilterNone:
-        pipeline_caps->rotation_flags = VA_ROTATION_NONE;
+        pipeline_caps->rotation_flags = (1 << VA_ROTATION_NONE);
         pipeline_caps->rotation_flags |= (1 << VA_ROTATION_90);
         pipeline_caps->rotation_flags |= (1 << VA_ROTATION_180);
         pipeline_caps->rotation_flags |= (1 << VA_ROTATION_270);

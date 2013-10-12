@@ -86,7 +86,7 @@ void vld_dec_setup_alternative_frame(object_context_p obj_context)
         src_surface = ctx->yuv_ctx->src_surface;
     }
 
-    if (CONTEXT_ALTERNATIVE_OUTPUT(obj_context)) {
+    if (CONTEXT_ALTERNATIVE_OUTPUT(obj_context) || obj_context->entry_point == VAEntrypointVideoProc) {
         if (ved_scaling) {
             out_loop_surface = obj_context->current_render_target->scaling_surface;
 #ifndef BAYTRAIL

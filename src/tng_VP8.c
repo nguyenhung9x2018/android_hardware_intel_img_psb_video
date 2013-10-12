@@ -1429,6 +1429,11 @@ static void tng__VP8_end_slice(context_DEC_p dec_ctx)
 {
     context_VP8_p ctx = (context_VP8_p)dec_ctx;
 
+#ifdef PSBVIDEO_MSVDX_EC
+    if (ctx->obj_context->driver_data->ec_enabled)
+        ctx->obj_context->flags |= (FW_ERROR_DETECTION_AND_RECOVERY); /* FW_ERROR_DETECTION_AND_RECOVERY */
+#endif
+
     ctx->obj_context->first_mb = (*(ctx->dec_ctx.slice_first_pic_last) >> 16);
     ctx->obj_context->last_mb = (*(ctx->dec_ctx.slice_first_pic_last) & 0xffff);
 }
@@ -1491,6 +1496,40 @@ static VAStatus tng_VP8_process_buffer(
 static VAStatus tng_VP8_EndPicture(
     object_context_p obj_context) {
     INIT_CONTEXT_VP8
+    psb_surface_p    target_surface = ctx->obj_context->current_render_target->psb_surface;
+    psb_driver_data_p driver_data = obj_context->driver_data;
+
+    static object_surface_p obj_surface = NULL;
+    if (!obj_surface)
+        obj_surface = obj_context->current_render_target;
+
+#ifdef PSBVIDEO_MSVDX_EC
+    if (driver_data->ec_enabled) {
+        uint32_t rotation_flags = 0;
+        uint32_t ext_stride_a = 0;
+        object_surface_p ec_target;
+
+        //psb__VP8_choose_ec_frames(ctx);
+        ec_target = obj_surface;
+        REGIO_WRITE_FIELD_LITE(ext_stride_a, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64);
+
+    /* FIXME ec ignor rotate condition */
+        if(ec_target)
+            if (psb_context_submit_host_be_opp(ctx->obj_context,
+                                          &target_surface->buf,
+                                          &ec_target->psb_surface->buf,
+                                          NULL,
+                                          obj_context->picture_width/16,
+                                          obj_context->picture_height/16,
+                                          rotation_flags,
+                                          2,//ctx->field_type,
+                                          ext_stride_a,
+                                          target_surface->chroma_offset + target_surface->buf.buffer_ofs,
+                                          ec_target->psb_surface->chroma_offset + ec_target->psb_surface->buf.buffer_ofs)) {
+            return VA_STATUS_ERROR_UNKNOWN;
+        }
+    }
+#endif
 
     if (psb_context_flush_cmdbuf(ctx->obj_context)) {
 	    return VA_STATUS_ERROR_UNKNOWN;
