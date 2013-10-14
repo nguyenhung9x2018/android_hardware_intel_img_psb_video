@@ -162,7 +162,7 @@ ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail bigcore),)
 LOCAL_SRC_FILES += \
     tng_VP8.c \
     tng_jpegdec.c
-LOCAL_CFLAGS += -DPSBVIDEO_VXD392 -DBAYTRAIL -DPSBVIDEO_MSVDX_DEC_TILING
+LOCAL_CFLAGS += -DPSBVIDEO_VXD392 -DBAYTRAIL
 endif
 
 ifeq ($(TARGET_BOARD_PLATFORM),medfield)

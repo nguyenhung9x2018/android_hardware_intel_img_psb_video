@@ -185,6 +185,10 @@ VAStatus psb_CreateSurfacesFromGralloc(
             break;
         }
 
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+        if (width > 1280)
+            external_buffers->tiling = 1;
+#endif
         /*hard code the gralloc buffer usage*/
         usage = GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
 
@@ -222,9 +226,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
         buffer_stride = psb_surface->stride;
         /* by default, surface fourcc is NV12 */
         psb_surface->extra_info[4] = fourcc;
-#ifdef PSBVIDEO_MSVDX_DEC_TILING
-        psb_surface->extra_info[7] = external_buffers->tiling;
-#endif
         obj_surface->psb_surface = psb_surface;
     }
 

@@ -755,9 +755,7 @@ VAStatus psb_CreateSurfacesWithAttribute(
             num_surfaces, width, height, attribute_tpi->type);
 
     tiling = attribute_tpi->tiling;
-#ifndef BAYTRAIL
     attribute_tpi->tiling = 0; /* FIXME libmix doesn't clear this flag */
-#endif
     switch (attribute_tpi->type) {
     case VAExternalMemoryNULL:
         vaStatus = psb_CreateSurfacesForUserPtr(ctx, width, height, format, num_surfaces, surface_list,
