@@ -2445,11 +2445,18 @@ VAStatus psb_QuerySurfaceAttributes(VADriverContextP ctx,
     attribs[i].type = VASurfaceAttribMemoryType;
     attribs[i].value.type = VAGenericValueTypeInteger;
     attribs[i].flags = VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE;
-    attribs[i].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_VA |
-        VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM |
-        VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR |
-        VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC |
-        VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_ION;
+    if (obj_config->entrypoint == VAEntrypointEncSlice && obj_config->profile == VAProfileVP8Version0_3) {
+        attribs[i].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_VA |
+            VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM |
+	    VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC |
+	    VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_ION;
+    } else {
+        attribs[i].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_VA |
+            VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM |
+            VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR |
+            VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC |
+            VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_ION;
+    }
     i++;
 
     attribs[i].type = VASurfaceAttribExternalBufferDescriptor;
@@ -2477,12 +2484,12 @@ VAStatus psb_QuerySurfaceAttributes(VADriverContextP ctx,
 
     }
 
-    if (i > *num_attribs) {
-        *num_attribs = i;
+    if (i > num_attribs) {
+        num_attribs = i;
         return VA_STATUS_ERROR_MAX_NUM_EXCEEDED;
     }
 
-    *num_attribs = i;
+    num_attribs = i;
     memcpy(attrib_list, attribs, i * sizeof(*attribs));
     free(attribs);
 

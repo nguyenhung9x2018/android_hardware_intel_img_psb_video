@@ -44,7 +44,7 @@
 
 #define KB 1024
 #define MB (KB * KB)
-#define VSP_VP8ENC_STATE_SIZE (48*MB)
+#define VSP_VP8ENC_STATE_SIZE (1*MB)
 
 #define ALIGN_TO_128(value) ((value + 128 - 1) & ~(128 - 1))
 
