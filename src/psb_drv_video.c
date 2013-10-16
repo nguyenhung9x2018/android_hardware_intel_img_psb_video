@@ -3168,6 +3168,8 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointVLD] = &pnw_MPEG4_vtable;
         driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointVLD] = &pnw_MPEG4_vtable;
 
+        driver_data->profile2Format[VAProfileH263Baseline][VAEntrypointVLD] = &pnw_MPEG4_vtable;
+
         driver_data->profile2Format[VAProfileH264Baseline][VAEntrypointVLD] = &pnw_H264_vtable;
         driver_data->profile2Format[VAProfileH264Main][VAEntrypointVLD] = &pnw_H264_vtable;
         driver_data->profile2Format[VAProfileH264High][VAEntrypointVLD] = &pnw_H264_vtable;

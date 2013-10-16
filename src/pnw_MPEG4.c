@@ -1169,7 +1169,7 @@ static void pnw_MPEG4_QueryConfigAttributes(
     int num_attribs)
 {
     int i;
-    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H263ES_QueryConfigAttributes\n");
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_MPEG4_QueryConfigAttributes\n");
 
     for (i = 0; i < num_attribs; i++) {
         switch (attrib_list[i].type) {
