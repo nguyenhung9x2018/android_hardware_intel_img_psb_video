@@ -157,7 +157,7 @@ static char *IMG_FRAME_TEMPLATE_TYPE2Str(IMG_FRAME_TEMPLATE_TYPE tmp)
 }
 
 static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p);
-static int apSliceParamsTemplates_dump(SLICE_PARAMS *p)
+int apSliceParamsTemplates_dump(SLICE_PARAMS *p)
 {
     unsigned char *ptmp = (unsigned char*)&p->sSliceHdrTmpl;
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32Flags=0x%08x\n", p->ui32Flags);

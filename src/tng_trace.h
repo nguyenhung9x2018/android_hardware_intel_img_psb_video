@@ -38,7 +38,7 @@ void tng_H264ES_trace_misc_rc_params(VAEncMiscParameterRateControl *psTraceMiscR
 void tng_trace_seq_header_params(H264_SEQUENCE_HEADER_PARAMS *psSHParams);
 void tng_trace_pic_header_params(H264_PICTURE_HEADER_PARAMS *psSHParams);
 void tng_trace_slice_header_params(H264_SLICE_HEADER_PARAMS *psSlHParams);
-
+int apSliceParamsTemplates_dump(SLICE_PARAMS *p);
 void tng__trace_seqconfig(
     IMG_BOOL bIsBPicture,
     IMG_BOOL bFieldMode,

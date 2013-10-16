@@ -2356,6 +2356,10 @@ static void tng__generate_slice_params_template(
         break;
     }
 
+#ifdef _TOPAZHP_PDUMP_
+    apSliceParamsTemplates_dump((SLICE_PARAMS *)slice_mem_temp_p);
+#endif
+
     psb_buffer_unmap(&(ps_mem->bufs_slice_template));
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end \n", __FUNCTION__);
@@ -2387,7 +2391,7 @@ static VAStatus tng__prepare_templates(context_ENC_p ctx, IMG_UINT32 ui32StreamI
             break;
     }
 
-    if (psRCParams->bRCEnable) {
+    if (psRCParams->eRCMode) {
         psPicParams->ui32Flags |= ISRC_FLAGS;
         tng__setup_rcdata(ctx);
     } else {
@@ -2699,10 +2703,7 @@ static void tng__setvideo_params(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
     psMtxEncContext->uCARCPosScale  =  ctx->sCARCParams.ui32CARCPosScale;
     psMtxEncContext->uCARCShift     =  ctx->sCARCParams.ui32CARCShift;
     psMtxEncContext->ui32MVClip_Config =  F_ENCODE(ctx->bNoOffscreenMv, TOPAZHP_CR_MVCALC_RESTRICT_PICTURE);
-    psMtxEncContext->ui32LRITC_Tile_Use_Config = F_ENCODE(-1, TOPAZHP_CR_MAX_PIC0_LUMA_TILES)
-        | F_ENCODE(-1, TOPAZHP_CR_MAX_PIC1_LUMA_TILES)
-        | F_ENCODE(-1, TOPAZHP_CR_MAX_PIC0_CHROMA_TILES)
-        | F_ENCODE(-1, TOPAZHP_CR_MAX_PIC1_CHROMA_TILES);
+    psMtxEncContext->ui32LRITC_Tile_Use_Config = 0;
     psMtxEncContext->ui32LRITC_Cache_Chunk_Config = 0;
 
     psMtxEncContext->ui32IPCM_0_Config = F_ENCODE(ctx->ui32CabacBinFlex, TOPAZ_VLC_CR_CABAC_BIN_FLEX) |
@@ -3422,7 +3423,7 @@ static VAStatus tng__update_mtx_context(context_ENC_p ctx, unsigned int offset, 
     context_ENC_cmdbuf *ps_cmd = &(ctx->ctx_cmdbuf[stream_id]);
     tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
 
-    if ((offset < 0) || (offset % 4) || (value < 0)) {
+    if ((offset % 4) || (value < 0)) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid parameter");
 	return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
