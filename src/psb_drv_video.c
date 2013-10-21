@@ -2484,12 +2484,12 @@ VAStatus psb_QuerySurfaceAttributes(VADriverContextP ctx,
 
     }
 
-    if (i > num_attribs) {
-        num_attribs = i;
+    if (i > *num_attribs) {
+        *num_attribs = i;
         return VA_STATUS_ERROR_MAX_NUM_EXCEEDED;
     }
 
-    num_attribs = i;
+    *num_attribs = i;
     memcpy(attrib_list, attribs, i * sizeof(*attribs));
     free(attribs);
 
