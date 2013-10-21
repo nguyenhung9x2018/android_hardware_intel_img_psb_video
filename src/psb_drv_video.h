@@ -590,20 +590,6 @@ struct format_vtable_s {
     );
 };
 
-#ifdef ANDROID
-typedef struct IMG_native_handle
-{
-    native_handle_t base;
-    int fd;
-    unsigned long long ui64Stamp;
-    int usage;
-    int width;
-    int height;
-    unsigned int bpp;
-    int format;
-} IMG_native_handle_t;
-#endif
-
 #define psb__bounds_check(x, max)                                       \
     do { ASSERT(x < max); if (x >= max) x = max - 1; } while(0);
 

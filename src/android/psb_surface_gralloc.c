@@ -32,6 +32,9 @@
 #include <gralloc.h>
 #include "android/psb_gralloc.h"
 #include "android/psb_android_glue.h"
+#ifndef BAYTRAIL
+#include <hal/hal_public.h>
+#endif
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define CONFIG(id)  ((object_config_p) object_heap_lookup( &driver_data->config_heap, id ))
@@ -290,7 +293,12 @@ VAStatus psb_CreateSurfacesFromGralloc(
     */
     /* Adjust height to be a multiple of 32 (height of macroblock in interlaced mode) */
     height_origin = height;
-    height = (height + 0x1f) & ~0x1f;
+
+    IMG_native_handle_t* h = (IMG_native_handle_t*)external_buffers->buffers[0];
+    int gfx_colorformat = h->iFormat;
+
+    if (gfx_colorformat != HAL_PIXEL_FORMAT_NV12)
+        height = (height + 0x1f) & ~0x1f;
 
     /* get native window from the reserved field */
     driver_data->native_window = (void *)external_buffers->reserved[0];
@@ -351,9 +359,13 @@ VAStatus psb_CreateSurfacesFromGralloc(
         /*hard code the gralloc buffer usage*/
         usage = GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
 
+        if (gfx_colorformat == HAL_PIXEL_FORMAT_NV12)
+            usage |= GRALLOC_USAGE_SW_READ_OFTEN;
+        else {
 #ifdef PSBVIDEO_MRFL
             usage |= GRALLOC_USAGE_SW_WRITE_OFTEN;
 #endif
+        }
 
         handle = (unsigned int)external_buffers->buffers[i];
         if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])) {
@@ -369,32 +381,33 @@ VAStatus psb_CreateSurfacesFromGralloc(
             psb_surface->buf.handle = handle;
             obj_surface->share_info = NULL;
 
-            obj_surface->share_info = (psb_surface_share_info_t *)vaddr[GRALLOC_SUB_BUFFER1];
-            memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
-            obj_surface->share_info->force_output_method = protected ? OUTPUT_FORCE_OVERLAY : 0;
+            if (gfx_colorformat != HAL_PIXEL_FORMAT_NV12) {
+                obj_surface->share_info = (psb_surface_share_info_t *)vaddr[GRALLOC_SUB_BUFFER1];
+                memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
+                obj_surface->share_info->force_output_method = protected ? OUTPUT_FORCE_OVERLAY : 0;
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
-            obj_surface->share_info->tiling = external_buffers->tiling;
+                obj_surface->share_info->tiling = external_buffers->tiling;
 #endif
-            obj_surface->share_info->width = obj_surface->width;
-            obj_surface->share_info->height = obj_surface->height_origin;
+                obj_surface->share_info->width = obj_surface->width;
+                obj_surface->share_info->height = obj_surface->height_origin;
 
-            obj_surface->share_info->luma_stride = psb_surface->stride;
-            obj_surface->share_info->chroma_u_stride = psb_surface->stride;
-            obj_surface->share_info->chroma_v_stride = psb_surface->stride;
-            obj_surface->share_info->format = VA_FOURCC_NV12;
+                obj_surface->share_info->luma_stride = psb_surface->stride;
+                obj_surface->share_info->chroma_u_stride = psb_surface->stride;
+                obj_surface->share_info->chroma_v_stride = psb_surface->stride;
+                obj_surface->share_info->format = VA_FOURCC_NV12;
 
-            obj_surface->share_info->khandle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+                obj_surface->share_info->khandle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
 
-            obj_surface->share_info->renderStatus = 0;
-            obj_surface->share_info->used_by_widi = 0;
-            obj_surface->share_info->native_window = (void *)external_buffers->reserved[0] ;
+                obj_surface->share_info->renderStatus = 0;
+                obj_surface->share_info->used_by_widi = 0;
+                obj_surface->share_info->native_window = (void *)external_buffers->reserved[0] ;
 
-            obj_surface->share_info->surface_protected = driver_data->protected;
+                obj_surface->share_info->surface_protected = driver_data->protected;
 
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : Create graphic buffer success"
-                                     "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n",
-                                     __FUNCTION__, surfaceID, vaddr[GRALLOC_SUB_BUFFER0], vaddr[GRALLOC_SUB_BUFFER1]);
-
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : Create graphic buffer success"
+                                         "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n",
+                                         __FUNCTION__, surfaceID, vaddr[GRALLOC_SUB_BUFFER0], vaddr[GRALLOC_SUB_BUFFER1]);
+            }
             gralloc_unlock(handle);
             psb_surface->buf.user_ptr = NULL;
         }

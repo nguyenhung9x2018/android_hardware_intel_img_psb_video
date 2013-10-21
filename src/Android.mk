@@ -108,6 +108,7 @@ LOCAL_C_INCLUDES :=			\
     $(TOPDIR)vendor/intel/hardware/PRIVATE/pvr/eurasia/pvr2d              \
     $(call include-path-for, frameworks-base)                          \
     $(TARGET_OUT_HEADERS)/libva	\
+    $(TARGET_OUT_HEADERS)/pvr/	\
     $(TARGET_OUT_HEADERS)/pvr/pvr2d	\
     $(TOPDIR)$(KERNEL_SRC_DIR)/include/drm     \
     $(TARGET_OUT_HEADERS)/libttm	\
