@@ -51,6 +51,8 @@
 
 #define VEC_MODE_VP8	11
 
+#define HW_SUPPORTED_MAX_PICTURE_WIDTH_VP8   1920
+#define HW_SUPPORTED_MAX_PICTURE_HEIGHT_VP8  1088
 
 #define RENDEC_REGISTER_OFFSET(__group__, __reg__ )	( (__group__##_##__reg__##_OFFSET) + ( REG_##__group__##_OFFSET ) )
 
@@ -392,7 +394,31 @@ static void tng_VP8_QueryConfigAttributes(
     VAEntrypoint entrypoint,
     VAConfigAttrib *attrib_list,
     int num_attribs) {
-    /* No VP8 specific attributes */
+
+    int i;
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng_VP8_QueryConfigAttributes\n");
+
+    for (i = 0; i < num_attribs; i++) {
+        switch (attrib_list[i].type) {
+        case VAConfigAttribMaxPictureWidth:
+            if ((entrypoint == VAEntrypointVLD) &&
+                (profile == VAProfileVP8Version0_3))
+                attrib_list[i].value = HW_SUPPORTED_MAX_PICTURE_WIDTH_VP8;
+            else
+                attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
+            break;
+        case VAConfigAttribMaxPictureHeight:
+            if ((entrypoint == VAEntrypointVLD) &&
+                (profile == VAProfileVP8Version0_3))
+                attrib_list[i].value = HW_SUPPORTED_MAX_PICTURE_HEIGHT_VP8;
+            else
+                attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
+            break;
+        default:
+            break;
+        }
+    }
+
 }
 
 static VAStatus tng_VP8_ValidateConfig(

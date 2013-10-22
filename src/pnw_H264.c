@@ -67,6 +67,9 @@
 #define MSVDX_COMMANDS_BASE_MTX 0x1000
 #define MSVDX_IQRAM_BASE_MTX    0x700
 
+#define HW_SUPPORTED_MAX_PICTURE_WIDTH_H264   1920
+#define HW_SUPPORTED_MAX_PICTURE_HEIGHT_H264  1088
+
 #define SLICEDATA_BUFFER_TYPE(type) ((type==VASliceDataBufferType)?"VASliceDataBufferType":"VAProtectedSliceDataBufferType")
 
 typedef enum {
@@ -302,7 +305,30 @@ static void pnw_H264_QueryConfigAttributes(
     VAConfigAttrib *attrib_list,
     int num_attribs)
 {
-    /* No H264 specific attributes */
+    int i;
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264_QueryConfigAttributes\n");
+
+    for (i = 0; i < num_attribs; i++) {
+        switch (attrib_list[i].type) {
+        case VAConfigAttribMaxPictureWidth:
+            if ((entrypoint == VAEntrypointVLD) &&
+                (profile == VAProfileH264High))
+                attrib_list[i].value = HW_SUPPORTED_MAX_PICTURE_WIDTH_H264;
+            else
+                attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
+            break;
+        case VAConfigAttribMaxPictureHeight:
+            if ((entrypoint == VAEntrypointVLD) &&
+                (profile == VAProfileH264High))
+                attrib_list[i].value = HW_SUPPORTED_MAX_PICTURE_HEIGHT_H264;
+            else
+                attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
+            break;
+        default:
+            break;
+        }
+    }
+
 }
 
 static VAStatus pnw_H264_ValidateConfig(

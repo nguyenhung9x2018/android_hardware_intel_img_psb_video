@@ -70,6 +70,11 @@
 #define MPEG4_PROFILE_SIMPLE    0
 #define MPEG4_PROFILE_ASP    2
 
+#define HW_SUPPORTED_MAX_PICTURE_WIDTH_MPEG4   1920
+#define HW_SUPPORTED_MAX_PICTURE_HEIGHT_MPEG4  1088
+#define HW_SUPPORTED_MAX_PICTURE_WIDTH_H263    720
+#define HW_SUPPORTED_MAX_PICTURE_HEIGHT_H263   576
+
 /* Table V2-2 ISO/IEC 14496-2:2001(E) - sprite enable codewords */
 typedef enum {
     SPRITE_NOT_USED = 0,
@@ -1174,21 +1179,28 @@ static void pnw_MPEG4_QueryConfigAttributes(
     for (i = 0; i < num_attribs; i++) {
         switch (attrib_list[i].type) {
         case VAConfigAttribMaxPictureWidth:
-            if ((entrypoint == VAEntrypointVLD) &&
-                (profile == VAProfileH263Baseline))
-                attrib_list[i].value = 720;
+            if (entrypoint == VAEntrypointVLD) {
+                if (profile == VAProfileMPEG4AdvancedSimple)
+                    attrib_list[i].value = HW_SUPPORTED_MAX_PICTURE_WIDTH_MPEG4;
+                else if(profile == VAProfileH263Baseline)
+                    attrib_list[i].value = HW_SUPPORTED_MAX_PICTURE_WIDTH_H263;
+                else
+                    attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
+            }
             else
                 attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
             break;
         case VAConfigAttribMaxPictureHeight:
-            if ((entrypoint == VAEntrypointVLD) &&
-                (profile == VAProfileH263Baseline))
-                attrib_list[i].value = 576;
+            if (entrypoint == VAEntrypointVLD) {
+                if (profile == VAProfileMPEG4AdvancedSimple)
+                    attrib_list[i].value = HW_SUPPORTED_MAX_PICTURE_HEIGHT_MPEG4;
+                else if(profile == VAProfileH263Baseline)
+                    attrib_list[i].value = HW_SUPPORTED_MAX_PICTURE_HEIGHT_H263;
+            }
             else
                 attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
             break;
         default:
-            attrib_list[i].value = VA_ATTRIB_NOT_SUPPORTED;
             break;
         }
     }
