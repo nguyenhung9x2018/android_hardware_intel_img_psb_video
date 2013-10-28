@@ -677,8 +677,6 @@ VAStatus psb_CreateSurfaces2(
     VASurfaceAttribExternalBuffers  *pExternalBufDesc = NULL;
     VASurfaceAttributeTPI attribute_tpi;
 
-    format = format & (~VA_RT_FORMAT_PROTECTED);
-
     CHECK_INVALID_PARAM(num_surfaces <= 0);
     CHECK_SURFACE(surface_list);
 
@@ -753,6 +751,8 @@ VAStatus psb_CreateSurfaces2(
         attribute_tpi.type = memory_type;
         return psb_CreateSurfacesWithAttribute(ctx, width, height, format, num_surfaces, surface_list, &attribute_tpi);
     }
+
+    format = format & (~VA_RT_FORMAT_PROTECTED);
 
     /* We only support one format */
     if ((VA_RT_FORMAT_YUV420 != format)
