@@ -289,11 +289,6 @@ static VAStatus tng__alloc_context_buffer(context_ENC_p ctx, IMG_UINT8 ui8IsJpeg
         psb_bt_cpu_vpu, &(ps_mem->bufs_lowpower_params));
 
     ctx->ctx_mem_size.lowpower_data = tng_align_KB(0x10000);
-    tng__alloc_init_buffer(ps_driver_data, ps_mem_size->lowpower_data,
-        psb_bt_cpu_vpu, &(ps_mem->bufs_lowpower_data));
-
-    tng__alloc_init_buffer(ps_driver_data, ps_mem_size->lowpower_data,
-        psb_bt_cpu_vpu, &(ps_mem->bufs_lowpower_reg));
 
     return vaStatus;
 }
@@ -338,8 +333,6 @@ static void tng__free_context_buffer(context_ENC_p ctx, unsigned char is_JPEG, u
 #endif
     psb_buffer_destroy(&(ps_mem->bufs_mb_ctrl_in_params));
     psb_buffer_destroy(&(ps_mem->bufs_lowpower_params));
-    psb_buffer_destroy(&(ps_mem->bufs_lowpower_data));
-    psb_buffer_destroy(&(ps_mem->bufs_lowpower_reg));
 
     return ;
 }
@@ -3308,8 +3301,6 @@ static VAStatus tng__cmdbuf_new_codec(context_ENC_p ctx)
  //       (((driver_data->drm_context & MTX_CMDWORD_COUNT_MASK) << MTX_CMDWORD_COUNT_SHIFT));
 
      tng_cmdbuf_insert_command_param((ctx->ui16Width << 16) | ctx->ui16PictureHeight);
-     *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_lowpower_reg.drm_buf));
-     *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_lowpower_data.drm_buf));
 
     return vaStatus;
 }

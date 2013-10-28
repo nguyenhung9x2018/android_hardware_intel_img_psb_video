@@ -1171,7 +1171,6 @@ static VAStatus tng_jpeg_BeginPicture(
 			     ((ctx->eCodec) << MTX_CMDWORD_CORE_SHIFT) |
                              (((driver_data->drm_context & MTX_CMDWORD_COUNT_MASK) << MTX_CMDWORD_COUNT_SHIFT));
         tng_cmdbuf_insert_command_param((ctx->ui16Width << 16) | ctx->ui16FrameHeight);
-	tng_cmdbuf_insert_command_param(jpeg_ctx_p->sScan_Encode_Info.ui8NumberOfCodedBuffers);
     }
 
 
