@@ -629,6 +629,9 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     ctx->long_term_frame_flags = 0;
     /* We go from high to low so that we are left with the lowest index */
     for (i = pic_params->num_ref_frames; i--;) {
+        if (pic_params->ReferenceFrames[i].flags == VA_PICTURE_H264_INVALID) {
+            continue;
+        }
         object_surface_p ref_surface = SURFACE(pic_params->ReferenceFrames[i].picture_id);
         if (pic_params->ReferenceFrames[i].flags & VA_PICTURE_H264_BOTTOM_FIELD) {
             ctx->long_term_frame_flags |= 0x01 << i;
@@ -910,6 +913,9 @@ static void psb__H264_build_picture_order_chunk(context_H264_p ctx)
     }
 
     for (i = 0; i < pic_params->num_ref_frames; i++) {
+        if (pic_params->ReferenceFrames[i].flags == VA_PICTURE_H264_INVALID) {
+            continue;
+        }
         reg_value = 0;
         REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_H264, CR_VEC_H264_BE_TOP_FOC, TOPFIELDORDERCNT,
                                SIGNTRUNC(pic_params->ReferenceFrames[i].TopFieldOrderCnt));
@@ -1160,7 +1166,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /* CHUNK: DPB */
     /* send DPB information (for P and B slices?) only needed once per frame */
 //      if ( sh->slice_type == ST_B || sh->slice_type == ST_P )
-    if (pic_params->num_ref_frames > 0) {
+    if (pic_params->num_ref_frames > 0 && (slice_param->slice_type == ST_B || slice_param->slice_type == ST_P)) {
         IMG_BOOL is_used[16];
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, REFERENCE_PICTURE_BASE_ADDRESSES));
 
@@ -1198,6 +1204,9 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
             pic_params->num_ref_frames = 16;
         /* Only load used surfaces */
         for (i = 0; i < pic_params->num_ref_frames; i++) {
+            if (pic_params->ReferenceFrames[i].flags == VA_PICTURE_H264_INVALID) {
+                continue;
+            }
             object_surface_p ref_surface = SURFACE(pic_params->ReferenceFrames[i].picture_id);
             psb_buffer_p buffer;
 
