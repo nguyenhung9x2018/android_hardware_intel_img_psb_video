@@ -238,15 +238,6 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
     }
 
     if (old_rotate != new_rotate) {
-        for (i = 0; i < obj_context->num_render_targets; i++) {
-            object_surface_p obj_surface = SURFACE(obj_context->render_targets[i]);
-            /*we invalidate all surfaces's rotate buffer share info here.*/
-            if (obj_surface && obj_surface->share_info) {
-                obj_surface->share_info->surface_rotate = 0;
-                obj_surface->share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
-            }
-        }
-
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "MSVDX: new rotation %d desired\n", new_rotate);
         driver_data->msvdx_rotate_want = new_rotate;
     }

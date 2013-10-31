@@ -2034,6 +2034,11 @@ VAStatus psb_BeginPicture(
     if (CONTEXT_ROTATE(obj_context)) {
         if (VA_STATUS_SUCCESS != psb_CreateRotateSurface(obj_context, obj_surface, obj_context->msvdx_rotate))
             ALOGE("%s: fail to allocate out loop surface", __func__);
+    } else {
+        if (obj_surface && obj_surface->share_info) {
+            obj_surface->share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
+            obj_surface->share_info->surface_rotate = VAROTATION2HAL(obj_context->msvdx_rotate);
+        }
     }
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {
