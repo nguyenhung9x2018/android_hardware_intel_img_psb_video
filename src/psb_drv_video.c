@@ -1948,8 +1948,9 @@ VAStatus psb_DestroyBuffer(
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = BUFFER(buffer_id);
-    CHECK_BUFFER(obj_buffer);
-
+    if (NULL == obj_buffer) {
+        return vaStatus;
+    }
     psb__suspend_buffer(driver_data, obj_buffer);
     DEBUG_FUNC_EXIT
     return vaStatus;
