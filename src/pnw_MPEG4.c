@@ -2121,6 +2121,7 @@ static VAStatus pnw_MPEG4_EndPicture(
     INIT_CONTEXT_MPEG4
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
     psb_driver_data_p driver_data = obj_context->driver_data;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
 
 #ifdef PSBVIDEO_MSVDX_EC
     /* Sent the HOST_BE_OPP command to detect slice error */
@@ -2137,7 +2138,13 @@ static VAStatus pnw_MPEG4_EndPicture(
         REGIO_WRITE_FIELD_LITE(ext_stride_a, MSVDX_CMDS, EXTENDED_ROW_STRIDE, EXT_ROW_STRIDE, target_surface->stride / 64);
 
     /* FIXME ec ignor rotate condition */
-        if(ec_target)
+        if(ec_target) {
+	    if (psb_context_get_next_cmdbuf(ctx->obj_context)) {
+                vaStatus = VA_STATUS_ERROR_UNKNOWN;
+                DEBUG_FAILURE;
+                return vaStatus;
+            }
+
             if (psb_context_submit_host_be_opp(ctx->obj_context,
                                           &target_surface->buf,
                                           &ec_target->psb_surface->buf,
@@ -2149,7 +2156,8 @@ static VAStatus pnw_MPEG4_EndPicture(
                                           ext_stride_a,
                                           target_surface->chroma_offset + target_surface->buf.buffer_ofs,
                                           ec_target->psb_surface->chroma_offset + ec_target->psb_surface->buf.buffer_ofs)) {
-            return VA_STATUS_ERROR_UNKNOWN;
+                  return VA_STATUS_ERROR_UNKNOWN;
+            }
         }
     }
 #endif
