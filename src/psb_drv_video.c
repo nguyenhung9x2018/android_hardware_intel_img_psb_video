@@ -506,8 +506,12 @@ VAStatus psb_CreateConfig(
     if (profile == VAProfileMPEG4Simple ||
         profile == VAProfileMPEG4AdvancedSimple ||
         profile == VAProfileMPEG4Main ||
-        profile == VAProfileVP8Version0_3)
-        driver_data->ec_enabled = 1;
+        profile == VAProfileVP8Version0_3 ||
+	profile == VAProfileH264Baseline ||
+	profile == VAProfileH264Main ||
+	profile == VAProfileH264High ||
+	profile == VAProfileH264ConstrainedBaseline)
+		driver_data->ec_enabled = 1;
 
 #else
     driver_data->ec_enabled = 0;
@@ -2433,7 +2437,10 @@ VAStatus psb_QuerySurfaceError(
         arg.value = (uint64_t)((unsigned long)decode_status);
         ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                                   &arg, sizeof(arg));
-
+	if (ret != 0) {
+		drv_debug_msg(VIDEO_DEBUG_GENERAL,"return value is %d drmCommandWriteRead\n",ret);
+		return VA_STATUS_ERROR_UNKNOWN;
+	}
 #ifndef _FOR_FPGA_
         if (decode_status->num_region > MAX_MB_ERRORS) {
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "too much mb errors are reported.\n");
