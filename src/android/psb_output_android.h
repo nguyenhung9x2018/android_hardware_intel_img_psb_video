@@ -37,7 +37,7 @@ typedef struct _psb_android_output_s {
     /* for memory heap base used by putsurface */
     unsigned char* heap_addr;
 
-    void* psb_HDMIExt_info; /* HDMI extend video mode info */
+    //void* psb_HDMIExt_info; /* HDMI extend video mode info */
     int sf_composition; /* surfaceflinger compostion */
     /* save dest box here */
     short destx;
@@ -45,6 +45,9 @@ typedef struct _psb_android_output_s {
     unsigned short destw;
     unsigned short desth;
     int new_destbox;
+#ifdef TARGET_HAS_MULTIPLE_DISPLAY
+    void* mds;/* mds listener */
+#endif
 } psb_android_output_s, *psb_android_output_p;
 
 #endif /*_PSB_OUTPUT_ANDROID_H_*/

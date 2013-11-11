@@ -25,7 +25,8 @@
  *    Zhaohan Ren  <zhaohan.ren@intel.com>
  *
  */
-
+#ifndef __PSB_ANDROID_GLUE_H__
+#define __PSB_ANDROID_GLUE_H__
 
 #ifdef __cplusplus
 extern "C"
@@ -42,19 +43,29 @@ extern "C"
     void psb_android_get_destbox(short* destx, short* desty, unsigned short* destw, unsigned short* desth);
     void psb_android_dynamic_source_display(int buffer_index, int hdmi_mode);
     void psb_android_dynamic_source_destroy();
-    int psb_android_surfaceflinger_rotate(void* native_window, int *rotation);
+    int psb_android_surfaceflinger_rotate(void* window, int *rotation);
+
+    enum {
+        INIT_VALUE = 0,
+        HDMI_VIDEO_ISPLAYING,
+        WIDI_VIDEO_ISPLAYING,
+    };
+
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-    int  psb_android_get_mds_mode(void* output);
-    void psb_android_get_video_resolution(void* output,
-                                int* width, int* height);
-#ifdef PSBVIDEO_MRFL_VPP
-    int psb_android_get_mds_vpp_state();
-#endif
+    void init_mds_listener(void*);
+    void deinit_mds_listener(void*);
+    int  psb_android_get_mds_mode(void*);
+    int  psb_android_get_mds_decoder_output_resolution(void*, int*, int*);
+    int  psb_android_get_mds_vpp_state(void*);
 #else
 #ifdef PSBVIDEO_MRFL_VPP
-    int psb_android_get_vpp_state();
+    int  psb_android_get_vpp_state();
 #endif
 #endif
+
 #ifdef __cplusplus
 }
+#endif
+
+
 #endif

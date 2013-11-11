@@ -136,6 +136,11 @@ VAStatus psb_android_output_deinit(VADriverContextP ctx)
     INIT_DRIVER_DATA;
     INIT_OUTPUT_PRIV;
     //psb_android_output_p output = GET_OUTPUT_DATA(ctx);
+#ifdef TARGET_HAS_MULTIPLE_DISPLAY
+    if (output->mds != NULL) {
+        deinit_mds_listener(output);
+    }
+#endif
     return VA_STATUS_SUCCESS;
 }
 

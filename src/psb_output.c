@@ -174,7 +174,6 @@ VAStatus psb_deinitOutput(
 #else
     psb_android_output_deinit(ctx);
 #endif
-
     /* free here, but allocate in window system specific */
     free(driver_data->ws_priv);
     /*

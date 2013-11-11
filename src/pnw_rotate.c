@@ -80,10 +80,10 @@ do {                                                            \
 //#define OVERLAY_ENABLE_MIRROR
 
 #ifdef PSBVIDEO_MRFL_VPP
-#define VPP_STATUS_STORAGE "/data/data/com.intel.vpp/shared_prefs/vpp_settings.xml"
-static int isVppOn() {
+
+static int isVppOn(void* output) {
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-    return psb_android_get_mds_vpp_state();
+    return psb_android_get_mds_vpp_state(output);
 #else
     return psb_android_get_vpp_state();
 #endif
@@ -116,7 +116,7 @@ void psb_InitOutLoop(VADriverContextP ctx)
     }
     /* FIXME: Disable rotation when VPP enabled, just a workround here*/
 #ifdef PSBVIDEO_MRFL_VPP
-    if (isVppOn()) {
+    if (isVppOn((void*)driver_data->ws_priv)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "For VPP: disable MSVDX rotation\n");
         driver_data->disable_msvdx_rotate = 1;
     }
@@ -134,28 +134,27 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
     psb_driver_data_p driver_data = obj_context->driver_data;
     int angle, new_rotate, i;
     int old_rotate = driver_data->msvdx_rotate_want;
+    int mode = INIT_VALUE;
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-    int scaling_width, scaling_height;
-    int mode = psb_android_get_mds_mode((void*)driver_data->ws_priv);
-#else
-    int mode = 0;
+    mode = psb_android_get_mds_mode((void*)driver_data->ws_priv);
 #endif
 
-    if (mode) {
-        if (driver_data->mipi0_rotation != 0) {
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "Clear display rotate for extended video mode or meta data rotate");
-            driver_data->mipi0_rotation = 0;
-            driver_data->hdmi_rotation = 0;
+    if (mode != INIT_VALUE) {
+        // clear device rotation info
+        if (driver_data->mipi0_rotation != VA_ROTATION_NONE) {
+            driver_data->mipi0_rotation = VA_ROTATION_NONE;
+            driver_data->hdmi_rotation = VA_ROTATION_NONE;
         }
-        if (mode == 2) {
-            if( driver_data->va_rotate == 0) {
+        // Disable msvdx rotation if
+        // WIDI video is play and meta data rotation angle is 0
+        if (mode == WIDI_VIDEO_ISPLAYING) {
+            if (driver_data->va_rotate == VA_ROTATION_NONE)
                 driver_data->disable_msvdx_rotate = 1;
-            } else {
+            else {
                 driver_data->mipi0_rotation = 0;
                 driver_data->hdmi_rotation = 0;
             }
-        }
-        else
+        } else
             driver_data->disable_msvdx_rotate = driver_data->disable_msvdx_rotate_backup;
     } else if (driver_data->native_window) {
         int display_rotate = 0;
@@ -189,7 +188,7 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
     }
 
 #ifdef PSBVIDEO_MRFL
-    if ((mode == 1) && driver_data->native_window) {
+    if ((mode == HDMI_VIDEO_ISPLAYING) && driver_data->native_window) {
         int display_rotate = 0;
         psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
@@ -232,12 +231,14 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
     }
 
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-    psb_android_get_video_resolution((void*)driver_data->ws_priv, &scaling_width, &scaling_height);
+    int scaling_width, scaling_height;
+    int ret = psb_android_get_mds_decoder_output_resolution(
+            (void*)driver_data->ws_priv, &scaling_width, &scaling_height);
 
     /* turn off ved downscaling if width and height are 0.
      * Besides, scaling_width and scaling_height must be a multiple of 2.
      */
-    if ((!scaling_width || !scaling_height) || (scaling_width & 1) || (scaling_height & 1)) {
+    if (!ret || (!scaling_width || !scaling_height) || (scaling_width & 1) || (scaling_height & 1)) {
         obj_context->msvdx_scaling = 0;
         obj_context->scaling_width = 0;
         obj_context->scaling_height = 0;

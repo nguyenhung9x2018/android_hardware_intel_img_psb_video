@@ -88,6 +88,9 @@ LOCAL_SRC_FILES :=		\
     tng_yuv_processor.c \
     tng_ved_scaling.c
 endif
+ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
+LOCAL_SRC_FILES += android/psb_mds.cpp
+endif
 
 LOCAL_CFLAGS := -DLINUX -DANDROID -g -Wall -Wno-unused
 
@@ -155,6 +158,8 @@ LOCAL_SRC_FILES += \
     vsp_cmdbuf.c \
     vsp_vp8.c
 
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libmedia_utils_vpp
+LOCAL_SHARED_LIBRARIES += libvpp_setting
 LOCAL_CFLAGS += -DPSBVIDEO_MRFL_VPP -DPSBVIDEO_MRFL -DPSBVIDEO_VXD392
 LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_EC
 

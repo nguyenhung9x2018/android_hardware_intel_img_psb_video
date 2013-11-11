@@ -42,13 +42,11 @@
 #include <system/window.h>
 #include <system/graphics.h>
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-#ifdef USE_MDS_LEGACY
-#include <display/MultiDisplayClient.h>
-#else
-#include <display/MultiDisplayService.h>
+#include "psb_mds.h"
 #endif
+#if defined (PSBVIDEO_MRFL_VPP) && !defined (TARGET_HAS_MULTIPLE_DISPLAY)
+#include <VPPSetting.h>
 #endif
-
 
 #ifdef  LOG_TAG
 #undef  LOG_TAG
@@ -65,98 +63,94 @@ using namespace android::intel;
 
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
 
-int psb_android_get_mds_mode(void* output) {
+void init_mds_listener(void* output) {
     psb_android_output_p aoutput = (psb_android_output_p)output;
-#ifdef USE_MDS_LEGACY
-    MultiDisplayClient* mds = new MultiDisplayClient();
-    if (mds == NULL)
-       return 0;
-#else
-    sp<IServiceManager> sm = defaultServiceManager();
-    if (sm == NULL)
-        return 0;
-    sp<IMDService> imds = interface_cast<IMDService>(
-            sm->getService(String16(INTEL_MDS_SERVICE_NAME)));
-    if (imds == NULL)
-        return 0;
-    sp<IMultiDisplayInfoProvider> mds = imds->getInfoProvider();
-#endif
-    if (mds != NULL) {
-        int mode = mds->getDisplayMode(false);
-        if (mode == MDS_MODE_NONE)
-            return 0;
-#ifdef USE_MDS_LEGACY
-        else if (mode & MDS_HDMI_VIDEO_EXT)
-#else
-        else if (mode & (MDS_HDMI_CONNECTED | MDS_VIDEO_ON))
-#endif
-            return 1;
-        else if (mode & MDS_WIDI_ON)
-            return 2;
+    if (aoutput == NULL) {
+        ALOGE("Invalid input parameter");
+        return;
     }
-#ifdef USE_MDS_LEGACY
-    delete mds;
-#endif
-    mds = NULL;
-    return 0;
+    if (aoutput->mds == NULL)
+        aoutput->mds = new psbMultiDisplayListener();
 }
 
-#ifdef PSBVIDEO_MRFL_VPP
-int psb_android_get_mds_vpp_state() {
-    sp<IServiceManager> sm = defaultServiceManager();
-    if (sm == NULL)
-        return 0;
-    sp<IMDService> imds = interface_cast<IMDService>(
-            sm->getService(String16(INTEL_MDS_SERVICE_NAME)));
-    if (imds == NULL)
-        return 0;
-    sp<IMultiDisplayInfoProvider> mds = imds->getInfoProvider();
-    bool ret = false;
-    if (mds != NULL) {
-        ret = mds->getVppState();
+void deinit_mds_listener(void* output) {
+    psb_android_output_p aoutput = (psb_android_output_p)output;
+    if (aoutput == NULL) {
+        ALOGE("Invalid input parameter");
+        return;
     }
-    mds = NULL;
+    if (aoutput->mds != NULL) {
+        delete (psbMultiDisplayListener*)(aoutput->mds);
+        aoutput->mds = NULL;
+    }
+}
+
+int psb_android_get_mds_mode(void* output) {
+    if (output == NULL)
+        return MDS_INIT_VALUE;
+    psb_android_output_p aoutput = (psb_android_output_p)output;
+    if (aoutput->mds == NULL)
+        init_mds_listener(aoutput);
+    psbMultiDisplayListener* mds =
+        static_cast<psbMultiDisplayListener*>(aoutput->mds);
+    if (mds == NULL)
+        return MDS_INIT_VALUE;
+    return mds->getMode();
+}
+
+int psb_android_get_mds_decoder_output_resolution(void* output, int* width, int* height) {
+    if (output == NULL || width == NULL || height == NULL)
+        return 0;
+    psb_android_output_p aoutput = (psb_android_output_p)output;
+    if (aoutput->mds == NULL)
+        init_mds_listener(aoutput);
+    psbMultiDisplayListener* mds =
+        static_cast<psbMultiDisplayListener*>(aoutput->mds);
+    if (mds == NULL)
+        return 0;
+    bool ret = mds->getDecoderOutputResolution(width, height);
     return (ret ? 1 : 0);
 }
-#endif
 
-void psb_android_get_video_resolution(void* output, int* width, int* height) {
-#ifdef PSBVIDEO_MSVDX_DOWNSCALING
-    *width = 0;
-    *height = 0;
-#else
-    *width = 0;
-    *height = 0;
+int psb_android_get_mds_vpp_state(void* output) {
+    bool ret = false;
+#ifndef USE_MDS_LEGACY
+    if (output == NULL) {
+        sp<IServiceManager> sm = defaultServiceManager();
+        if (sm == NULL)
+            return 0;
+        sp<IMDService> imds = interface_cast<IMDService>(
+                sm->getService(String16(INTEL_MDS_SERVICE_NAME)));
+        if (imds == NULL)
+            return 0;
+        sp<IMultiDisplayInfoProvider> mds = imds->getInfoProvider();
+        if (mds != NULL) {
+            ret = mds->getVppState();
+        }
+        mds = NULL;
+        return (ret ? 1 : 0);
+    }
+    psb_android_output_p aoutput = (psb_android_output_p)output;
+    if (aoutput->mds == NULL)
+        init_mds_listener(aoutput);
+    psbMultiDisplayListener* mds =
+        static_cast<psbMultiDisplayListener*>(aoutput->mds);
+    ret = mds->getVppState();
+    if (mds == NULL)
+        return 0;
 #endif
+    return (ret ? 1 : 0);
 }
 
-#else
+#else //TARGET_HAS_MULTIPLE_DISPLAY
+
 #ifdef PSBVIDEO_MRFL_VPP
-#define VPP_STATUS_STORAGE "/data/data/com.intel.vpp/shared_prefs/vpp_settings.xml"
+
 int psb_android_get_vpp_state() {
-    FILE *handle = fopen(VPP_STATUS_STORAGE, "r");
-    if(handle == NULL)
-        return 0;
-
-    const int MAXLEN = 1024;
-    char buf[MAXLEN];
-    memset(buf, 0 ,MAXLEN);
-    if(fread(buf, 1, MAXLEN, handle) <= 0) {
-        fclose(handle);
-        return 0;
-    }
-    buf[MAXLEN - 1] = '\0';
-
-    if((strstr(buf, "1vpp") == NULL)
-            && (strstr(buf, "1frc") == NULL)) {
-        fclose(handle);
-        return 0;
-    }
-
-    fclose(handle);
-    return 1;
-
+    bool ret = VPPSetting::isVppOn();
+    return (ret ? 1 : 0);
 }
+
 #endif
 #endif
 
@@ -189,4 +183,3 @@ int psb_android_surfaceflinger_rotate(void* native_window, int *rotation)
     }
     return 0;
 }
-
