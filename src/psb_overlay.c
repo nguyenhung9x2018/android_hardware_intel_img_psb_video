@@ -826,7 +826,7 @@ i830_display_video(
     } else
         overlay->OCONFIG |= pipeId << 18; /* mrst */
 
-    if (IS_CTP(driver_data))
+    if (IS_CTP(driver_data) || IS_MRFL(driver_data) )
         regs.overlay.b_wms = 1;
 
     drmCommandWriteRead(driver_data->drm_fd, DRM_PSB_REGISTER_RW, &regs, sizeof(regs));
