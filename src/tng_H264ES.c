@@ -368,8 +368,8 @@ static VAStatus tng__H264ES_process_misc_air_param(context_ENC_p ctx, object_buf
     psMiscAirParams = (VAEncMiscParameterAIR*)pBuffer->data;
     ui32MbNum = (ctx->ui16PictureHeight * ctx->ui16Width) >> 8;
 
-    printf("%s: enable_AIR = %d, mb_num = %d, thresh_hold = %d\n", __FUNCTION__,
-        ctx->bEnableAIR, psMiscAirParams->air_num_mbs, psMiscAirParams->air_threshold);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: enable_AIR = %d, mb_num = %d, thresh_hold = %d, air_auto = %d\n", __FUNCTION__,
+        ctx->bEnableAIR, psMiscAirParams->air_num_mbs, psMiscAirParams->air_threshold, psMiscAirParams->air_auto);
 
     ctx->bEnableAIR = 1;
     ctx->bEnableInpCtrl = 1;
@@ -402,9 +402,16 @@ static VAStatus tng__H264ES_process_misc_air_param(context_ENC_p ctx, object_buf
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
-    psAIRInfo->i32NumAIRSPerFrame = psMiscAirParams->air_num_mbs;
-    psAIRInfo->i32SAD_Threshold = psMiscAirParams->air_threshold;
-    psAIRInfo->i16AIRSkipCnt = 0;   //psMiscAirParams->i16AIRSkipCnt;
+    if (psMiscAirParams->air_auto) {
+	psAIRInfo->i32NumAIRSPerFrame = -1;
+	psAIRInfo->i32SAD_Threshold = -1;
+	psAIRInfo->i16AIRSkipCnt = -1;
+    } else {
+	psAIRInfo->i32NumAIRSPerFrame = psMiscAirParams->air_num_mbs;
+	psAIRInfo->i32SAD_Threshold = psMiscAirParams->air_threshold;
+	psAIRInfo->i16AIRSkipCnt = -1;
+    }
+
     psAIRInfo->ui16AIRScanPos = 0;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,

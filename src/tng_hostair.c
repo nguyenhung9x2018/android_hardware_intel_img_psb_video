@@ -611,20 +611,20 @@ VAStatus tng__unmap_best_mb_decision_out_buf(
 // Calculate Adaptive Intra Refresh (AIR)
 static void tng__calc_air_inp_ctrl_buf(context_ENC_p ctx, IMG_UINT8 *pFirstPassOutBuf, IMG_UINT8 *pBestMBDecisionCtrlBuf)
 {
-    IMG_UINT8   *pSADPointer;
-    IMG_UINT8   *pvSADBuffer;
-    IMG_UINT8    ui8IsAlreadyIntra;
-    IMG_UINT32  ui32MBFrameWidth;
-    IMG_UINT32  ui32MBPictureHeight;
-    IMG_UINT16  ui16IntraParam;
-    IMG_UINT32  ui32MBx, ui32MBy;
-    IMG_UINT32  ui32SADParam;
-    IMG_UINT32  ui32tSAD_Threshold, ui32tSAD_ThresholdLo, ui32tSAD_ThresholdHi;
-    IMG_UINT32  ui32MaxMBs, ui32NumMBsOverThreshold, ui32NumMBsOverLo, ui32NumMBsOverHi;
+    IMG_UINT8 *pSADPointer;
+    IMG_UINT8 *pvSADBuffer;
+    IMG_UINT8 ui8IsAlreadyIntra;
+    IMG_UINT32 ui32MBFrameWidth;
+    IMG_UINT32 ui32MBPictureHeight;
+    IMG_UINT16 ui16IntraParam;
+    IMG_UINT32 ui32MBx, ui32MBy;
+    IMG_UINT32 ui32SADParam;
+    IMG_UINT32 ui32tSAD_Threshold, ui32tSAD_ThresholdLo, ui32tSAD_ThresholdHi;
+    IMG_UINT32 ui32MaxMBs, ui32NumMBsOverThreshold, ui32NumMBsOverLo, ui32NumMBsOverHi;
     IMG_BEST_MULTIPASS_MB_PARAMS *psBestMB_Params;
     IMG_FIRST_STAGE_MB_PARAMS *psFirstMB_Params;
 
-    ui16IntraParam =   (0 <<7)| (0<<4);
+    ui16IntraParam = (0 << 7) | (0 << 4);
     ui32NumMBsOverThreshold = ui32NumMBsOverLo = ui32NumMBsOverHi = 0;
     //drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: start\n", __FUNCTION__);
 
@@ -635,7 +635,6 @@ static void tng__calc_air_inp_ctrl_buf(context_ENC_p ctx, IMG_UINT8 *pFirstPassO
     //fill data 
     ui32MBFrameWidth  = (ctx->ui16Width/16);
     ui32MBPictureHeight = (ctx->ui16PictureHeight/16);
-
 	
     // get the SAD results buffer (either IPE0 and IPE1 results or, preferably, the more accurate Best Multipass SAD results)
     if (pBestMBDecisionCtrlBuf) {
@@ -643,11 +642,11 @@ static void tng__calc_air_inp_ctrl_buf(context_ENC_p ctx, IMG_UINT8 *pFirstPassO
         drv_debug_msg(VIDEO_DEBUG_GENERAL,"AIR active: Using Best Multipass SAD values ");
 
 //#ifdef  MULTIPASS_MV_PLACEMENT_ISSUE_FIXED
-        if ((ctx->ui8EnableSelStatsFlags & ESF_MP_BEST_MOTION_VECTOR_STATS))
+	if ((ctx->ui8EnableSelStatsFlags & ESF_MP_BEST_MOTION_VECTOR_STATS))
 //#endif
-        {
+	{
             // The actual Param structures (which contain SADs) are located after the Multipass Motion Vector entries
-            pvSADBuffer += (ui32MBPictureHeight * (ui32MBFrameWidth) * sizeof(IMG_BEST_MULTIPASS_MB_PARAMS_IPMV));
+	    pvSADBuffer += (ui32MBPictureHeight * (ui32MBFrameWidth) * sizeof(IMG_BEST_MULTIPASS_MB_PARAMS_IPMV));
         }
     } else {
         pvSADBuffer = pFirstPassOutBuf;
@@ -656,15 +655,15 @@ static void tng__calc_air_inp_ctrl_buf(context_ENC_p ctx, IMG_UINT8 *pFirstPassO
 
     if (ctx->sAirInfo.i32NumAIRSPerFrame == 0)
         ui32MaxMBs = ui32MBFrameWidth * ui32MBPictureHeight; // Default to ALL MB's in frame
-    else if (ctx->sAirInfo.i32NumAIRSPerFrame<0) 
-        ctx->sAirInfo.i32NumAIRSPerFrame = ui32MaxMBs = ((ui32MBFrameWidth * ui32MBPictureHeight) + 99)/100; // Default to 1% of MB's in frame (min 1)
+    else if (ctx->sAirInfo.i32NumAIRSPerFrame < 0)
+        ctx->sAirInfo.i32NumAIRSPerFrame = ui32MaxMBs = ((ui32MBFrameWidth * ui32MBPictureHeight) + 99) / 100; // Default to 1% of MB's in frame (min 1)
     else
         ui32MaxMBs = ctx->sAirInfo.i32NumAIRSPerFrame;
 
     pSADPointer = (IMG_UINT8 *)pvSADBuffer;
 	
     if (ctx->sAirInfo.i32SAD_Threshold >= 0)
-        ui32tSAD_Threshold = (IMG_UINT16) ctx->sAirInfo.i32SAD_Threshold;
+        ui32tSAD_Threshold = (IMG_UINT16)ctx->sAirInfo.i32SAD_Threshold;
     else {
         // Running auto adjust threshold adjust mode
         if (ctx->sAirInfo.i32SAD_Threshold == -1) {
@@ -676,16 +675,15 @@ static void tng__calc_air_inp_ctrl_buf(context_ENC_p ctx, IMG_UINT8 *pFirstPassO
                 psFirstMB_Params=(IMG_FIRST_STAGE_MB_PARAMS *) pSADPointer; // Auto seed the threshold with the first value
                 ui32SADParam = (IMG_UINT32) psFirstMB_Params->ui16Ipe0Sad;
             }
-            ctx->sAirInfo.i32SAD_Threshold = -1-ui32SADParam; // Negative numbers indicate auto-adjusting threshold
+            ctx->sAirInfo.i32SAD_Threshold = -1 - ui32SADParam; // Negative numbers indicate auto-adjusting threshold
         }
-        ui32tSAD_Threshold = (IMG_UINT32) -(ctx->sAirInfo.i32SAD_Threshold+1);
+        ui32tSAD_Threshold = (IMG_UINT32) - (ctx->sAirInfo.i32SAD_Threshold + 1);
     }
 
-    ui32tSAD_ThresholdLo=ui32tSAD_Threshold/2;
-    ui32tSAD_ThresholdHi=ui32tSAD_Threshold + ui32tSAD_ThresholdLo;
+    ui32tSAD_ThresholdLo = ui32tSAD_Threshold / 2;
+    ui32tSAD_ThresholdHi = ui32tSAD_Threshold + ui32tSAD_ThresholdLo;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,"Th:%u, MaxMbs:%u, Skp:%i\n", (unsigned int)ui32tSAD_Threshold, (unsigned int)ui32MaxMBs, ctx->sAirInfo.i16AIRSkipCnt);
-
 
 #ifdef ADAPTIVE_INTRA_REFRESH_DEBUG_OUTPUT
 	if (fp)
@@ -715,20 +713,20 @@ static void tng__calc_air_inp_ctrl_buf(context_ENC_p ctx, IMG_UINT8 *pFirstPassO
             cMarked='_';
 #endif
             // Turn all negative table values to positive (reset 'touched' state of a block that may have been set in APP_SendAIRInpCtrlBuf())
-            if (ctx->sAirInfo.pi8AIR_Table[ui32MBy *  ui32MBFrameWidth + ui32MBx] < 0)
-                ctx->sAirInfo.pi8AIR_Table[ui32MBy *  ui32MBFrameWidth + ui32MBx] = -1-ctx->sAirInfo.pi8AIR_Table[ui32MBy *  ui32MBFrameWidth + ui32MBx];
+	    if (ctx->sAirInfo.pi8AIR_Table[ui32MBy *  ui32MBFrameWidth + ui32MBx] < 0)
+                ctx->sAirInfo.pi8AIR_Table[ui32MBy *  ui32MBFrameWidth + ui32MBx] = -1 - ctx->sAirInfo.pi8AIR_Table[ui32MBy *  ui32MBFrameWidth + ui32MBx];
 
             // This will read the SAD value from the buffer (either IPE0 SAD or the superior Best multipass parameter structure SAD value)
             if (pBestMBDecisionCtrlBuf) {
-                psBestMB_Params=(IMG_BEST_MULTIPASS_MB_PARAMS *) pSADPointer;
+                psBestMB_Params = (IMG_BEST_MULTIPASS_MB_PARAMS *) pSADPointer;
                 ui32SADParam = psBestMB_Params->ui32SAD_Inter_MBInfo & IMG_BEST_MULTIPASS_SAD_MASK;
 
-                if ((psBestMB_Params->ui32SAD_Intra_MBInfo & IMG_BEST_MULTIPASS_MB_TYPE_MASK) >> IMG_BEST_MULTIPASS_MB_TYPE_SHIFT==1)
-                    ui8IsAlreadyIntra=1;
+                if ((psBestMB_Params->ui32SAD_Intra_MBInfo & IMG_BEST_MULTIPASS_MB_TYPE_MASK) >> IMG_BEST_MULTIPASS_MB_TYPE_SHIFT == 1)
+                    ui8IsAlreadyIntra = 1;
                 else
-                    ui8IsAlreadyIntra=0;
+                    ui8IsAlreadyIntra = 0;
 
-                pSADPointer=(IMG_UINT8 *) &(psBestMB_Params[1]);	
+                pSADPointer=(IMG_UINT8 *) &(psBestMB_Params[1]);
             } else {
                 psFirstMB_Params=(IMG_FIRST_STAGE_MB_PARAMS *) pSADPointer;
                 ui32SADParam = (IMG_UINT32) psFirstMB_Params->ui16Ipe0Sad;
@@ -760,7 +758,6 @@ static void tng__calc_air_inp_ctrl_buf(context_ENC_p ctx, IMG_UINT8 *pFirstPassO
                 }
             }
 
-
 #ifdef ADAPTIVE_INTRA_REFRESH_DEBUG_OUTPUT	
             fprintf(fp,"%4x[%i]%c,	",ui32SADParam, ctx->sAirInfo.pi8AIR_Table[ui32MBy * ui32MBFrameWidth + ui32MBx], cMarked);
 #endif
@@ -772,26 +769,26 @@ static void tng__calc_air_inp_ctrl_buf(context_ENC_p ctx, IMG_UINT8 *pFirstPassO
     }
 
     // Test and process running adaptive threshold case
-    if (ctx->sAirInfo.i32SAD_Threshold<0) {
+    if (ctx->sAirInfo.i32SAD_Threshold < 0) {
         // Adjust our threshold (to indicate it's auto-adjustable store it as a negative value minus 1)
         if (ui32NumMBsOverLo <= ui32MaxMBs)
-            ctx->sAirInfo.i32SAD_Threshold = (IMG_INT32) -((IMG_INT32)ui32tSAD_ThresholdLo)-1;
+            ctx->sAirInfo.i32SAD_Threshold = (IMG_INT32) - ((IMG_INT32)ui32tSAD_ThresholdLo) - 1;
         else
             if (ui32NumMBsOverHi >= ui32MaxMBs)
-                ctx->sAirInfo.i32SAD_Threshold = (IMG_INT32) -((IMG_INT32)ui32tSAD_ThresholdHi)-1;
+                ctx->sAirInfo.i32SAD_Threshold = (IMG_INT32) - ((IMG_INT32)ui32tSAD_ThresholdHi) - 1;
             else {
                 if (ui32MaxMBs < ui32NumMBsOverThreshold) {
-                    ctx->sAirInfo.i32SAD_Threshold = ((IMG_INT32) ui32tSAD_ThresholdHi-(IMG_INT32) ui32tSAD_Threshold);
-                    ctx->sAirInfo.i32SAD_Threshold*=((IMG_INT32) ui32MaxMBs- (IMG_INT32) ui32NumMBsOverThreshold);
-                    ctx->sAirInfo.i32SAD_Threshold/=((IMG_INT32) ui32NumMBsOverHi-(IMG_INT32) ui32NumMBsOverThreshold);
+                    ctx->sAirInfo.i32SAD_Threshold = ((IMG_INT32)ui32tSAD_ThresholdHi - (IMG_INT32)ui32tSAD_Threshold);
+                    ctx->sAirInfo.i32SAD_Threshold *= ((IMG_INT32)ui32MaxMBs - (IMG_INT32)ui32NumMBsOverThreshold);
+                    ctx->sAirInfo.i32SAD_Threshold /= ((IMG_INT32)ui32NumMBsOverHi - (IMG_INT32)ui32NumMBsOverThreshold);
                     ctx->sAirInfo.i32SAD_Threshold += ui32tSAD_Threshold;
                 } else {
-                    ctx->sAirInfo.i32SAD_Threshold = ((IMG_INT32) ui32tSAD_Threshold-(IMG_INT32) ui32tSAD_ThresholdLo);
-                    ctx->sAirInfo.i32SAD_Threshold*=((IMG_INT32) ui32MaxMBs- (IMG_INT32) ui32NumMBsOverLo);
-                    ctx->sAirInfo.i32SAD_Threshold/=((IMG_INT32) ui32NumMBsOverThreshold-(IMG_INT32) ui32NumMBsOverLo);
+                    ctx->sAirInfo.i32SAD_Threshold = ((IMG_INT32)ui32tSAD_Threshold - (IMG_INT32)ui32tSAD_ThresholdLo);
+                    ctx->sAirInfo.i32SAD_Threshold *= ((IMG_INT32)ui32MaxMBs - (IMG_INT32)ui32NumMBsOverLo);
+                    ctx->sAirInfo.i32SAD_Threshold /= ((IMG_INT32)ui32NumMBsOverThreshold - (IMG_INT32)ui32NumMBsOverLo);
                     ctx->sAirInfo.i32SAD_Threshold += ui32tSAD_ThresholdLo;
                 }
-                ctx->sAirInfo.i32SAD_Threshold = -ctx->sAirInfo.i32SAD_Threshold-1;
+                ctx->sAirInfo.i32SAD_Threshold = -ctx->sAirInfo.i32SAD_Threshold - 1;
             }
 
 #ifdef ADAPTIVE_INTRA_REFRESH_DEBUG_OUTPUT
@@ -805,12 +802,7 @@ static void tng__calc_air_inp_ctrl_buf(context_ENC_p ctx, IMG_UINT8 *pFirstPassO
     fclose(fp);
 #endif
     drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: end\n", __FUNCTION__);
-    //release buffer
-    //if (pBestMBDecisionCtrlBuf)
-        //IMG_C_ReleaseBuffer(ctx->hContext, pBestMBDecisionCtrlBuf, IMG_TRUE);
-    //else
-        //IMG_C_ReleaseBuffer(ctx->hContext, pFirstPassOutBuf,IMG_TRUE);
-    return ;
+    return;
 }
 
 // Adaptive Intra Refresh (AIR) - Calculate the new AIR values based upon Motion Search feedback
@@ -825,7 +817,7 @@ static void tng_update_air_calc(context_ENC_p ctx, IMG_UINT8 ui8SlotNum)
     tng__map_best_mb_decision_out_buf(ctx, ui8SlotNum, &pBestMBDecisionCtrlBuf);
 
     if(pFirstPassOutBuf || pBestMBDecisionCtrlBuf)
-        tng__calc_air_inp_ctrl_buf (ctx, pFirstPassOutBuf, pBestMBDecisionCtrlBuf);
+	tng__calc_air_inp_ctrl_buf (ctx, pFirstPassOutBuf, pBestMBDecisionCtrlBuf);
 
     tng__unmap_first_pass_out_buf(ctx, ui8SlotNum, &pFirstPassOutBuf);
     tng__unmap_best_mb_decision_out_buf(ctx, ui8SlotNum, &pBestMBDecisionCtrlBuf);
@@ -840,9 +832,9 @@ static void tng_update_air_calc(context_ENC_p ctx, IMG_UINT8 ui8SlotNum)
 void tng_air_set_input_control(context_ENC_p ctx, IMG_UINT8 ui8StreamID)
 {
     IMG_UINT8 ui8SlotIndex = ctx->ui8SlotsCoded;
-drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: slot index = %d\n", __FUNCTION__, ctx->ui8SlotsCoded);
-//    IMG_UINT32 ui32HalfWayBU;
-//    ui32HalfWayBU = tng_fill_slice_map(ctx, ui8SlotIndex, ui8StreamID);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: slot index = %d\n", __FUNCTION__, ctx->ui8SlotsCoded);
+    //IMG_UINT32 ui32HalfWayBU;
+    //ui32HalfWayBU = tng_fill_slice_map(ctx, ui8SlotIndex, ui8StreamID);
 
     ////////////////////////////// INPUT CONTROL
     // Add input control stuff here
@@ -863,7 +855,7 @@ void tng_air_set_output_control(context_ENC_p ctx, IMG_UINT8 ui8StreamID)
 {
     IMG_UINT8 ui8SlotIndex = ctx->ui8SlotsCoded;
 
-drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: slot index = %d\n", __FUNCTION__, ctx->ui8SlotsCoded);
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: slot index = %d\n", __FUNCTION__, ctx->ui8SlotsCoded);
 
     if ((ctx->ePreFrameType == IMG_INTRA_IDR) ||
         (ctx->ePreFrameType == IMG_INTRA_FRAME))

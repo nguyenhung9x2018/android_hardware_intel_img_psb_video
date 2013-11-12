@@ -64,7 +64,7 @@
 #define tng_align_64(X)  (((X)+63) &~63)
 #define tng_align_4(X)  (((X)+3) &~3)
 
-#define MTX_CONTEXT_ITEM_OFFSET(type, member) (size_t)&(((type*)0)->member)
+/* #define MTX_CONTEXT_ITEM_OFFSET(type, member) (size_t)&(((type*)0)->member) */
 
 #define DEFAULT_CABAC_DB_MARGIN    (0x190)
 #define NOT_USED_BY_TOPAZ 0
@@ -3637,17 +3637,14 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         if (vaStatus != VA_STATUS_SUCCESS) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "send picmgmt IDR");
         }
+	/*
 	offset = (unsigned int)MTX_CONTEXT_ITEM_OFFSET(IMG_MTX_VIDEO_CONTEXT, ui32IntraLoopCnt);
 	value = ctx->ui32IntraCnt;
 	vaStatus = tng__update_mtx_context(ctx, offset, value, 0);
         if (vaStatus != VA_STATUS_SUCCESS) {
             drv_debug_msg(VIDEO_DEBUG_ERROR, "update mtx context");
         }
-        vaStatus = tng__update_frametype(ctx, IMG_FRAME_IDR);
-        if (vaStatus != VA_STATUS_SUCCESS) {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "send picmgmt IDR");
-        }
-
+	*/
         ctx->idr_force_flag =0;
     }
 
@@ -3656,8 +3653,8 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         drv_debug_msg(VIDEO_DEBUG_ERROR, "provide buffer");
     }
 
-    if ((ctx->sRCParams.eRCMode == IMG_RCMODE_VCM) && (ctx->bEnableAIR == IMG_TRUE)) {
-        tng_air_set_input_control(ctx, 0);
+    if (ctx->bEnableAIR == IMG_TRUE) {
+	tng_air_set_input_control(ctx, 0);
         tng_air_set_output_control(ctx, 0);
     }
 
