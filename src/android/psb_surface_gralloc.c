@@ -352,9 +352,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
             break;
         }
 
-#ifdef PSBVIDEO_MSVDX_DEC_TILING
-        if (width > 1280)
-            external_buffers->tiling = 1;
+#ifndef PSBVIDEO_MSVDX_DEC_TILING
+        external_buffers->tiling = 0;
 #endif
         /*hard code the gralloc buffer usage*/
         usage = GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
