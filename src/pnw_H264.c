@@ -1589,7 +1589,8 @@ static void psb__H264_end_slice(context_DEC_p dec_ctx)
 static void psb__H264_choose_ec_frames(context_H264_p ctx)
 {
     ctx->obj_context->ec_target = NULL;
-
+    if (ctx->slice_param == NULL)
+        return;
     /* If reference picture list has a valid entry, this is a P or B frame and we conceal from the frame that is at the top of the list*/
     if (ctx->slice_param->num_ref_idx_l0_active_minus1 >= 0)
     {

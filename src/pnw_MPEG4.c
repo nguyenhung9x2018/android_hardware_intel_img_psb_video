@@ -2046,6 +2046,8 @@ static void psb__MPEG4_end_slice(context_DEC_p dec_ctx)
 #ifdef PSBVIDEO_MSVDX_EC
 static void psb__MPEG4_choose_ec_frames(context_MPEG4_p ctx)
 {
+    if (ctx->pic_params == NULL)
+        return;
     int is_inter = (ctx->pic_params->vop_fields.bits.vop_coding_type == PICTURE_CODING_P ||
 		    ctx->pic_params->vop_fields.bits.vop_coding_type == PICTURE_CODING_B);
 
