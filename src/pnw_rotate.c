@@ -137,6 +137,11 @@ void psb_InitOutLoop(VADriverContextP ctx)
         driver_data->disable_msvdx_rotate = 1;
     }
 #endif
+
+#ifdef BAYTRAIL
+    driver_data->disable_msvdx_rotate = 1;
+#endif
+
     driver_data->disable_msvdx_rotate_backup = driver_data->disable_msvdx_rotate;
 }
 
