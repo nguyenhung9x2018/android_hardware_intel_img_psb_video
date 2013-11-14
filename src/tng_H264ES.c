@@ -205,10 +205,14 @@ static VAStatus tng__H264ES_process_misc_framerate_param(context_ENC_p ctx, obje
     if (psMiscFrameRateParam->framerate < 1 || psMiscFrameRateParam->framerate > 65535)
         return VA_STATUS_ERROR_INVALID_PARAMETER;
 
-    if ((psMiscFrameRateParam->framerate != psRCParams->ui32FrameRate) &&
-        (psMiscFrameRateParam->framerate > 0)) {
+
+    if (psRCParams->ui32FrameRate == 0)
         psRCParams->ui32FrameRate = psMiscFrameRateParam->framerate;
-        psRCParams->bBitrateChanged = IMG_TRUE;
+    else {
+        if(psMiscFrameRateParam->framerate != psRCParams->ui32FrameRate){
+            psRCParams->ui32FrameRate = psMiscFrameRateParam->framerate;
+            psRCParams->bBitrateChanged = IMG_TRUE;
+        }
     }
 
     return VA_STATUS_SUCCESS;
