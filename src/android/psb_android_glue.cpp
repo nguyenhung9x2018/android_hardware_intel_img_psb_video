@@ -101,6 +101,25 @@ int psb_android_get_mds_mode(void* output) {
     return 0;
 }
 
+#ifdef PSBVIDEO_MRFL_VPP
+int psb_android_get_mds_vpp_state() {
+    sp<IServiceManager> sm = defaultServiceManager();
+    if (sm == NULL)
+        return 0;
+    sp<IMDService> imds = interface_cast<IMDService>(
+            sm->getService(String16(INTEL_MDS_SERVICE_NAME)));
+    if (imds == NULL)
+        return 0;
+    sp<IMultiDisplayInfoProvider> mds = imds->getInfoProvider();
+    bool ret = false;
+    if (mds != NULL) {
+        ret = mds->getVppState();
+    }
+    mds = NULL;
+    return (ret ? 1 : 0);
+}
+#endif
+
 void psb_android_get_video_resolution(void* output, int* width, int* height) {
 #ifdef PSBVIDEO_MSVDX_DOWNSCALING
     *width = 0;
@@ -111,6 +130,33 @@ void psb_android_get_video_resolution(void* output, int* width, int* height) {
 #endif
 }
 
+#else
+#ifdef PSBVIDEO_MRFL_VPP
+int psb_android_get_vpp_state() {
+    FILE *handle = fopen(VPP_STATUS_STORAGE, "r");
+    if(handle == NULL)
+        return 0;
+
+    const int MAXLEN = 1024;
+    char buf[MAXLEN];
+    memset(buf, 0 ,MAXLEN);
+    if(fread(buf, 1, MAXLEN, handle) <= 0) {
+        fclose(handle);
+        return 0;
+    }
+    buf[MAXLEN - 1] = '\0';
+
+    if((strstr(buf, "1vpp") == NULL)
+            && (strstr(buf, "1frc") == NULL)) {
+        fclose(handle);
+        return 0;
+    }
+
+    fclose(handle);
+    return 1;
+
+}
+#endif
 #endif
 
 unsigned int update_forced;

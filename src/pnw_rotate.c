@@ -82,27 +82,11 @@ do {                                                            \
 #ifdef PSBVIDEO_MRFL_VPP
 #define VPP_STATUS_STORAGE "/data/data/com.intel.vpp/shared_prefs/vpp_settings.xml"
 static int isVppOn() {
-    FILE *handle = fopen(VPP_STATUS_STORAGE, "r");
-    if(handle == NULL)
-        return 0;
-
-    const int MAXLEN = 1024;
-    char buf[MAXLEN];
-    memset(buf, 0 ,MAXLEN);
-    if(fread(buf, 1, MAXLEN, handle) <= 0) {
-        fclose(handle);
-        return 0;
-    }
-    buf[MAXLEN - 1] = '\0';
-
-    if((strstr(buf, "1vpp") == NULL)
-            && (strstr(buf, "1frc") == NULL)) {
-        fclose(handle);
-        return 0;
-    }
-
-    fclose(handle);
-    return 1;
+#ifdef TARGET_HAS_MULTIPLE_DISPLAY
+    return psb_android_get_mds_vpp_state();
+#else
+    return psb_android_get_vpp_state();
+#endif
 }
 #endif
 

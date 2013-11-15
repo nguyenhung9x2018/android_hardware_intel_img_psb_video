@@ -47,6 +47,13 @@ extern "C"
     int  psb_android_get_mds_mode(void* output);
     void psb_android_get_video_resolution(void* output,
                                 int* width, int* height);
+#ifdef PSBVIDEO_MRFL_VPP
+    int psb_android_get_mds_vpp_state();
+#endif
+#else
+#ifdef PSBVIDEO_MRFL_VPP
+    int psb_android_get_vpp_state();
+#endif
 #endif
 #ifdef __cplusplus
 }
