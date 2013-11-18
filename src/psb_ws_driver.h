@@ -34,6 +34,7 @@
 #include <wsbm/wsbm_util.h>
 #include <wsbm/wsbm_driver.h>
 #ifdef ANDROID
+#include <ttm/ttm_placement.h>
 #include <linux/psb_drm.h>
 #else
 #include <psb_drm.h>

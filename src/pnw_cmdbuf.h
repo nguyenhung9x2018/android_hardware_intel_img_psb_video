@@ -35,6 +35,7 @@
 #include "psb_surface.h"
 #include "psb_buffer.h"
 #ifdef ANDROID
+#include <ttm/ttm_placement.h>
 #include <linux/psb_drm.h>
 #else
 #include <psb_drm.h>
