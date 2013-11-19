@@ -42,6 +42,7 @@ struct context_VPP_s {
 	uint32_t profile_idc; // BE_PROFILEIDC
 
 	struct psb_buffer_s *context_buf;
+	struct psb_buffer_s *intermediate_buf;
 
 	VABufferID *filters;
 	unsigned int num_filters;
