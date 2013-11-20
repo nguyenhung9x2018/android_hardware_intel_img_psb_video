@@ -132,6 +132,7 @@ void psb_android_get_video_resolution(void* output, int* width, int* height) {
 
 #else
 #ifdef PSBVIDEO_MRFL_VPP
+#define VPP_STATUS_STORAGE "/data/data/com.intel.vpp/shared_prefs/vpp_settings.xml"
 int psb_android_get_vpp_state() {
     FILE *handle = fopen(VPP_STATUS_STORAGE, "r");
     if(handle == NULL)
