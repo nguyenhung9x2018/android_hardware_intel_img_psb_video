@@ -518,9 +518,8 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	}
 
 #ifdef PSBVIDEO_VPP_TILING
-	/* Tiling available for 1080P*/
-	if (input_surface->width > 1280)
-		tiled = 1;
+	/* get the tiling flag*/
+	tiled = GET_SURFACE_INFO_tiling(input_surface->psb_surface);
 #endif
 	/*  According to VIED's design, the width must be multiple of 16 */
 	width = ALIGN_TO_16(input_surface->width);
