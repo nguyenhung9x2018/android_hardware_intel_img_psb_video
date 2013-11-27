@@ -403,6 +403,7 @@ struct context_ENC_s {
 
     IMG_BOOL   bEnableInpCtrl;  //!< Enable Macro-block input control
     IMG_BOOL   bEnableAIR;      //!< Enable Adaptive Intra Refresh
+    IMG_BOOL   bEnableCIR;	//!< Enable Cyclic Intra Refresh
     IMG_INT32  i32NumAIRMBs;    //!< n = Max number of AIR MBs per frame, 0 = _ALL_ MBs over threshold will be marked as AIR Intras, -1 = Auto 10%
     IMG_INT32  i32AIRThreshold; //!< n = SAD Threshold above which a MB is a AIR MB candidate,  -1 = Auto adjusting threshold
     IMG_INT16  i16AIRSkipCnt;   //?!< n = Number of MBs to skip in AIR Table between frames, -1 = Random (0 - NumAIRMbs) skip between frames in AIR table

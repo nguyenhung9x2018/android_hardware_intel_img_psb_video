@@ -427,6 +427,33 @@ static VAStatus tng__H264ES_process_misc_air_param(context_ENC_p ctx, object_buf
     return VA_STATUS_SUCCESS;
 }
 
+static VAStatus tng__H264ES_process_misc_cir_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAEncMiscParameterBuffer *pBuffer = (VAEncMiscParameterBuffer *)obj_buffer->buffer_data;
+    VAEncMiscParameterCIR *psMiscCirParams = NULL;
+
+    ASSERT(obj_buffer->type == VAEncMiscParameterTypeCIR);
+    ASSERT(obj_buffer->size == sizeof(VAEncMiscParameterCIR));
+
+    psMiscCirParams = (VAEncMiscParameterCIR*)pBuffer->data;
+
+    if (psMiscCirParams->cir_num_mbs > 0) {
+	drv_debug_msg(VIDEO_DEBUG_GENERAL,
+	    "CIR enabled with MB count %d\n", ctx->ui16IntraRefresh);
+	ctx->ui16IntraRefresh = psMiscCirParams->cir_num_mbs;
+	ctx->bEnableCIR = 1;
+	ctx->bEnableInpCtrl = 1;
+	ctx->bEnableHostBias = 1;
+    } else {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,
+            "%s: ERROR: invalid cir num mbs(%d), should bigger than 0\n",
+            __FUNCTION__, ctx->ui16IntraRefresh);
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    return VA_STATUS_SUCCESS;
+}
+
 static IMG_UINT8 tng__H264ES_calculate_level(context_ENC_p ctx)
 {
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
@@ -978,6 +1005,32 @@ static VAStatus tng__H264ES_process_slice_param_mdfld(context_ENC_p ctx, object_
     return vaStatus;
 }
 
+static VAStatus tng__H264ES_process_misc_max_slice_size_param(context_ENC_p ctx, object_buffer_p obj_buffer)
+{
+    VAEncMiscParameterBuffer *pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
+    VAEncMiscParameterMaxSliceSize *psMiscMaxSliceSizeParams = NULL;
+    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
+
+    ASSERT(obj_buffer->type == VAEncMiscParameterTypeMaxSliceSize);
+    ASSERT(obj_buffer->size == sizeof(VAEncMiscParameterMaxSliceSize));
+
+    psMiscMaxSliceSizeParams = (VAEncMiscParameterMaxSliceSize*)pBuffer->data;
+
+    if (psMiscMaxSliceSizeParams->max_slice_size > 0) {
+	psRCParams->ui32SliceByteLimit = psMiscMaxSliceSizeParams->max_slice_size;
+	drv_debug_msg(VIDEO_DEBUG_GENERAL,
+	    "Max slice size is %d\n", psRCParams->ui32SliceByteLimit);
+    } else {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,
+            "%s: ERROR: invalid max slice size(%d), should bigger than 0\n",
+            __FUNCTION__, psMiscMaxSliceSizeParams->max_slice_size);
+	psRCParams->ui32SliceByteLimit = 0;
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    }
+
+    return VA_STATUS_SUCCESS;
+}
+
 static VAStatus tng__H264ES_process_slice_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -1026,6 +1079,12 @@ static VAStatus tng__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
             break;
         case VAEncMiscParameterTypeAIR:
             vaStatus = tng__H264ES_process_misc_air_param(ctx, obj_buffer);
+            break;
+	case VAEncMiscParameterTypeCIR:
+            vaStatus = tng__H264ES_process_misc_cir_param(ctx, obj_buffer);
+            break;
+	case VAEncMiscParameterTypeMaxSliceSize:
+	    vaStatus = tng__H264ES_process_misc_max_slice_size_param(ctx, obj_buffer);
             break;
         default:
             break;

@@ -718,6 +718,7 @@ static VAStatus tng__init_context(context_ENC_p ctx)
     ctx->bH264IntraConstrained = IMG_FALSE;//This parameter need not be exposed
     ctx->bEnableInpCtrl     = IMG_FALSE;//This parameter need not be exposed
     ctx->bEnableAIR = 0;
+    ctx->bEnableCIR = 0;
     ctx->bEnableHostBias = (ctx->bEnableAIR != 0);//This parameter need not be exposed
     ctx->bEnableHostQP = IMG_FALSE; //This parameter need not be exposed
     ctx->ui8CodedSkippedIndex = 3;//This parameter need not be exposed
@@ -3192,7 +3193,7 @@ static VAStatus tng__validate_params(context_ENC_p ctx)
         ctx->ui8DeblockIDC = 1;
     }
 
-    ctx->sRCParams.ui32SliceByteLimit = 0;
+    //ctx->sRCParams.ui32SliceByteLimit = 0;
     ctx->sRCParams.ui32SliceMBLimit = 0;
     //slice params
     if (ctx->ui8SlicesPerPicture == 0)
@@ -3653,9 +3654,12 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         drv_debug_msg(VIDEO_DEBUG_ERROR, "provide buffer");
     }
 
-    if (ctx->bEnableAIR == IMG_TRUE) {
+    if (ctx->bEnableAIR == IMG_TRUE ||
+	ctx->bEnableCIR == IMG_TRUE) {
 	tng_air_set_input_control(ctx, 0);
-        tng_air_set_output_control(ctx, 0);
+
+	if (ctx->bEnableAIR == IMG_TRUE)
+	    tng_air_set_output_control(ctx, 0);
     }
 
     if (ctx->eStandard == IMG_STANDARD_MPEG4) {
