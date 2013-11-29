@@ -1157,8 +1157,7 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 				/* check frame rate */
 				ratio = frc->output_fps / (float)frc->input_fps;
 
-				/* Support 15/24/30->60, 25->62 */
-				if (!(ratio == 2 || ratio == 2.5 || ratio == 4 || ratio == (float)2.48)) {
+				if (!((ratio == 2 || ratio == 2.5 || ratio == 4) && frc->output_fps <= 60)) {
 					drv_debug_msg(VIDEO_DEBUG_ERROR, "The FRC do NOT support the ration(%f) and fps(%d)\n",
 						      ratio, frc->output_fps);
 					vaStatus = VA_STATUS_ERROR_UNSUPPORTED_FILTER;
@@ -1353,8 +1352,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			/* check if the input fps is in the range of HW capability */
 			if (ratio == 2)
 				cell_proc_frc_param->conversion_rate = VssFrc2xConversionRate;
-			/* Support 24->60, 25->62 */
-			else if (ratio == 2.5 || ratio == (float)2.48)
+			else if (ratio == 2.5)
 				cell_proc_frc_param->conversion_rate = VssFrc2_5xConversionRate;
 			else if (ratio == 4)
 				cell_proc_frc_param->conversion_rate = VssFrc4xConversionRate;
