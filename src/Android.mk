@@ -28,7 +28,7 @@ include $(CLEAR_VARS)
 
 PSBVIDEO_LOG_ENABLE := true
 
-ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail bigcore),)
+ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail cherrytrail bigcore),)
 LOCAL_SRC_FILES :=              \
     object_heap.c           \
     psb_buffer.c            \
@@ -94,7 +94,7 @@ endif
 
 LOCAL_CFLAGS := -DLINUX -DANDROID -g -Wall -Wno-unused
 
-ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail bigcore),)
+ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail cherrytrail bigcore),)
 LOCAL_C_INCLUDES :=                     \
     $(call include-path-for, libhardware)/hardware         \
     $(call include-path-for, frameworks-base)                          \
@@ -125,7 +125,7 @@ LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := pvr_drv_video
 
 
-ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail bigcore),)
+ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail cherrytrail bigcore),)
 LOCAL_SHARED_LIBRARIES := libdl libdrm libwsbm libcutils \
                 libui libutils libbinder libhardware
 else
@@ -168,7 +168,7 @@ LOCAL_CFLAGS += -DPSBVIDEO_VPP_TILING
 #LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_EC
 endif
 
-ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail bigcore),)
+ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail cherrytrail bigcore),)
 LOCAL_SRC_FILES += \
     tng_VP8.c \
     tng_jpegdec.c
