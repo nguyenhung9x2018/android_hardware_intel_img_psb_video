@@ -722,13 +722,13 @@ IMG_UINT32 tng_send_rec_frames(
 
 IMG_UINT32 tng_send_ref_frames(
     context_ENC_p ctx,
-    IMG_UINT32    ui32RefIndex,
+    IMG_UINT32    ui32refindex,
     IMG_BOOL      bLongTerm)
 {
     //VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int srf_buf_offset;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
-    object_surface_p ref_surface = ps_buf->ref_surface;
+    object_surface_p ref_surface = ps_buf->ref_surface[ui32refindex];
     IMG_UINT32 ui32CmdData = 0;
 
 #ifdef _TNG_FRAMES_

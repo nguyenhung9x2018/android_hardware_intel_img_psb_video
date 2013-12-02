@@ -155,9 +155,11 @@ typedef struct tag_IMG_SOURCE_BUFFER_PARAMS {
     IMG_UINT32      ui32PhysAddrYPlane_Field1;      //!< Source pic phys addr (Y plane, Field 1)
     IMG_UINT32      ui32PhysAddrUPlane_Field1;      //!< Source pic phys addr (U plane, Field 1)
     IMG_UINT32      ui32PhysAddrVPlane_Field1;      //!< Source pic phys addr (V plane, Field 1)
-    IMG_UINT32      ui32HostContext;                        //!< Host context value
-    IMG_UINT8       ui8DisplayOrderNum;                     //!< Number of frames in the stream (incl. skipped)
-    IMG_UINT8       ui8SlotNum;                                     //!< Number of frames in the stream (incl. skipped)
+    IMG_UINT32      ui32HostContext;                //!< Host context value
+    IMG_UINT8       ui8DisplayOrderNum;             //!< Number of frames in the stream (incl. skipped)
+    IMG_UINT8       ui8SlotNum;                     //!< Number of frames in the stream (incl. skipped)
+    IMG_UINT8       uiReserved1;
+    IMG_UINT8       uiReserved2;
 } IMG_SOURCE_BUFFER_PARAMS;
 
 

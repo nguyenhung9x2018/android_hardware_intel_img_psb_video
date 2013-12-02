@@ -1998,7 +1998,7 @@ unsigned int aui32JPEG_MasterMTXTOPAZFWData[] =
     0x82881fc8,
     0x82881fdc,
     0x82881fe0,
-    0x828821fc,
+    0x82882200,
     0x82882460,
     0x8288246b,
     0x82881f14,
