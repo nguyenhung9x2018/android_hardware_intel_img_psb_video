@@ -993,6 +993,22 @@ unsigned long psb__tile_stride_log2_256(int w)
 
     return stride_mode;
 }
+
+unsigned long psb__tile_stride_log2_512(int w)
+{
+    int stride_mode = 0;
+
+    if (512 >= w)
+        stride_mode = 0;
+    else if (1024 >= w)
+        stride_mode = 1;
+    else if (2048 >= w)
+        stride_mode = 2;
+    else if (4096 >= w)
+        stride_mode = 3;
+
+    return stride_mode;
+}
 #endif
 
 VAStatus psb_CreateContext(
@@ -1121,7 +1137,11 @@ VAStatus psb_CreateContext(
         obj_surface->context_id = contextID; /* Claim ownership of surface */
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
         if (GET_SURFACE_INFO_tiling(psb_surface))
+#ifdef BAYTRAIL
+            obj_context->msvdx_tile = psb__tile_stride_log2_512(obj_surface->width);
+#else
             obj_context->msvdx_tile = psb__tile_stride_log2_256(obj_surface->width);
+#endif
 #endif
 #if 0
         /* for decode, move the surface into |TT */

@@ -123,8 +123,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     }
 
     CHECK_INVALID_PARAM(external_buffers == NULL);
-    /* temp set tiling as 0, need query with gralloc function */
-    external_buffers->tiling = 0;
+
     /*
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
     CHECK_VASTATUS();
@@ -163,7 +162,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
         obj_surface->width_r = width;
         obj_surface->height_r = height;
         obj_surface->height_origin = height_origin;
-	obj_surface->is_ref_surface = 0;
+        obj_surface->is_ref_surface = 0;
 
         psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
         if (NULL == psb_surface) {
@@ -186,10 +185,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
             break;
         }
 
-#ifdef PSBVIDEO_MSVDX_DEC_TILING
-        if (width > 1280)
-            external_buffers->tiling = 1;
-#endif
         /*hard code the gralloc buffer usage*/
         usage = GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_COMPOSER;
 
@@ -222,6 +217,9 @@ VAStatus psb_CreateSurfacesFromGralloc(
             break;
         }
         buffer_stride = psb_surface->stride;
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+        psb_surface->extra_info[7] = external_buffers->tiling;
+#endif
         /* by default, surface fourcc is NV12 */
         psb_surface->extra_info[4] = fourcc;
         obj_surface->psb_surface = psb_surface;
