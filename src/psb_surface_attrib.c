@@ -264,7 +264,8 @@ VAStatus psb_CreateSurfacesForUserPtr(
     unsigned int chroma_v_stride,
     unsigned int luma_offset, /* could be 0 */
     unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
-    unsigned int chroma_v_offset
+    unsigned int chroma_v_offset,
+    unsigned int tiling
 )
 {
     INIT_DRIVER_DATA
@@ -373,7 +374,9 @@ VAStatus psb_CreateSurfacesForUserPtr(
         /* by default, surface fourcc is NV12 */
         memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
         psb_surface->extra_info[4] = fourcc;
-
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+	psb_surface->extra_info[7] = tiling;
+#endif
         obj_surface->psb_surface = psb_surface;
     }
 
@@ -761,7 +764,8 @@ VAStatus psb_CreateSurfacesWithAttribute(
                                      attribute_tpi->size, attribute_tpi->pixel_format,
                                      attribute_tpi->luma_stride, attribute_tpi->chroma_u_stride,
                                      attribute_tpi->chroma_v_stride, attribute_tpi->luma_offset,
-                                     attribute_tpi->chroma_u_offset, attribute_tpi->chroma_v_offset);
+                                     attribute_tpi->chroma_u_offset, attribute_tpi->chroma_v_offset,
+                                     attribute_tpi->tiling);
         return vaStatus;
 #ifdef ANDROID
     case VAExternalMemoryNoneCacheUserPointer:
