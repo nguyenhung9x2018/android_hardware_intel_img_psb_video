@@ -2350,10 +2350,6 @@ static void tng__generate_slice_params_template(
         break;
     }
 
-#ifdef _TOPAZHP_PDUMP_
-    apSliceParamsTemplates_dump((SLICE_PARAMS *)slice_mem_temp_p);
-#endif
-
     psb_buffer_unmap(&(ps_mem->bufs_slice_template));
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: end \n", __FUNCTION__);
@@ -3135,10 +3131,6 @@ static void tng__setvideo_cmdbuf(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
             &(ps_mem->bufs_mb_ctrl_in_params), 0, ps_mem_size->mb_ctrl_in_params);
     }
 
-#ifdef _TOPAZHP_PDUMP_
-    tng_trace_setvideo(psMtxEncContext);
-#endif
-
     psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s end\n", __FUNCTION__);
@@ -3619,6 +3611,10 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         if (vaStatus != VA_STATUS_SUCCESS) {
            drv_debug_msg(VIDEO_DEBUG_ERROR, "set cmd buf \n");
         }
+
+#ifdef _TOPAZHP_PDUMP_
+	tng_trace_setvideo(ctx, 0);
+#endif
     } else {
         vaStatus = tng__cmdbuf_lowpower(ctx);
         if (vaStatus != VA_STATUS_SUCCESS) {

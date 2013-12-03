@@ -27,9 +27,10 @@
 #define _TNG_TRACE_H_
 
 #include <va/va_enc_h264.h>
+#include "tng_hostcode.h"
 #include "psb_drv_video.h"
 
-void tng_trace_setvideo(void *data);
+void tng_trace_setvideo(context_ENC_p ctx, IMG_UINT32 ui32StreamID);
 void tng_H264ES_trace_seq_params(VAEncSequenceParameterBufferH264 *psTraceSeqParams);
 void tng_H264ES_trace_pic_params(VAEncPictureParameterBufferH264 *psTracePicParams);
 void tng_H264ES_trace_slice_params(VAEncSliceParameterBufferH264 *psTraceSliceParams);
@@ -38,7 +39,7 @@ void tng_H264ES_trace_misc_rc_params(VAEncMiscParameterRateControl *psTraceMiscR
 void tng_trace_seq_header_params(H264_SEQUENCE_HEADER_PARAMS *psSHParams);
 void tng_trace_pic_header_params(H264_PICTURE_HEADER_PARAMS *psSHParams);
 void tng_trace_slice_header_params(H264_SLICE_HEADER_PARAMS *psSlHParams);
-int apSliceParamsTemplates_dump(SLICE_PARAMS *p);
+int apSliceParamsTemplates_dump(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex, IMG_UINT32 ui32SliceBufIdx);
 void tng__trace_seqconfig(
     IMG_BOOL bIsBPicture,
     IMG_BOOL bFieldMode,

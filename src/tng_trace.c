@@ -45,7 +45,7 @@
 #include "hwdefs/mvea_regs.h"
 #include "hwdefs/topazhp_default_params.h"
 
-
+unsigned int dump_address_content = 1;
 
 #define PRINT_ARRAY_NEW( FEILD, NUM)            \
     for(i=0;i< NUM;i++) {                       \
@@ -98,6 +98,23 @@ do {                                                            \
         drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t%s[%02d]=x%08x\n", STR, i, data->FEILD[i]); \
     }                                                           \
 } while (0)
+
+static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p);
+
+static int DO_HEADER_dump(MTX_HEADER_PARAMS *data)
+{
+    MTX_HEADER_PARAMS *p = data;
+    unsigned char *q=(unsigned char *)data;
+
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(===RawBits===)");
+    PRINT_ARRAY_BYTE(q, 128);
+
+    MTX_HEADER_PARAMS_dump(p);
+        
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\n");
+    
+    return 0;
+}
 
 static void JPEG_MTX_DMA_dump(JPEG_MTX_DMA_SETUP *data)
 {
@@ -156,9 +173,180 @@ static char *IMG_FRAME_TEMPLATE_TYPE2Str(IMG_FRAME_TEMPLATE_TYPE tmp)
     return "Undefined";
 }
 
-static int MTX_HEADER_PARAMS_dump(MTX_HEADER_PARAMS *p);
-int apSliceParamsTemplates_dump(SLICE_PARAMS *p)
+static int apReconstructured_dump(context_ENC_p ctx)
 {
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data = NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx context\n", __FUNCTION__);
+        return 0;
+    }
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+    if (data == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,"%s data pointer is NULL\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    psb_buffer_map(&(ps_mem->bufs_recon_pictures), &(ps_mem->bufs_recon_pictures.virtual_addr));
+    if (ps_mem->bufs_recon_pictures.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping reconstructed buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i = 0; i < 8; i++) {
+	if (dump_address_content && data->apReconstructured[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapReconstructured[%02d]=x%08x\n", i, data->apReconstructured[i]);
+	    PRINT_ARRAY_BYTE(ps_mem->bufs_recon_pictures.virtual_addr, 64);
+	} else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapReconstructured[%02d]=x%08x = {	}\n", i, data->apReconstructured[i]);
+	}
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ps_mem->bufs_recon_pictures));
+    return 0;
+}
+
+static int apColocated_dump(context_ENC_p ctx)
+{
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data = NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx context\n", __FUNCTION__);
+        return 0;
+    }
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+    if (data == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,"%s data pointer is NULL\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    psb_buffer_map(&(ps_mem->bufs_colocated), &(ps_mem->bufs_colocated.virtual_addr));
+    if (ps_mem->bufs_colocated.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping colocated buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i = 0; i < 8; i++) {
+	if (dump_address_content && data->apReconstructured[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapColocated[%02d]=x%08x\n", i, data->apColocated[i]);
+	    PRINT_ARRAY_BYTE(ps_mem->bufs_colocated.virtual_addr, 64);
+	} else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapColocated[%02d]=x%08x = {	}\n", i, data->apColocated[i]);
+	}
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ps_mem->bufs_colocated));
+    return 0;
+}
+
+static int apPV_dump(context_ENC_p ctx)
+{
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data = NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx context\n", __FUNCTION__);
+        return 0;
+    }
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+    if (data == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,"%s data pointer is NULL\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    psb_buffer_map(&(ps_mem->bufs_mv), &(ps_mem->bufs_mv.virtual_addr));
+    if (ps_mem->bufs_mv.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping apMV buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i = 0; i < 16; i++) {
+	if (dump_address_content && data->apMV[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapMV[%02d]=x%08x\n", i, data->apMV[i]);
+	    PRINT_ARRAY_BYTE(ps_mem->bufs_mv.virtual_addr, 64);
+	} else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapMV[%02d]=x%08x = {	}\n", i, data->apMV[i]);
+	}
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ps_mem->bufs_mv));
+    return 0;
+}
+
+static int apWritebackRegions_dump(context_ENC_p ctx)
+{
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data = NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx context\n", __FUNCTION__);
+        return 0;
+    }
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+    if (data == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,"%s data pointer is NULL\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    psb_buffer_map(&(ctx->bufs_writeback), &(ctx->bufs_writeback.virtual_addr));
+    if (ctx->bufs_writeback.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping write back buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i = 0; i < 32; i++) {
+	if (dump_address_content && data->apWritebackRegions[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapWritebackRegions[%02d]=x%08x\n", i, data->apWritebackRegions[i]);
+	    PRINT_ARRAY_BYTE(ctx->bufs_writeback.virtual_addr, 64);
+	} else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapWritebackRegions[%02d]=x%08x = {	}\n", i, data->apWritebackRegions[i]);
+	}
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ctx->bufs_writeback));
+    return 0;
+}
+
+int apSliceParamsTemplates_dump(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex, IMG_UINT32 ui32SliceBufIdx)
+{
+    //IMG_FRAME_TEMPLATE_TYPE eSliceType = (IMG_FRAME_TEMPLATE_TYPE)ui32SliceType;
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
+    SLICE_PARAMS *p = NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_slice_template), &(ps_mem->bufs_slice_template.virtual_addr));
+    if (ps_mem->bufs_slice_template.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping slice template\n", __FUNCTION__);
+        return 0;
+    }
+
+    p = (SLICE_PARAMS*)(ps_mem->bufs_slice_template.virtual_addr + (ctx->ctx_mem_size.slice_template * ui32SliceBufIdx));
+
     unsigned char *ptmp = (unsigned char*)&p->sSliceHdrTmpl;
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32Flags=0x%08x\n", p->ui32Flags);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tui32SliceConfig=0x%08x\n", p->ui32SliceConfig);
@@ -169,36 +357,304 @@ int apSliceParamsTemplates_dump(SLICE_PARAMS *p)
     //PRINT_ARRAY_BYTE(ptmp, 64);
 
     MTX_HEADER_PARAMS_dump(&p->sSliceHdrTmpl);
+
+    psb_buffer_unmap(&(ps_mem->bufs_slice_template));
     
     return 0;
 }
 
-static int DO_HEADER_dump(MTX_HEADER_PARAMS *data)
+static int apPicHdrTemplates_dump(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex, IMG_UINT32 count)
 {
-    MTX_HEADER_PARAMS *p = data;
-    unsigned char *q=(unsigned char *)data;
+    int i;
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
+    MTX_HEADER_PARAMS *data;
 
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t(===RawBits===)");
-    PRINT_ARRAY_BYTE(q, 128);
+    psb_buffer_map(&(ps_mem->bufs_pic_template), &(ps_mem->bufs_pic_template.virtual_addr));
+    if (ps_mem->bufs_pic_template.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping pic template\n", __FUNCTION__);
+        return 0;
+    }
 
-    MTX_HEADER_PARAMS_dump(p);
-        
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\n\n");
-    
+    for (i = 0; i < count; i++) {
+	data = ps_mem->bufs_pic_template.virtual_addr + (ctx->ctx_mem_size.pic_template * i);
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapPicHdrTemplates[%02d]=0x%08x  {\n", i, data);
+	PRINT_ARRAY_BYTE(data, 64);                        \
+        drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
+    }
+
+    data = ps_mem->bufs_pic_template.virtual_addr;
+    MTX_HEADER_PARAMS_dump(data);
+
+    psb_buffer_unmap(&(ps_mem->bufs_pic_template));
     return 0;
 }
 
-void tng_trace_setvideo(void *lpdata)
+static int auui32SliceMap_dump(context_ENC_p ctx)
+{
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data = NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx context\n", __FUNCTION__);
+        return 0;
+    }
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+    if (data == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,"%s data pointer is NULL\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    psb_buffer_map(&(ps_mem->bufs_slice_map), &(ps_mem->bufs_slice_map.virtual_addr));
+    if (ps_mem->bufs_slice_map.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping slice map buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i = 0; i < 9; i++) {
+	if (dump_address_content && data->aui32SliceMap[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\taui32SliceMap[%02d]=x%08x\n", i, data->aui32SliceMap[i]);
+	    PRINT_ARRAY_BYTE(ps_mem->bufs_slice_map.virtual_addr, 64);
+	} else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\taui32SliceMap[%02d]=x%08x = {	}\n", i, data->aui32SliceMap[i]);
+	}
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ps_mem->bufs_slice_map));
+    return 0;
+}
+
+static int apSeqHeader_dump(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
+{
+    MTX_HEADER_PARAMS *data;
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
+    tng_cmdbuf_p cmdbuf = ctx->obj_context->tng_cmdbuf;
+    IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
+    H264_VUI_PARAMS *psVuiParams = &(ctx->sVuiParams);
+
+    psb_buffer_map(&(ps_mem->bufs_seq_header), &(ps_mem->bufs_seq_header.virtual_addr));
+    if (ps_mem->bufs_seq_header.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping seq header\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (MTX_HEADER_PARAMS *)ps_mem->bufs_seq_header.virtual_addr;
+
+    DO_HEADER_dump(data);
+
+    psb_buffer_unmap(&(ps_mem->bufs_seq_header));
+    return 0;
+}
+
+static int pFirstPassOutParamAddr_dump(context_ENC_p ctx)
+{
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data= NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx ctx buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    // if enabled, return the input-control buffer corresponding to this slot
+    psb_buffer_map(&(ps_mem->bufs_first_pass_out_params), &(ps_mem->bufs_first_pass_out_params.virtual_addr));
+    if (ps_mem->bufs_first_pass_out_params.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping first pass out param buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i=0; i < 9; i++) {
+        if (dump_address_content && data->pFirstPassOutParamAddr[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tpFirstPassOutParamAddr[%02d]=x%08x\n", i, data->pFirstPassOutParamAddr[i]);
+            PRINT_ARRAY_BYTE(ps_mem->bufs_first_pass_out_params.virtual_addr, 64);
+        } else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tpFirstPassOutParamAddr[%02d]=x%08x = {	}\n", i, data->pFirstPassOutParamAddr[i]);
+        }
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ps_mem->bufs_first_pass_out_params));
+    return 0;
+}
+
+static int pFirstPassOutBestMultipassParamAddr_dump(context_ENC_p ctx)
+{
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data= NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx ctx buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    // if enabled, return the input-control buffer corresponding to this slot
+    psb_buffer_map(&(ps_mem->bufs_first_pass_out_best_multipass_param), &(ps_mem->bufs_first_pass_out_best_multipass_param.virtual_addr));
+    if (ps_mem->bufs_first_pass_out_best_multipass_param.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping first pass out param buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i=0; i < 9; i++) {
+        if (dump_address_content && data->pFirstPassOutBestMultipassParamAddr[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tpFirstPassOutBestMultipassParamAddr[%02d]=x%08x\n", i, data->pFirstPassOutBestMultipassParamAddr[i]);
+            PRINT_ARRAY_BYTE(ps_mem->bufs_first_pass_out_best_multipass_param.virtual_addr, 64);
+        } else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tpFirstPassOutBestMultipassParamAddr[%02d]=x%08x = {	}\n", i, data->pFirstPassOutBestMultipassParamAddr[i]);
+        }
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ps_mem->bufs_first_pass_out_best_multipass_param));
+    return 0;
+}
+
+static int pMBCtrlInParamsAddr_dump(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
+{
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data= NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx ctx buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    // if enabled, return the input-control buffer corresponding to this slot
+    psb_buffer_map(&(ps_mem->bufs_mb_ctrl_in_params), &(ps_mem->bufs_mb_ctrl_in_params.virtual_addr));
+    if (ps_mem->bufs_mb_ctrl_in_params.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mb ctrl buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i=0; i < 9; i++) {
+        if (dump_address_content && data->pMBCtrlInParamsAddr[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tpMBCtrlInParamsAddr[%02d]=x%08x\n", i, data->pMBCtrlInParamsAddr[i]);
+            PRINT_ARRAY_BYTE(ps_mem->bufs_mb_ctrl_in_params.virtual_addr, 64);
+        } else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tpMBCtrlInParamsAddr[%02d]=x%08x = {	}\n", i, data->pMBCtrlInParamsAddr[i]);
+        }
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ps_mem->bufs_mb_ctrl_in_params));
+    return 0;
+}
+
+static int apAboveParams_dump(context_ENC_p ctx)
+{
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data= NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx ctx buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    // if enabled, return the input-control buffer corresponding to this slot
+    psb_buffer_map(&(ps_mem->bufs_above_params), &(ps_mem->bufs_above_params.virtual_addr));
+    if (ps_mem->bufs_above_params.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping above param ctrl buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i=0; i < 2; i++) {
+        if (dump_address_content && data->apAboveParams[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapAboveParams[%02d]=x%08x\n", i, data->apAboveParams[i]);
+            PRINT_ARRAY_BYTE(ps_mem->bufs_above_params.virtual_addr, 64);
+        } else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapAboveParams[%02d]=x%08x = {	}\n", i, data->apAboveParams[i]);
+        }
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ps_mem->bufs_above_params));
+    return 0;
+}
+
+static int aui32LTRefHeader_dump(context_ENC_p ctx)
+{
+    int i;
+    context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data = NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx context\n", __FUNCTION__);
+        return 0;
+    }
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+    if (data == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,"%s data pointer is NULL\n", __FUNCTION__);
+        return 0;
+    }
+
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    psb_buffer_map(&(ps_mem->bufs_lt_ref_header), &(ps_mem->bufs_lt_ref_header.virtual_addr));
+    if (ps_mem->bufs_lt_ref_header.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping lt ref buf\n", __FUNCTION__);
+        return 0;
+    }
+
+    for (i = 0; i < 9; i++) {
+	if (dump_address_content && data->aui32LTRefHeader[i]) {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\taui32LTRefHeader[%02d]=x%08x\n", i, data->aui32LTRefHeader[i]);
+	    PRINT_ARRAY_BYTE(ps_mem->bufs_lt_ref_header.virtual_addr, 64);
+	} else {
+	    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\taui32LTRefHeader[%02d]=x%08x = {	}\n", i, data->aui32LTRefHeader[i]);
+	}
+    }
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+    psb_buffer_unmap(&(ps_mem->bufs_lt_ref_header));
+    return 0;
+}
+
+void tng_trace_setvideo(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
 {
     unsigned int i;
-    IMG_MTX_VIDEO_CONTEXT *data = NULL;
 
-    if (lpdata == NULL) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR,"%s data pointer is NULL\n", __FUNCTION__);
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamID]);
+    context_ENC_mem_size *ps_mem_size = &(ctx->ctx_mem_size);
+    IMG_MTX_VIDEO_CONTEXT* data= NULL;
+
+    psb_buffer_map(&(ps_mem->bufs_mtx_context), &(ps_mem->bufs_mtx_context.virtual_addr));
+    if (ps_mem->bufs_mtx_context.virtual_addr == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "%s error: mapping mtx context\n", __FUNCTION__);
         return ;
     }
 
-    data = (IMG_MTX_VIDEO_CONTEXT *)lpdata;
+    data = (IMG_MTX_VIDEO_CONTEXT*)(ps_mem->bufs_mtx_context.virtual_addr);
+
+    if (data == NULL) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR,"%s data pointer is NULL\n", __FUNCTION__);
+        return ;
+    }
 
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t==========IMG_MTX_VIDEO_CONTEXT=============\n");
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui64ClockDivBitrate=%lld\n", data->ui64ClockDivBitrate);
@@ -208,19 +664,19 @@ void tng_trace_setvideo(void *lpdata)
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apTmpReconstructured  {");
     PRINT_ARRAY_ADDR("apTmpReconstructured",	apTmpReconstructured, MAX_PIC_NODES);
 #endif
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apReconstructured  {");
-    PRINT_ARRAY_ADDR("apReconstructured",	apReconstructured, MAX_PIC_NODES);
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apColocated  {");
-    PRINT_ARRAY_ADDR("apColocated",	apColocated, MAX_PIC_NODES);
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apMV  {");
-    PRINT_ARRAY_ADDR("apMV",	apMV, MAX_MV);	
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apReconstructured  {\n");
+    apReconstructured_dump(ctx);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apColocated  {\n");
+    apColocated_dump(ctx);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apMV  {\n");
+    apPV_dump(ctx);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apInterViewMV  {");
 //    PRINT_ARRAY(	apInterViewMV, 2 );
     PRINT_ARRAY_ADDR("apInterViewMV", apInterViewMV, 2);	
 
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32DebugCRCs=0x%x\n", data->ui32DebugCRCs);
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apWritebackRegions  {");
-    PRINT_ARRAY_ADDR("apWritebackRegions",	apWritebackRegions, WB_FIFO_SIZE);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apWritebackRegions  {\n");
+    apWritebackRegions_dump(ctx);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32InitialCPBremovaldelayoffset=0x%x\n", data->ui32InitialCPBremovaldelayoffset);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32MaxBufferMultClockDivBitrate=0x%x\n", data->ui32MaxBufferMultClockDivBitrate);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pSEIBufferingPeriodTemplate=0x%x\n", data->pSEIBufferingPeriodTemplate);
@@ -233,16 +689,20 @@ void tng_trace_setvideo(void *lpdata)
     //PRINT_ARRAY_ADDR( apSliceParamsTemplates, 5);
     for (i=0; i<5; i++) {
         drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapSliceParamsTemplates[%d]=0x%08x  {\n", i, data->apSliceParamsTemplates[i]);
+	apSliceParamsTemplates_dump(ctx, 0, i);
         drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
     }
 
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apPicHdrTemplates  {");
-    PRINT_ARRAY_ADDR("apPicHdrTemplates", apPicHdrTemplates, 4);
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32SliceMap  {");
-    PRINT_ARRAY_ADDR("aui32SliceMap", 	aui32SliceMap, MAX_SOURCE_SLOTS_SL);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apPicHdrTemplates  {\n");
+    apPicHdrTemplates_dump(ctx, 0, 5);
+
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32SliceMap  {\n");
+    auui32SliceMap_dump(ctx);
 
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32FlatGopStruct=0x%x\n", data->ui32FlatGopStruct);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apSeqHeader        =0x%x\n", data->apSeqHeader);
+    apSeqHeader_dump(ctx, 0);
+
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apSubSetSeqHeader  =0x%x\n", data->apSubSetSeqHeader);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b16NoSequenceHeaders =0x%x\n", data->b16NoSequenceHeaders);
     
@@ -252,14 +712,15 @@ void tng_trace_setvideo(void *lpdata)
     PRINT_ARRAY(aui32WeightedPredictionVirtAddr, MAX_SOURCE_SLOTS_SL);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32HierarGopStruct=0x%x\n", data->ui32HierarGopStruct);
 
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pFirstPassOutParamAddr  {");
-    PRINT_ARRAY_ADDR("pFirstPassOutParamAddr",pFirstPassOutParamAddr, MAX_SOURCE_SLOTS_SL);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pFirstPassOutParamAddr  {\n");
+    pFirstPassOutParamAddr_dump(ctx);
 #ifndef EXCLUDE_BEST_MP_DECISION_DATA
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pFirstPassOutBestMultipassParamAddr  {");
-    PRINT_ARRAY_ADDR("pFirstPassOutBestMultipassParamAddr", pFirstPassOutBestMultipassParamAddr, MAX_SOURCE_SLOTS_SL);
+    pFirstPassOutBestMultipassParamAddr_dump(ctx);
 #endif
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pMBCtrlInParamsAddr  {");
-    PRINT_ARRAY_ADDR("pMBCtrlInParamsAddr", pMBCtrlInParamsAddr, MAX_SOURCE_SLOTS_SL);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	pMBCtrlInParamsAddr  {\n");
+    pMBCtrlInParamsAddr_dump(ctx, 0);
+
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32InterIntraScale{");
     PRINT_ARRAY( ui32InterIntraScale, SCALE_TBL_SZ);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32SkippedCodedScale  {");
@@ -268,8 +729,8 @@ void tng_trace_setvideo(void *lpdata)
 
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32PicRowStride=0x%x\n", data->ui32PicRowStride);
 
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apAboveParams  {");
-    PRINT_ARRAY_ADDR("apAboveParams", apAboveParams, TOPAZHP_NUM_PIPES);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	apAboveParams  {\n");
+    apAboveParams_dump(ctx);
 
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32IdrPeriod =0x%x\n ", data->ui32IdrPeriod);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32IntraLoopCnt =0x%x\n", data->ui32IntraLoopCnt);
@@ -364,8 +825,8 @@ void tng_trace_setvideo(void *lpdata)
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	ui32PatchedRef1Address=0x%x\n", data->ui32PatchedRef1Address);
 #endif
 #ifdef LTREFHEADER
-    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32LTRefHeader  {");
-    PRINT_ARRAY_ADDR("aui32LTRefHeader",aui32LTRefHeader, MAX_SOURCE_SLOTS_SL);
+    drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	aui32LTRefHeader  {\n");
+    aui32LTRefHeader_dump(ctx);
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	i8SliceHeaderSlotNum=%d\n",data->i8SliceHeaderSlotNum);
 #endif
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t	b8ReconIsLongTerm=%d\n", data->b8ReconIsLongTerm);
@@ -408,6 +869,9 @@ void tng_trace_setvideo(void *lpdata)
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t	i32TransferRate=%d\n",data->sInParams.mode.h264.i32TransferRate);
     
     drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
+
+    psb_buffer_unmap(&(ps_mem->bufs_mtx_context));
+
     return;
 }
 
