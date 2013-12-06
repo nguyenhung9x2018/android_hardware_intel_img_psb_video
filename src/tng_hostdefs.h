@@ -142,6 +142,36 @@
 #define SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SIZE (4)
 #define MASK_MTX_MSG_PROVIDE_CODED_BUFFER_SIZE  (0x0fffffff << SHIFT_MTX_MSG_PROVIDE_CODED_BUFFER_SLOT)
 
+#define SHIFT_MTX_MSG_RC_UPDATE_MIN_QP                  (0)
+#define MASK_MTX_MSG_RC_UPDATE_MIN_QP                   (0x3f << SHIFT_MTX_MSG_RC_UPDATE_MIN_QP)
+#define SHIFT_MTX_MSG_RC_UPDATE_MAX_QP                  (6)
+#define MASK_MTX_MSG_RC_UPDATE_MAX_QP                   (0x3f << SHIFT_MTX_MSG_RC_UPDATE_MAX_QP)
+#define SHIFT_MTX_MSG_RC_UPDATE_INTRA                   (12)
+#define MASK_MTX_MSG_RC_UPDATE_INTRA                    (0xffff << SHIFT_MTX_MSG_RC_UPDATE_INTRA)
+
+#define RC_MASK_frame_width        (1<<0)
+#define RC_MASK_frame_height       (1<<1)
+#define RC_MASK_bits_per_second    (1<<2)
+#define RC_MASK_target_percentage  (1<<3)
+#define RC_MASK_window_size        (1<<4)
+#define RC_MASK_initial_qp         (1<<5)
+#define RC_MASK_min_qp             (1<<6)
+#define RC_MASK_force_kf           (1<<7)
+#define RC_MASK_no_ref_last        (1<<8)
+#define RC_MASK_no_ref_gf          (1<<9)
+#define RC_MASK_no_ref_arf         (1<<10)
+#define RC_MASK_frame_rate         (1<<11)
+#define RC_MASK_intra_period       (1<<12)
+#define RC_MASK_intra_idr_period   (1<<13)
+#define RC_MASK_ip_period          (1<<14)
+#define RC_MASK_quality            (1<<15)
+#define RC_MASK_refresh_entropy_probs    (1<<16)
+#define RC_MASK_copy_buffer_to_golden    (1<<17)
+#define RC_MASK_copy_buffer_to_alternate (1<<18)
+#define RC_MASK_refresh_last             (1<<19)
+#define RC_MASK_refresh_golden_frame     (1<<20)
+#define RC_MASK_refresh_alternate_frame  (1<<21)
+#define RC_MASK_max_qp             (1<<22)
 
 /*!
  *****************************************************************************
@@ -191,7 +221,6 @@ typedef enum {
     MTX_CMDID_SW_LEAVE_LOWPOWER = 0x7c,
     MTX_CMDID_SW_ENTER_LOWPOWER = 0x7e,
     MTX_CMDID_SW_NEW_CODEC = 0x7f,
-    MTX_CMDID_SW_UPDATE_MTX_CONTEXT = 0x80
 } tng_MTX_CMD_ID;
 
 

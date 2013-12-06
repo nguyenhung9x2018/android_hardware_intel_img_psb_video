@@ -469,6 +469,10 @@ struct context_ENC_s {
 
     uint32_t buffer_size;
     uint32_t initial_buffer_fullness;
+
+    /* qp/maxqp/minqp/bitrate/intra_period */
+    uint32_t rc_update_flag;
+    IMG_INT16 max_qp;
 };
 
 typedef struct context_ENC_s *context_ENC_p;

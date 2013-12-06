@@ -210,8 +210,12 @@ static VAStatus tng__H264ES_process_misc_framerate_param(context_ENC_p ctx, obje
         psRCParams->ui32FrameRate = psMiscFrameRateParam->framerate;
     else {
         if(psMiscFrameRateParam->framerate != psRCParams->ui32FrameRate){
+	    if (psMiscFrameRateParam->framerate > psRCParams->ui32FrameRate)
+		psRCParams->ui32BitsPerSecond /= (float)psMiscFrameRateParam->framerate / psRCParams->ui32FrameRate;
+	    else
+		psRCParams->ui32BitsPerSecond *= (float)psRCParams->ui32FrameRate / psMiscFrameRateParam->framerate;
             psRCParams->ui32FrameRate = psMiscFrameRateParam->framerate;
-            psRCParams->bBitrateChanged = IMG_TRUE;
+            ctx->rc_update_flag |= RC_MASK_frame_rate;
         }
     }
 
@@ -220,6 +224,7 @@ static VAStatus tng__H264ES_process_misc_framerate_param(context_ENC_p ctx, obje
 
 static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
+    IMG_UINT32 ui32BitsPerFrame;
     VAEncMiscParameterRateControl *psMiscRcParams;
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     VAEncMiscParameterBuffer *pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
@@ -246,7 +251,7 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
     if ((psRCParams->ui32BitsPerSecond != psMiscRcParams->bits_per_second) && 
         psMiscRcParams->bits_per_second != 0) {
         psRCParams->ui32BitsPerSecond = psMiscRcParams->bits_per_second;
-        psRCParams->bBitrateChanged = IMG_TRUE;
+	ctx->rc_update_flag |= RC_MASK_bits_per_second;
     }
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL,
@@ -288,25 +293,49 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
     psRCParams->i32InitialDelay = (13 * psRCParams->ui32BufferSize) >> 4;
     psRCParams->i32InitialLevel = (3 * psRCParams->ui32BufferSize) >> 4;
 
+    ui32BitsPerFrame = psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate;
+
+    /* in order to minimise mismatches between firmware and external world InitialLevel should be a multiple of ui32BitsPerFrame */
+    psRCParams->i32InitialLevel = ((psRCParams->i32InitialLevel + ui32BitsPerFrame / 2) / ui32BitsPerFrame) * ui32BitsPerFrame;
+    psRCParams->i32InitialLevel = tng__max(psRCParams->i32InitialLevel, ui32BitsPerFrame);
+    psRCParams->i32InitialDelay = psRCParams->ui32BufferSize - psRCParams->i32InitialLevel;
+
     //free(psMiscRcParams);
-    if (psMiscRcParams->initial_qp > 51) {
+    if (psMiscRcParams->initial_qp > 51 ||
+	psMiscRcParams->min_qp > 51 ||
+	psMiscRcParams->max_qp > 51) {
         drv_debug_msg(VIDEO_DEBUG_ERROR,
-            "%s: Initial_qp(%d) are invalid.\nQP shouldn't be larger than 51 for H264\n",
-            __FUNCTION__, psMiscRcParams->initial_qp);
+            "%s: Initial_qp(%d) min_qp(%d) max_qp(%d) invalid.\nQP shouldn't be larger than 51 for H264\n",
+            __FUNCTION__, psMiscRcParams->initial_qp, psMiscRcParams->min_qp, psMiscRcParams->max_qp);
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
-    //free(psMiscRcParams);
-    if (psMiscRcParams->min_qp > 51) {
-        drv_debug_msg(VIDEO_DEBUG_ERROR,
-            "%s: min_qpinitial_qp(%d) are invalid.\nQP shouldn't be larger than 51 for H264\n",
-             __FUNCTION__, psMiscRcParams->min_qp );
-        psMiscRcParams->min_qp = 10;
-        return VA_STATUS_ERROR_INVALID_PARAMETER;
+    if ((psRCParams->ui32InitialQp != psMiscRcParams->initial_qp) &&
+	(psMiscRcParams->initial_qp != 0)) {
+	drv_debug_msg(VIDEO_DEBUG_GENERAL,
+	    "%s: initial_qp updated from %d to %d\n",
+	    __FUNCTION__, psRCParams->ui32InitialQp, psMiscRcParams->initial_qp);
+	ctx->rc_update_flag |= RC_MASK_initial_qp;
+	psRCParams->ui32InitialQp = psMiscRcParams->initial_qp;
     }
 
-    psRCParams->ui32InitialQp = psMiscRcParams->initial_qp;
-    psRCParams->iMinQP = psMiscRcParams->min_qp;
+    if ((psRCParams->iMinQP != psMiscRcParams->min_qp) &&
+	(psMiscRcParams->min_qp != 0)) {
+	drv_debug_msg(VIDEO_DEBUG_GENERAL,
+	    "%s: min_qp updated from %d to %d\n",
+	    __FUNCTION__, psRCParams->iMinQP, psMiscRcParams->min_qp);
+	ctx->rc_update_flag |= RC_MASK_min_qp;
+	psRCParams->iMinQP = psMiscRcParams->min_qp;
+    }
+
+    if ((ctx->max_qp != psMiscRcParams->max_qp) &&
+	(psMiscRcParams->max_qp != 0)) {
+	drv_debug_msg(VIDEO_DEBUG_GENERAL,
+	    "%s: max_qp updated from %d to %d\n",
+	    __FUNCTION__, ctx->max_qp, psMiscRcParams->max_qp);
+	ctx->rc_update_flag |= RC_MASK_max_qp;
+	ctx->max_qp = psMiscRcParams->max_qp;
+    }
 
     return VA_STATUS_SUCCESS;
 }
@@ -628,8 +657,10 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
         }
     }
 
-    if (ctx->ui32FrameCount[ctx->ui32StreamID] > 0)
+    if (ctx->ui32FrameCount[ctx->ui32StreamID] > 0) {
         ctx->idr_force_flag = 1;
+	ctx->rc_update_flag |= RC_MASK_intra_period;
+    }
 
     ctx->ui8SlotsInUse = ui32IPCount + 1; //Bframes + 2
 
@@ -651,7 +682,7 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
 
     if (psSeqParams->bits_per_second != psRCParams->ui32BitsPerSecond) {
         psRCParams->ui32BitsPerSecond = psSeqParams->bits_per_second;
-        psRCParams->bBitrateChanged = IMG_TRUE;
+	ctx->rc_update_flag |= RC_MASK_bits_per_second;
     }
 
     psRCParams->ui32IntraFreq = ctx->ui32IntraCnt;
