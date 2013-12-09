@@ -1083,7 +1083,7 @@ static void tng__VP8_FE_Registers_Write(context_VP8_p ctx) {
        /* add the first partition offset */
        psb_cmdbuf_reg_start_block(cmdbuf, 0);
 
-       ctx->DCT_Base_Address_Offset = (ctx->slice_params->partition_size[0]) + ((ctx->pic_params->pic_fields.bits.key_frame == 0) ? 10 : 3) + 3 * (ctx->slice_params->num_of_partitions - 1) ;
+       ctx->DCT_Base_Address_Offset = ctx->slice_params->partition_size[0] + 3 * (ctx->slice_params->num_of_partitions - 1) ;
        /* REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_VP8, CR_VEC_VP8_FE_DCT_BASE_ADDRESS, VP8_FE_DCT_BASE_ADDRESS, ctx->DCT_Base_Address); */
        psb_cmdbuf_reg_set_address(cmdbuf, REGISTER_OFFSET (MSVDX_VEC_VP8, CR_VEC_VP8_FE_DCT_BASE_ADDRESS),
 				  ctx->dec_ctx.slice_data_buffer, ctx->DCT_Base_Address_Offset);
