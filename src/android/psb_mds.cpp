@@ -97,6 +97,7 @@ psbMultiDisplayListener::psbMultiDisplayListener() {
         LOGE("%s: Failed to get Mds service", __func__);
         return;
     }
+#if 0
     // for initialization
     int mode = MDS_MODE_NONE;
     int32_t width  = 0;
@@ -118,6 +119,9 @@ psbMultiDisplayListener::psbMultiDisplayListener() {
             mListener, "VideoDriver", MDS_MSG_MODE_CHANGE);
     ALOGV("Create a Video driver listener %d, %p", mListenerId, mListener.get());
 #else
+    mListener = mMds->getInfoProvider();
+#endif
+#else
     mListener = new MultiDisplayClient();
     if (mListener == NULL)
         return;
@@ -127,7 +131,8 @@ psbMultiDisplayListener::psbMultiDisplayListener() {
 
 psbMultiDisplayListener::~psbMultiDisplayListener() {
 #ifndef USE_MDS_LEGACY
-    ALOGV("Destroy Video driver listener%d,  %p", mListenerId, mListener.get());
+#if 0
+    ALOGV("Destroy Video driver listener %d,  %p", mListenerId, mListener.get());
     sp<IMultiDisplaySinkRegistrar> sinkRegistrar = NULL;
     if (mMds == NULL || mListenerId < 0 ||
             mListener.get() == NULL) {
@@ -140,11 +145,12 @@ psbMultiDisplayListener::~psbMultiDisplayListener() {
     }
     sinkRegistrar->unregisterListener(mListenerId);
     mListenerId = -1;
+#endif
 #else
     if (mListener != NULL)
         delete mListener;
 #endif
-    mListener   = NULL;
+    mListener = NULL;
     return;
 }
 
@@ -152,7 +158,11 @@ int psbMultiDisplayListener::getMode() {
     int mode = MDS_MODE_NONE;
 #ifndef USE_MDS_LEGACY
     if (mListener.get() == NULL) return MDS_INIT_VALUE;
+#if 0
     mode = mListener->getMode();
+#else
+    mode = mListener->getDisplayMode(false);
+#endif
     if (checkMode(mode, (MDS_VIDEO_ON | MDS_HDMI_CONNECTED)))
         mode = MDS_HDMI_VIDEO_ISPLAYING;
     else if (checkMode(mode, (MDS_VIDEO_ON | MDS_WIDI_ON)))
@@ -180,10 +190,18 @@ bool psbMultiDisplayListener::getDecoderOutputResolution(int32_t* width, int32_t
         return false;
     // only for WIDI video playback,
     // TODO: HWC doesn't set the bit "MDS_WIDI_ON" rightly now
+#if 0
     int mode = mListener->getMode();
+#else
+    int mode = mListener->getDisplayMode(false);
+#endif
     if (!checkMode(mode, (MDS_VIDEO_ON | MDS_WIDI_ON)))
         return false;
+#if 0
     return mListener->getDecoderOutputResolution(width, height);
+#else
+    return mListener->getDecoderOutputResolution(-1, width, height);
+#endif
 #else
     return false;
 #endif

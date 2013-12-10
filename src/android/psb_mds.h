@@ -75,8 +75,12 @@ class psbMultiDisplayListener {
 private:
 #ifndef USE_MDS_LEGACY
     sp<IMDService>  mMds;
+#if 0
     sp<MDSListener> mListener;
     int32_t         mListenerId;
+#else
+    sp<IMultiDisplayInfoProvider> mListener;
+#endif
 #else
     MultiDisplayClient* mListener;
 #endif
