@@ -316,18 +316,6 @@ static VAStatus vsp_VPP_CreateContext(
 	ctx->sharpen_param_offset = ctx->enhancer_param_offset + ctx->enhancer_param_sz;
 	ctx->frc_param_offset = ctx->sharpen_param_offset + ctx->sharpen_param_sz;
 
-	/* create context buffer */
-	ctx->context_buf = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
-	if (NULL == ctx->context_buf) {
-		vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-		DEBUG_FAILURE;
-		goto out;
-	}
-	vaStatus = psb_buffer_create(obj_context->driver_data, VSP_CONTEXT_BUF_SIZE, psb_bt_vpu_only, ctx->context_buf);
-	if (VA_STATUS_SUCCESS != vaStatus) {
-		goto out;
-	}
-
 	/* create intermediate buffer */
 	ctx->intermediate_buf = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
 	if (NULL == ctx->intermediate_buf) {
@@ -377,13 +365,6 @@ static void vsp_VPP_DestroyContext(
 	object_context_p obj_context)
 {
 	INIT_CONTEXT_VPP;
-
-	if (ctx->context_buf) {
-		psb_buffer_destroy(ctx->context_buf);
-
-		free(ctx->context_buf);
-		ctx->context_buf = NULL;
-	}
 
 	if (ctx->intermediate_buf) {
 		psb_buffer_destroy(ctx->intermediate_buf);
@@ -534,6 +515,8 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		cell_end_param->num_output_pictures = 0;
 		vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VPP_ID, &cmdbuf->param_mem, VssProcPictureCommand,
 					  ctx->end_param_offset, sizeof(struct VssProcPictureParameterBuffer));
+		/* Destory the VSP context */
+		vsp_cmdbuf_vpp_context(cmdbuf, VssGenDestroyContext, CONTEXT_VPP_ID, 0);
 		goto out;
 	}
 
@@ -691,9 +674,9 @@ static VAStatus vsp_VPP_BeginPicture(
 
 	cmdbuf = obj_context->vsp_cmdbuf;
 
-	if (ctx->obj_context->frame_count == 0) /* first picture */
-		vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VPP_ID, ctx->context_buf, VspSetContextCommand,
-					  0, VSP_CONTEXT_BUF_SIZE);
+	/* first picture, need to setup the VSP context */
+	if (ctx->obj_context->frame_count == 0)
+		vsp_cmdbuf_vpp_context(cmdbuf, VssGenInitializeContext, CONTEXT_VPP_ID, VSP_APP_ID_FRC_VPP);
 
 	/* map param mem */
 	vaStatus = psb_buffer_map(&cmdbuf->param_mem, &cmdbuf->param_mem_p);
