@@ -662,7 +662,7 @@ static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_
 
     ctx->obj_context->operating_mode = get_inloop_opmod(ctx); /* port from ui32OperatingMode = mpDestFrame->GetInloopOpMode() */
     REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CHROMA_FORMAT, 1);
-    REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE, (pic_params->pic_fields.bits.loop_filter_disable == 1)? 0:1);/* 0 = VDMC and VDEB active.  1 = VDEB pass-thru. */
+    REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, ASYNC_MODE, (pic_params->pic_fields.bits.loop_filter_disable == 0)? 0:1);/* 0 = VDMC and VDEB active.  1 = VDEB pass-thru. */
     REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CODEC_MODE, VEC_MODE_VP8);
     REGIO_WRITE_FIELD_LITE(ctx->obj_context->operating_mode, MSVDX_CMDS, OPERATING_MODE, CODEC_PROFILE, pic_params->pic_fields.bits.version);
 
