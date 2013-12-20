@@ -46,6 +46,8 @@ extern const FIRMWARE sFirmware_SS;
 extern const FIRMWARE sFirmware0000_SS;
 extern const FIRMWARE sFirmware_SS_DE3_3_20;
 extern const FIRMWARE sFirmware_SS_1472_3_8;
+extern const FIRMWARE sFirmware_SS_1472_3_10;
+
 #define FIRMWARE_VERSION_DEFINED
 #define FIRMWARE_BUILDDATE_DEFINED
 //#endif /* SLICE_SWITCHING_VARIANT */
