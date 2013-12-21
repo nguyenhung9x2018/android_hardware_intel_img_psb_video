@@ -146,7 +146,7 @@ LOCAL_CFLAGS += -DPSBVIDEO_LOG_ENABLE
 LOCAL_SHARED_LIBRARIES += liblog
 endif
 
-ifneq ($(filter $(TARGET_BOARD_PLATFORM),merrifield moorefield),)
+ifneq ($(filter $(TARGET_BOARD_PLATFORM),merrifield moorefield morganfield),)
 LOCAL_SRC_FILES += \
     tng_VP8.c \
     tng_jpegdec.c \
