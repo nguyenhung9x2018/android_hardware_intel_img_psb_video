@@ -325,8 +325,8 @@ static void tng__fill_inp_ctrl_buf(
     pui16MBParam = (IMG_UINT16 *)pvBuffer;
     ui32CurrentIndex=0;
 
-    for( ui32MBy = 0; ui32MBy < (IMG_UINT32)(ctx->ui16PictureHeight/16); ui32MBy++) {
-        for( ui32MBx=0; ui32MBx < ui32MBFrameWidth; ui32MBx++) {
+    for(ui32MBy = 0; ui32MBy < (IMG_UINT32)(ctx->ui16PictureHeight / 16); ui32MBy++) {
+        for(ui32MBx = 0; ui32MBx < ui32MBFrameWidth; ui32MBx++) {
             IMG_UINT16 ui16MBParam = 0;
 
 #ifdef BRN_30324
@@ -343,28 +343,29 @@ static void tng__fill_inp_ctrl_buf(
 
             ui16MBParam = ui16DefaultParam;
             if (bRefresh) {
-                if ((IMG_INT32)ui32CurrentIndex>ctx->i32LastCIRIndex) {
+                if ((IMG_INT32)ui32CurrentIndex > ctx->i32LastCIRIndex) {
                     ctx->i32LastCIRIndex = ui32CurrentIndex;
-                    ui16MBParam=ui16IntraParam;
-                    i16IntraRefresh --;
-                    if(i16IntraRefresh<=0)
-                        bRefresh=IMG_FALSE;
+                    ui16MBParam = ui16IntraParam;
+                    i16IntraRefresh--;
+                    if(i16IntraRefresh <= 0)
+                        bRefresh = IMG_FALSE;
                 }
             }
-            pui16MBParam[ui32CurrentIndex++]=ui16MBParam;
+            pui16MBParam[ui32CurrentIndex++] = ui16MBParam;
         }
     }
 
     if (bRefresh) {
-        ctx->i32LastCIRIndex=-1;
+        ctx->i32LastCIRIndex = -1;
         while (i16IntraRefresh) {
             i8QP = i8QPInit + ((tng__rand(ctx)%6)-3);
             i8QP = tng__max(tng__min(i8QP, iMaxQP), ctx->sRCParams.iMinQP);
             ui16IntraParam = ( i8QP<<10) |(0 <<7) |(0<<4);
-            pui16MBParam[++ctx->i32LastCIRIndex]=ui16IntraParam;
+            pui16MBParam[++ctx->i32LastCIRIndex] = ui16IntraParam;
             i16IntraRefresh--;
         }
     }
+
     drv_debug_msg(VIDEO_DEBUG_GENERAL,"%s: end QP = %d\n", __FUNCTION__, *pi8QP);
     //release buffer
     //IMG_C_ReleaseBuffer(psActiveContext->hContext, pInpCtrlBuf,IMG_TRUE);

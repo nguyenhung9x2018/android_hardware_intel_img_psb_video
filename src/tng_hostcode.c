@@ -746,6 +746,7 @@ static VAStatus tng__init_context(context_ENC_p ctx)
     ctx->i32NumAIRMBs = -1;
     ctx->i32AIRThreshold = -1;
     ctx->i16AIRSkipCnt = -1;
+    ctx->i32LastCIRIndex = -1;
     //Need to check on the following parameters
     ctx->ui8EnableSelStatsFlags  = IMG_FALSE;//Default Value ?? Extended Parameter ??
     ctx->bH2648x8Transform = IMG_FALSE;//Default Value ?? Extended Parameter or OMX_VIDEO_PARAM_AVCTYPE -> bDirect8x8Inference??
