@@ -86,14 +86,6 @@ typedef struct vsp_cmdbuf_s *vsp_cmdbuf_p;
 #define vsp_cmdbuf_fence_pic_param(cmdbuf, pic_param_handler) \
 	do { *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = VspFencePictureParamCommand; *cmdbuf->cmd_idx++ = pic_param_handler; *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0;} while(0)
 
-#define vsp_cmdbuf_vpp_context(cmdbuf, type, buffer, size) \
-	do { *cmdbuf->cmd_idx++ = VSP_API_GENERIC_CONTEXT_ID; \
-	     *cmdbuf->cmd_idx++ = type; \
-	     *cmdbuf->cmd_idx++ = buffer; \
-	     *cmdbuf->cmd_idx++ = size; \
-	     *cmdbuf->cmd_idx++ = 0; \
-	     *cmdbuf->cmd_idx++ = 0; \
-	     *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0;} while(0)
 /*
  * Create command buffer
  */
