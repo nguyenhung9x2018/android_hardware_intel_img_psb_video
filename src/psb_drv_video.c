@@ -2473,6 +2473,8 @@ VAStatus psb_QuerySurfaceError(
         i = 0;
         for (i = 0; i < decode_status->num_region; ++i) {
             driver_data->surface_mb_error[i].status = 1;
+            driver_data->surface_mb_error[i].start_mb = decode_status->mb_regions[i].start;
+            driver_data->surface_mb_error[i].end_mb = decode_status->mb_regions[i].end;
             //driver_data->surface_mb_error[i].start_mb = decode_status->start_error_mb_list[i];
             //driver_data->surface_mb_error[i].end_mb = decode_status->end_error_mb_list[i];
             //driver_data->surface_mb_error[i].decode_error_type = decode_status->slice_missing_or_error[i];
