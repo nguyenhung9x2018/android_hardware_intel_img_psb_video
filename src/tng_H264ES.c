@@ -659,8 +659,15 @@ static VAStatus tng__H264ES_process_sequence_param(context_ENC_p ctx, object_buf
 
     if (ctx->ui32FrameCount[ctx->ui32StreamID] > 0) {
         ctx->idr_force_flag = 1;
-	ctx->rc_update_flag |= RC_MASK_intra_period;
+	if (ctx->ui32IntraCntSave != ctx->ui32IntraCnt) {
+	    drv_debug_msg(VIDEO_DEBUG_GENERAL,
+		"%s: intra_period updated from %d to %d\n",
+		__FUNCTION__, ctx->ui32IntraCntSave, ctx->ui32IntraCnt);
+	    ctx->rc_update_flag |= RC_MASK_intra_period;
+	}
     }
+
+    ctx->ui32IntraCntSave = ctx->ui32IntraCnt;
 
     ctx->ui8SlotsInUse = ui32IPCount + 1; //Bframes + 2
 

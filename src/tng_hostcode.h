@@ -348,6 +348,7 @@ struct context_ENC_s {
     IMG_UINT32  ui32VopTimeResolution;
     IMG_UINT32  ui32IdrPeriod;
     IMG_UINT32  ui32IntraCnt;
+    IMG_UINT32  ui32IntraCntSave;
     IMG_BOOL    bMultiReferenceP;
     IMG_BOOL    bSpatialDirect;
     IMG_UINT8   ui8MPEG2IntraDCPrecision; // Only used in MPEG2, 2 bit field (0 = 8 bit, 1 = 9 bit, 2 = 10 bit and 3=11 bit precision). Set to zero for other encode standards.
