@@ -201,6 +201,7 @@ static VAStatus vsp_VP8_CreateContext(
     ctx->buffer_size = 6000;
     ctx->initial_buffer_fullness = 4000;
     ctx->optimal_buffer_fullness = 5000;
+    ctx->max_frame_size = 0;
 
     ctx->context_buf = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
     if (NULL == ctx->context_buf) {
@@ -275,7 +276,7 @@ static VAStatus vsp_vp8_process_seqence_param(
     seq->frame_width       = va_seq->frame_width;
     seq->frame_height      = va_seq->frame_height;
     seq->rc_target_bitrate = va_seq->bits_per_second / 1000;
-    seq->max_intra_rate    = 0;
+    seq->max_intra_rate    = ctx->max_frame_size;
     seq->rc_undershoot_pct = ctx->rc_undershoot;
     seq->rc_overshoot_pct  = 100;
     /* FIXME: API doc says max 5000, but for current default test vector we still use 6000 */
