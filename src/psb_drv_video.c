@@ -1140,7 +1140,11 @@ VAStatus psb_CreateContext(
 #ifdef BAYTRAIL
             obj_context->msvdx_tile = psb__tile_stride_log2_512(obj_surface->width);
 #else
-            obj_context->msvdx_tile = psb__tile_stride_log2_256(obj_surface->width);
+            if (obj_config->entrypoint == VAEntrypointVideoProc && obj_config->profile == VAProfileNone)
+                // It's for two pass rotation case
+                obj_context->msvdx_tile = psb__tile_stride_log2_256(obj_surface->height);
+            else
+                obj_context->msvdx_tile = psb__tile_stride_log2_256(obj_surface->width);
 #endif
 #endif
 #if 0
