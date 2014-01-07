@@ -168,6 +168,10 @@ LOCAL_CFLAGS += -DPSBVIDEO_VPP_TILING
 #LOCAL_CFLAGS += -DPSBVIDEO_MSVDX_EC
 endif
 
+ifeq ($(TARGET_BOARD_PLATFORM),merrifield)
+LOCAL_CFLAGS += -DPSBVIDEO_MRFL_VPP_ROTATE
+endif
+
 ifneq ($(filter $(TARGET_BOARD_PLATFORM),baytrail cherrytrail bigcore),)
 LOCAL_SRC_FILES += \
     tng_VP8.c \

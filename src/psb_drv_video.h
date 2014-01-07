@@ -300,6 +300,9 @@ struct psb_driver_data_s {
     uint32_t ec_enabled;
     uint32_t ved_vpp;
 
+    /* vpp is on or off */
+    int vpp_on;
+
     uint32_t pre_surfaceid;
     psb_decode_info_t decode_info;
     drm_psb_msvdx_decode_status_t *msvdx_decode_status;

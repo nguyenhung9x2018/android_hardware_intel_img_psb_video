@@ -2038,10 +2038,12 @@ VAStatus psb_BeginPicture(
         psb_RecalcAlternativeOutput(obj_context);
     }
 #endif
-
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
+    if (driver_data->vpp_on && GET_SURFACE_INFO_tiling(obj_surface->psb_surface))
+        driver_data->disable_msvdx_rotate = 0;
+#endif
     if (obj_context->interlaced_stream || driver_data->disable_msvdx_rotate) {
         int i;
-        
         obj_context->msvdx_rotate = 0;
         for (i = 0; i < obj_context->num_render_targets; i++) {
             object_surface_p obj_surface = SURFACE(obj_context->render_targets[i]);
@@ -2049,7 +2051,7 @@ VAStatus psb_BeginPicture(
             if (obj_surface && obj_surface->share_info) {
                 obj_surface->share_info->surface_rotate = 0;
             }
-	    }
+	}
     }
     else
         obj_context->msvdx_rotate = driver_data->msvdx_rotate_want;
@@ -2068,7 +2070,20 @@ VAStatus psb_BeginPicture(
           }
 
     if (CONTEXT_ROTATE(obj_context)) {
-        if (VA_STATUS_SUCCESS != psb_CreateRotateSurface(obj_context, obj_surface, obj_context->msvdx_rotate))
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
+        /* The VSP rotation is just for 1080P with tilling */
+        if (driver_data->vpp_on && GET_SURFACE_INFO_tiling(obj_surface->psb_surface)) {
+            if (obj_config->entrypoint == VAEntrypointVideoProc)
+                vaStatus = psb_CreateRotateSurface(obj_context, obj_surface, obj_context->msvdx_rotate);
+            else {
+                SET_SURFACE_INFO_rotate(obj_surface->psb_surface, 0);
+                obj_context->msvdx_rotate = 0;
+                vaStatus = psb_DestroyRotateBuffer(obj_context, obj_surface);
+            }
+        } else
+#endif
+	vaStatus = psb_CreateRotateSurface(obj_context, obj_surface, obj_context->msvdx_rotate);
+        if (VA_STATUS_SUCCESS !=vaStatus)
             ALOGE("%s: fail to allocate out loop surface", __func__);
     } else {
         if (obj_surface && obj_surface->share_info) {
@@ -2263,11 +2278,18 @@ VAStatus psb_SyncSurface(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_surface_p obj_surface;
     int decode = 0, encode = 0, rc_enable = 0, proc = 0;
+    object_context_p obj_context = NULL;
+    object_config_p obj_config = NULL;
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_SyncSurface: 0x%08x\n", render_target);
 
     obj_surface = SURFACE(render_target);
     CHECK_SURFACE(obj_surface);
+
+    obj_context = CONTEXT(obj_surface->context_id);
+    if (obj_context) {
+        obj_config = CONFIG(obj_context->config_id);
+    }
 
     /* The cur_displaying_surface indicates the surface being displayed by overlay.
      * The diaplay_timestamp records the time point of put surface, which would
@@ -2292,8 +2314,20 @@ VAStatus psb_SyncSurface(
     }
     //pthread_mutex_unlock(&output->output_mutex);
 
-    if (vaStatus != VA_STATUS_ERROR_SURFACE_IN_DISPLAYING)
+    if (vaStatus != VA_STATUS_ERROR_SURFACE_IN_DISPLAYING) {
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
+        /* For VPP buffer, will sync the rotated buffer */
+        if (obj_config && obj_config->entrypoint == VAEntrypointVideoProc) {
+            if (GET_SURFACE_INFO_tiling(obj_surface->psb_surface) &&
+                (obj_context->msvdx_rotate == VA_ROTATION_90 || obj_context->msvdx_rotate == VA_ROTATION_270) &&
+                obj_surface->out_loop_surface)
+                vaStatus = psb_surface_sync(obj_surface->out_loop_surface);
+            else
+                vaStatus = psb_surface_sync(obj_surface->psb_surface);
+	} else
+#endif
         vaStatus = psb_surface_sync(obj_surface->psb_surface);
+    }
 
     /* report any error of decode for Android */
     psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
@@ -2344,12 +2378,27 @@ VAStatus psb_QuerySurfaceStatus(
     object_surface_p obj_surface;
     VASurfaceStatus surface_status;
     int frame_skip = 0, encode = 0, decode = 0, rc_enable = 0, proc = 0;
+    object_context_p obj_context;
 
     obj_surface = SURFACE(render_target);
     CHECK_SURFACE(obj_surface);
 
     CHECK_INVALID_PARAM(status == NULL);
-    vaStatus = psb_surface_query_status(obj_surface->psb_surface, &surface_status);
+    obj_context = CONTEXT(obj_surface->context_id);
+
+    psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
+    /* For VPP 1080P, will query the rotated buffer */
+    if (proc) {
+        if (GET_SURFACE_INFO_tiling(obj_surface->psb_surface) &&
+            (obj_context->msvdx_rotate == VA_ROTATION_90 || obj_context->msvdx_rotate == VA_ROTATION_270) &&
+            obj_surface->out_loop_surface)
+            vaStatus = psb_surface_query_status(obj_surface->out_loop_surface, &surface_status);
+        else
+            vaStatus = psb_surface_query_status(obj_surface->psb_surface, &surface_status);
+    } else
+#endif
+        vaStatus = psb_surface_query_status(obj_surface->psb_surface, &surface_status);
 
     /* The cur_displaying_surface indicates the surface being displayed by overlay.
      * The diaplay_timestamp records the time point of put surface, which would
@@ -2373,7 +2422,6 @@ VAStatus psb_QuerySurfaceStatus(
     pthread_mutex_unlock(&driver_data->output_mutex);
 
     /* try to get frameskip flag for encode */
-    psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
 #ifndef BAYTRAIL
     if (!decode) {
         /* The rendering surface may not be associated with any context. So driver should

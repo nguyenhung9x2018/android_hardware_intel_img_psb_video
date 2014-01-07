@@ -56,6 +56,7 @@
 #define INIT_OUTPUT_PRIV    unsigned char* output = ((psb_driver_data_p)ctx->pDriverData)->ws_priv
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
+#define CONFIG(id)  ((object_config_p) object_heap_lookup( &driver_data->config_heap, id ))
 
 #define CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need)  \
 do {                                                            \
@@ -77,6 +78,33 @@ do {                                                            \
     }                                                           \
 } while (0)
 
+static int get_surface_stride(int width, int tiling)
+{
+    int stride = 0;
+
+    if (0) {
+        ;
+    } else if (512 >= width) {
+        stride = 512;
+    } else if (1024 >= width) {
+        stride = 1024;
+    } else if (1280 >= width) {
+        stride = 1280;
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+        if (tiling) {
+            stride = 2048;
+        }
+#endif
+    } else if (2048 >= width) {
+        stride = 2048;
+    } else if (4096 >= width) {
+        stride = 4096;
+    } else {
+        stride = (width + 0x3f) & ~0x3f;
+    }
+
+    return stride;
+}
 //#define OVERLAY_ENABLE_MIRROR
 
 #ifdef PSBVIDEO_MRFL_VPP
@@ -119,6 +147,7 @@ void psb_InitOutLoop(VADriverContextP ctx)
     if (isVppOn((void*)driver_data->ws_priv)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "For VPP: disable MSVDX rotation\n");
         driver_data->disable_msvdx_rotate = 1;
+        driver_data->vpp_on = 1;
     }
 #endif
 
@@ -446,14 +475,16 @@ VAStatus psb_CreateRotateSurface(
 )
 {
     int width, height;
-    psb_surface_p psb_surface;
+    psb_surface_p rotate_surface;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int need_realloc = 0;
     unsigned int flags = 0;
     psb_surface_share_info_p share_info = obj_surface->share_info;
     psb_driver_data_p driver_data = obj_context->driver_data;
+    int rotate_stride = 0, rotate_tiling = 0;
+    object_config_p obj_config = CONFIG(obj_context->config_id);
 
-    psb_surface = obj_surface->out_loop_surface;
+    rotate_surface = obj_surface->out_loop_surface;
 
     if (msvdx_rotate == 0
 #ifdef OVERLAY_ENABLE_MIRROR
@@ -463,52 +494,81 @@ VAStatus psb_CreateRotateSurface(
         )
         return vaStatus;
 
-    if (psb_surface) {
-        CHECK_SURFACE_REALLOC(psb_surface, msvdx_rotate, need_realloc);
+    if (rotate_surface) {
+        CHECK_SURFACE_REALLOC(rotate_surface, msvdx_rotate, need_realloc);
         if (need_realloc == 0) {
             goto exit;
         } else { /* free the old rotate surface */
             /*FIX ME: it is not safe to do that because surfaces may be in use for rendering.*/
             psb_surface_destroy(obj_surface->out_loop_surface);
-            memset(psb_surface, 0, sizeof(*psb_surface));
+            memset(rotate_surface, 0, sizeof(*rotate_surface));
         }
     } else {
-        psb_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
-        CHECK_ALLOCATION(psb_surface);
+        rotate_surface = (psb_surface_p) calloc(1, sizeof(struct psb_surface_s));
+        CHECK_ALLOCATION(rotate_surface);
     }
 
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
-    SET_SURFACE_INFO_tiling(psb_surface, GET_SURFACE_INFO_tiling(obj_surface->psb_surface));
+    SET_SURFACE_INFO_tiling(rotate_surface, GET_SURFACE_INFO_tiling(obj_surface->psb_surface));
+#endif
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
+    SET_SURFACE_INFO_rotate(rotate_surface, msvdx_rotate);
 #endif
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Try to allocate surface for alternative rotate output\n");
 
-    width = obj_surface->width;
-    height = obj_surface->height;
     flags = IS_ROTATED;
 
     if (msvdx_rotate == 2 /* VA_ROTATION_180 */) {
-        vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
-                                      flags, psb_surface);
-        obj_surface->width_r = width;
-        obj_surface->height_r = height;
-    } else {
-        vaStatus = psb_surface_create(driver_data, obj_surface->height_origin, ((width + 0x1f) & ~0x1f), VA_FOURCC_NV12,
-                                      flags, psb_surface);
-        obj_surface->width_r = obj_surface->height_origin;
-        obj_surface->height_r = ((width + 0x1f) & ~0x1f);
-    }
+	width = obj_surface->width;
+    	height = obj_surface->height;
 
+	if (share_info && share_info->out_loop_khandle) {
+		vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
+					obj_surface->psb_surface->size, VA_FOURCC_NV12,
+					share_info->out_loop_khandle,
+					obj_surface->psb_surface->stride,
+					obj_surface->psb_surface->stride,
+					obj_surface->psb_surface->stride,
+					0, 0, 0, rotate_surface);
+	} else
+        	vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
+                                      flags, rotate_surface);
+    } else {
+	width = obj_surface->height_origin;
+	height = (obj_surface->width + 0x1f) & ~0x1f;
+
+	if (share_info != NULL && share_info->out_loop_khandle != 0) {
+		drv_debug_msg(VIDEO_DEBUG_GENERAL,"out_loop_khandle is NOT NULL=%x, create the surface from kbuf!\n", share_info->out_loop_khandle);
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+    		rotate_tiling = GET_SURFACE_INFO_tiling(rotate_surface);
+#endif
+		rotate_stride = get_surface_stride(width, rotate_tiling);
+		vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
+					(rotate_stride * height * 3) / 2, VA_FOURCC_NV12,
+					share_info->out_loop_khandle,
+					rotate_stride, rotate_stride, rotate_stride,
+					0, rotate_stride * height, rotate_stride * height,
+					rotate_surface);
+	} else {
+		drv_debug_msg(VIDEO_DEBUG_GENERAL,"out_loop_khandle is NULL.Create it. width=%d, height=%d\n", width, height);
+	        vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
+                                      flags, rotate_surface);
+	}
+    }
     if (VA_STATUS_SUCCESS != vaStatus) {
-        free(psb_surface);
+        free(rotate_surface);
         obj_surface->out_loop_surface = NULL;
         vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
         DEBUG_FAILURE;
         return vaStatus;
     }
 
+    obj_surface->width_r = width;
+    obj_surface->height_r = height;
+
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "attempt to update tile context\n");
-    if (GET_SURFACE_INFO_tiling(psb_surface)) {
+    if (GET_SURFACE_INFO_tiling(rotate_surface) && obj_config->entrypoint != VAEntrypointVideoProc) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "update tile context\n");
         object_context_p obj_context = CONTEXT(obj_surface->context_id);
         if (NULL == obj_context) {
@@ -526,29 +586,53 @@ VAStatus psb_CreateRotateSurface(
 #endif
 
 exit:
-    obj_surface->out_loop_surface = psb_surface;
-    SET_SURFACE_INFO_rotate(psb_surface, msvdx_rotate);
+    obj_surface->out_loop_surface = rotate_surface;
+    SET_SURFACE_INFO_rotate(rotate_surface, msvdx_rotate);
     /* derive the protected flag from the primay surface */
-    SET_SURFACE_INFO_protect(psb_surface,
+    SET_SURFACE_INFO_protect(rotate_surface,
                              GET_SURFACE_INFO_protect(obj_surface->psb_surface));
 
     /*notify hwc that rotated buffer is ready to use.
     * TODO: Do these in psb_SyncSurface()
     */
     if (share_info != NULL) {
-        share_info->width_r = psb_surface->stride;
+	share_info->width_r = rotate_surface->stride;
         share_info->height_r = obj_surface->height_r;
         share_info->out_loop_khandle =
-            (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
+            (uint32_t)(wsbmKBufHandle(wsbmKBuf(rotate_surface->buf.drm_buf)));
         share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
         share_info->surface_rotate = VAROTATION2HAL(msvdx_rotate);
 
-        share_info->out_loop_luma_stride = psb_surface->stride;
-        share_info->out_loop_chroma_u_stride = psb_surface->stride;
-        share_info->out_loop_chroma_v_stride = psb_surface->stride;
+        share_info->out_loop_luma_stride = rotate_surface->stride;
+        share_info->out_loop_chroma_u_stride = rotate_surface->stride;
+        share_info->out_loop_chroma_v_stride = rotate_surface->stride;
     }
 
     return vaStatus;
 }
 
+VAStatus psb_DestroyRotateBuffer(
+    object_context_p obj_context,
+    object_surface_p obj_surface)
+{
+	VAStatus vaStatus = VA_STATUS_SUCCESS;
+	psb_surface_share_info_p share_info = obj_surface->share_info;
+        psb_driver_data_p driver_data = obj_context->driver_data;
+	psb_surface_p rotate_surface = obj_surface->out_loop_surface;
+	struct psb_buffer_s psb_buf;
+
+	if (share_info && share_info->out_loop_khandle) {
+		drv_debug_msg(VIDEO_DEBUG_GENERAL,"psb_DestroyRotateBuffer out_loop_khandle=%x\n", share_info->out_loop_khandle);
+		vaStatus = psb_kbuffer_reference(driver_data, &psb_buf, share_info->out_loop_khandle);
+		if (vaStatus != VA_STATUS_SUCCESS)
+			return vaStatus;
+		psb_buffer_destroy(&psb_buf);
+		share_info->out_loop_khandle = NULL;
+	}
+
+	if (rotate_surface)
+		free(rotate_surface);
+
+	return vaStatus;
+}
 

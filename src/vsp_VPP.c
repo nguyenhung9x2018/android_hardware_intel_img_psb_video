@@ -382,7 +382,7 @@ static void vsp_VPP_DestroyContext(
 	obj_context->format_data = NULL;
 }
 
-static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer_p obj_buffer)
+static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_context_p obj_context, object_buffer_p obj_buffer)
 {
 	VAStatus vaStatus = VA_STATUS_SUCCESS;
 	vsp_cmdbuf_p cmdbuf = ctx->obj_context->vsp_cmdbuf;
@@ -393,8 +393,11 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 	VAProcFilterParameterBufferFrameRateConversion *frc_param;
 	object_surface_p input_surface = NULL;
 	object_surface_p cur_output_surf = NULL;
-	unsigned int rotation_angle;
-	int tiled = 0, width = 0;
+	unsigned int rotation_angle = 0, vsp_rotation_angle = 0;
+	int tiled = 0, width = 0, height = 0, stride = 0;
+	unsigned char *src_addr, *dest_addr;
+	struct psb_surface_s *output_surface;
+	psb_driver_data_p driver_data = obj_context->driver_data;
 
 	if (pipeline_param->surface_region != NULL) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Cann't scale\n");
@@ -547,9 +550,26 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 		cell_proc_picture_param->num_output_pictures = 1;
 	else
 		cell_proc_picture_param->num_output_pictures = frc_param->num_output_frames + 1;
+
 	for (i = 0; i < cell_proc_picture_param->num_output_pictures; ++i) {
 		if (i == 0) {
 			cur_output_surf = ctx->obj_context->current_render_target;
+
+			/* The rotation info is saved in the first frame */
+			rotation_angle = GET_SURFACE_INFO_rotate(cur_output_surf->psb_surface);
+			switch (rotation_angle) {
+				case VA_ROTATION_90:
+					vsp_rotation_angle = VSP_ROTATION_90;
+					break;
+				case VA_ROTATION_180:
+					vsp_rotation_angle = VSP_ROTATION_180;
+					break;
+				case VA_ROTATION_270:
+					vsp_rotation_angle = VSP_ROTATION_270;
+					break;
+				default:
+					vsp_rotation_angle = VSP_ROTATION_NONE;
+			}
 		} else {
 			if (frc_param == NULL) {
 				drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid output surface numbers %x\n",
@@ -564,49 +584,88 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 				vaStatus = VA_STATUS_ERROR_UNKNOWN;
 				goto out;
 			}
-		}
-	        /*  According to VIED's design, the width must be multiple of 16 */
-		width = ALIGN_TO_16(cur_output_surf->width);
-		if (width > cur_output_surf->psb_surface->stride)
-			width = cur_output_surf->psb_surface->stride;
 
-		cell_proc_picture_param->output_picture[i].surface_id = wsbmKBufHandle(wsbmKBuf(cur_output_surf->psb_surface->buf.drm_buf));
+			/* VPP rotation is just for 1080P */
+			if (tiled && rotation_angle != VA_ROTATION_NONE) {
+				if (VA_STATUS_SUCCESS != psb_CreateRotateSurface(obj_context, cur_output_surf, rotation_angle)) {
+					drv_debug_msg(VIDEO_DEBUG_ERROR, "failed to alloc rotation surface!\n");
+					vaStatus = VA_STATUS_ERROR_UNKNOWN;
+					goto out;
+				}
+			}
+		}
+
+		if (tiled && rotation_angle != VA_ROTATION_NONE) {
+			/* For 90d and 270d, we need to alloc rotation buff and
+			 * copy the 0d data from input to output
+			 */
+			psb_buffer_map(&(input_surface->psb_surface->buf), &src_addr);
+			psb_buffer_map(&(cur_output_surf->psb_surface->buf), &dest_addr);
+			memcpy(dest_addr, src_addr, cur_output_surf->psb_surface->size);
+			psb_buffer_unmap(&(cur_output_surf->psb_surface->buf));
+			psb_buffer_unmap(&(input_surface->psb_surface->buf));
+
+			output_surface = cur_output_surf->out_loop_surface;
+
+			/*  According to VIED's design, the width must be multiple of 16 */
+			width = ALIGN_TO_16(cur_output_surf->height_origin);
+			if (width > cur_output_surf->out_loop_surface->stride)
+				width = cur_output_surf->out_loop_surface->stride;
+			height = cur_output_surf->width;
+			stride = cur_output_surf->out_loop_surface->stride;
+		} else {
+			output_surface = cur_output_surf->psb_surface;
+
+			/*  According to VIED's design, the width must be multiple of 16 */
+			width = ALIGN_TO_16(cur_output_surf->width);
+			if (width > cur_output_surf->psb_surface->stride)
+				width = cur_output_surf->psb_surface->stride;
+			height = cur_output_surf->height_origin;
+			stride = cur_output_surf->psb_surface->stride;
+
+			/* If the rotate bit is set by test tool */
+			if (pipeline_param->rotation_state == VA_ROTATION_90)
+				vsp_rotation_angle = VSP_ROTATION_90;
+			else if (pipeline_param->rotation_state == VA_ROTATION_180)
+				vsp_rotation_angle = VSP_ROTATION_180;
+			else if (pipeline_param->rotation_state == VA_ROTATION_270)
+				vsp_rotation_angle = VSP_ROTATION_270;
+			else
+				vsp_rotation_angle = VSP_ROTATION_NONE;
+		}
+
+		cell_proc_picture_param->output_picture[i].surface_id = wsbmKBufHandle(wsbmKBuf(output_surface->buf.drm_buf));
 
 		vsp_cmdbuf_reloc_pic_param(&(cell_proc_picture_param->output_picture[i].base),
-					   ctx->pic_param_offset, &(cur_output_surf->psb_surface->buf),
+					   ctx->pic_param_offset, &(output_surface->buf),
 					   cmdbuf->param_mem_loc, cell_proc_picture_param);
-		cell_proc_picture_param->output_picture[i].height = cur_output_surf->height_origin;
+		cell_proc_picture_param->output_picture[i].height = height;
 		cell_proc_picture_param->output_picture[i].width = width;
-		cell_proc_picture_param->output_picture[i].stride = cur_output_surf->psb_surface->stride;
+		cell_proc_picture_param->output_picture[i].stride = stride;
 		cell_proc_picture_param->output_picture[i].irq = 1;
-		/* keep the same first, modify to dest format when feature's avaliable */
 		cell_proc_picture_param->output_picture[i].format = ctx->format;
-
-		/* Set the rotation angle info */
-		switch (GET_SURFACE_INFO_rotate(cur_output_surf->psb_surface)) {
-			case VA_ROTATION_90:
-				rotation_angle = VSP_ROTATION_90;
-				break;
-			case VA_ROTATION_180:
-				rotation_angle = VSP_ROTATION_180;
-				break;
-			case VA_ROTATION_270:
-				rotation_angle = VSP_ROTATION_270;
-				break;
-			default:
-				rotation_angle = VSP_ROTATION_NONE;
-		}
-		/* FIXME: The rotation design is still on going, set it to default value */
-		cell_proc_picture_param->output_picture[i].rot_angle = 0;
+		cell_proc_picture_param->output_picture[i].rot_angle = vsp_rotation_angle;
 		cell_proc_picture_param->output_picture[i].tiled = tiled;
+
+#if 0
+		if(cur_output_surf->share_info) {
+			drv_debug_msg(VIDEO_DEBUG_ERROR, "##### share_info[%d]: width=%d, height=%d, out_loop_khandler=%x, meta_rotate=%d, surface_rotate=%d\n", i,
+				cur_output_surf->share_info->width_r, cur_output_surf->share_info->height_r,
+				cur_output_surf->share_info->out_loop_khandle,
+				cur_output_surf->share_info->metadata_rotate, cur_output_surf->share_info->surface_rotate);
+		}
+		drv_debug_msg(VIDEO_DEBUG_ERROR, "##### surface_id=%x, width=%d, height=%d, stride=%d, rotation_angle=%d, tiled=%d\n",
+				cell_proc_picture_param->output_picture[i].surface_id,
+				width, height, stride, vsp_rotation_angle, tiled);
+#endif
 	}
 
 	vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VPP_ID, &cmdbuf->param_mem, VssProcPictureCommand,
 				  ctx->pic_param_offset, sizeof(struct VssProcPictureParameterBuffer));
 
-
 	vsp_cmdbuf_fence_pic_param(cmdbuf, wsbmKBufHandle(wsbmKBuf(cmdbuf->param_mem.drm_buf)));
 
+#if 0
 	/* handle reference frames, ignore backward reference */
 	for (i = 0; i < pipeline_param->num_forward_references; ++i) {
 		cur_output_surf = SURFACE(pipeline_param->forward_references[i]);
@@ -618,7 +677,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_buffer
 			goto out;
 		}
 	}
-
+#endif
 out:
 	free(pipeline_param);
 	obj_buffer->buffer_data = NULL;
@@ -641,7 +700,7 @@ static VAStatus vsp_VPP_RenderPicture(
 
 		switch (obj_buffer->type) {
 		case VAProcPipelineParameterBufferType:
-			vaStatus = vsp__VPP_process_pipeline_param(ctx, obj_buffer);
+			vaStatus = vsp__VPP_process_pipeline_param(ctx, obj_context, obj_buffer);
 			DEBUG_FAILURE;
 			break;
 		default:
