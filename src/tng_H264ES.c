@@ -228,6 +228,7 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
     VAEncMiscParameterRateControl *psMiscRcParams;
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     VAEncMiscParameterBuffer *pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
+    unsigned int max_bps;
 
     ASSERT(obj_buffer->type == VAEncMiscParameterTypeRateControl);
     ASSERT(obj_buffer->size == sizeof(VAEncMiscParameterRateControl));
@@ -273,6 +274,20 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
     if (psMiscRcParams->window_size != 0)
         ctx->uiCbrBufferTenths = psMiscRcParams->window_size / 100;
 
+    if (psRCParams->ui32FrameRate == 0)
+        psRCParams->ui32FrameRate = 30;
+
+    /* According to Table A-1 Level limits, if resolution is bigger than 625SD,
+       min compression ratio is 4, otherwise min compression ratio is 2 */
+    if (psRCParams->ui32BitsPerSecond == 0) {
+	max_bps =  (ctx->obj_context->picture_width * ctx->obj_context->picture_height * 3 / 2 ) * 8 * psRCParams->ui32FrameRate;
+	if (ctx->ui16SourceWidth > 720)
+	    max_bps /= 4;
+	else
+	    max_bps /= 2;
+	psRCParams->ui32BitsPerSecond = max_bps;
+    }
+
     if (ctx->uiCbrBufferTenths) {
         psRCParams->ui32BufferSize = (IMG_UINT32)(psRCParams->ui32BitsPerSecond * ctx->uiCbrBufferTenths / 10.0);
     } else {
@@ -294,7 +309,6 @@ static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, ob
     psRCParams->i32InitialLevel = (3 * psRCParams->ui32BufferSize) >> 4;
 
     ui32BitsPerFrame = psRCParams->ui32BitsPerSecond / psRCParams->ui32FrameRate;
-
     /* in order to minimise mismatches between firmware and external world InitialLevel should be a multiple of ui32BitsPerFrame */
     psRCParams->i32InitialLevel = ((psRCParams->i32InitialLevel + ui32BitsPerFrame / 2) / ui32BitsPerFrame) * ui32BitsPerFrame;
     psRCParams->i32InitialLevel = tng__max(psRCParams->i32InitialLevel, ui32BitsPerFrame);
