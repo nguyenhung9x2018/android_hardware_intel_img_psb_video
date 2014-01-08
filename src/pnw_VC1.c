@@ -2054,7 +2054,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
             psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->forward_ref_surface->psb_surface->buf, ctx->forward_ref_surface->psb_surface->buf.buffer_ofs);
             psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->forward_ref_surface->psb_surface->buf, ctx->forward_ref_surface->psb_surface->\
                                             buf.buffer_ofs + ctx->forward_ref_surface->psb_surface->chroma_offset);
-            (ctx->forward_ref_surface->psb_surface->buf).unfence_flag = 1;
+            //(ctx->forward_ref_surface->psb_surface->buf).unfence_flag = 1;
         }
 
         /*************** BACKWARD REFERENCE *****************/
@@ -2062,7 +2062,7 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
             psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->backward_ref_surface->psb_surface->buf, ctx->backward_ref_surface->psb_surface->buf.buffer_ofs);
             psb_cmdbuf_rendec_write_address(cmdbuf, &ctx->backward_ref_surface->psb_surface->buf, ctx->backward_ref_surface->psb_surface\
                                             ->buf.buffer_ofs + ctx->backward_ref_surface->psb_surface->chroma_offset);
-            (ctx->backward_ref_surface->psb_surface->buf).unfence_flag = 1;
+            //(ctx->backward_ref_surface->psb_surface->buf).unfence_flag = 1;
         }
         psb_cmdbuf_rendec_end(cmdbuf);
     }
@@ -2532,7 +2532,7 @@ static void psb__VC1_Send_Parse_Header_Cmd(context_VC1_p ctx, IMG_BOOL new_pic)
     pParseHeaderCMD->ui32SeqHdrData |= (pic_params->picture_fields.bits.picture_type & 0x3) << VC1_SEQHDR_PICTYPE;
 
 //        pParseHeaderCMD->ui32SeqHdrData |= ((msPicParam.bBidirectionalAveragingMode>>4)&0x1) << VC1_SEQHDR_ICFLAG;
-    pParseHeaderCMD->ui32SeqHdrData |= (pic_params->picture_fields.bits.top_field_first) <<  VC1_SEQHDR_ICFLAG;
+    pParseHeaderCMD->ui32SeqHdrData |= (pic_params->picture_fields.bits.intensity_compensation) <<  VC1_SEQHDR_ICFLAG;
 
     pParseHeaderCMD->ui32PicDimensions              = ctx->picture_width_mb;
     pParseHeaderCMD->ui32PicDimensions         |= (ctx->picture_height_mb << 16);
