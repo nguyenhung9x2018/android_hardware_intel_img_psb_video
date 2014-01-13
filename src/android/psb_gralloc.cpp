@@ -34,7 +34,9 @@
 #include <hardware/gralloc.h>
 #include <system/graphics.h>
 #include <hardware/hardware.h>
-
+#ifdef BAYTRAIL
+#include <ufo/gralloc.h>
+#endif
 using namespace android;
 
 #ifdef  LOG_TAG
@@ -136,10 +138,10 @@ int gralloc_init(void)
     return 0;
 }
 
-
 int gralloc_getdisplaystatus(buffer_handle_t handle,  int* status)
 {
     int err;
+#ifndef BAYTRAIL
     int (*get_display_status)(gralloc_module_t*, buffer_handle_t, int*);
 
     get_display_status = (int (*)(gralloc_module_t*, buffer_handle_t, int*))(mAllocMod->reserved_proc[0]);
@@ -148,7 +150,10 @@ int gralloc_getdisplaystatus(buffer_handle_t handle,  int* status)
         return -1;
     }
     err = (*get_display_status)(mAllocMod, handle, status);
-
+#else
+    err = 0;
+    *status = mAllocMod->perform(mAllocMod, INTEL_UFO_GRALLOC_MODULE_PERFORM_GET_BO_STATUS, handle);
+#endif
     if (err){
         LOGE("gralloc_getdisplaystatus(...) failed %d (%s).\n", err, strerror(-err));
         return -1;

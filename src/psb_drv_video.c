@@ -57,7 +57,6 @@
 #include "pnw_VC1.h"
 #include "tng_jpegdec.h"
 #include "tng_VP8.h"
-
 #include "tng_yuv_processor.h"
 
 #ifdef PSBVIDEO_MFLD
@@ -2399,9 +2398,6 @@ VAStatus psb_QuerySurfaceStatus(
             buffer_handle_t handle = obj_surface->psb_surface->buf.handle;
             int display_status;
             int err;
-#ifdef BAYTRAIL
-            surface_status = VASurfaceReady;
-#else
             err = gralloc_getdisplaystatus(handle, &display_status);
             if (!err) {
                 if (display_status)
@@ -2411,7 +2407,7 @@ VAStatus psb_QuerySurfaceStatus(
             } else {
                 surface_status = VASurfaceReady;
             }
-#endif
+
             /* if not used by display, then check whether surface used by widi */
             if (surface_status == VASurfaceReady && obj_surface->share_info) {
                 if (obj_surface->share_info->renderStatus == 1) {
