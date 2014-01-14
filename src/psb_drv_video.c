@@ -1142,7 +1142,8 @@ VAStatus psb_CreateContext(
 #else
             if (obj_config->entrypoint == VAEntrypointVideoProc && obj_config->profile == VAProfileNone)
                 // It's for two pass rotation case
-                obj_context->msvdx_tile = psb__tile_stride_log2_256(obj_surface->height);
+                // Need the source surface width for tile stride setting
+                obj_context->msvdx_tile = psb__tile_stride_log2_256(obj_context->picture_width);
             else
                 obj_context->msvdx_tile = psb__tile_stride_log2_256(obj_surface->width);
 #endif
