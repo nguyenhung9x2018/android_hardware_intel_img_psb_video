@@ -706,8 +706,10 @@ static VAStatus vsp_VP8_EndPicture(
 //    ctx->obj_context->frame_count++;
 
 
-    if (vsp_context_flush_cmdbuf(ctx->obj_context))
+    if (vsp_context_flush_cmdbuf(ctx->obj_context)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VPP: flush deblock cmdbuf error\n");
+        VA_STATUS_ERROR_UNKNOWN;
+    }
 
     return VA_STATUS_SUCCESS;
 }
