@@ -389,11 +389,6 @@ static VAStatus tng__H263ES_process_misc_param(context_ENC_p ctx, object_buffer_
     obj_buffer->size = 0;
 
     switch (pBuffer->type) {
-    case VAEncMiscParameterTypeFrameRate:
-        frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
-        psRCParams->ui32FrameRate = frame_rate_param->framerate;
-        if (psRCParams->ui32FrameRate == 0)
-            psRCParams->ui32FrameRate = 30;
     case VAEncMiscParameterTypeRateControl:
         rate_control_param = (VAEncMiscParameterRateControl *)pBuffer->data;
 
