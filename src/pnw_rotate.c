@@ -484,6 +484,8 @@ VAStatus psb_CreateRotateSurface(
     int rotate_stride = 0, rotate_tiling = 0;
     object_config_p obj_config = CONFIG(obj_context->config_id);
 
+    CHECK_CONFIG(obj_config);
+
     rotate_surface = obj_surface->out_loop_surface;
 
     if (msvdx_rotate == 0
@@ -519,39 +521,44 @@ VAStatus psb_CreateRotateSurface(
     flags = IS_ROTATED;
 
     if (msvdx_rotate == 2 /* VA_ROTATION_180 */) {
-	width = obj_surface->width;
-    	height = obj_surface->height;
+        width = obj_surface->width;
+        height = obj_surface->height;
 
-	if (share_info && share_info->out_loop_khandle) {
-		vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
-					obj_surface->psb_surface->size, VA_FOURCC_NV12,
-					share_info->out_loop_khandle,
-					obj_surface->psb_surface->stride,
-					obj_surface->psb_surface->stride,
-					obj_surface->psb_surface->stride,
-					0, 0, 0, rotate_surface);
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
+	if (obj_config->entrypoint == VAEntrypointVideoProc &&
+            share_info && share_info->out_loop_khandle) {
+            vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
+                                  obj_surface->psb_surface->size, VA_FOURCC_NV12,
+                                  share_info->out_loop_khandle,
+                                  obj_surface->psb_surface->stride,
+                                  obj_surface->psb_surface->stride,
+                                  obj_surface->psb_surface->stride,
+                                  0, 0, 0, rotate_surface);
 	} else
-        	vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
+#endif
+            vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
                                       flags, rotate_surface);
     } else {
-	width = obj_surface->height_origin;
-	height = (obj_surface->width + 0x1f) & ~0x1f;
+        width = obj_surface->height_origin;
+        height = (obj_surface->width + 0x1f) & ~0x1f;
 
-	if (share_info != NULL && share_info->out_loop_khandle != 0) {
-		drv_debug_msg(VIDEO_DEBUG_GENERAL,"out_loop_khandle is NOT NULL=%x, create the surface from kbuf!\n", share_info->out_loop_khandle);
-#ifdef PSBVIDEO_MSVDX_DEC_TILING
-    		rotate_tiling = GET_SURFACE_INFO_tiling(rotate_surface);
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
+	if (obj_config->entrypoint == VAEntrypointVideoProc &&
+            share_info && share_info->out_loop_khandle != 0) {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL,"Create the surface from kbuf out_loop_khandle=%x!\n", share_info->out_loop_khandle);
+            rotate_tiling = GET_SURFACE_INFO_tiling(rotate_surface);
+            rotate_stride = get_surface_stride(width, rotate_tiling);
+            vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
+                                  (rotate_stride * height * 3) / 2, VA_FOURCC_NV12,
+                                  share_info->out_loop_khandle,
+                                  rotate_stride, rotate_stride, rotate_stride,
+                                  0, rotate_stride * height, rotate_stride * height,
+                                  rotate_surface);
+	} else
 #endif
-		rotate_stride = get_surface_stride(width, rotate_tiling);
-		vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
-					(rotate_stride * height * 3) / 2, VA_FOURCC_NV12,
-					share_info->out_loop_khandle,
-					rotate_stride, rotate_stride, rotate_stride,
-					0, rotate_stride * height, rotate_stride * height,
-					rotate_surface);
-	} else {
-		drv_debug_msg(VIDEO_DEBUG_GENERAL,"out_loop_khandle is NULL.Create it. width=%d, height=%d\n", width, height);
-	        vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
+        {
+            drv_debug_msg(VIDEO_DEBUG_GENERAL,"Create rotated buffer. width=%d, height=%d\n", width, height);
+            vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
                                       flags, rotate_surface);
 	}
     }

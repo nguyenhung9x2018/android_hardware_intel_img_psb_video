@@ -2378,18 +2378,19 @@ VAStatus psb_QuerySurfaceStatus(
     object_surface_p obj_surface;
     VASurfaceStatus surface_status;
     int frame_skip = 0, encode = 0, decode = 0, rc_enable = 0, proc = 0;
-    object_context_p obj_context;
+    object_context_p obj_context = NULL;
 
     obj_surface = SURFACE(render_target);
     CHECK_SURFACE(obj_surface);
 
     CHECK_INVALID_PARAM(status == NULL);
-    obj_context = CONTEXT(obj_surface->context_id);
 
     psb__surface_usage(driver_data, obj_surface, &decode, &encode, &rc_enable, &proc);
 #ifdef PSBVIDEO_MRFL_VPP_ROTATE
     /* For VPP 1080P, will query the rotated buffer */
     if (proc) {
+        obj_context = CONTEXT(obj_surface->context_id);
+        CHECK_CONTEXT(obj_context);
         if (GET_SURFACE_INFO_tiling(obj_surface->psb_surface) &&
             (obj_context->msvdx_rotate == VA_ROTATION_90 || obj_context->msvdx_rotate == VA_ROTATION_270) &&
             obj_surface->out_loop_surface)
