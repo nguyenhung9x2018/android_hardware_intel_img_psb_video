@@ -276,7 +276,7 @@ static VAStatus vsp_vp8_process_seqence_param(
     seq->frame_width       = va_seq->frame_width;
     seq->frame_height      = va_seq->frame_height;
     seq->rc_target_bitrate = va_seq->bits_per_second / 1000;
-    seq->max_intra_rate    = ctx->max_frame_size;
+    seq->max_intra_rate    = 100 * ctx->max_frame_size / (va_seq->bits_per_second / ctx->frame_rate);
     seq->rc_undershoot_pct = ctx->rc_undershoot;
     seq->rc_overshoot_pct  = 100;
     /* FIXME: API doc says max 5000, but for current default test vector we still use 6000 */
@@ -349,34 +349,24 @@ static VAStatus vsp_vp8_process_dynamic_seqence_param(
 
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     vsp_cmdbuf_p cmdbuf = ctx->obj_context->vsp_cmdbuf;
-    int i;
     int ref_frame_width, ref_frame_height;
 
     struct VssVp8encSequenceParameterBuffer *seq =
             (struct VssVp8encSequenceParameterBuffer *)cmdbuf->seq_param_p;
-
-    if( ctx->vp8_seq_cmd_send )
-    {  //just change the command buffer
-       seq->frame_rate = ctx->frame_rate;
-	seq->rc_min_quantizer = ctx->min_qp;
-	seq->cyclic_intra_refresh = ctx->cyclic_intra_refresh;
-	seq->rc_target_bitrate = ctx->bits_per_second / 1000 ;
-	seq->max_intra_rate = ctx->max_frame_size *30 * 1000 / ctx->bits_per_second;
-	return vaStatus;
-    }
 
     *seq = ctx->vp8_seq_param ;
      seq->frame_rate = ctx->frame_rate;
      seq->rc_min_quantizer = ctx->min_qp;
      seq->cyclic_intra_refresh = ctx->cyclic_intra_refresh;
      seq->rc_target_bitrate = ctx->bits_per_second / 1000 ;
-     seq->max_intra_rate = ctx->max_frame_size *30 * 1000 / ctx->bits_per_second;
+     seq->max_intra_rate    = 100 * ctx->max_frame_size / (ctx->bits_per_second / ctx->frame_rate);
 
-
-    vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VP8_ID, &cmdbuf->param_mem,
+     if (!ctx->vp8_seq_cmd_send) {
+         vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VP8_ID, &cmdbuf->param_mem,
                               VssVp8encSetSequenceParametersCommand,
                               ctx->seq_param_offset,
                               sizeof(struct VssVp8encSequenceParameterBuffer));
+     }
 
     return vaStatus;
 }
@@ -566,7 +556,7 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
         max_frame_size_param = (VAEncMiscParameterBufferMaxFrameSize *)pBuffer->data;
         if (ctx->max_frame_size == max_frame_size_param->max_frame_size)
             break;
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "max frame size changed from %d to %d\n",
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "max frame size changed from %d to %d\n",
                       ctx->max_frame_size, max_frame_size_param->max_frame_size);
         ctx->max_frame_size = max_frame_size_param->max_frame_size ;
         ctx->re_send_seq_params = 1 ;
@@ -708,7 +698,7 @@ static VAStatus vsp_VP8_EndPicture(
 
     if (vsp_context_flush_cmdbuf(ctx->obj_context)) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VPP: flush deblock cmdbuf error\n");
-        VA_STATUS_ERROR_UNKNOWN;
+        return VA_STATUS_ERROR_UNKNOWN;
     }
 
     return VA_STATUS_SUCCESS;
