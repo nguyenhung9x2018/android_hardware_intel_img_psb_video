@@ -377,6 +377,7 @@ void tng_cmdbuf_insert_command(
     IMG_UINT32 cmd_word;
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
     context_ENC_cmdbuf *ps_cmd = &(ctx->ctx_cmdbuf[stream_id]);
+    context_ENC_mem *ps_mem = &(ctx->ctx_mem[stream_id]);
     tng_cmdbuf_p cmdbuf = obj_context->tng_cmdbuf;
     psb_driver_data_p driver_data = ctx->obj_context->driver_data;
     int interrupt_flags;
@@ -437,7 +438,15 @@ void tng_cmdbuf_insert_command(
 		cmdbuf->cmd_idx++;
 	}
     } else {
-        *cmdbuf->cmd_idx++ = 0;
+	*cmdbuf->cmd_idx++ = 0;
+    }
+
+    if (cmd_id == MTX_CMDID_SW_SETUP_CIR) {
+	*cmdbuf->cmd_idx++ = (IMG_INT16)ctx->ui16IntraRefresh;
+	*cmdbuf->cmd_idx++ = ctx->sRCParams.ui32InitialQp;
+	*cmdbuf->cmd_idx++ = ctx->sRCParams.iMinQP;
+	*cmdbuf->cmd_idx++ = ctx->ctx_mem_size.mb_ctrl_in_params;
+	*cmdbuf->cmd_idx++ = ctx->ui32pseudo_rand_seed;
     }
 
     /* Command data address */
@@ -449,6 +458,8 @@ void tng_cmdbuf_insert_command(
 
 	if (data_addr)
 	    *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(data_addr->drm_buf));
+
+	*(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_mb_ctrl_in_params.drm_buf));
     }
 
     if (cmd_id == MTX_CMDID_SETUP_INTERFACE) {

@@ -385,11 +385,17 @@ static void tng__fill_input_control(
     IMG_UINT8 * pInpCtrlBuf = NULL;
     IMG_INT8 i8InitialQp = ctx->sRCParams.ui32InitialQp;
     // Get pointer to MB Control buffer for current source buffer (if input control is enabled, otherwise buffer is NULL)
+    // Please refer to kernel tng_setup_cir_buf()
+    /*
     tng__map_inp_ctrl_buf(ctx, ui8SlotNum, &pInpCtrlBuf);
     if (pInpCtrlBuf!= IMG_NULL) {
         tng__fill_inp_ctrl_buf(ctx, pInpCtrlBuf,(IMG_INT16)(ctx->ui16IntraRefresh), &i8InitialQp, ui32HalfWayBU);
     }
     tng__unmap_inp_ctrl_buf(ctx, ui8SlotNum, &pInpCtrlBuf);
+    */
+    tng_cmdbuf_insert_command(ctx->obj_context, ctx->ui32StreamID,
+        MTX_CMDID_SW_SETUP_CIR, ui8SlotNum, 0, 0);
+
     return ;
 }
 
