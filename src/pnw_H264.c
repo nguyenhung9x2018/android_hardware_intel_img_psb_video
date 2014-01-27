@@ -751,6 +751,7 @@ static VAStatus psb__H264_process_slice_header_group(context_H264_p ctx, object_
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     /* Transfer ownership of VAPictureParameterBufferH264 data */
     VAParsePictureParameterBuffer *pic_param_buf = (VAParsePictureParameterBuffer *) obj_buffer->buffer_data;
+    psb_driver_data_p driver_data = obj_context->driver_data;
 
     object_buffer_p frame_obj_buffer = BUFFER(pic_param_buf->frame_buf_id);
     if (NULL == frame_obj_buffer) {
@@ -832,6 +833,9 @@ static VAStatus psb__H264_process_slice_header_group(context_H264_p ctx, object_
     RELOC_MSG(extract_msg->dst, slice_header_obj_buffer->psb_buffer->buffer_ofs, slice_header_obj_buffer->psb_buffer);
 
     cmdbuf->parse_count++;
+
+    psb__suspend_buffer(driver_data, frame_obj_buffer);
+    psb__suspend_buffer(driver_data, slice_header_obj_buffer);
 
     if (psb_context_flush_cmdbuf(obj_context))
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_H264: flush parse cmdbuf error\n");

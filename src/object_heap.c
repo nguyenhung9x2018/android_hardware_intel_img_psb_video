@@ -131,9 +131,11 @@ object_base_p object_heap_lookup(object_heap_p heap, int id)
     obj = heap->heap_index[id];
 
     /* Check if the object has in fact been allocated */
+#if 0
     if (obj->next_free != ALLOCATED) {
         return NULL;
     }
+#endif
     return obj;
 }
 
