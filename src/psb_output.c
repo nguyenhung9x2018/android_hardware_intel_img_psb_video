@@ -574,6 +574,23 @@ VAStatus psb_DeriveImage(
         obj_image->image.component_order[3] = '\0';
         break;
     }
+    case VA_FOURCC_YV32: {
+        obj_image->image.num_planes = 3;
+        obj_image->image.pitches[0] = obj_surface->psb_surface->stride;
+        obj_image->image.pitches[1] = obj_surface->psb_surface->stride;
+        obj_image->image.pitches[2] = obj_surface->psb_surface->stride;
+
+        obj_image->image.offsets[0] = srf_buf_ofs;
+        obj_image->image.offsets[1] = srf_buf_ofs + obj_surface->height * obj_surface->psb_surface->stride;
+        obj_image->image.offsets[2] = srf_buf_ofs + obj_surface->height * obj_surface->psb_surface->stride * 2;
+        obj_image->image.num_palette_entries = 0;
+        obj_image->image.entry_bytes = 0;
+        obj_image->image.component_order[0] = 'Y';
+        obj_image->image.component_order[1] = 'U';/* fixed me: packed UV packed here! */
+        obj_image->image.component_order[2] = 'V';
+        obj_image->image.component_order[3] = '\0';
+        break;
+    }
     default:
         break;
     }

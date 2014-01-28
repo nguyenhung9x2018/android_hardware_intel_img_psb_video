@@ -146,7 +146,7 @@
 
 #define psb__ImageYV32                          \
 {                                               \
-    VA_FOURCC_YV16,                             \
+    VA_FOURCC_YV32,                             \
     VA_LSB_FIRST,                               \
     32,                                         \
     0,                                          \
