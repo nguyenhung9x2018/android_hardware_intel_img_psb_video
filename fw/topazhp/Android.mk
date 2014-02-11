@@ -27,15 +27,31 @@ LOCAL_PATH := $(call my-dir)
 # =====================================================
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES := topazhp_bin.c JPEGMasterFirmware_bin.c H264MasterFirmware_bin.c H264MasterFirmwareCBR_bin.c H264MasterFirmwareVBR_bin.c H264MasterFirmwareVCM_bin.c H264MasterFirmwareLLRC_bin.c H264MasterFirmwareALL_bin.c H263MasterFirmware_bin.c H263MasterFirmwareCBR_bin.c H263MasterFirmwareVBR_bin.c MPG2MasterFirmware_bin.c MPG2MasterFirmwareCBR_bin.c MPG2MasterFirmwareVBR_bin.c MPG4MasterFirmware_bin.c MPG4MasterFirmwareCBR_bin.c MPG4MasterFirmwareVBR_bin.c MPG4MasterFirmwareLLRC_bin.c H264MVCMasterFirmware_bin.c H264MVCMasterFirmwareCBR_bin.c H264MVCMasterFirmwareVBR_bin.c H264MVCMasterFirmwareLLRC_bin.c
+LOCAL_SRC_FILES := \
+    topazhp_bin.c \
+    JPEGMasterFirmware_bin.c \
+    H264MasterFirmware_bin.c \
+    H264MasterFirmwareCBR_bin.c \
+    H264MasterFirmwareVBR_bin.c \
+    H264MasterFirmwareVCM_bin.c \
+    H264MasterFirmwareLLRC_bin.c \
+    H264MasterFirmwareALL_bin.c \
+    H263MasterFirmware_bin.c \
+    H263MasterFirmwareCBR_bin.c \
+    H263MasterFirmwareVBR_bin.c \
+    MPG2MasterFirmware_bin.c \
+    MPG2MasterFirmwareCBR_bin.c \
+    MPG2MasterFirmwareVBR_bin.c \
+    MPG4MasterFirmware_bin.c \
+    MPG4MasterFirmwareCBR_bin.c \
+    MPG4MasterFirmwareVBR_bin.c \
+    MPG4MasterFirmwareLLRC_bin.c \
+    H264MVCMasterFirmware_bin.c \
+    H264MVCMasterFirmwareCBR_bin.c \
+    H264MVCMasterFirmwareVBR_bin.c \
+    H264MVCMasterFirmwareLLRC_bin.c
 
-LOCAL_CFLAGS +=
-
-LOCAL_C_INCLUDES :=
-
-LOCAL_SHARED_LIBRARIES :=
-
-LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := topazhp_bin
 
 include $(BUILD_EXECUTABLE)

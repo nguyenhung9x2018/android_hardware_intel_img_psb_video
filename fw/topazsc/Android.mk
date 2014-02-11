@@ -27,15 +27,20 @@ LOCAL_PATH := $(call my-dir)
 # =====================================================
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES := topaz_bin.c H263Firmware_bin.c H263FirmwareCBR_bin.c H263FirmwareVBR_bin.c H264Firmware_bin.c H264FirmwareCBR_bin.c H264FirmwareVBR_bin.c MPG4Firmware_bin.c MPG4FirmwareCBR_bin.c MPG4FirmwareVBR_bin.c H264FirmwareVCM_bin.c
+LOCAL_SRC_FILES := \
+    topaz_bin.c \
+    H263Firmware_bin.c \
+    H263FirmwareCBR_bin.c \
+    H263FirmwareVBR_bin.c \
+    H264Firmware_bin.c \
+    H264FirmwareCBR_bin.c \
+    H264FirmwareVBR_bin.c \
+    MPG4Firmware_bin.c \
+    MPG4FirmwareCBR_bin.c \
+    MPG4FirmwareVBR_bin.c \
+    H264FirmwareVCM_bin.c
 
-LOCAL_CFLAGS +=
-
-LOCAL_C_INCLUDES :=
-
-LOCAL_SHARED_LIBRARIES :=
-
-LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := topaz_bin
 
 include $(BUILD_EXECUTABLE)
@@ -45,14 +50,7 @@ include $(BUILD_EXECUTABLE)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := fwinfo.c
-
-LOCAL_CFLAGS +=
-
-LOCAL_C_INCLUDES :=
-
-LOCAL_SHARED_LIBRARIES :=
-
-LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := imginfo
 
 include $(BUILD_EXECUTABLE)
@@ -62,37 +60,30 @@ include $(BUILD_EXECUTABLE)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := topazsc_bin.c \
-	H263MasterFirmware_bin.c \
-	H263MasterFirmwareCBR_bin.c \
-	H263MasterFirmwareVBR_bin.c \
-	H263SlaveFirmware_bin.c \
-	H263SlaveFirmwareCBR_bin.c \
-	H263SlaveFirmwareVBR_bin.c \
-	H264MasterFirmware_bin.c \
-	H264MasterFirmwareCBR_bin.c \
-	H264MasterFirmwareVBR_bin.c \
-	H264MasterFirmwareVCM_bin.c \
-	H264SlaveFirmware_bin.c \
-	H264SlaveFirmwareCBR_bin.c \
-	H264SlaveFirmwareVBR_bin.c \
-	H264SlaveFirmwareVCM_bin.c \
-	JPEGMasterFirmware_bin.c \
-	JPEGSlaveFirmware_bin.c \
-	MPG4MasterFirmware_bin.c \
-	MPG4MasterFirmwareCBR_bin.c \
-	MPG4MasterFirmwareVBR_bin.c \
-	MPG4SlaveFirmware_bin.c \
-	MPG4SlaveFirmwareCBR_bin.c \
-	MPG4SlaveFirmwareVBR_bin.c \
+    H263MasterFirmware_bin.c \
+    H263MasterFirmwareCBR_bin.c \
+    H263MasterFirmwareVBR_bin.c \
+    H263SlaveFirmware_bin.c \
+    H263SlaveFirmwareCBR_bin.c \
+    H263SlaveFirmwareVBR_bin.c \
+    H264MasterFirmware_bin.c \
+    H264MasterFirmwareCBR_bin.c \
+    H264MasterFirmwareVBR_bin.c \
+    H264MasterFirmwareVCM_bin.c \
+    H264SlaveFirmware_bin.c \
+    H264SlaveFirmwareCBR_bin.c \
+    H264SlaveFirmwareVBR_bin.c \
+    H264SlaveFirmwareVCM_bin.c \
+    JPEGMasterFirmware_bin.c \
+    JPEGSlaveFirmware_bin.c \
+    MPG4MasterFirmware_bin.c \
+    MPG4MasterFirmwareCBR_bin.c \
+    MPG4MasterFirmwareVBR_bin.c \
+    MPG4SlaveFirmware_bin.c \
+    MPG4SlaveFirmwareCBR_bin.c \
+    MPG4SlaveFirmwareVBR_bin.c
 
-	
-LOCAL_CFLAGS +=
-
-LOCAL_C_INCLUDES :=
-
-LOCAL_SHARED_LIBRARIES :=
-
-LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := topazsc_bin
 
 include $(BUILD_EXECUTABLE)

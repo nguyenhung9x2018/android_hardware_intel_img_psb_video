@@ -28,14 +28,8 @@ LOCAL_PATH := $(call my-dir)
 # =====================================================
 include $(CLEAR_VARS)
 LOCAL_SRC_FILES := msvdx_bin.c thread1_bin.c
-
 LOCAL_CFLAGS += -DFRAME_SWITCHING_VARIANT=1 -DSLICE_SWITCHING_VARIANT=1
-
-LOCAL_C_INCLUDES :=
-
-LOCAL_SHARED_LIBRARIES :=
-
-LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := msvdx_bin
 
 include $(BUILD_EXECUTABLE)
