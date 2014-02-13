@@ -333,6 +333,7 @@ struct psb_driver_data_s {
 #define IS_MRST(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x4100)
 #define IS_MFLD(driver_data) (((driver_data->dev_id & 0xFFFC) == 0x0130) || ((driver_data->dev_id & 0xFFFF) == 0x08C0) || ((driver_data->dev_id & 0xFFFF) == 0x08C7) || ((driver_data->dev_id & 0xFFFF) == 0x01FF) || ((driver_data->dev_id & 0xFFFF) == 0x08C8))
 #define IS_MRFL(driver_data) (((driver_data->dev_id & 0xFFFC) == 0x1180) || ((driver_data->dev_id & 0xFFFC) == 0x1480))
+#define IS_MOFD(driver_data) ((driver_data->dev_id & 0xFFFC) == 0x1480)
 #define IS_LEXINGTON(driver_data) ((driver_data->dev_id & 0xFFFF) == 0x01FF)
 #define IS_BAYTRAIL(driver_data) ((driver_data->dev_id & 0xFFFF) == 0x0F31)
 #endif
