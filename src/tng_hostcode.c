@@ -1417,7 +1417,7 @@ static void tng__setup_rcdata(context_ENC_p ctx)
                     i32TmpQp = (IMG_INT32)(30 - (100 * flBpp));
 
                 /* Adjust minQp up for small buffer size and down for large buffer size */
-                if (i32BufferSizeInFrames < 20) {
+                if (i32BufferSizeInFrames < 5) {
                     i32TmpQp += 2;
                 }
 
@@ -1427,14 +1427,13 @@ static void tng__setup_rcdata(context_ENC_p ctx)
                 }
                 /* for HD content allow a lower minQp as bitrate is more easily controlled in this case */
                 if (psPicParams->sInParams.ui16MBPerFrm > 2000) {
-                    if (i32TmpQp>=2)
-                        i32TmpQp -= 2;
+                        i32TmpQp -= 6;
                 }
             } else
                 i32TmpQp = psRCParams->iMinQP;				
 			
-            if (i32TmpQp < 4) {
-                psPicParams->sInParams.ui8MinQPVal = 4;
+            if (i32TmpQp < 2) {
+                psPicParams->sInParams.ui8MinQPVal = 2;
             } else {
                 psPicParams->sInParams.ui8MinQPVal = i32TmpQp;
             }
@@ -1466,10 +1465,26 @@ static void tng__setup_rcdata(context_ENC_p ctx)
                 if ((i32BufferSizeInFrames < 20) || (psRCParams->ui32IntraFreq < 20)) {
                     i32TmpQp += 2;
                 }
+
+		/* for very small buffers increase initial Qp even more */
+		if(i32BufferSizeInFrames < 5)
+		{
+			i32TmpQp += 8;
+		}
+
                 /* start on a lower initial Qp for HD content as the coding is more efficient */
                 if (psPicParams->sInParams.ui16MBPerFrm > 2000) {
                     i32TmpQp -= 2;
                 }
+
+		if(psPicParams->sInParams.ui16IntraPeriod ==1)
+		{
+		    /* for very small GOPS start with a much higher initial Qp */
+		    i32TmpQp += 12;
+		} else if (psPicParams->sInParams.ui16IntraPeriod<5) {
+		    /* for very small GOPS start with a much higher initial Qp */
+		    i32TmpQp += 6;
+		}
             }
             if (i32TmpQp>49) {
                 i32TmpQp = 49;
@@ -1485,7 +1500,6 @@ static void tng__setup_rcdata(context_ENC_p ctx)
             break;
 
         case IMG_STANDARD_MPEG4:
-	    ctx->ui32KickSize = psRCParams->ui32BUSize;
         case IMG_STANDARD_MPEG2:
         case IMG_STANDARD_H263:
             psPicParams->sInParams.ui8MaxQPVal	 = 31;
