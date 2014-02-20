@@ -99,7 +99,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
     unsigned long fourcc;
     VASurfaceAttributeTPI *external_buffers = NULL;
     unsigned int handle;
-    unsigned int *tmp_nativebuf_handle = NULL;
     int size = num_surfaces * sizeof(unsigned int);
     void *vaddr;
 
@@ -134,11 +133,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
     LOGD("external_buffers->pixel_format is 0x%x.\n", external_buffers->pixel_format);
     /* get native window from the reserved field */
     driver_data->native_window = (void *)external_buffers->reserved[0];
-
-    tmp_nativebuf_handle = calloc(1, size);
-    CHECK_ALLOCATION(tmp_nativebuf_handle);
-
-    memcpy(tmp_nativebuf_handle, external_buffers->buffers, size);
 
     for (i = 0; i < num_surfaces; i++) {
         int surfaceID;
@@ -235,9 +229,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
         }
         drv_debug_msg(VIDEO_DEBUG_ERROR, "CreateSurfaces failed\n");
 
-        if (tmp_nativebuf_handle)
-            free(tmp_nativebuf_handle);
-
         return vaStatus;
     }
 
@@ -261,7 +252,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
     unsigned long fourcc;
     VASurfaceAttributeTPI *external_buffers = NULL;
     unsigned int handle;
-    unsigned int *tmp_nativebuf_handle = NULL;
     int size = num_surfaces * sizeof(unsigned int);
     void *vaddr[GRALLOC_SUB_BUFFER_MAX];
 
@@ -300,11 +290,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
     /* get native window from the reserved field */
     driver_data->native_window = (void *)external_buffers->reserved[0];
-        
-    tmp_nativebuf_handle = calloc(1, size);
-    CHECK_ALLOCATION(tmp_nativebuf_handle);
-
-    memcpy(tmp_nativebuf_handle, external_buffers->buffers, size);
     
     for (i = 0; i < num_surfaces; i++) {
         int surfaceID;
@@ -435,9 +420,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
             surface_list[i] = VA_INVALID_SURFACE;
         }
         drv_debug_msg(VIDEO_DEBUG_ERROR, "CreateSurfaces failed\n");
-
-        if (tmp_nativebuf_handle)
-            free(tmp_nativebuf_handle);
         
         return vaStatus;
     }
