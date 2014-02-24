@@ -1074,6 +1074,7 @@ static void psb__H264_build_register(context_H264_p ctx, VASliceParameterBufferH
     psb_cmdbuf_reg_set(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_SLICE2), reg_value);
 
     if (ctx->pic_params->num_slice_groups_minus1 >= 1) {
+        ctx->obj_context->driver_data->ec_enabled = 0;
         ASSERT(ctx->slice_group_map_buffer);
         if (ctx->slice_group_map_buffer) {
             psb_cmdbuf_reg_set_address(cmdbuf, REGISTER_OFFSET(MSVDX_VEC_H264, CR_VEC_H264_FE_BASE_ADDR_SGM),
