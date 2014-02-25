@@ -339,6 +339,7 @@ static VAStatus pnw_H264_ValidateConfig(
     for (i = 0; i < obj_config->attrib_count; i++) {
         switch (obj_config->attrib_list[i].type) {
         case VAConfigAttribRTFormat:
+        case VAConfigAttribDecSliceMode:
             /* Ignore */
             break;
 
@@ -789,6 +790,14 @@ static VAStatus psb__H264_process_slice_header_group(context_H264_p ctx, object_
     extract_msg->flag_bitfield.bits.expected_pps_id =
         pic_param_buf->expected_pic_parameter_set_id;
 
+    if (obj_context->modular_drm) {
+        extract_msg->flag_bitfield.bits.nalu_header_unit_type =
+            pic_param_buf->nalu_header.bits.nalu_header_unit_type;
+        extract_msg->flag_bitfield.bits.nalu_header_ref_idc =
+            pic_param_buf->nalu_header.bits.nalu_header_ref_idc;
+        extract_msg->header.bits.msg_type = VA_MSGID_MODULAR_SLICE_HEADER_EXTRACT;
+    }
+
     extract_msg->flag_bitfield.bits.continue_parse_flag = 0;
     extract_msg->flag_bitfield.bits.frame_mbs_only_flag =
         pic_param_buf->flags.bits.frame_mbs_only_flag;
@@ -828,6 +837,8 @@ static VAStatus psb__H264_process_slice_header_group(context_H264_p ctx, object_
         pic_param_buf->log2_max_frame_num_minus4;
     extract_msg->pic_param1.bits.num_ref_idc_l1_active_minus1 =
         pic_param_buf->num_ref_idc_l1_active_minus1;
+
+
 
     RELOC_MSG(extract_msg->src, frame_obj_buffer->psb_buffer->buffer_ofs, frame_obj_buffer->psb_buffer);
     RELOC_MSG(extract_msg->dst, slice_header_obj_buffer->psb_buffer->buffer_ofs, slice_header_obj_buffer->psb_buffer);

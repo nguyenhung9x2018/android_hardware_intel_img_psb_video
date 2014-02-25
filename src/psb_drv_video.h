@@ -413,6 +413,7 @@ struct object_context_s {
     unsigned long msvdx_tile; /* normal tile | (rotate tile << 4) */
 #ifdef SLICE_HEADER_PARSING
     int msvdx_frame_end;
+    int modular_drm;
 #endif
 
     uint32_t msvdx_context;

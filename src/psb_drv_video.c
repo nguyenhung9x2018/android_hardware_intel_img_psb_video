@@ -469,7 +469,7 @@ VAStatus psb_CreateConfig(
     obj_config->attrib_count = 1;
 
     for (i = 0; i < num_attribs; i++) {
-        if (attrib_list[i].type > VAConfigAttribRateControl)
+        if (attrib_list[i].type > VAConfigAttribDecSliceMode)
             return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
 
         vaStatus = psb__update_attribute(obj_config, &(attrib_list[i]));
@@ -1068,6 +1068,13 @@ VAStatus psb_CreateContext(
     obj_context->msvdx_scaling = 0;
 #ifdef SLICE_HEADER_PARSING
     obj_context->msvdx_frame_end = 0;
+    for (i = 0; i < obj_config->attrib_count; i++) {
+        if ((obj_config->attrib_list[i].type == VAConfigAttribDecSliceMode) &&
+            (obj_config->attrib_list[i].value == VA_DEC_SLICE_MODE_SUBSAMPLE)) {
+            obj_context->modular_drm = 1;
+            break;
+        }
+    }
 #endif
     obj_context->scaling_width = 0;
     obj_context->scaling_height = 0;

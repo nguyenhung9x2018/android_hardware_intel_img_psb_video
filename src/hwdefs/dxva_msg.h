@@ -75,6 +75,7 @@ extern "C" {
         DAVA_MSGID_HOST_BE_OPP,
 #ifdef SLICE_HEADER_PARSING
         VA_MSGID_SLICE_HEADER_EXTRACT = 0x87,
+        VA_MSGID_MODULAR_SLICE_HEADER_EXTRACT = 0x88,
 #endif
         /*! Sent by the mtx firmware to itself.
          */
