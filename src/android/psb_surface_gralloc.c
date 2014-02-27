@@ -98,7 +98,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     int protected = (VA_RT_FORMAT_PROTECTED & format);
     unsigned long fourcc;
     VASurfaceAttributeTPI *external_buffers = NULL;
-    unsigned int handle;
+    unsigned long handle;
     int size = num_surfaces * sizeof(unsigned int);
     void *vaddr;
 
@@ -187,7 +187,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
         /* usage hack to force pages alloc and CPU/GPU cache flush */
         usage |= GRALLOC_USAGE_HW_VIDEO_ENCODER;
 
-        handle = (unsigned int)external_buffers->buffers[i];
+        handle = (unsigned long)external_buffers->buffers[i];
         if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr)) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         } else {
@@ -251,7 +251,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     int protected = (VA_RT_FORMAT_PROTECTED & format);
     unsigned long fourcc;
     VASurfaceAttributeTPI *external_buffers = NULL;
-    unsigned int handle;
+    unsigned long handle;
     int size = num_surfaces * sizeof(unsigned int);
     void *vaddr[GRALLOC_SUB_BUFFER_MAX];
 
@@ -349,7 +349,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
 #endif
         }
 
-        handle = (unsigned int)external_buffers->buffers[i];
+        handle = (unsigned long)external_buffers->buffers[i];
         if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         } else {
