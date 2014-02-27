@@ -585,10 +585,6 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     ctx->picture_width_mb = pic_params->picture_width_in_mbs_minus1 + 1;
     ctx->picture_height_mb = pic_params->picture_height_in_mbs_minus1 + 1;
 
-    /* assign correct height value to share_info */
-    if (obj_surface->share_info)
-        obj_surface->share_info->height = ctx->picture_height_mb * 16;
-
     ctx->size_mb = ctx->picture_width_mb * ctx->picture_height_mb;              /* (7-25) */
 
     //uint32_t colocated_size = (ctx->picture_width_mb + extra_size) * (ctx->picture_height_mb + extra_size) * 192;
