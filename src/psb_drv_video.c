@@ -928,21 +928,15 @@ int psb_new_context(psb_driver_data_p driver_data, int ctx_type)
 {
     struct drm_lnc_video_getparam_arg arg;
     int ret = 0;
-    unsigned long ctx_num = 0;
 
     arg.key = IMG_VIDEO_NEW_CONTEXT;
     arg.value = (uint64_t)((unsigned long) & ctx_type);
     ret = drmCommandWriteRead(driver_data->drm_fd, driver_data->getParamIoctlOffset,
                               &arg, sizeof(arg));
-    if (ret != 0) {
+    if (ret != 0)
         drv_debug_msg(VIDEO_DEBUG_ERROR, "Set context %d failed\n", ctx_type);
-	return ret;
-    }
 
-    /* get vp8 encoding context num from arg.value */
-    ctx_num = ctx_type;
-
-    return ctx_num;
+    return ret;
 }
 
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
@@ -1373,12 +1367,9 @@ VAStatus psb_CreateContext(
     }
 
     /* add ctx_num to save vp8 enc context num to support dual vp8 encoding */
-    int ctx_num = psb_new_context(driver_data, obj_context->ctp_type | driver_data->protected);
-    if (obj_context->profile == VAProfileVP8Version0_3 &&
-        obj_context->entry_point == VAEntrypointEncSlice &&
-	ctx_num > 2) {
-	    return VA_STATUS_ERROR_UNKNOWN;
-    }
+    int ret = psb_new_context(driver_data, obj_context->ctp_type | driver_data->protected);
+    if (ret)
+        vaStatus = VA_STATUS_ERROR_UNKNOWN;
 
     DEBUG_FUNC_EXIT
     return vaStatus;
