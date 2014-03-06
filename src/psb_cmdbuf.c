@@ -256,7 +256,6 @@ int psb_cmdbuf_buffer_ref(psb_cmdbuf_p cmdbuf, psb_buffer_p buf)
     int item_loc = 0;
 
     // buf->next = NULL; /* buf->next only used for buffer list validation */
-    buf->unfence_flag = 0;
     while ((item_loc < cmdbuf->buffer_refs_count)
            && (wsbmKBufHandle(wsbmKBuf(cmdbuf->buffer_refs[item_loc]->drm_buf))
                != wsbmKBufHandle(wsbmKBuf(buf->drm_buf)))) {
@@ -282,6 +281,7 @@ int psb_cmdbuf_buffer_ref(psb_cmdbuf_p cmdbuf, psb_buffer_p buf)
         buf->status = psb_bs_queued;
 
         buf->next = NULL;
+        buf->unfence_flag = 0;
     }
 
     /* only for RAR buffers */

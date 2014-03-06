@@ -1376,11 +1376,14 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
         /* CHROMA_RECONSTRUCTED_PICTURE_BASE_ADDRESSES */
         psb_cmdbuf_rendec_write_address(cmdbuf, target_surface->in_loop_buf, target_surface->in_loop_buf->buffer_ofs + target_surface->chroma_offset);
         target_surface->ref_buf = target_surface->in_loop_buf;
+        //target_surface->in_loop_buf->unfence_flag |= 2;
     } else {
         psb_cmdbuf_rendec_write_address(cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs);
         psb_cmdbuf_rendec_write_address(cmdbuf, &target_surface->buf, target_surface->buf.buffer_ofs + target_surface->chroma_offset);
         target_surface->ref_buf = &target_surface->buf;
+        //target_surface->buf.unfence_flag = 2;
     }
+
     /* Aux Msb Buffer base address: H.264 does not use this command */
     reg_value = 0;
     psb_cmdbuf_rendec_write(cmdbuf, reg_value);
