@@ -950,6 +950,8 @@ static IMG_ERRORCODE IssueBufferToHW(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "psBufferCmd: 0x%x\n", (unsigned int)(psBufferCmd));
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "Command Data: 0x%x\n", (unsigned int)(PTG_JPEG_HEADER_MAX_SIZE + ui16BCnt * pJPEGContext->ui32SizePerCodedBuffer));
 
+    ps_buf->coded_buf->psb_buffer->unfence_flag = 2;
+
     // Issue buffers
     tng_cmdbuf_insert_command(ctx->obj_context,
                                       0,

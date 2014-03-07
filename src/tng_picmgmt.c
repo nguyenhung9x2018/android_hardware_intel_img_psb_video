@@ -354,6 +354,8 @@ IMG_UINT32 tng_send_codedbuf(
     if ((ctx->ui8PipesToUse == 2) && ((ui32SlotIndex & 1) == 1))
 	ui32Offset = object_buffer->size >> 1;
 
+    object_buffer->psb_buffer->unfence_flag = 2;
+
     tng_cmdbuf_insert_command(
         ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PROVIDE_CODED_BUFFER,

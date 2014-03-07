@@ -421,8 +421,11 @@ void tng_cmdbuf_insert_command(
 		"%s: data_addr = 0x%08x\n",
 		__FUNCTION__, *(cmdbuf->cmd_idx));
 	} else {
-	    if ((cmd_id >= MTX_CMDID_SETQUANT) && (cmd_id <= MTX_CMDID_SETUP)) {
-		tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
+            if ((cmd_id >= MTX_CMDID_SETQUANT) && (cmd_id <= MTX_CMDID_SETUP)) {
+                if (cmd_id == MTX_CMDID_ISSUEBUFF)
+                    TNG_RELOC_CMDBUF_START(cmdbuf->cmd_idx, offset, data_addr);
+		else
+                    tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
 	    }
 	    else {
 #ifdef _TNG_RELOC_
@@ -431,11 +434,10 @@ void tng_cmdbuf_insert_command(
 		tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
 #endif
 	    }
-		drv_debug_msg(VIDEO_DEBUG_GENERAL,
-		    "%s: data_addr = 0x%08x\n",
-		    __FUNCTION__, *(cmdbuf->cmd_idx));
-
-		cmdbuf->cmd_idx++;
+            drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                "%s: data_addr = 0x%08x\n",
+                __FUNCTION__, *(cmdbuf->cmd_idx));
+            cmdbuf->cmd_idx++;
 	}
     } else {
 	*cmdbuf->cmd_idx++ = 0;
@@ -561,6 +563,9 @@ ptgDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
         req->presumed_flags = 0;
 #endif
         req->pad64 = (IMG_UINT32)buffer_list[i]->pl_flags;
+#ifndef BAYTRAIL
+        req->unfence_flag = buffer_list[i]->unfence_flag;
+#endif
     }
     arg_list[buffer_count-1].d.req.next = 0;
 
