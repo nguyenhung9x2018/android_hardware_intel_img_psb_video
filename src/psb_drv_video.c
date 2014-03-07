@@ -755,6 +755,12 @@ VAStatus psb_CreateSurfaces2(
                     }
                 }
                 break;
+            case VASurfaceAttribCropWidth:
+                driver_data->surface_crop_width = attrib_list->value.value.i;
+                break;
+            case VASurfaceAttribCropHeight:
+                driver_data->surface_crop_height = attrib_list->value.value.i;
+                break;
             default:
                 drv_debug_msg(VIDEO_DEBUG_ERROR, "Unsupported attribute.\n");
                 return VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -1055,10 +1061,6 @@ VAStatus psb_CreateContext(
     obj_context->picture_width = picture_width;
     obj_context->picture_height = picture_height;
     obj_context->num_render_targets = num_render_targets;
-    obj_context->video_crop.x = 0;
-    obj_context->video_crop.y = 0;
-    obj_context->video_crop.width = picture_width;
-    obj_context->video_crop.height = picture_height;
     obj_context->msvdx_scaling = 0;
 #ifdef SLICE_HEADER_PARSING
     obj_context->msvdx_frame_end = 0;
@@ -2789,30 +2791,6 @@ VAStatus psb_SetTimestampForSurface(
         return VA_STATUS_ERROR_UNKNOWN;
     }
 }
-
-VAStatus psb_SetVideoCrops(
-    VADriverContextP ctx,
-    VAContextID context,
-    VARectangle *crop
-)
-{
-    INIT_DRIVER_DATA;
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    object_context_p obj_context = CONTEXT(context);
-
-    CHECK_CONTEXT(obj_context);
-
-    if (!crop)
-        return VA_STATUS_ERROR_INVALID_PARAMETER;
-
-    if (crop->x < 0 || crop->y < 0 || crop->width > 4096 || crop->height > 4096)
-        return VA_STATUS_ERROR_INVALID_PARAMETER;
-
-    memcpy(&obj_context->video_crop, crop, sizeof(*crop));
-
-    return vaStatus;
-}
-
 
 int  LOCK_HARDWARE(psb_driver_data_p driver_data)
 {

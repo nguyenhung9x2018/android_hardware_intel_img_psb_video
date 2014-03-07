@@ -318,6 +318,9 @@ struct psb_driver_data_s {
     int is_android;
     /* VA_RT_FORMAT_PROTECTED is set to protected for Widevine case */
     int protected;
+
+    int surface_crop_width;
+    int surface_crop_height;
 };
 
 
@@ -422,8 +425,6 @@ struct object_context_s {
     int scaling_height;
     int scaling_update;
 
-    VARectangle video_crop;
-
     /* Debug */
     uint32_t frame_count;
     uint32_t slice_count;
@@ -483,6 +484,9 @@ struct psb_surface_share_info_s {
     unsigned int scaling_luma_stride;
     unsigned int scaling_chroma_u_stride;
     unsigned int scaling_chroma_v_stride;
+
+    unsigned int crop_width;
+    unsigned int crop_height;
 };
 
 struct object_surface_s {
