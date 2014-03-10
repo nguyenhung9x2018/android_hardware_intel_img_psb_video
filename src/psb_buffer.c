@@ -513,7 +513,7 @@ static void tng_get_coded_data(
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s pipenum = 0x%x\n", __FUNCTION__, uiPipeNum);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s offset  = 0x%x\n", __FUNCTION__, uiBufOffset);
 
-    tmp = vaCodedBufSeg[iPipeIndex].size = *(unsigned long *)((unsigned long)raw_codedbuf);
+    tmp = vaCodedBufSeg[iPipeIndex].size = *(unsigned int *)((unsigned long)raw_codedbuf);
 
     /*
      * This is used for DRM over WiDi which only uses H264 BP
@@ -528,7 +528,7 @@ static void tng_get_coded_data(
 	vaCodedBufSeg[iPipeIndex].size  = tmp;
     }
 
-    vaCodedBufSeg[iPipeIndex].buf = (unsigned char *)(((unsigned long *)((unsigned long)raw_codedbuf)) + 16); /* skip 4DWs */
+    vaCodedBufSeg[iPipeIndex].buf = (unsigned char *)(((unsigned int *)((unsigned long)raw_codedbuf)) + 16); /* skip 4DWs */
 
     ptmp = (unsigned long *)((unsigned long)raw_codedbuf); 
     vaCodedBufSeg[iPipeIndex].reserved = (ptmp[1] >> 6) & 0xf;
@@ -541,7 +541,7 @@ static void tng_get_coded_data(
          * is the second part of encoded clip.*/
         ++iPipeIndex;
         vaCodedBufSeg[iPipeIndex - 1].next = &vaCodedBufSeg[iPipeIndex];
-        tmp = vaCodedBufSeg[iPipeIndex].size = *(unsigned long *)((unsigned long)raw_codedbuf + uiBufOffset);
+        tmp = vaCodedBufSeg[iPipeIndex].size = *(unsigned int *)((unsigned long)raw_codedbuf + uiBufOffset);
 
         /*
          * This is used for DRM over WiDi which only uses H264 BP
@@ -557,7 +557,7 @@ static void tng_get_coded_data(
             vaCodedBufSeg[iPipeIndex].size  = tmp;
         }
 
-        vaCodedBufSeg[iPipeIndex].buf = (unsigned char *)(((unsigned long *)((unsigned long)raw_codedbuf + uiBufOffset)) + 16); /* skip 4DWs */
+        vaCodedBufSeg[iPipeIndex].buf = (unsigned char *)(((unsigned int *)((unsigned long)raw_codedbuf + uiBufOffset)) + 16); /* skip 4DWs */
         vaCodedBufSeg[iPipeIndex].reserved = vaCodedBufSeg[iPipeIndex - 1].reserved;
         vaCodedBufSeg[iPipeIndex].next = NULL;
     }
