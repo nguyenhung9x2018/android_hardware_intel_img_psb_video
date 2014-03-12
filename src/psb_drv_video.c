@@ -469,7 +469,7 @@ VAStatus psb_CreateConfig(
     obj_config->attrib_count = 1;
 
     for (i = 0; i < num_attribs; i++) {
-        if (attrib_list[i].type > VAConfigAttribDecSliceMode)
+        if (attrib_list[i].type > VAConfigAttribTypeMax)
             return VA_STATUS_ERROR_ATTR_NOT_SUPPORTED;
 
         vaStatus = psb__update_attribute(obj_config, &(attrib_list[i]));
