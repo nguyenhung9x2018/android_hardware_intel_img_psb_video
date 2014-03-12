@@ -247,7 +247,7 @@ static VAStatus tng__yuv_processor_execute(context_DEC_p dec_ctx, object_buffer_
             obj_context->ctp_type &= (~PSB_CTX_TILING_MASK); /* clear tile context */
             obj_context->ctp_type |= ((obj_context->msvdx_tile & 0xff) << 16);
             psb_update_context(driver_data, obj_context->ctp_type);
-            LOGE("update tile context, msvdx_tiled is 0x%08x", obj_context->msvdx_tile);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "update tile context, msvdx_tiled is 0x%08x \n", obj_context->msvdx_tile);
         }
 #endif
     }

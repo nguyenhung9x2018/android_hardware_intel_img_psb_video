@@ -366,7 +366,9 @@ VAStatus psb_CreateSurfacesFromGralloc(
             if (gfx_colorformat != HAL_PIXEL_FORMAT_NV12) {
                 obj_surface->share_info = (psb_surface_share_info_t *)vaddr[GRALLOC_SUB_BUFFER1];
                 memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
-                obj_surface->share_info->force_output_method = protected ? OUTPUT_FORCE_OVERLAY : 0;
+                // Set clear video the default output method as OUTPUT_FORCE_OVERLAY_FOR_SW_DECODE
+                // if the video can be decoded by HW, will reset the output method as 0 in psb_BeginPicture
+                obj_surface->share_info->force_output_method = protected ? OUTPUT_FORCE_OVERLAY : OUTPUT_FORCE_OVERLAY_FOR_SW_DECODE;
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
                 obj_surface->share_info->tiling = external_buffers->tiling;
 #endif
