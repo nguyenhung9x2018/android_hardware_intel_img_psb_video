@@ -318,9 +318,6 @@ struct psb_driver_data_s {
     int is_android;
     /* VA_RT_FORMAT_PROTECTED is set to protected for Widevine case */
     int protected;
-
-    int surface_crop_width;
-    int surface_crop_height;
 };
 
 

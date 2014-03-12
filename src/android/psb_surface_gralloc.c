@@ -388,8 +388,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
                 obj_surface->share_info->surface_protected = driver_data->protected;
 
-                obj_surface->share_info->crop_width = driver_data->surface_crop_width;
-                obj_surface->share_info->crop_height = driver_data->surface_crop_height;
+                obj_surface->share_info->crop_width = driver_data->render_rect.width;
+                obj_surface->share_info->crop_height = driver_data->render_rect.height;
 
                 drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : Create graphic buffer success"
                                          "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n",

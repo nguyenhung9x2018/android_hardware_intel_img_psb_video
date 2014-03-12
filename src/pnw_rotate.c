@@ -378,7 +378,7 @@ VAStatus psb_CreateScalingSurface(
     unsigned int set_flags, clear_flags;
     int ret = 0;
 
-    if (obj_context->driver_data->surface_crop_width <= obj_context->scaling_width || obj_context->driver_data->surface_crop_height <= obj_context->scaling_height) {
+    if (obj_context->driver_data->render_rect.width <= obj_context->scaling_width || obj_context->driver_data->render_rect.height <= obj_context->scaling_height) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Either downscaling is not required or upscaling is needed for the target resolution\n");
         obj_context->msvdx_scaling = 0; /* Disable downscaling */
         return VA_STATUS_ERROR_OPERATION_FAILED;
