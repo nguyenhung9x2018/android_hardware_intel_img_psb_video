@@ -819,6 +819,10 @@ static VAStatus psb__H264_process_slice_header_group(context_H264_p ctx, object_
         pic_param_buf->residual_colour_transform_flag;
     extract_msg->flag_bitfield.bits.chroma_format_idc =
         pic_param_buf->chroma_format_idc;
+    extract_msg->flag_bitfield.bits.idr_flag =
+        pic_param_buf->idr_flag;
+    extract_msg->flag_bitfield.bits.pic_order_cnt_type =
+        pic_param_buf->pic_order_cnt_type;
 
     extract_msg->pic_param0.bits.num_slice_groups_minus1 =
         pic_param_buf->num_slice_groups_minus1;
@@ -829,15 +833,14 @@ static VAStatus psb__H264_process_slice_header_group(context_H264_p ctx, object_
     extract_msg->pic_param0.bits.num_ref_idc_l0_active_minus1 =
         pic_param_buf->num_ref_idc_l0_active_minus1;
 
-    extract_msg->pic_param1.bits.log2_max_pic_order_cnt_lsb_minus4 =
+    extract_msg->pic_param0.bits.log2_max_pic_order_cnt_lsb_minus4 =
         pic_param_buf->log2_max_pic_order_cnt_lsb_minus4;
-    extract_msg->pic_param1.bits.pic_order_cnt_type =
-        pic_param_buf->pic_order_cnt_type;
-    extract_msg->pic_param1.bits.log2_max_frame_num_minus4 =
+    extract_msg->pic_param0.bits.log2_max_frame_num_minus4 =
         pic_param_buf->log2_max_frame_num_minus4;
-    extract_msg->pic_param1.bits.num_ref_idc_l1_active_minus1 =
+    extract_msg->pic_param0.bits.num_ref_idc_l1_active_minus1 =
         pic_param_buf->num_ref_idc_l1_active_minus1;
-
+    extract_msg->pic_param0.bits.slice_header_bit_offset =
+        pic_param_buf->slice_offset;
 
 
     RELOC_MSG(extract_msg->src, frame_obj_buffer->psb_buffer->buffer_ofs, frame_obj_buffer->psb_buffer);
