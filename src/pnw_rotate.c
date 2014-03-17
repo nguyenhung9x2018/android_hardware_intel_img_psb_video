@@ -183,8 +183,12 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
                 driver_data->mipi0_rotation = 0;
                 driver_data->hdmi_rotation = 0;
             }
-        } else
-            driver_data->disable_msvdx_rotate = driver_data->disable_msvdx_rotate_backup;
+        } else {
+            if (IS_MOFD(driver_data))
+                driver_data->disable_msvdx_rotate = 1;
+            else
+                driver_data->disable_msvdx_rotate = driver_data->disable_msvdx_rotate_backup;
+        }
     } else if (driver_data->native_window) {
         int display_rotate = 0;
         psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
@@ -193,6 +197,9 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
         if (driver_data->mipi0_rotation != display_rotate) {
             driver_data->mipi0_rotation = display_rotate;
         }
+        if (IS_MOFD(driver_data))
+            driver_data->disable_msvdx_rotate = 1;
+
     } else if (driver_data->protected) {
         long long hwc_timestamp = 0;
         int index = -1;
