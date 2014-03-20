@@ -56,9 +56,7 @@
 
 using namespace android;
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-#ifndef USE_MDS_LEGACY
 using namespace android::intel;
-#endif
 #endif
 
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
@@ -114,7 +112,6 @@ int psb_android_get_mds_decoder_output_resolution(void* output, int* width, int*
 
 int psb_android_get_mds_vpp_state(void* output) {
     bool ret = false;
-#ifndef USE_MDS_LEGACY
     if (output == NULL) {
         sp<IServiceManager> sm = defaultServiceManager();
         if (sm == NULL)
@@ -138,7 +135,6 @@ int psb_android_get_mds_vpp_state(void* output) {
     ret = mds->getVppState();
     if (mds == NULL)
         return 0;
-#endif
     return (ret ? 1 : 0);
 }
 

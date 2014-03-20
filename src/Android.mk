@@ -122,10 +122,6 @@ ifeq ($(TARGET_HAS_MULTIPLE_DISPLAY),true)
 LOCAL_SRC_FILES += android/psb_mds.cpp
 LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
 LOCAL_SHARED_LIBRARIES += libmultidisplay
-
-ifeq ($(USE_MDS_LEGACY),true)
-LOCAL_CFLAGS += -DUSE_MDS_LEGACY
-endif
 endif
 
 LOCAL_MODULE_TAGS := optional

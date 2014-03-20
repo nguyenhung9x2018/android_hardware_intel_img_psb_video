@@ -29,14 +29,9 @@
 #define _PSB_MDS_H_
 
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-#ifdef USE_MDS_LEGACY
-#include <display/MultiDisplayClient.h>
-#else
 #include <display/MultiDisplayService.h>
 #ifdef PSBVIDEO_MRFL_VPP
 #include <VPPSetting.h>
-#endif
-
 #endif
 #endif
 
@@ -49,41 +44,12 @@ enum {
 #endif
 
 namespace android {
-#ifndef USE_MDS_LEGACY
 namespace intel {
-#endif
-
-#ifndef USE_MDS_LEGACY
-class MDSListener : public BnMultiDisplayListener {
-private:
-    int     mMode;
-    bool    mVppState;
-    int32_t mDecoderConfigWidth;
-    int32_t mDecoderConfigHeight;
-public:
-    MDSListener(int, bool, int32_t, int32_t);
-    ~MDSListener();
-
-    status_t onMdsMessage(int msg, void* value, int size);
-    int  getMode();
-    bool getDecoderOutputResolution(int32_t* width, int32_t* height);
-    bool getVppState();
-};
-#endif
 
 class psbMultiDisplayListener {
 private:
-#ifndef USE_MDS_LEGACY
     sp<IMDService>  mMds;
-#if 0
-    sp<MDSListener> mListener;
-    int32_t         mListenerId;
-#else
     sp<IMultiDisplayInfoProvider> mListener;
-#endif
-#else
-    MultiDisplayClient* mListener;
-#endif
 public:
     psbMultiDisplayListener();
     ~psbMultiDisplayListener();
@@ -98,8 +64,6 @@ public:
 };
 
 }; // namespace android
-#ifndef USE_MDS_LEGACY
 }; // namespace intel
-#endif
 
 #endif
