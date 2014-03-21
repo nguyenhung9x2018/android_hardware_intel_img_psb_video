@@ -502,15 +502,19 @@ VAStatus psb_CreateConfig(
         driver_data->ec_enabled = 0;
     }
 
-    if (profile == VAProfileMPEG4Simple ||
-        profile == VAProfileMPEG4AdvancedSimple ||
-        profile == VAProfileMPEG4Main ||
-        profile == VAProfileVP8Version0_3 ||
+    if (profile == VAProfileVP8Version0_3 ||
 	profile == VAProfileH264Baseline ||
 	profile == VAProfileH264Main ||
 	profile == VAProfileH264High ||
 	profile == VAProfileH264ConstrainedBaseline)
 		driver_data->ec_enabled = 1;
+
+    if (!IS_MRFL(driver_data)) {
+        if (profile == VAProfileMPEG4Simple ||
+            profile == VAProfileMPEG4AdvancedSimple ||
+            profile == VAProfileMPEG4Main)
+                driver_data->ec_enabled = 1;
+    }
 
 #else
     driver_data->ec_enabled = 0;
