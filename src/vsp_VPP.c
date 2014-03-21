@@ -555,6 +555,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 		if (i == 0) {
 			cur_output_surf = ctx->obj_context->current_render_target;
 
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
 			/* The rotation info is saved in the first frame */
 			rotation_angle = GET_SURFACE_INFO_rotate(cur_output_surf->psb_surface);
 			switch (rotation_angle) {
@@ -570,6 +571,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 				default:
 					vsp_rotation_angle = VSP_ROTATION_NONE;
 			}
+#endif
 		} else {
 			if (frc_param == NULL) {
 				drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid output surface numbers %x\n",
@@ -585,6 +587,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 				goto out;
 			}
 
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
 			/* VPP rotation is just for 1080P */
 			if (tiled && rotation_angle != VA_ROTATION_NONE) {
 				if (VA_STATUS_SUCCESS != psb_CreateRotateSurface(obj_context, cur_output_surf, rotation_angle)) {
@@ -593,9 +596,11 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 					goto out;
 				}
 			}
+#endif
 		}
 
 		if (tiled && rotation_angle != VA_ROTATION_NONE) {
+#ifdef PSBVIDEO_MRFL_VPP_ROTATE
 			/* For 90d and 270d, we need to alloc rotation buff and
 			 * copy the 0d data from input to output
 			 */
@@ -613,6 +618,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 				width = cur_output_surf->out_loop_surface->stride;
 			height = cur_output_surf->width;
 			stride = cur_output_surf->out_loop_surface->stride;
+#endif
 		} else {
 			output_surface = cur_output_surf->psb_surface;
 
@@ -623,7 +629,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 			height = cur_output_surf->height_origin;
 			stride = cur_output_surf->psb_surface->stride;
 
-			/* If the rotate bit is set by test tool */
+			/* Check the rotate bit */
 			if (pipeline_param->rotation_state == VA_ROTATION_90)
 				vsp_rotation_angle = VSP_ROTATION_90;
 			else if (pipeline_param->rotation_state == VA_ROTATION_180)
@@ -646,18 +652,6 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 		cell_proc_picture_param->output_picture[i].format = ctx->format;
 		cell_proc_picture_param->output_picture[i].rot_angle = vsp_rotation_angle;
 		cell_proc_picture_param->output_picture[i].tiled = tiled;
-
-#if 0
-		if(cur_output_surf->share_info) {
-			drv_debug_msg(VIDEO_DEBUG_ERROR, "##### share_info[%d]: width=%d, height=%d, out_loop_khandler=%x, meta_rotate=%d, surface_rotate=%d\n", i,
-				cur_output_surf->share_info->width_r, cur_output_surf->share_info->height_r,
-				cur_output_surf->share_info->out_loop_khandle,
-				cur_output_surf->share_info->metadata_rotate, cur_output_surf->share_info->surface_rotate);
-		}
-		drv_debug_msg(VIDEO_DEBUG_ERROR, "##### surface_id=%x, width=%d, height=%d, stride=%d, rotation_angle=%d, tiled=%d\n",
-				cell_proc_picture_param->output_picture[i].surface_id,
-				width, height, stride, vsp_rotation_angle, tiled);
-#endif
 	}
 
 	vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VPP_ID, &cmdbuf->param_mem, VssProcPictureCommand,
