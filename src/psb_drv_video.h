@@ -93,17 +93,10 @@
 #define WORKAROUND_DMA_OFF_BY_ONE
 #define FOURCC_XVVA     (('A' << 24) + ('V' << 16) + ('V' << 8) + 'X')
 
-#ifdef PSBVIDEO_MRFL_VPP
-#define PSB_MAX_PROFILES			VAProfileMax
-#define PSB_MAX_ENTRYPOINTS			VAEntrypointMax
+#define PSB_MAX_PROFILES			32
+#define PSB_MAX_ENTRYPOINTS			32
 #define PSB_MAX_CONFIG_ATTRIBUTES		VAConfigAttribTypeMax
 #define PSB_MAX_BUFFERTYPES			VABufferTypeMax
-#else
-#define PSB_MAX_PROFILES                        18
-#define PSB_MAX_ENTRYPOINTS                     VAEntrypointMax
-#define PSB_MAX_CONFIG_ATTRIBUTES               10
-#define PSB_MAX_BUFFERTYPES                     VABufferTypeMax
-#endif
 
 /* Max # of command submission buffers */
 #define PSB_MAX_CMDBUFS                         10

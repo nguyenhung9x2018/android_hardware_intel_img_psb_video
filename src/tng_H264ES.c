@@ -941,11 +941,11 @@ static VAStatus tng__H264ES_process_picture_param_base(context_ENC_p ctx, unsign
 static VAStatus tng__H264ES_process_picture_param_mvc(context_ENC_p ctx, unsigned char *buf)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    VAEncPictureParameterBufferH264MVC *psPicMvcParams;
+    VAEncPictureParameterBufferH264_MVC *psPicMvcParams;
 
-    psPicMvcParams = (VAEncPictureParameterBufferH264MVC *) buf;
+    psPicMvcParams = (VAEncPictureParameterBufferH264_MVC *) buf;
     ctx->ui16MVCViewIdx = ctx->ui32StreamID = psPicMvcParams->view_id;
-    vaStatus = tng__H264ES_process_picture_param_base(ctx, (unsigned char*)&(psPicMvcParams->base_picture_param));
+    //vaStatus = tng__H264ES_process_picture_param_base(ctx, (unsigned char*)&(psPicMvcParams->base_picture_param));
 
     return vaStatus;
 }
@@ -960,7 +960,7 @@ static VAStatus tng__H264ES_process_picture_param(context_ENC_p ctx, object_buff
         "%s: ctx->bEnableMVC = %d\n", __FUNCTION__, ctx->bEnableMVC);
 
     if (ctx->bEnableMVC) {
-        if (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264MVC)) {
+        if (obj_buffer->size != sizeof(VAEncPictureParameterBufferH264_MVC)) {
             drv_debug_msg(VIDEO_DEBUG_ERROR,
                 "%s L%d Invalid picture parameter H264 mvc buffer handle\n",
                 __FUNCTION__, __LINE__);
