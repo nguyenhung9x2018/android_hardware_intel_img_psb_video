@@ -67,8 +67,8 @@
 #define MSVDX_COMMANDS_BASE_MTX 0x1000
 #define MSVDX_IQRAM_BASE_MTX    0x700
 
-#define HW_SUPPORTED_MAX_PICTURE_WIDTH_H264   1920
-#define HW_SUPPORTED_MAX_PICTURE_HEIGHT_H264  1088
+#define HW_SUPPORTED_MAX_PICTURE_WIDTH_H264   4096
+#define HW_SUPPORTED_MAX_PICTURE_HEIGHT_H264  4096
 
 #define SLICEDATA_BUFFER_TYPE(type) ((type==VASliceDataBufferType)?"VASliceDataBufferType":"VAProtectedSliceDataBufferType")
 
@@ -699,6 +699,8 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     }
     */
 #endif
+    if ((ctx->picture_width_mb * 16) > 2048)
+        ctx->obj_context->driver_data->ec_enabled = 0;
 
     return VA_STATUS_SUCCESS;
 }
