@@ -200,7 +200,7 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
         if (IS_MOFD(driver_data))
             driver_data->disable_msvdx_rotate = 1;
 
-    } else if (driver_data->protected) {
+    } else {
         long long hwc_timestamp = 0;
         int index = -1;
 
