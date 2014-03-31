@@ -363,7 +363,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
             psb_surface->buf.handle = handle;
             obj_surface->share_info = NULL;
 
-            if (gfx_colorformat != HAL_PIXEL_FORMAT_NV12) {
+            if ((gfx_colorformat != HAL_PIXEL_FORMAT_NV12) &&
+                (gfx_colorformat != HAL_PIXEL_FORMAT_YV12)) {
                 obj_surface->share_info = (psb_surface_share_info_t *)vaddr[GRALLOC_SUB_BUFFER1];
                 memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
                 // Set clear video the default output method as OUTPUT_FORCE_OVERLAY_FOR_SW_DECODE
