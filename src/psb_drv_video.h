@@ -484,6 +484,9 @@ struct psb_surface_share_info_s {
 
     unsigned int crop_width;
     unsigned int crop_height;
+
+    unsigned int coded_width;
+    unsigned int coded_hight;
 };
 
 struct object_surface_s {

@@ -605,7 +605,8 @@ static void tng__VP8_trace_slc_params(VASliceParameterBufferVP8 *p) {
 #endif
 
 static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_p obj_buffer) {
-    psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
+    object_surface_p obj_surface = ctx->obj_context->current_render_target;
+    psb_surface_p target_surface = obj_surface->psb_surface;
     uint32_t reg_value;
     VAStatus vaStatus;
 
@@ -633,6 +634,11 @@ static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_
 #ifdef DEBUG_TRACE
     tng__VP8_trace_pic_params(pic_params);
 #endif
+
+    if (obj_surface->share_info) {
+        obj_surface->share_info->coded_width = ctx->pic_params->frame_width;
+        obj_surface->share_info->coded_hight = ctx->pic_params->frame_height;
+    }
 
     ctx->size_mb = ((ctx->pic_params->frame_width) * (ctx->pic_params->frame_height)) >> 8;
     /* port DDK D3DDDIFMT_PICTUREPARAMSDATA ->  */

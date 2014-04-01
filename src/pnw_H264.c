@@ -601,6 +601,11 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     ctx->picture_height_samples_l = ctx->picture_height_mb * 16;
     ctx->picture_height_samples_c = ctx->picture_height_mb * ctx->mb_height_c;
 
+    if (obj_surface->share_info) {
+        obj_surface->share_info->coded_width = ctx->picture_width_samples_l;
+        obj_surface->share_info->coded_hight = ctx->picture_height_samples_l;
+    }
+
     // BECAUSE OF
     //  sps->FrameHeightInMbs   = ( 2 - sps->seq_fields.bits.frame_mbs_only_flag ) * sps->PicHeightInMapUnits;  /* (7-15) */
     ctx->picture_height_map_units = 1 + ctx->picture_height_mb / (2 - pic_params->seq_fields.bits.frame_mbs_only_flag);

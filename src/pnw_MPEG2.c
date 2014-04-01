@@ -668,6 +668,7 @@ static void pnw_MPEG2_DestroyContext(
 
 static VAStatus psb__MPEG2_process_picture_param(context_MPEG2_p ctx, object_buffer_p obj_buffer)
 {
+    object_surface_p obj_surface = ctx->obj_context->current_render_target;
     ASSERT(obj_buffer->type == VAPictureParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
     ASSERT(obj_buffer->size == sizeof(VAPictureParameterBufferMPEG2));
@@ -722,6 +723,11 @@ static VAStatus psb__MPEG2_process_picture_param(context_MPEG2_p ctx, object_buf
     }
     ctx->coded_picture_width = ctx->picture_width_mb * 16;
     ctx->coded_picture_height = ctx->picture_height_mb * 16;
+
+    if (obj_surface->share_info) {
+        obj_surface->share_info->coded_width = ctx->coded_picture_width;
+        obj_surface->share_info->coded_hight = ctx->coded_picture_height;
+    }
 
     ctx->size_mb = ctx->picture_width_mb * ctx->picture_height_mb;
 

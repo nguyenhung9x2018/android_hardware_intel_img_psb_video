@@ -717,6 +717,7 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     VAStatus vaStatus;
     VAPictureParameterBufferVC1 *pic_params;
     IMG_UINT8   ui8LumaScale1 = 0, ui8LumaShift1 = 0, ui8LumaScale2 = 0, ui8LumaShift2 = 0;
+    object_surface_p obj_surface = ctx->obj_context->current_render_target;
 
     ASSERT(obj_buffer->type == VAPictureParameterBufferType);
     ASSERT(obj_buffer->num_elements == 1);
@@ -805,6 +806,11 @@ static VAStatus psb__VC1_process_picture_param(context_VC1_p ctx, object_buffer_
     if ((WMF_PROFILE_ADVANCED == ctx->profile) && (VC1_FCM_FLDI == pic_params->picture_fields.bits.frame_coding_mode)) {
         ctx->picture_height_mb /= 2;
         ctx->coded_picture_height = ctx->picture_height_mb * 16 * 2;
+    }
+
+    if (obj_surface->share_info) {
+        obj_surface->share_info->coded_width = ctx->coded_picture_width;
+        obj_surface->share_info->coded_hight = ctx->coded_picture_height;
     }
 
     ctx->size_mb = ctx->picture_width_mb * ctx->picture_height_mb;
