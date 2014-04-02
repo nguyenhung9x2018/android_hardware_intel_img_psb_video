@@ -1262,6 +1262,9 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
         psb_cmdbuf_rendec_end(cmdbuf);
     }
 
+    /** fixed partial crc error in h264 case **/
+    target_surface->buf.unfence_flag = 0;
+
     /* CHUNK: MVA and MVB */
     /* works as long as weighted factors A and B commands remain the same */
     if ((pic_params->pic_fields.bits.weighted_pred_flag && (slice_param->slice_type == ST_P)) ||
