@@ -48,11 +48,10 @@
 
 #include "psb_def.h"
 #include "psb_drv_debug.h"
+#include "tng_cmdbuf.h"
 
 #ifndef BAYTRAIL
 #include <pnw_cmdbuf.h>
-#include "tng_cmdbuf.h"
-
 #include "pnw_jpeg.h"
 #include "pnw_H264ES.h"
 #include "tng_jpegES.h"
