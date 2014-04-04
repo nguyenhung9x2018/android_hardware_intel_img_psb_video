@@ -218,13 +218,6 @@ static VAStatus vsp_VP8_CreateContext(
                                                                 VP8_ENC_CBR:
                                                                 VP8_ENC_CBR_HRD;
 	}
-
-        if (obj_config->attrib_list[i].type == VAConfigAttribEncRateControlExt) {
-            VAConfigAttribValEncRateControlExt rc;
-            rc.value = obj_config->attrib_list[i].value;
-            ctx->temporal_layer_number =
-            ctx->vp8_seq_param.ts_number_layers = rc.bits.num_temporal_layers_minus1;
-        }
     }
 
     /* set size */
@@ -593,15 +586,51 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
     VAEncMiscParameterFrameRate *frame_rate_param;
     VAEncMiscParameterRateControl *rate_control_param;
     VAEncMiscParameterHRD *hrd_param;
+    VAEncMiscParameterTemporalLayerStructure* tslayer_param;
     struct VssVp8encSequenceParameterBuffer *seq = &ctx->vp8_seq_param;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    int layer_id;
+     uint32_t layer_id,i;
 
     ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
     pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
     obj_buffer->size = 0;
 
     switch (pBuffer->type) {
+    case VAEncMiscParameterTypeTemporalLayerStructure:
+       tslayer_param = (VAEncMiscParameterTemporalLayerStructure *)pBuffer->data;
+       //verify parameter
+       if (tslayer_param->number_of_layers < 2 &&  tslayer_param->number_of_layers > 3){
+          drv_debug_msg(VIDEO_DEBUG_ERROR, "Temporal Layer Number should be 2 or 3\n");
+          vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+           break;
+       }
+
+       if (tslayer_param->periodicity > 32 ||tslayer_param->periodicity< 1) {
+              drv_debug_msg(VIDEO_DEBUG_ERROR, "ts_periodicity shoulde be 1 - 32\n");
+              vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+              break;
+       }
+
+       for(i=0;i<tslayer_param->periodicity; i++){
+          layer_id = tslayer_param->layer_id[i];
+            if (layer_id > (tslayer_param->number_of_layers-1)) {
+              drv_debug_msg(VIDEO_DEBUG_ERROR, "layer_id shoulde be 0 - %d\n",
+                                          tslayer_param->number_of_layers-1 );
+              vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+              break;
+            }
+       }
+
+       if (vaStatus == VA_STATUS_ERROR_INVALID_PARAMETER )
+            break;
+
+       seq->ts_number_layers = tslayer_param->number_of_layers;
+       ctx->temporal_layer_number = tslayer_param->number_of_layers;
+       seq->ts_periodicity = tslayer_param->periodicity;
+       for(i=0;i<seq->ts_periodicity; i++)
+          seq->ts_layer_id[i] = tslayer_param->layer_id[i];
+	ctx->re_send_seq_params = 1;
+       break;
     case VAEncMiscParameterTypeFrameRate:
         frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
         if (frame_rate_param->framerate < 1 || frame_rate_param->framerate > 65535) {
