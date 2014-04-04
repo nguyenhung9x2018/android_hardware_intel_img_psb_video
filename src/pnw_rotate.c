@@ -182,6 +182,7 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
             else {
                 driver_data->mipi0_rotation = 0;
                 driver_data->hdmi_rotation = 0;
+                driver_data->disable_msvdx_rotate = 0;
             }
         } else {
             if (IS_MOFD(driver_data))
