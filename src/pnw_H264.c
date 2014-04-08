@@ -1712,6 +1712,7 @@ static VAStatus pnw_H264_EndPicture(
         uint32_t ext_stride_a = 0;
 
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "pnw_H264_EndPicture got two pass mode frame\n");
+        CHECK_BUFFER(colocated_target_buffer);
         if (CONTEXT_ROTATE(ctx->obj_context)) {
             ASSERT(rotate_surface);
             REGIO_WRITE_FIELD_LITE(rotation_flags, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ALT_PICTURE_ENABLE, 1);
