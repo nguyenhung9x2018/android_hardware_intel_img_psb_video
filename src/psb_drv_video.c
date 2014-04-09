@@ -1507,6 +1507,11 @@ void psb__suspend_buffer(psb_driver_data_p driver_data, object_buffer_p obj_buff
         VABufferType type = obj_buffer->type;
         object_context_p obj_context = obj_buffer->context;
 
+        if (type >= PSB_MAX_BUFFERTYPES) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid buffer type %d\n", type);
+            return;
+        }
+
         /* Remove buffer from active list */
         *obj_buffer->pptr_prev_next = obj_buffer->ptr_next;
 
@@ -1655,9 +1660,18 @@ VAStatus psb__CreateBuffer(
     DEBUG_FUNC_ENTER
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int bufferID;
-    object_buffer_p obj_buffer = obj_context ? obj_context->buffers_unused[type] : NULL;
-    int unused_count = obj_context ? obj_context->buffers_unused_count[type] : 0;
+    object_buffer_p obj_buffer;
+    int unused_count;
 
+    /*PSB_MAX_BUFFERTYPES is the size of array buffers_unused*/
+    if (type >= PSB_MAX_BUFFERTYPES) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "Invalid buffer type %d\n", type);
+        return VA_STATUS_ERROR_UNSUPPORTED_BUFFERTYPE;
+    }
+
+
+    obj_buffer = obj_context ? obj_context->buffers_unused[type] : NULL;
+    unused_count = obj_context ? obj_context->buffers_unused_count[type] : 0;
 
     /*
      * Buffer Management

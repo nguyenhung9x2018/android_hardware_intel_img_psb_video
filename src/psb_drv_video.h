@@ -96,7 +96,14 @@
 #define PSB_MAX_PROFILES			32
 #define PSB_MAX_ENTRYPOINTS			32
 #define PSB_MAX_CONFIG_ATTRIBUTES		VAConfigAttribTypeMax
-#define PSB_MAX_BUFFERTYPES			VABufferTypeMax
+
+/* VABufferTypeMax is large(1000+) because there is big blank space between common libva buffer
+ * type and Intel specific buffer types(for GEN usage only). If use VABufferTypeMax as
+ * PSB_MAX_BUFFERTYPES to define the size of buffer type related arrays in context object,
+ * we will waste about 16K memory. Currently, the max value of buffer type used in psb_video is
+ * VAParseSliceHeaderGroupBufferType(44).
+ */
+#define PSB_MAX_BUFFERTYPES			64
 
 /* Max # of command submission buffers */
 #define PSB_MAX_CMDBUFS                         10
