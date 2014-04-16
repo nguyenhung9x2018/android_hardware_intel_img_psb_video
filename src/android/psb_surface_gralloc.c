@@ -396,6 +396,11 @@ VAStatus psb_CreateSurfacesFromGralloc(
                     obj_surface->share_info->crop_height = driver_data->render_rect.height;
                 }
 
+                if (obj_surface->share_info->coded_width == 0 || obj_surface->share_info->coded_height == 0) {
+                    obj_surface->share_info->coded_width = (obj_surface->share_info->width + 0xf) & ~0xf;
+                    obj_surface->share_info->coded_height = (obj_surface->share_info->height + 0xf) & ~0xf;
+                }
+
                 drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : Create graphic buffer success"
                                          "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n",
                                          __FUNCTION__, surfaceID, vaddr[GRALLOC_SUB_BUFFER0], vaddr[GRALLOC_SUB_BUFFER1]);

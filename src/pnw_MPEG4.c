@@ -1471,7 +1471,7 @@ static VAStatus psb__MPEG4_process_picture_param(context_MPEG4_p ctx, object_buf
 
     if (obj_surface->share_info) {
         obj_surface->share_info->coded_width = ctx->coded_picture_width;
-        obj_surface->share_info->coded_hight = ctx->coded_picture_height;
+        obj_surface->share_info->coded_height = ctx->coded_picture_height;
     }
 
     uint32_t mbInPic = ctx->picture_width_mb * ctx->picture_height_mb;

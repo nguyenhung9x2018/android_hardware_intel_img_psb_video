@@ -637,7 +637,7 @@ static VAStatus tng__VP8_process_picture_param(context_VP8_p ctx, object_buffer_
 
     if (obj_surface->share_info) {
         obj_surface->share_info->coded_width = ctx->pic_params->frame_width;
-        obj_surface->share_info->coded_hight = ctx->pic_params->frame_height;
+        obj_surface->share_info->coded_height = ctx->pic_params->frame_height;
     }
 
     ctx->size_mb = ((ctx->pic_params->frame_width) * (ctx->pic_params->frame_height)) >> 8;

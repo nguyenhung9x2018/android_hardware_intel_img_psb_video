@@ -603,7 +603,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
 
     if (obj_surface->share_info) {
         obj_surface->share_info->coded_width = ctx->picture_width_samples_l;
-        obj_surface->share_info->coded_hight = ctx->picture_height_samples_l;
+        obj_surface->share_info->coded_height = ctx->picture_height_samples_l;
     }
 
     // BECAUSE OF
