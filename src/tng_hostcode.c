@@ -3163,7 +3163,7 @@ static VAStatus tng__validate_params(context_ENC_p ctx)
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
-    if ((ctx->ui16FrameHeight & 0x1f) != 0) {
+    if ((ctx->ui16FrameHeight & 0xf) != 0) {
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
