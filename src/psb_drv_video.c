@@ -1132,6 +1132,9 @@ VAStatus psb_CreateContext(
             break;
         }
 
+        if (!driver_data->protected && obj_surface->share_info)
+            obj_surface->share_info->force_output_method = 0;
+
         psb_surface = obj_surface->psb_surface;
 
         /* Clear format specific surface info */
@@ -2050,8 +2053,6 @@ VAStatus psb_BeginPicture(
     if ((obj_config->entrypoint != VAEntrypointEncSlice) &&
         (obj_config->entrypoint != VAEntrypointEncPicture)) {
         psb_RecalcAlternativeOutput(obj_context);
-        if (!driver_data->protected && obj_surface && obj_surface->share_info)
-            obj_surface->share_info->force_output_method = 0;
     }
 #endif
 #ifdef PSBVIDEO_MRFL_VPP_ROTATE
