@@ -302,7 +302,7 @@ static VAStatus vsp_vp8_process_seqence_param(
     struct VssVp8encSequenceParameterBuffer *seq_to_firmware =
             (struct VssVp8encSequenceParameterBuffer *)cmdbuf->seq_param_p;
 
-    ref_frame_surface *ref =
+    struct ref_frame_surface *ref =
         (struct ref_frame_surface*)cmdbuf->ref_param_p;
 
     seq->frame_width       = va_seq->frame_width;
@@ -411,8 +411,9 @@ static VAStatus vsp_vp8_process_picture_param(
     vsp_cmdbuf_p cmdbuf = ctx->obj_context->vsp_cmdbuf;
 
     VAEncPictureParameterBufferVP8 *va_pic =
-            (VAProcPipelineParameterBuffer *) obj_buffer->buffer_data;
-    struct VssVp8encPictureParameterBuffer *pic = cmdbuf->pic_param_p;
+            (VAEncPictureParameterBufferVP8 *) obj_buffer->buffer_data;
+    struct VssVp8encPictureParameterBuffer *pic =
+		(struct VssVp8encPictureParameterBuffer *)cmdbuf->pic_param_p;
     struct VssVp8encSequenceParameterBuffer *seq =
            (struct VssVp8encSequenceParameterBuffer *)cmdbuf->seq_param_p;
     VACodedBufferSegment *p = &obj_buffer->codedbuf_mapinfo[0];
@@ -549,7 +550,7 @@ static VAStatus vsp_vp8_process_picture_param(
     pic->sharpness          = va_pic->sharpness_level;
     pic->num_token_partitions = va_pic->pic_flags.bits.num_token_partitions; /* 2^2 = 4 partitions */
     pic->encoded_frame_size = pObj->size & ~31;
-    pic->encoded_frame_base = pObj->buffer_data; //tobe modified
+    pic->encoded_frame_base = (uint32_t)pObj->buffer_data;
 
     {
         vsp_cmdbuf_reloc_pic_param(&(pic->encoded_frame_base),
@@ -593,7 +594,7 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
     VAEncMiscParameterTemporalLayerStructure* tslayer_param;
     struct VssVp8encSequenceParameterBuffer *seq = &ctx->vp8_seq_param;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-     uint32_t layer_id,i;
+    uint32_t layer_id, i;
 
     ASSERT(obj_buffer->type == VAEncMiscParameterBufferType);
     pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
@@ -603,37 +604,39 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
     case VAEncMiscParameterTypeTemporalLayerStructure:
        tslayer_param = (VAEncMiscParameterTemporalLayerStructure *)pBuffer->data;
        //verify parameter
-       if (tslayer_param->number_of_layers < 2 &&  tslayer_param->number_of_layers > 3){
-          drv_debug_msg(VIDEO_DEBUG_ERROR, "Temporal Layer Number should be 2 or 3\n");
-          vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+       if (tslayer_param->number_of_layers < 2 && tslayer_param->number_of_layers > 3) {
+           drv_debug_msg(VIDEO_DEBUG_ERROR, "Temporal Layer Number should be 2 or 3\n");
+           vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
            break;
        }
 
-       if (tslayer_param->periodicity > 32 ||tslayer_param->periodicity< 1) {
-              drv_debug_msg(VIDEO_DEBUG_ERROR, "ts_periodicity shoulde be 1 - 32\n");
-              vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-              break;
+       if (tslayer_param->periodicity > 32 || tslayer_param->periodicity < 1) {
+           drv_debug_msg(VIDEO_DEBUG_ERROR, "ts_periodicity shoulde be 1 - 32\n");
+           vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+           break;
        }
 
-       for(i=0;i<tslayer_param->periodicity; i++){
+       for (i = 0; i < tslayer_param->periodicity; i++) {
           layer_id = tslayer_param->layer_id[i];
-            if (layer_id > (tslayer_param->number_of_layers-1)) {
-              drv_debug_msg(VIDEO_DEBUG_ERROR, "layer_id shoulde be 0 - %d\n",
-                                          tslayer_param->number_of_layers-1 );
-              vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-              break;
+            if (layer_id > (tslayer_param->number_of_layers - 1)) {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "layer_id shoulde be 0 - %d\n",
+                                          tslayer_param->number_of_layers - 1);
+                vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+                break;
             }
        }
 
        if (vaStatus == VA_STATUS_ERROR_INVALID_PARAMETER )
-            break;
+           break;
 
        seq->ts_number_layers = tslayer_param->number_of_layers;
        ctx->temporal_layer_number = tslayer_param->number_of_layers;
        seq->ts_periodicity = tslayer_param->periodicity;
-       for(i=0;i<seq->ts_periodicity; i++)
-          seq->ts_layer_id[i] = tslayer_param->layer_id[i];
-	ctx->re_send_seq_params = 1;
+
+       for (i = 0; i < seq->ts_periodicity; i++)
+           seq->ts_layer_id[i] = tslayer_param->layer_id[i];
+
+       ctx->re_send_seq_params = 1;
        break;
     case VAEncMiscParameterTypeFrameRate:
         frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
@@ -647,17 +650,19 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
                 drv_debug_msg(VIDEO_DEBUG_GENERAL, "frame rate changed from %d to %d\n",
                               seq->frame_rate,
                               frame_rate_param->framerate);
-                seq->frame_rate= frame_rate_param->framerate;
-                ctx->re_send_seq_params = 1 ;
-              }
+                seq->frame_rate = frame_rate_param->framerate;
+                ctx->re_send_seq_params = 1;
+	    }
         } else {
             layer_id = frame_rate_param->framerate_flags.bits.temporal_id % 3;
             if (ctx->frame_rate[layer_id] != frame_rate_param->framerate) {
                 drv_debug_msg(VIDEO_DEBUG_GENERAL, "frame rate of layer %d will be changed from %d to %d\n",
                               layer_id, ctx->frame_rate[layer_id], frame_rate_param->framerate);
                 ctx->frame_rate[layer_id] = frame_rate_param->framerate;
-                //convert to ts_rate
-                //todo: convert to ts_period_id
+                if (layer_id == ctx->temporal_layer_number - 1) { //top layer
+                     seq->frame_rate = ctx->frame_rate[layer_id];
+                }
+
                 seq->ts_rate_decimator[layer_id] =
                             seq->frame_rate / ctx->frame_rate[layer_id];
                 ctx->re_send_seq_params = 1 ;
@@ -835,6 +840,94 @@ static VAStatus vsp_VP8_BeginPicture(
     return VA_STATUS_SUCCESS;
 }
 
+static inline void  dump_vssporcPicture(struct VssProcPictureVP8 * frame)
+{
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "surface_id 0x%08x\n", frame->surface_id);
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "irq %d\n", frame->irq);
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "base 0x%08x\n", frame->base);
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "base_uv 0x%08x\n", frame->base_uv);
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "height %d\n", frame->height);
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "width %d\n", frame->width);
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "stride %d\n", frame->stride);
+    drv_debug_msg(VIDEO_DEBUG_ERROR, "format %d\n", frame->format);
+}
+
+static void vsp_vp8_dump_commands(vsp_cmdbuf_p cmdbuf)
+{
+    unsigned int i, cmd_idx;
+    unsigned int cmdbuffer_size = (unsigned char *)cmdbuf->cmd_idx - cmdbuf->cmd_start; /* In bytes */
+    unsigned int cmd_number = cmdbuffer_size / sizeof(struct vss_command_t);
+    struct vss_command_t *cmd = (struct vss_command_t *)cmdbuf->cmd_start;
+    struct VssVp8encPictureParameterBuffer *pic =
+		(struct VssVp8encPictureParameterBuffer *)cmdbuf->pic_param_p;
+    struct VssVp8encSequenceParameterBuffer *seq =
+                (struct VssVp8encSequenceParameterBuffer *)cmdbuf->seq_param_p;
+
+    for (cmd_idx = 0; cmd_idx < cmd_number; cmd_idx++) {
+        drv_debug_msg(VIDEO_ENCODE_DEBUG, "\n============command start============\ncontext %d\ntype%d\n",
+		      cmd[cmd_idx].context, cmd[cmd_idx].type);
+	if (cmd[cmd_idx].type == VssVp8encEncodeFrameCommand) {
+	    drv_debug_msg(VIDEO_ENCODE_DEBUG, "input frame\n");
+	    dump_vssporcPicture(&pic->input_frame);
+
+	    drv_debug_msg(VIDEO_ENCODE_DEBUG, "recon frame\n");
+	    dump_vssporcPicture(&pic->recon_frame);
+
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "version %d\n", pic->version);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "pic_flags 0x%08x\n", pic->pic_flags);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "prev_frame_dropped %d\n", pic->prev_frame_dropped);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "cpuused %d\n", pic->cpuused);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "sharpness %d\n", pic->sharpness);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "num_token_partitions %d\n", pic->num_token_partitions);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "encoded_frame_size %d\n", pic->encoded_frame_size);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "encoded_frame_base 0x%08x\n", pic->encoded_frame_base);
+        }
+
+        if (cmd[cmd_idx].type == VssVp8encSetSequenceParametersCommand) {
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "frame_width %d\n", seq->frame_width);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "frame_height %d\n", seq->frame_height);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "frame_rate %d\n", seq->frame_rate);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "error_resilient %d\n", seq->error_resilient);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "num_token_partitions %d\n", seq->num_token_partitions);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "kf_mode %d\n", seq->kf_mode);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "kf_min_dist %d\n", seq->kf_min_dist);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "kf_max_dist %d\n", seq->kf_max_dist);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "rc_target_bitrate %d\n", seq->rc_target_bitrate);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "rc_min_quantizer %d\n", seq->rc_min_quantizer);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "rc_max_quantizer %d\n", seq->rc_max_quantizer);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "rc_undershoot_pct %d\n", seq->rc_undershoot_pct);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "rc_overshoot_pct %d\n", seq->rc_overshoot_pct);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "rc_end_usage %d\n", seq->rc_end_usage);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "rc_buf_sz %d\n", seq->rc_buf_sz);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "rc_buf_initial_sz %d\n", seq->rc_buf_initial_sz);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "rc_buf_optimal_sz %d\n", seq->rc_buf_optimal_sz);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "max_intra_rate %d\n", seq->max_intra_rate);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "cyclic_intra_refresh %d\n", seq->cyclic_intra_refresh);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "concatenate_partitions %d\n", seq->concatenate_partitions);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "recon_buffer_mode %d\n", seq->recon_buffer_mode);
+            drv_debug_msg(VIDEO_ENCODE_DEBUG, "ts_number_layers %d\n", seq->ts_number_layers);
+
+            for (i = 0; i < 3; i++)
+                drv_debug_msg(VIDEO_ENCODE_DEBUG, "ts_target_bitrate[%d] %d\n", i, seq->ts_target_bitrate[i]);
+
+            for (i = 0; i < 3; i++)
+                drv_debug_msg(VIDEO_ENCODE_DEBUG, "ts_rate_decimator[%d] %d\n", i, seq->ts_rate_decimator[i]);
+                drv_debug_msg(VIDEO_ENCODE_DEBUG, "ts_periodicity %d\n", seq->ts_periodicity);
+
+                for (i = 0; i < seq->ts_periodicity; i++)
+                    drv_debug_msg(VIDEO_ENCODE_DEBUG, "ts_layer_id[%d] %d\n", i, seq->ts_layer_id[i]);
+
+                for (i = 0; i < 4; i++)	{
+                    drv_debug_msg(VIDEO_ENCODE_DEBUG, "ref_frame_buffer %d\n", i);
+                    dump_vssporcPicture(&seq->ref_frame_buffers[i]);
+		}
+	}
+
+        drv_debug_msg(VIDEO_ENCODE_DEBUG, "============command end============\n");
+    }
+}
+
+
 static VAStatus vsp_VP8_EndPicture(
     object_context_p obj_context)
 {
@@ -845,6 +938,9 @@ static VAStatus vsp_VP8_EndPicture(
     if(ctx->re_send_seq_params) {
         vsp_vp8_process_dynamic_seqence_param(ctx);
     }
+
+    drv_debug_msg(VIDEO_ENCODE_DEBUG, "ctx->obj_context->frame_count=%d\n", ctx->obj_context->frame_count + 1);
+    vsp_vp8_dump_commands(cmdbuf);
 
     if (cmdbuf->param_mem_p != NULL) {
         psb_buffer_unmap(&cmdbuf->param_mem);
@@ -859,11 +955,8 @@ static VAStatus vsp_VP8_EndPicture(
         cmdbuf->ref_param_p = NULL;
      }
 
-//    ctx->obj_context->frame_count++;
-
-
     if (vsp_context_flush_cmdbuf(ctx->obj_context)) {
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VPP: flush deblock cmdbuf error\n");
+        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_VP8: flush deblock cmdbuf error\n");
         return VA_STATUS_ERROR_UNKNOWN;
     }
 
