@@ -444,12 +444,8 @@ static VAStatus vsp_vp8_process_picture_param(
     pic->recon_frame.height = ref_frame_height;
 
     pic->version = 0;
-#if 0
-    pic->pic_flags = (1<< 2) |  /* corresponds to  VP8_EFLAG_NO_REF_GF      */
-                     (1<< 3) |  /* corresponds to  VP8_EFLAG_NO_REF_ARF     */
-                     (1<< 12);   /* corresponds to ~VP8_EFLAG_NO_UPD_ENTROPY */
-#else
-   vp8_fw_pic_flags flags;
+  
+    vp8_fw_pic_flags flags;
    flags.value =0;
 
    flags.bits.force_kf = va_pic->ref_flags.bits.force_kf;
@@ -466,84 +462,7 @@ static VAStatus vsp_vp8_process_picture_param(
    if (ctx->temporal_layer_number > 1)
 	   flags.bits.upd_entropy = 0;
 
-    if (ctx->temporal_layer_number == 2) {
-            /*
-	     *  layer 0: frame #0,#2,#4...
-	     *  layer 1: frame #1,#3,#5...
-	     *
-	     *  frame #1 refers frame #0
-	     *  frame #2 refers frame #0
-	     *  frame #3 refers frame #2
-	     *  frame #4 refers frame #2
-	     *  ........
-             */
-        if (ctx->obj_context->frame_count % 2 == 0) {
-            /* layer 0: base layer */
-	    flags.bits.no_ref_last = 0;
-	    flags.bits.no_ref_gf = 1;
-	    flags.bits.no_ref_arf = 1;
-
-	    flags.bits.no_upd_last = 0;
-	    flags.bits.upd_last = 1;
-	} else {
-            /* layer 1 */
-	    flags.bits.force_kf = 0;
-	    flags.bits.no_ref_last = 0;
-	    flags.bits.no_ref_gf = 1;
-	    flags.bits.no_ref_arf = 1;
-
-	    flags.bits.no_upd_last = 1;
-	}
-    }
-    else if (ctx->temporal_layer_number >= 3) {
-            /*
-	     *  layer 0: frame #0,#4,#8...
-	     *  layer 1: frame #2,#6,#10....
-	     *  layer 2: frame #1,#3,#5,#7,#9,#11...
-	     *
-	     *  frame #1 refers frame #0
-	     *  frame #2 refers frame #0
-	     *  frame #3 refers frame #2
-	     *  frame #4 refers frame #0
-	     *  ........
-             */
-	    if (ctx->obj_context->frame_count % 4 == 0) {
-                /* layer 0: base layer */
-                flags.bits.no_ref_last = 0;
-                flags.bits.no_ref_gf = 1;
-                flags.bits.no_ref_arf = 1;
-
-                flags.bits.upd_last = 1;
-                flags.bits.no_upd_last = 0;
-	    } else if (ctx->obj_context->frame_count % 4 == 2) {
-                /* layer 1: update golden ref frame */
-                flags.bits.force_kf = 0;
-                flags.bits.no_ref_last = 0;
-                flags.bits.no_ref_gf = 1;
-                flags.bits.no_ref_arf = 1;
-
-                flags.bits.no_upd_last = 1;
-                flags.bits.no_upd_gf = 0;
-                flags.bits.upd_gf = 3;
-	    } else {
-                /* layer 2 */
-                flags.bits.force_kf = 0;
-		if (ctx->obj_context->frame_count % 4 == 1) {
-                   flags.bits.no_ref_last = 0;
-                   flags.bits.no_ref_gf = 0;
-		} else {
-                   flags.bits.no_ref_last = 1;
-                   flags.bits.no_ref_gf = 0;
-		}
-                flags.bits.no_ref_arf = 1;
-
-                flags.bits.no_upd_last = 1;
-                flags.bits.no_upd_gf = 1;
-	    }
-    }
-
-    pic->pic_flags = flags.value;
-#endif
+      pic->pic_flags = flags.value;
 
     pic->prev_frame_dropped = 0; /* Not yet used */
     pic->cpuused            = 5;
