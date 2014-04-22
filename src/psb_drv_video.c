@@ -3271,6 +3271,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
         driver_data->profile2Format[VAProfileJPEGBaseline][VAEntrypointEncPicture] = &tng_JPEGES_vtable;
         driver_data->profile2Format[VAProfileMPEG4Simple][VAEntrypointEncSlice] = &tng_MPEG4ES_vtable;
         driver_data->profile2Format[VAProfileMPEG4AdvancedSimple][VAEntrypointEncSlice] = &tng_MPEG4ES_vtable;
+        driver_data->profile2Format[VAProfileH264ConstrainedBaseline][VAEntrypointEncSlice] = &tng_H264ES_vtable;
     }
 #endif
 #ifdef PSBVIDEO_MRFL_VPP
