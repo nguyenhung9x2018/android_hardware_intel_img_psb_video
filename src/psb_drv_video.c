@@ -1449,7 +1449,7 @@ static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_co
                if(obj_context && obj_context->profile == VAProfileVP8Version0_3) /*VP8 Encoder need  uncacheable coded buf*/
                   vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
                else
-                  vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu_cached, obj_buffer->psb_buffer);
+                  vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
 #else
                 vaStatus = psb_buffer_create(driver_data, size, psb_bt_cpu_vpu, obj_buffer->psb_buffer);
 #endif
