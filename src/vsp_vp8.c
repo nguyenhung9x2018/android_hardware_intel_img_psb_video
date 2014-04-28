@@ -189,9 +189,9 @@ void vsp_VP8_set_default_params(struct VssVp8encSequenceParameterBuffer *vp8_seq
     vp8_seq->recon_buffer_mode = vss_vp8enc_seq_param_recon_buffer_mode_per_seq;
     vp8_seq->ts_number_layers = 1;
     vp8_seq->ts_layer_id[0] = 0;
-    vp8_seq->ts_rate_decimator[0] = 1;
-    vp8_seq->ts_periodicity = 1;
-    vp8_seq->ts_target_bitrate[0] = 2000;
+    vp8_seq->ts_rate_decimator[0] = 0;
+    vp8_seq->ts_periodicity = 0;
+    vp8_seq->ts_target_bitrate[0] = 0;
 }
 
 static VAStatus vsp_VP8_CreateContext(
@@ -315,8 +315,6 @@ static VAStatus vsp_vp8_process_seqence_param(
     seq->kf_max_dist       = va_seq->kf_max_dist;
     seq->kf_min_dist       = va_seq->kf_min_dist;
     seq->error_resilient   = va_seq->error_resilient;
-    if( ctx->temporal_layer_number == 1) //work around
-       seq->ts_target_bitrate[0] = seq->rc_target_bitrate;
 
     ref_frame_width = (seq->frame_width + 2 * 32 + 63) & (~63);
     ref_frame_height = (seq->frame_height + 2 * 32 + 63) & (~63);
