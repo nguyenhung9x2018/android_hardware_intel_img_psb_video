@@ -96,7 +96,8 @@ LOCAL_SRC_FILES += \
     tng_trace.c \
     vsp_VPP.c \
     vsp_cmdbuf.c \
-    vsp_vp8.c
+    vsp_vp8.c \
+    vsp_compose.c
 
 LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/pvr \

@@ -60,7 +60,7 @@ VAStatus psb_surface_create_from_ub(
 {
     int ret = 0;
 
-    if ((fourcc == VA_FOURCC_NV12) || (fourcc == VA_FOURCC_YV16) || (fourcc == VA_FOURCC_IYUV)) {
+    if ((fourcc == VA_FOURCC_NV12) || (fourcc == VA_FOURCC_YV16) || (fourcc == VA_FOURCC_IYUV) || (fourcc == VA_FOURCC_RGBA)) {
         if ((width <= 0) || (width * height > 5120 * 5120) || (height <= 0)) {
             return VA_STATUS_ERROR_ALLOCATION_FAILED;
         }
@@ -106,6 +106,11 @@ VAStatus psb_surface_create_from_ub(
             psb_surface->size = ((psb_surface->stride * height) * 3) / 2;
             psb_surface->extra_info[4] = VA_FOURCC_IYUV;
         }
+	else if (VA_FOURCC_RGBA == fourcc) {
+            psb_surface->size = (psb_surface->stride * height) * 4;
+            psb_surface->extra_info[4] = VA_FOURCC_RGBA;
+        }
+
     } else {
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -290,7 +295,7 @@ VAStatus psb_CreateSurfacesForUserPtr(
     CHECK_SURFACE(surface_list);
 
     /* We only support one format */
-    if (VA_RT_FORMAT_YUV420 != format) {
+    if ((VA_RT_FORMAT_YUV420 != format) && (VA_RT_FORMAT_RGB32 != format)) {
         vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
         DEBUG_FAILURE;
         return vaStatus;
@@ -305,12 +310,21 @@ VAStatus psb_CreateSurfacesForUserPtr(
     vaStatus = psb__checkSurfaceDimensions(driver_data, width, height);
     CHECK_VASTATUS();
 
+    if (VA_RT_FORMAT_YUV420 == format) {
     CHECK_INVALID_PARAM((size < width * height * 1.5) ||
         (luma_stride < width) ||
         (chroma_u_stride * 2 < width) ||
         (chroma_v_stride * 2 < width) ||
         (chroma_u_offset < luma_offset + width * height) ||
         (chroma_v_offset < luma_offset + width * height));
+    } else if (VA_RT_FORMAT_RGB32 == format) {
+    CHECK_INVALID_PARAM((size < width * height * 4) ||
+        (luma_stride < width) ||
+        (chroma_u_stride * 2 < width) ||
+        (chroma_v_stride * 2 < width) ||
+        (chroma_u_offset < luma_offset + width * height) ||
+        (chroma_v_offset < luma_offset + width * height));
+    }
 
     height_origin = height;
 

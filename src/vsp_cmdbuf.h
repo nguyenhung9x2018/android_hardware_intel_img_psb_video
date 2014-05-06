@@ -66,12 +66,24 @@ struct vsp_cmdbuf_s {
 	unsigned char *sharpen_param_p;
 	unsigned char *frc_param_p;
 	unsigned char *ref_param_p;
+	unsigned char *compose_param_p;
 };
 
 typedef struct vsp_cmdbuf_s *vsp_cmdbuf_p;
 
 #define VSP_RELOC_CMDBUF(dest, offset, buf) vsp_cmdbuf_add_relocation(cmdbuf, (uint32_t*)(dest), buf, offset, 0XFFFFFFFF, 0, 0, 0, (uint32_t *)cmdbuf->cmd_start)
 
+/**
+ * VSP command:
+ * context
+ * type
+ * buffer
+ * size
+ * buffer_id
+ * irq
+ * reserved6
+ * reserved7
+ */
 /* operation number is inserted by DRM */
 #define vsp_cmdbuf_insert_command(cmdbuf,context_id, ref_buf,type,offset,size)	\
 	do { *cmdbuf->cmd_idx++ = context_id; *cmdbuf->cmd_idx++ = type;\
@@ -94,6 +106,29 @@ typedef struct vsp_cmdbuf_s *vsp_cmdbuf_p;
 	     *cmdbuf->cmd_idx++ = 0; \
 	     *cmdbuf->cmd_idx++ = 0; \
 	     *cmdbuf->cmd_idx++ = 0; *cmdbuf->cmd_idx++ = 0;} while(0)
+
+#define vsp_cmdbuf_fence_compose_param(cmdbuf, pic_param_handler) \
+	do { \
+		*cmdbuf->cmd_idx++ = 0; \
+		*cmdbuf->cmd_idx++ = VspFenceComposeCommand; \
+		*cmdbuf->cmd_idx++ = pic_param_handler; \
+		*cmdbuf->cmd_idx++ = 0; \
+		*cmdbuf->cmd_idx++ = 0; \
+		*cmdbuf->cmd_idx++ = 0; \
+		*cmdbuf->cmd_idx++ = 0; \
+		*cmdbuf->cmd_idx++ = 0; \
+	} while(0)
+
+#define vsp_cmdbuf_compose_end(cmdbuf) \
+	do { *cmdbuf->cmd_idx++ = 0; \
+	     *cmdbuf->cmd_idx++ = VssWiDi_ComposeEndOfSequenceCommand; \
+	     *cmdbuf->cmd_idx++ = 0; \
+	     *cmdbuf->cmd_idx++ = 0; \
+	     *cmdbuf->cmd_idx++ = 0; \
+	     *cmdbuf->cmd_idx++ = 0; \
+	     *cmdbuf->cmd_idx++ = 0; \
+	     *cmdbuf->cmd_idx++ = 0;} while(0)
+
 /*
  * Create command buffer
  */

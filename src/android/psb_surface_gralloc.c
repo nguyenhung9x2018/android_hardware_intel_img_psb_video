@@ -267,7 +267,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
     /* We only support one format */
     if ((VA_RT_FORMAT_YUV420 != format)
-        && (VA_RT_FORMAT_YUV422 != format)) {
+        && (VA_RT_FORMAT_YUV422 != format)
+	&& (VA_RT_FORMAT_RGB32 != format)) {
         vaStatus = VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
         DEBUG_FAILURE;
         return vaStatus;
@@ -285,7 +286,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     IMG_native_handle_t* h = (IMG_native_handle_t*)external_buffers->buffers[0];
     int gfx_colorformat = h->iFormat;
 
-    if (gfx_colorformat != HAL_PIXEL_FORMAT_NV12)
+    if (gfx_colorformat != HAL_PIXEL_FORMAT_NV12 && format != VA_RT_FORMAT_RGB32)
         height = (height + 0x1f) & ~0x1f;
 
     /* get native window from the reserved field */
@@ -329,6 +330,9 @@ VAStatus psb_CreateSurfacesFromGralloc(
         case VA_RT_FORMAT_YUV422:
             fourcc = VA_FOURCC_YV16;
             break;
+	case VA_RT_FORMAT_RGB32:
+            fourcc = VA_FOURCC_RGBA;
+            break;
         case VA_RT_FORMAT_YUV420:
         default:
             fourcc = VA_FOURCC_NV12;
@@ -364,7 +368,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
             obj_surface->share_info = NULL;
 
             if ((gfx_colorformat != HAL_PIXEL_FORMAT_NV12) &&
-                (gfx_colorformat != HAL_PIXEL_FORMAT_YV12)) {
+                (gfx_colorformat != HAL_PIXEL_FORMAT_YV12) &&
+		(format != VA_RT_FORMAT_RGB32)) {
                 obj_surface->share_info = (psb_surface_share_info_t *)vaddr[GRALLOC_SUB_BUFFER1];
                 memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
                 // Set clear video the default output method as OUTPUT_FORCE_OVERLAY_FOR_SW_DECODE

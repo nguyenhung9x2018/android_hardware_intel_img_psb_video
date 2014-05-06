@@ -31,6 +31,7 @@
 #include "psb_surface.h"
 #include "vsp_cmdbuf.h"
 #include "psb_drv_debug.h"
+#include "vsp_compose.h"
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define INIT_CONTEXT_VPP    context_VPP_p ctx = (context_VPP_p) obj_context->format_data;
@@ -306,6 +307,8 @@ static VAStatus vsp_VPP_CreateContext(
 	ctx->param_sz += ctx->sharpen_param_sz;
 	ctx->frc_param_sz = ALIGN_TO_128(sizeof(struct VssProcFrcParameterBuffer));
 	ctx->param_sz += ctx->frc_param_sz;
+	ctx->compose_param_sz = ALIGN_TO_128(sizeof(struct VssWiDi_ComposeSequenceParameterBuffer));
+	ctx->param_sz += ctx->compose_param_sz;
 
 	/* set offset */
 	ctx->pic_param_offset = 0;
@@ -315,6 +318,8 @@ static VAStatus vsp_VPP_CreateContext(
 	ctx->enhancer_param_offset = ctx->denoise_param_offset + ctx->denoise_param_sz;
 	ctx->sharpen_param_offset = ctx->enhancer_param_offset + ctx->enhancer_param_sz;
 	ctx->frc_param_offset = ctx->sharpen_param_offset + ctx->sharpen_param_sz;
+	/* For composer, it'll start on 0 */
+	ctx->compose_param_offset = 0;
 
 	/* create intermediate buffer */
 	ctx->intermediate_buf = (psb_buffer_p) calloc(1, sizeof(struct psb_buffer_s));
@@ -445,7 +450,11 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 		goto out;
 	}
 
-	/* FIXME: no backward reference checking */
+	/* first picture, need to setup the VSP context */
+	if (ctx->obj_context->frame_count == 0)
+		vsp_cmdbuf_vpp_context(cmdbuf, VssGenInitializeContext, CONTEXT_VPP_ID, VSP_APP_ID_FRC_VPP);
+
+	/* get the input surface */
 	if (!(pipeline_param->pipeline_flags & VA_PIPELINE_FLAG_END)) {
 		input_surface = SURFACE(pipeline_param->surface);
 		if (input_surface == NULL) {
@@ -456,7 +465,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 	} else {
 		input_surface = NULL;
 	}
-		
+
 	/* if it is the first pipeline command */
 	if (pipeline_param->num_filters != ctx->num_filters || pipeline_param->num_filters == 0) {
 		if (ctx->num_filters != 0) {
@@ -687,14 +696,21 @@ static VAStatus vsp_VPP_RenderPicture(
 {
 	int i;
 	INIT_CONTEXT_VPP;
+	VAProcPipelineParameterBuffer *pipeline_param = NULL;
 	VAStatus vaStatus = VA_STATUS_SUCCESS;
 
 	for (i = 0; i < num_buffers; i++) {
 		object_buffer_p obj_buffer = buffers[i];
+		pipeline_param = (VAProcPipelineParameterBuffer *) obj_buffer->buffer_data;
 
 		switch (obj_buffer->type) {
 		case VAProcPipelineParameterBufferType:
-			vaStatus = vsp__VPP_process_pipeline_param(ctx, obj_context, obj_buffer);
+			if (!pipeline_param->num_filters && pipeline_param->blend_state)
+				/* For Security Composer */
+				vaStatus = vsp_compose_process_pipeline_param(ctx, obj_context, obj_buffer);
+			else
+				/* For VPP/FRC */
+				vaStatus = vsp__VPP_process_pipeline_param(ctx, obj_context, obj_buffer);
 			DEBUG_FAILURE;
 			break;
 		default:
@@ -727,10 +743,6 @@ static VAStatus vsp_VPP_BeginPicture(
 
 	cmdbuf = obj_context->vsp_cmdbuf;
 
-	/* first picture, need to setup the VSP context */
-	if (ctx->obj_context->frame_count == 0)
-		vsp_cmdbuf_vpp_context(cmdbuf, VssGenInitializeContext, CONTEXT_VPP_ID, VSP_APP_ID_FRC_VPP);
-
 	/* map param mem */
 	vaStatus = psb_buffer_map(&cmdbuf->param_mem, &cmdbuf->param_mem_p);
 	if (vaStatus) {
@@ -744,6 +756,7 @@ static VAStatus vsp_VPP_BeginPicture(
 	cmdbuf->enhancer_param_p = cmdbuf->param_mem_p + ctx->enhancer_param_offset;
 	cmdbuf->sharpen_param_p = cmdbuf->param_mem_p + ctx->sharpen_param_offset;
 	cmdbuf->frc_param_p = cmdbuf->param_mem_p + ctx->frc_param_offset;
+	cmdbuf->compose_param_p = cmdbuf->param_mem_p + ctx->compose_param_offset;
 
 	return VA_STATUS_SUCCESS;
 }
@@ -765,6 +778,7 @@ static VAStatus vsp_VPP_EndPicture(
 		cmdbuf->enhancer_param_p = NULL;
 		cmdbuf->sharpen_param_p = NULL;
 		cmdbuf->frc_param_p = NULL;
+		cmdbuf->compose_param_p = NULL;
 	}
 
 	if (vsp_context_flush_cmdbuf(ctx->obj_context)) {
@@ -1088,6 +1102,9 @@ VAStatus vsp_QueryVideoProcPipelineCaps(
 			vaStatus = VA_STATUS_ERROR_RESOLUTION_NOT_SUPPORTED;
 			goto err;
 		}
+
+		/* Blend type */
+		pipeline_caps->blend_flags = VA_BLEND_PREMULTIPLIED_ALPHA;
 
 		if (getenv("VSP_PIPELINE_CHECK") != NULL)
 			combination_check = 1;
