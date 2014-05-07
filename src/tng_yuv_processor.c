@@ -203,12 +203,34 @@ static VAStatus tng__yuv_processor_execute(context_DEC_p dec_ctx, object_buffer_
     /* yuv rotation issued from dec driver, TODO removed later */
     if (obj_buffer->type == YUVProcessorSurfaceType) {
         surface_param_p surface_params = (surface_param_p) obj_buffer->buffer_data;
-        ctx->display_width = surface_params->display_width;
-        ctx->display_height = surface_params->display_height;
-        ctx->coded_width = surface_params->coded_width;
-        ctx->coded_height = surface_params->coded_height;
-        ctx->src_surface = dec_ctx->obj_context->current_render_target->psb_surface;
+        psb_surface_p rotate_surface = dec_ctx->obj_context->current_render_target->out_loop_surface;
+        object_context_p obj_context = dec_ctx->obj_context;
+        psb_driver_data_p driver_data = obj_context->driver_data;
+
+        ctx->display_width = (surface_params->display_width + 0xf) & ~0xf;
+        ctx->display_height = (surface_params->display_height + 0xf) & ~0xf;
+        ctx->coded_width = (surface_params->coded_width + 0xf) & ~0xf;
+        ctx->coded_height = (surface_params->coded_height + 0xf) & ~0xf;
+        ctx->src_surface = surface_params->src_surface;
+
         ctx->proc_param = NULL;
+        dec_ctx->obj_context->msvdx_rotate = obj_context->msvdx_rotate;
+        SET_SURFACE_INFO_rotate(rotate_surface, dec_ctx->obj_context->msvdx_rotate);
+
+        obj_buffer->buffer_data = NULL;
+        obj_buffer->size = 0;
+
+#ifdef PSBVIDEO_MSVDX_DEC_TILING
+        if (GET_SURFACE_INFO_tiling(ctx->src_surface)) {
+            unsigned long msvdx_tile = psb__tile_stride_log2_256(rotate_surface->stride);
+            obj_context->msvdx_tile &= 0xf; /* clear rotate tile */
+            obj_context->msvdx_tile |= (msvdx_tile << 4);
+            obj_context->ctp_type &= (~PSB_CTX_TILING_MASK); /* clear tile context */
+            obj_context->ctp_type |= ((obj_context->msvdx_tile & 0xff) << 16);
+            psb_update_context(driver_data, obj_context->ctp_type);
+            drv_debug_msg(VIDEO_DEBUG_GENERAL, "update tile context, msvdx_tiled is 0x%08x \n", obj_context->msvdx_tile);
+        }
+#endif
     } else if (obj_buffer->type == VAProcPipelineParameterBufferType) {
         VAProcPipelineParameterBuffer *vpp_params = (VAProcPipelineParameterBuffer *) obj_buffer->buffer_data;
         object_surface_p obj_surface = SURFACE(vpp_params->surface);

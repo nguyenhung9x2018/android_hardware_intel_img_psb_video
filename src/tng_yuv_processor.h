@@ -29,11 +29,13 @@
  */
 
 struct surface_param_s {
-	uint32_t display_width; /* widht of the image */
-	uint32_t display_height; /* height of the image */
+    uint32_t display_width; /* widht of the image */
+    uint32_t display_height; /* height of the image */
 
-	uint32_t coded_width; /* width of the image rounding up to nearest multiple of 16 */
-	uint32_t coded_height; /* height of the image rounding up to nearest multiple of 16 */
+    uint32_t coded_width; /* width of the image rounding up to nearest multiple of 16 */
+    uint32_t coded_height; /* height of the image rounding up to nearest multiple of 16 */
+
+    psb_surface_p src_surface;
 };
 
 typedef struct surface_param_s *surface_param_p;

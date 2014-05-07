@@ -161,6 +161,7 @@ void psb_InitOutLoop(VADriverContextP ctx)
 void psb_RecalcAlternativeOutput(object_context_p obj_context)
 {
     psb_driver_data_p driver_data = obj_context->driver_data;
+    object_surface_p obj_surface = obj_context->current_render_target;
     int angle, new_rotate, i;
     int old_rotate = driver_data->msvdx_rotate_want;
     int mode = INIT_VALUE;
@@ -268,21 +269,66 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
     }
 
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
-    int scaling_width, scaling_height;
+    int scaling_buffer_width = 1920, scaling_buffer_height = 1080 ;
+    int scaling_width = 0, scaling_height = 0;
+    int scaling_offset_x = 0, scaling_offset_y = 0;
+    int old_bufw = 0, old_bufh = 0, old_x = 0, old_y = 0, old_w = 0, old_h = 0;
+    int bScaleChanged = 0, size = 0;
+    unsigned char * surface_data;
+
     int ret = psb_android_get_mds_decoder_output_resolution(
-            (void*)driver_data->ws_priv, &scaling_width, &scaling_height);
+                (void*)driver_data->ws_priv,
+                &scaling_width, &scaling_height,
+                &scaling_offset_x, &scaling_offset_y,
+                &scaling_buffer_width, &scaling_buffer_height);
+
+    if ((old_bufw != scaling_buffer_width) || (old_bufh != scaling_buffer_height) ||
+        (old_x != scaling_offset_x) || (old_y != scaling_offset_y) ||
+        (old_w != scaling_width) || (old_h != scaling_height)) {
+        bScaleChanged = 1;
+    }
+
+    old_x = scaling_offset_x;
+    old_y = scaling_offset_y;
+    old_w = scaling_width;
+    old_h = scaling_height;
+    old_bufw = scaling_buffer_width;
+    old_bufh = scaling_buffer_height;
 
     /* turn off ved downscaling if width and height are 0.
      * Besides, scaling_width and scaling_height must be a multiple of 2.
      */
-    if (!ret || (!scaling_width || !scaling_height) || (scaling_width & 1) || (scaling_height & 1)) {
+    if (!ret || (!scaling_width || !scaling_height) ||
+             (scaling_width & 1) || (scaling_height & 1)) {
         obj_context->msvdx_scaling = 0;
         obj_context->scaling_width = 0;
         obj_context->scaling_height = 0;
+        obj_context->scaling_offset_x= 0;
+        obj_context->scaling_offset_y = 0;
+        obj_context->scaling_buffer_width = 0;
+        obj_context->scaling_buffer_height = 0;
     } else {
         obj_context->msvdx_scaling = 1;
         obj_context->scaling_width = scaling_width;
         obj_context->scaling_height = scaling_height;
+        obj_context->scaling_offset_x= scaling_offset_x;
+        obj_context->scaling_offset_y = scaling_offset_y;
+        obj_context->scaling_buffer_width = scaling_buffer_width;
+        obj_context->scaling_buffer_height = scaling_buffer_height;
+    }
+    if (bScaleChanged) {
+        if ((obj_surface != NULL) &&
+            (obj_surface->out_loop_surface != NULL)) {
+            if (psb_buffer_map(&obj_surface->out_loop_surface->buf, &surface_data)) {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to map rotation buffer before clear it");
+            }
+            else {
+                size = obj_surface->out_loop_surface->chroma_offset;
+                memset(surface_data, 0, size);
+                memset(surface_data + size, 0x80, obj_surface->out_loop_surface->size - size);
+                psb_buffer_unmap(&obj_context->current_render_target->out_loop_surface->buf);
+            }
+        }
     }
 #endif
 }
@@ -375,6 +421,19 @@ VAStatus psb_DestroyRotateSurface(
 /*
  * Create and attach a downscaling surface to obj_surface
  */
+static void clearScalingInfo(psb_surface_share_info_p share_info) {
+    if (share_info == NULL)
+        return;
+    share_info->width_s = 0;
+    share_info->height_s = 0;
+    share_info->scaling_khandle = 0;
+
+    share_info->scaling_luma_stride = 0;
+    share_info->scaling_chroma_u_stride = 0;
+    share_info->scaling_chroma_v_stride = 0;
+    return;
+}
+
 VAStatus psb_CreateScalingSurface(
         object_context_p obj_context,
         object_surface_p obj_surface
@@ -389,6 +448,7 @@ VAStatus psb_CreateScalingSurface(
     if (obj_context->driver_data->render_rect.width <= obj_context->scaling_width || obj_context->driver_data->render_rect.height <= obj_context->scaling_height) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "Either downscaling is not required or upscaling is needed for the target resolution\n");
         obj_context->msvdx_scaling = 0; /* Disable downscaling */
+        clearScalingInfo(share_info);
         return VA_STATUS_ERROR_OPERATION_FAILED;
     }
 
@@ -402,16 +462,7 @@ VAStatus psb_CreateScalingSurface(
 
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "downscaling buffer realloc: %d x %d -> %d x %d\n",
                     obj_surface->width_s, obj_surface->height_s, obj_context->scaling_width, obj_context->scaling_height);
-
-            if (share_info != NULL) {
-                share_info->width_s = 0;
-                share_info->height_s = 0;
-                share_info->scaling_khandle = 0;
-
-                share_info->scaling_luma_stride = 0;
-                share_info->scaling_chroma_u_stride = 0;
-                share_info->scaling_chroma_v_stride = 0;
-            }
+            clearScalingInfo(share_info);
         }
     }
 
@@ -440,6 +491,10 @@ VAStatus psb_CreateScalingSurface(
 
         obj_surface->width_s = obj_context->scaling_width;
         obj_surface->height_s = obj_context->scaling_height;
+        obj_surface->buffer_width_s = obj_context->scaling_width;
+        obj_surface->buffer_height_s = obj_context->scaling_height;
+        obj_surface->offset_x_s= obj_context->scaling_offset_x;
+        obj_surface->offset_y_s= obj_context->scaling_offset_y;
         obj_context->scaling_update = 1;
     }
     obj_surface->scaling_surface = psb_surface;
@@ -449,8 +504,8 @@ VAStatus psb_CreateScalingSurface(
                              GET_SURFACE_INFO_protect(obj_surface->psb_surface));
 
     /*notify hwc that rotated buffer is ready to use.
-        * TODO: Do these in psb_SyncSurface()
-        */
+     * TODO: Do these in psb_SyncSurface()
+     */
     if (share_info != NULL) {
         share_info->width_s = obj_surface->width_s;
         share_info->height_s = obj_surface->height_s;
@@ -491,6 +546,7 @@ VAStatus psb_CreateRotateSurface(
     psb_driver_data_p driver_data = obj_context->driver_data;
     int rotate_stride = 0, rotate_tiling = 0;
     object_config_p obj_config = CONFIG(obj_context->config_id);
+    unsigned char * surface_data;
 
     CHECK_CONFIG(obj_config);
 
@@ -533,7 +589,7 @@ VAStatus psb_CreateRotateSurface(
         height = obj_surface->height;
 
 #ifdef PSBVIDEO_MRFL_VPP_ROTATE
-	if (obj_config->entrypoint == VAEntrypointVideoProc &&
+    if (obj_config->entrypoint == VAEntrypointVideoProc &&
             share_info && share_info->out_loop_khandle) {
             vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
                                   obj_surface->psb_surface->size, VA_FOURCC_NV12,
@@ -542,7 +598,7 @@ VAStatus psb_CreateRotateSurface(
                                   obj_surface->psb_surface->stride,
                                   obj_surface->psb_surface->stride,
                                   0, 0, 0, rotate_surface);
-	} else
+    } else
 #endif
             vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
                                       flags, rotate_surface);
@@ -551,24 +607,28 @@ VAStatus psb_CreateRotateSurface(
         height = (obj_surface->width + 0x1f) & ~0x1f;
 
 #ifdef PSBVIDEO_MRFL_VPP_ROTATE
-	if (obj_config->entrypoint == VAEntrypointVideoProc &&
-            share_info && share_info->out_loop_khandle != 0) {
-            drv_debug_msg(VIDEO_DEBUG_GENERAL,"Create the surface from kbuf out_loop_khandle=%x!\n", share_info->out_loop_khandle);
-            rotate_tiling = GET_SURFACE_INFO_tiling(rotate_surface);
-            rotate_stride = get_surface_stride(width, rotate_tiling);
-            vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
+        if (obj_config->entrypoint == VAEntrypointVideoProc &&
+                share_info && share_info->out_loop_khandle != 0) {
+                drv_debug_msg(VIDEO_DEBUG_GENERAL,"Create the surface from kbuf out_loop_khandle=%x!\n", share_info->out_loop_khandle);
+                rotate_tiling = GET_SURFACE_INFO_tiling(rotate_surface);
+                rotate_stride = get_surface_stride(width, rotate_tiling);
+                vaStatus = psb_surface_create_from_kbuf(driver_data, width, height,
                                   (rotate_stride * height * 3) / 2, VA_FOURCC_NV12,
                                   share_info->out_loop_khandle,
                                   rotate_stride, rotate_stride, rotate_stride,
                                   0, rotate_stride * height, rotate_stride * height,
                                   rotate_surface);
-	} else
+        } else
 #endif
         {
             drv_debug_msg(VIDEO_DEBUG_GENERAL,"Create rotated buffer. width=%d, height=%d\n", width, height);
+            if (CONTEXT_SCALING(obj_context)) {
+                width = obj_context->scaling_buffer_height;
+                height = (obj_context->scaling_buffer_width+ 0x1f) & ~0x1f;
+            }
             vaStatus = psb_surface_create(driver_data, width, height, VA_FOURCC_NV12,
                                       flags, rotate_surface);
-	}
+        }
     }
     if (VA_STATUS_SUCCESS != vaStatus) {
         free(rotate_surface);
@@ -578,6 +638,18 @@ VAStatus psb_CreateRotateSurface(
         return vaStatus;
     }
 
+    //clear rotation surface
+     if (CONTEXT_SCALING(obj_context)) {
+        if (psb_buffer_map(&rotate_surface->buf, &surface_data)) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to map rotation buffer before clear it");
+        }
+        else {
+            memset(surface_data, 0, rotate_surface->chroma_offset);
+            memset(surface_data + rotate_surface->chroma_offset, 0x80,
+                       rotate_surface->size - rotate_surface->chroma_offset);
+            psb_buffer_unmap(&rotate_surface->buf);
+        }
+    }
     obj_surface->width_r = width;
     obj_surface->height_r = height;
 

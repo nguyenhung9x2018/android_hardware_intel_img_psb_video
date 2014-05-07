@@ -96,8 +96,14 @@ int psb_android_get_mds_mode(void* output) {
     return mds->getMode();
 }
 
-int psb_android_get_mds_decoder_output_resolution(void* output, int* width, int* height) {
-    if (output == NULL || width == NULL || height == NULL)
+int psb_android_get_mds_decoder_output_resolution(void* output,
+        int* width, int* height,
+        int* offX, int* offY,
+        int* bufW, int* bufH) {
+    if (output == NULL ||
+            width == NULL || height == NULL ||
+            offX  == NULL || offY == NULL ||
+            bufW  == NULL || bufH == NULL)
         return 0;
     psb_android_output_p aoutput = (psb_android_output_p)output;
     if (aoutput->mds == NULL)
@@ -106,7 +112,7 @@ int psb_android_get_mds_decoder_output_resolution(void* output, int* width, int*
         static_cast<psbMultiDisplayListener*>(aoutput->mds);
     if (mds == NULL)
         return 0;
-    bool ret = mds->getDecoderOutputResolution(width, height);
+    bool ret = mds->getDecoderOutputResolution(width, height, offX, offY, bufW, bufH);
     return (ret ? 1 : 0);
 }
 

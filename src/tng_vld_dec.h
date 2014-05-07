@@ -92,4 +92,4 @@ VAStatus vld_dec_RenderPicture( object_context_p, object_buffer_p *, int);
 
 #define AUX_LINE_BUFFER_VLD_SIZE        (1024*152)
 
-void vld_dec_yuv_rotate(object_context_p, uint32_t, uint32_t);
+void vld_dec_yuv_rotate(object_context_p);

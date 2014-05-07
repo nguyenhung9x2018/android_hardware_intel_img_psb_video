@@ -59,7 +59,10 @@ public:
 
     int  getMode();
     // only for WIDI video playback
-    bool getDecoderOutputResolution(int32_t* width, int32_t* height);
+    bool getDecoderOutputResolution(
+            int32_t* width, int32_t* height,
+            int32_t* offX, int32_t* offY,
+            int32_t* bufW, int32_t* bufH);
     bool getVppState();
 };
 

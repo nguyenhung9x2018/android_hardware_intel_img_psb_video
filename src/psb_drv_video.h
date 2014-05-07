@@ -420,6 +420,10 @@ struct object_context_s {
 
     int scaling_width;
     int scaling_height;
+    int scaling_buffer_width;
+    int scaling_buffer_height;
+    int scaling_offset_x;
+    int scaling_offset_y;
     int scaling_update;
 
     /* Debug */
@@ -500,6 +504,11 @@ struct object_surface_s {
     int height_r;
     int width_s;
     int height_s;
+    int buffer_width_s;
+    int buffer_height_s;
+    int offset_x_s;
+    int offset_y_s;
+
     struct psb_surface_s *psb_surface;
     struct psb_surface_s *out_loop_surface; /* Alternative output surface for rotation */
     struct psb_surface_s *scaling_surface; /* Alternative output surface for scaling */

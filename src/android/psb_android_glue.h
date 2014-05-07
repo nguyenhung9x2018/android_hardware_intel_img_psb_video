@@ -55,7 +55,7 @@ extern "C"
     void init_mds_listener(void*);
     void deinit_mds_listener(void*);
     int  psb_android_get_mds_mode(void*);
-    int  psb_android_get_mds_decoder_output_resolution(void*, int*, int*);
+    int  psb_android_get_mds_decoder_output_resolution(void*, int*, int*, int*, int*, int*, int*);
     int  psb_android_get_mds_vpp_state(void*);
 #else
 #ifdef PSBVIDEO_MRFL_VPP

@@ -70,16 +70,21 @@ int psbMultiDisplayListener::getMode() {
     return mode;
 }
 
-bool psbMultiDisplayListener::getDecoderOutputResolution(int32_t* width, int32_t* height) {
+bool psbMultiDisplayListener::getDecoderOutputResolution(
+        int32_t* width, int32_t* height,
+        int32_t* offX, int32_t* offY,
+        int32_t* bufW, int32_t* bufH) {
     if (mListener.get() == NULL ||
-            width == NULL || height == NULL)
+            width == NULL || height == NULL ||
+            offX == NULL || offY == NULL ||
+            bufW == NULL || bufH == NULL)
         return false;
     // only for WIDI video playback,
     // TODO: HWC doesn't set the bit "MDS_WIDI_ON" rightly now
     int mode = mListener->getDisplayMode(false);
     if (!checkMode(mode, (MDS_VIDEO_ON | MDS_WIDI_ON)))
         return false;
-    status_t ret = mListener->getDecoderOutputResolution(0, width, height);
+    status_t ret = mListener->getDecoderOutputResolution(0, width, height, offX, offY, bufW, bufH);
     return (ret == NO_ERROR ? 1 : 0);
 }
 

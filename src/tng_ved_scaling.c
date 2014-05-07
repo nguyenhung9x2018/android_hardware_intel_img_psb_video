@@ -238,9 +238,9 @@ void tng_calculate_scaler_coff_reg(object_context_p obj_context)
 #endif
 
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "content crop is %dx%d",
-		obj_context->driver_data->render_rect.width, obj_context->driver_data->render_rect.height);
+        obj_context->driver_data->render_rect.width, obj_context->driver_data->render_rect.height);
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "scaling dest is %dx%d",
-		obj_context->current_render_target->width_s, obj_context->current_render_target->height_s);
+        obj_context->current_render_target->width_s, obj_context->current_render_target->height_s);
     /* The unscaled dimensions in the pitch calculation below MUST match the Display Width and Height sent to the hardware */
     fHorzPitch = obj_context->driver_data->render_rect.width / (float) obj_context->current_render_target->width_s;
     fVertPitch = obj_context->driver_data->render_rect.height / (float) obj_context->current_render_target->height_s;

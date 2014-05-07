@@ -78,6 +78,7 @@ void vld_dec_setup_alternative_frame(object_context_p obj_context)
     psb_surface_p src_surface = obj_context->current_render_target->psb_surface;
     psb_surface_p out_loop_surface = obj_context->current_render_target->out_loop_surface;
     int ved_scaling = (CONTEXT_SCALING(obj_context) && !ctx->yuv_ctx);
+    uint32_t startX = 0, startY = 0, luma_addr_offset = 0, chroma_addr_offset = 0;
 
     /*  In VPP ctx, current_render_target is rotated surface */
     if (ctx->yuv_ctx && (VAEntrypointVideoProc == obj_context->entry_point)) {
@@ -95,10 +96,15 @@ void vld_dec_setup_alternative_frame(object_context_p obj_context)
             REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION, SCALE_INPUT_SIZE_SEL, 1);
             REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS,ALTERNATIVE_OUTPUT_PICTURE_ROTATION, SCALE_ENABLE, 1);
 #endif
+        } else {
+            startX = ((uint32_t)obj_context->current_render_target->offset_x_s + 0x3f) & ~0x3f;
+            startY = ((uint32_t)obj_context->current_render_target->offset_y_s + 0x1) & ~0x1;
+            luma_addr_offset = (((uint32_t)(startX + out_loop_surface->stride * startY))  + 0x3f ) & ~0x3f;
+            chroma_addr_offset = (((uint32_t)(startX + out_loop_surface->stride * startY / 2))  + 0x3f ) & ~0x3f;
         }
 
         if (out_loop_surface == NULL) {
-            drv_debug_msg(VIDEO_DEBUG_GENERAL, "out-loop surface is NULL, abort msvdx alternative output\n");
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "out-loop surface is NULL, abort msvdx alternative output\n");
             return;
         }
 
@@ -108,8 +114,8 @@ void vld_dec_setup_alternative_frame(object_context_p obj_context)
         /* CRendecBlock    RendecBlk( mCtrlAlloc , RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS) ); */
         psb_cmdbuf_rendec_start(cmdbuf, RENDEC_REGISTER_OFFSET(MSVDX_CMDS, VC1_LUMA_RANGE_MAPPING_BASE_ADDRESS));
 
-        psb_cmdbuf_rendec_write_address(cmdbuf, &out_loop_surface->buf, out_loop_surface->buf.buffer_ofs);
-        psb_cmdbuf_rendec_write_address(cmdbuf, &out_loop_surface->buf, out_loop_surface->buf.buffer_ofs + out_loop_surface->chroma_offset);
+        psb_cmdbuf_rendec_write_address(cmdbuf, &out_loop_surface->buf, out_loop_surface->buf.buffer_ofs + luma_addr_offset);
+        psb_cmdbuf_rendec_write_address(cmdbuf, &out_loop_surface->buf, out_loop_surface->buf.buffer_ofs + chroma_addr_offset + out_loop_surface->chroma_offset);
 
         psb_cmdbuf_rendec_end(cmdbuf);
 
@@ -118,8 +124,8 @@ void vld_dec_setup_alternative_frame(object_context_p obj_context)
         REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , RECON_WRITE_DISABLE, 0); /* FIXME Always generate Rec */
         REGIO_WRITE_FIELD_LITE(cmd, MSVDX_CMDS, ALTERNATIVE_OUTPUT_PICTURE_ROTATION , ROTATION_MODE, GET_SURFACE_INFO_rotate(out_loop_surface));
 
-        RELOC(*ctx->p_range_mapping_base0, out_loop_surface->buf.buffer_ofs, &out_loop_surface->buf);
-        RELOC(*ctx->p_range_mapping_base1, out_loop_surface->buf.buffer_ofs + out_loop_surface->chroma_offset, &out_loop_surface->buf);
+        RELOC(*ctx->p_range_mapping_base0, out_loop_surface->buf.buffer_ofs + luma_addr_offset, &out_loop_surface->buf);
+        RELOC(*ctx->p_range_mapping_base1, out_loop_surface->buf.buffer_ofs + chroma_addr_offset + out_loop_surface->chroma_offset, &out_loop_surface->buf);
     }
 
     if (obj_context->profile == VAProfileVP8Version0_3 ||
@@ -474,7 +480,7 @@ VAStatus vld_dec_RenderPicture(
     return vaStatus;
 }
 
-void vld_dec_yuv_rotate(object_context_p obj_context, uint32_t width, uint32_t height)
+void vld_dec_yuv_rotate(object_context_p obj_context)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     struct format_vtable_s *vtable = &tng_yuv_processor_vtable;
@@ -482,10 +488,11 @@ void vld_dec_yuv_rotate(object_context_p obj_context, uint32_t width, uint32_t h
     struct object_buffer_s buffer;
     object_buffer_p buffer_p = &buffer;
 
-    surface_param.display_width = width;
-    surface_param.coded_width = width;
-    surface_param.display_height = height;
-    surface_param.coded_height = height;
+    surface_param.src_surface = obj_context->current_render_target->scaling_surface;
+    surface_param.display_width =	obj_context->current_render_target->buffer_width_s;
+    surface_param.display_height = obj_context->current_render_target->buffer_height_s;
+    surface_param.coded_width = obj_context->current_render_target->width_s;
+    surface_param.coded_height = obj_context->current_render_target->height_s;
 
     buffer.num_elements = 1;
     buffer.type = YUVProcessorSurfaceType;
