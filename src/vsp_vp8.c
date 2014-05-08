@@ -115,7 +115,7 @@ static void vsp_VP8_QueryConfigAttributes(
         case VAConfigAttribRTFormat:
             break;
         case VAConfigAttribRateControl:
-            attrib_list[i].value = VA_RC_CBR | VA_RC_VBR;
+            attrib_list[i].value = VA_RC_CBR | VA_RC_VCM;
             break;
         case VAConfigAttribEncAutoReference:
             attrib_list[i].value = 1;
@@ -179,7 +179,7 @@ void vsp_VP8_set_default_params(struct VssVp8encSequenceParameterBuffer *vp8_seq
     vp8_seq->rc_max_quantizer = 63;
     vp8_seq->rc_undershoot_pct = 100;
     vp8_seq->rc_overshoot_pct = 100;
-    vp8_seq->rc_end_usage = VP8_ENC_CBR_HRD;
+    vp8_seq->rc_end_usage = VP8_ENC_CBR;
     vp8_seq->rc_buf_sz = 6000;
     vp8_seq->rc_buf_initial_sz = 4000;
     vp8_seq->rc_buf_optimal_sz = 5000;
@@ -216,10 +216,10 @@ static VAStatus vsp_VP8_CreateContext(
 
     for (i = 0; i < obj_config->attrib_count; i++) {
         if (obj_config->attrib_list[i].type == VAConfigAttribRateControl) {
-            ctx->vp8_seq_param.rc_end_usage =
-                obj_config->attrib_list[i].value == VA_RC_VBR ?
-                VP8_ENC_CBR :
-                VP8_ENC_CBR_HRD;
+            if (obj_config->attrib_list[i].value == VA_RC_VCM)
+               ctx->vp8_seq_param.rc_end_usage = VP8_ENC_CBR_HRD;
+            else
+               ctx->vp8_seq_param.rc_end_usage = VP8_ENC_CBR;
         }
     }
 

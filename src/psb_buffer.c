@@ -652,25 +652,25 @@ int psb_codedbuf_map_mangle(
                 /* multi segments*/
 		struct VssVp8encEncodedFrame *t = (struct VssVp8encEncodedFrame *) (raw_codedbuf);
 		int concatenate = 1;
-
 #if 0
 		for (i = 0; i < t->partitions - 1; i++) {
                     if (t->partition_start[i+1] != t->partition_start[i] + t->partition_size[i])
                         concatenate = 0;
 		}
 #endif
-
 		/* reference frame surface_id */
                 /* default is recon_buffer_mode ==0 */
                 p->reserved = t->surfaceId_of_ref_frame[3];
 
 		if (concatenate) {
-                    //printf("t->status=%x, t->frame_size=%d, t->frame_flags=%d, t->partitions=%d\n",
-                    //        t->status, t->frame_size, t->frame_flags, t->partitions);
-
                     /* partitions are concatenate */
                     p->buf = t->coded_data;
                     p->size = t->frame_size;
+                    if(t->frame_size == 0){
+                        drv_debug_msg(VIDEO_DEBUG_ERROR,"Frame size is zero, Force it to 3, encoder status is 0x%x\n", t->status);
+                        p->size = 3;
+                        t->coded_data[0]=0;
+                    }
                     p->next = NULL;
 		} else {
                     for (i = 0; i < t->partitions; i++) {
