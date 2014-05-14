@@ -355,8 +355,6 @@ IMG_UINT32 tng_send_codedbuf(
     if ((ctx->ui8PipesToUse == 2) && ((ui32SlotIndex & 1) == 1))
 	ui32Offset = object_buffer->size >> 1;
 
-    object_buffer->psb_buffer->unfence_flag = 0;
-
     tng_cmdbuf_insert_command(
         ctx->obj_context, ctx->ui32StreamID,
         MTX_CMDID_PROVIDE_CODED_BUFFER,
@@ -599,9 +597,6 @@ IMG_UINT32 tng_send_source_frame(
         drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Error: frame_mem buffer index overflow\n", __FUNCTION__);
         cmdbuf->frame_mem_index = 0;
     }
-
-    if (src_surface->psb_surface->buf.pl_flags & WSBM_PL_FLAG_CACHED)
-        src_surface->psb_surface->buf.unfence_flag = 2;
 
     vaStatus = psb_buffer_map(&cmdbuf->frame_mem, &(cmdbuf->frame_mem_p));
     if (vaStatus) {
