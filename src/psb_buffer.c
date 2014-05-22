@@ -97,18 +97,12 @@ VAStatus psb_buffer_create(psb_driver_data_p driver_data,
         break;
     case psb_bt_surface_tt:
         allignment = 0;
-        if (IS_MOFD(driver_data))
-            placement = DRM_PSB_FLAG_MEM_MMU | WSBM_PL_FLAG_NO_EVICT | WSBM_PL_FLAG_SHARED;
-        else
-            placement = WSBM_PL_FLAG_TT | WSBM_PL_FLAG_NO_EVICT | WSBM_PL_FLAG_SHARED;
+        placement = WSBM_PL_FLAG_TT | WSBM_PL_FLAG_NO_EVICT | WSBM_PL_FLAG_SHARED;
         break;
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
     case psb_bt_surface_tiling:
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "Allocate tiled surface from TT heap\n");
-            if (IS_MOFD(driver_data))
-                placement =  DRM_PSB_FLAG_MEM_MMU_TILING | WSBM_PL_FLAG_SHARED;
-            else
-                placement =  WSBM_PL_FLAG_TT | WSBM_PL_FLAG_SHARED;
+            placement =  WSBM_PL_FLAG_TT | WSBM_PL_FLAG_SHARED;
             allignment = 2048 * 16; /* Tiled row aligned */
         break;
     case psb_bt_mmu_tiling:
