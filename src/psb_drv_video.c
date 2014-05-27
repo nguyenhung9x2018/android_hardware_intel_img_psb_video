@@ -928,7 +928,7 @@ VAStatus psb_DestroySurfaces(
     return VA_STATUS_SUCCESS;
 }
 
-int psb_new_context(psb_driver_data_p driver_data, int ctx_type)
+int psb_new_context(psb_driver_data_p driver_data, uint64_t ctx_type)
 {
     struct drm_lnc_video_getparam_arg arg;
     int ret = 0;
@@ -1372,6 +1372,13 @@ VAStatus psb_CreateContext(
 
     if (!encode) {
         obj_context->ctp_type |= ((obj_context->msvdx_tile & 0xff) << 16);
+    }
+
+    if (obj_config->profile == VAProfileVC1Simple ||
+        obj_config->profile == VAProfileVC1Main ||
+        obj_config->profile == VAProfileVC1Advanced) {
+        uint64_t width_in_mb = ((driver_data->render_rect.x + driver_data->render_rect.width + 15) / 16);
+        obj_context->ctp_type |= (width_in_mb << 32);
     }
 
     /* add ctx_num to save vp8 enc context num to support dual vp8 encoding */

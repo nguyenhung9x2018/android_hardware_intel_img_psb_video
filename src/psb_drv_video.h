@@ -409,7 +409,16 @@ struct object_context_s {
     int msvdx_rotate;
     int msvdx_scaling;
     int interlaced_stream;
-    unsigned long ctp_type;
+
+    /* value is 64bits value, consist of 8 bytes
+     * bytes[0]: entrypoint
+     * bytes[1]: profile
+     * bytes[2]: tile stride | rotated tile stride
+     * bytes[3]: driver_data->protected
+     * bytes[4]: width_in_mb; pass width kernel for VC1 workaround
+     */
+    uint64_t ctp_type;
+
     unsigned long msvdx_tile; /* normal tile | (rotate tile << 4) */
 #ifdef SLICE_HEADER_PARSING
     int msvdx_frame_end;
