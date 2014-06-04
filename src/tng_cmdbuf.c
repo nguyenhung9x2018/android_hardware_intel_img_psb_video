@@ -443,12 +443,25 @@ void tng_cmdbuf_insert_command(
 	*cmdbuf->cmd_idx++ = 0;
     }
 
-    if (cmd_id == MTX_CMDID_SW_SETUP_CIR) {
-	*cmdbuf->cmd_idx++ = (IMG_INT16)ctx->ui16IntraRefresh;
+    if (cmd_id == MTX_CMDID_SW_FILL_INPUT_CTRL) {
+	*cmdbuf->cmd_idx++ = ctx->ui16IntraRefresh;
 	*cmdbuf->cmd_idx++ = ctx->sRCParams.ui32InitialQp;
 	*cmdbuf->cmd_idx++ = ctx->sRCParams.iMinQP;
 	*cmdbuf->cmd_idx++ = ctx->ctx_mem_size.mb_ctrl_in_params;
 	*cmdbuf->cmd_idx++ = ctx->ui32pseudo_rand_seed;
+    }
+
+    if (cmd_id == MTX_CMDID_SW_UPDATE_AIR_SEND) {
+	*cmdbuf->cmd_idx++ = ctx->sAirInfo.i16AIRSkipCnt;
+	*cmdbuf->cmd_idx++ = ctx->sAirInfo.i32NumAIRSPerFrame;
+	*cmdbuf->cmd_idx++ = ctx->ctx_mem_size.mb_ctrl_in_params;
+	*cmdbuf->cmd_idx++ = ctx->ui32FrameCount[0];
+    }
+
+    if (cmd_id == MTX_CMDID_SW_UPDATE_AIR_CALC) {
+	*cmdbuf->cmd_idx++ = ctx->ctx_mem_size.first_pass_out_best_multipass_param;
+	*cmdbuf->cmd_idx++ = ctx->sAirInfo.i32SAD_Threshold;
+	*cmdbuf->cmd_idx++ = ctx->ui8EnableSelStatsFlags;
     }
 
     /* Command data address */
@@ -462,6 +475,8 @@ void tng_cmdbuf_insert_command(
 	    *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(data_addr->drm_buf));
 
 	*(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_mb_ctrl_in_params.drm_buf));
+	*(cmdbuf->cmd_idx)++ =  wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_first_pass_out_params.drm_buf));
+	*(cmdbuf->cmd_idx)++ =  wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_first_pass_out_best_multipass_param.drm_buf));
     }
 
     if (cmd_id == MTX_CMDID_SETUP_INTERFACE) {

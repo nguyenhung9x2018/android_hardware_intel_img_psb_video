@@ -3652,14 +3652,6 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
         }
     }
 
-    if (ctx->bEnableAIR == IMG_TRUE ||
-	ctx->bEnableCIR == IMG_TRUE) {
-	tng_air_set_input_control(ctx, 0);
-
-	if (ctx->bEnableAIR == IMG_TRUE)
-	    tng_air_set_output_control(ctx, 0);
-    }
-
     if ((ctx->idr_force_flag == 1) && (ctx->sRCParams.ui16BFrames == 0)){
         vaStatus = tng__update_frametype(ctx, IMG_FRAME_IDR);
         if (vaStatus != VA_STATUS_SUCCESS) {
@@ -3671,6 +3663,14 @@ VAStatus tng_EndPicture(context_ENC_p ctx)
     vaStatus = tng__cmdbuf_provide_buffer(ctx, ctx->ui32StreamID);
     if (vaStatus != VA_STATUS_SUCCESS) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "provide buffer");
+    }
+
+    if (ctx->bEnableAIR == IMG_TRUE ||
+	ctx->bEnableCIR == IMG_TRUE) {
+	tng_air_set_input_control(ctx, 0);
+
+	if (ctx->bEnableAIR == IMG_TRUE)
+	    tng_air_set_output_control(ctx, 0);
     }
 
     if (ctx->eStandard == IMG_STANDARD_MPEG4) {
