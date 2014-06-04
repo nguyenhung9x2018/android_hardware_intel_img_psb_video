@@ -191,6 +191,32 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
             else
                 driver_data->disable_msvdx_rotate = driver_data->disable_msvdx_rotate_backup;
         }
+    } else if (IS_MOFD(driver_data)) {
+    /* Moorefield has overlay rotaion, so decoder doesn't generate rotation
+     * output according to windows manager. It is controlled by payload info
+     * in which HWC signal decoder to generate rotation output
+     */
+        long long hwc_timestamp = 0;
+        int index = -1;
+
+        for (i = 0; i < obj_context->num_render_targets; i++) {
+            object_surface_p obj_surface = SURFACE(obj_context->render_targets[i]);
+            /* traverse all surfaces' share info to find out the latest transform info */
+            if (obj_surface && obj_surface->share_info) {
+                if (obj_surface->share_info->hwc_timestamp > hwc_timestamp) {
+                    hwc_timestamp = obj_surface->share_info->hwc_timestamp;
+                    index = i;
+                }
+            }
+        }
+        if (index >= 0) {
+            object_surface_p obj_surface = SURFACE(obj_context->render_targets[index]);
+            if (obj_surface && obj_surface->share_info) {
+                int transform = obj_surface->share_info->layer_transform;
+                driver_data->mipi0_rotation = HAL2VAROTATION(transform);
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "Signal from HWC to rotate %d\n", driver_data->mipi0_rotation);
+            }
+        }
     } else if (driver_data->native_window) {
         int display_rotate = 0;
         psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
@@ -199,9 +225,6 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
         if (driver_data->mipi0_rotation != display_rotate) {
             driver_data->mipi0_rotation = display_rotate;
         }
-        if (IS_MOFD(driver_data))
-            driver_data->disable_msvdx_rotate = 1;
-
     } else {
         long long hwc_timestamp = 0;
         int index = -1;
@@ -231,7 +254,7 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
         psb_android_surfaceflinger_rotate(driver_data->native_window, &display_rotate);
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "NativeWindow(0x%x), get surface flinger rotate %d\n", driver_data->native_window, display_rotate);
 
-        if (driver_data->mipi0_rotation != display_rotate) {
+        if (driver_data->mipi0_rotation != display_rotate && !IS_MOFD(driver_data)) {
             driver_data->mipi0_rotation = display_rotate;
         }
     }
@@ -242,6 +265,12 @@ void psb_RecalcAlternativeOutput(object_context_p obj_context)
     driver_data->local_rotation = Angle2Rotation(angle);
     angle = Rotation2Angle(driver_data->va_rotate) + Rotation2Angle(driver_data->hdmi_rotation);
     driver_data->extend_rotation = Angle2Rotation(angle);
+
+    /* On MOFD, no need to use meta rotation, just use rotation angle signal from HWC */
+    if (IS_MOFD(driver_data)) {
+        driver_data->local_rotation = driver_data->mipi0_rotation;
+        driver_data->extend_rotation = Rotation2Angle(driver_data->hdmi_rotation);
+    }
 
     /* for any case that local and extened rotation are not same, fallback to GPU */
     if ((driver_data->mipi1_rotation != VA_ROTATION_NONE) ||

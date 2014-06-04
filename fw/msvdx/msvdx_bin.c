@@ -67,6 +67,7 @@ int main()
     fw_DE3 = sFirmware_SS_DE3_3_20;
     //fw_DE3 = sFirmware_SS_1472_3_8;
     fw_DE3 = sFirmware_SS_1472_3_10;
+    fw_DE3 = sFirmware_1472_3_20_SS;
 
     fw.ver = 0x0496;
     fw.text_size = fw_DE3.uiTextSize / 4;
