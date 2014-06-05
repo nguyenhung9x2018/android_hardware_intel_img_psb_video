@@ -1365,6 +1365,11 @@ VAStatus psb_CreateContext(
     obj_context->ctp_type = (((obj_config->profile << 8) |
                              obj_config->entrypoint | driver_data->protected) & 0xffff);
 
+    /* VSP's PM rely on VPP ctx, so ved vpp use diferent profile/level for ctx */
+    if (driver_data->ved_vpp)
+        obj_context->ctp_type = (((obj_config->profile << 8) |
+                             VAEntrypointVLD | driver_data->protected) & 0xffff);
+
     if (!encode) {
         obj_context->ctp_type |= ((obj_context->msvdx_tile & 0xff) << 16);
     }
