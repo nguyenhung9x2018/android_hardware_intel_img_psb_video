@@ -1990,8 +1990,8 @@ static void psb__VC1_send_rendec_params(context_VC1_p ctx, VASliceParameterBuffe
     /* VC1 Luma Range Mapping Base Address */
     RELOC(*ctx->dec_ctx.p_range_mapping_base0, /*cmd + */deblock_surface->buf.buffer_ofs, &deblock_surface->buf);
     RELOC(*ctx->dec_ctx.p_range_mapping_base1, deblock_surface->buf.buffer_ofs + deblock_surface->chroma_offset, &deblock_surface->buf);
-    *ctx->dec_ctx.p_range_mapping_base0 = (*ctx->dec_ctx.p_range_mapping_base0) | cmd; /* FIXME If kernel apply reloc, this value may be override */
 
+    *ctx->dec_ctx.cmd_params |= cmd;
     /* VC1 Intensity Compensation Backward/Previous     */
     /*
             3.3.10 VC1 Intensity Compensation Backward/Previous:
