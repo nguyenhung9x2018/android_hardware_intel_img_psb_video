@@ -105,7 +105,7 @@ VAStatus vsp_compose_process_pipeline_param(context_VPP_p ctx, object_context_p 
 	out_stride = output_surface->psb_surface->stride;
 
 	rgb_width = ALIGN_TO_16(rgb_surface->width);
-	rgb_height = rgb_surface->height_origin;
+	rgb_height = ALIGN_TO_16(rgb_surface->height);
 	rgb_stride = rgb_surface->psb_surface->stride;
 
 	/* RGB related */
@@ -128,8 +128,6 @@ VAStatus vsp_compose_process_pipeline_param(context_VPP_p ctx, object_context_p 
 	cell_compose_param->Video_IN_ysize = yuv_height;
 	cell_compose_param->Video_IN_stride = yuv_stride;
 	cell_compose_param->Video_IN_yuv_format = YUV_4_2_0_NV12;
-	cell_compose_param->Video_TotalMBCount =
-				(((cell_compose_param->Video_IN_xsize + 15) >> 4) * ((cell_compose_param->Video_IN_ysize + 15) >> 4));
 	vsp_cmdbuf_reloc_pic_param(
 				&(cell_compose_param->Video_IN_Y_Buffer),
 				ctx->compose_param_offset,
@@ -175,6 +173,17 @@ VAStatus vsp_compose_process_pipeline_param(context_VPP_p ctx, object_context_p 
 		cell_compose_param->ROI_x2 = 0;
 		cell_compose_param->ROI_y2 = 0;
 	}
+
+	cell_compose_param->scaled_width = out_width;
+	cell_compose_param->scaled_height = out_height;
+	cell_compose_param->scalefactor_dx = (unsigned int)(1024 / (((float)out_width) / yuv_width) + 0.5);
+	cell_compose_param->scalefactor_dy = (unsigned int)(1024 / (((float)out_height) / yuv_height) + 0.5);
+	cell_compose_param->Video_TotalMBCount =
+		(((out_width + 15) >> 4) * ((out_height + 15) >> 4));
+
+	cell_compose_param->ROI_width = cell_compose_param->scaled_width;
+	cell_compose_param->ROI_height = cell_compose_param->scaled_height;
+
 	cell_compose_param->Is_Blending_Enabled = 1;
 	cell_compose_param->alpha1 = 128;
 	cell_compose_param->alpha2 = 255;
