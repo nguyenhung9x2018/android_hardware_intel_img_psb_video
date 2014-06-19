@@ -2108,18 +2108,18 @@ VAStatus psb_BeginPicture(
 	vaStatus = psb_CreateRotateSurface(obj_context, obj_surface, obj_context->msvdx_rotate);
         if (VA_STATUS_SUCCESS !=vaStatus)
             ALOGE("%s: fail to allocate out loop surface", __func__);
-        if (obj_surface && obj_surface->share_info) {
-            obj_surface->share_info->crop_width = driver_data->render_rect.width;
-            obj_surface->share_info->crop_height = driver_data->render_rect.height;
-        }
 
     } else {
         if (obj_surface && obj_surface->share_info) {
             obj_surface->share_info->metadata_rotate = VAROTATION2HAL(driver_data->va_rotate);
             obj_surface->share_info->surface_rotate = VAROTATION2HAL(obj_context->msvdx_rotate);
-            obj_surface->share_info->crop_width = driver_data->render_rect.width;
-            obj_surface->share_info->crop_height = driver_data->render_rect.height;
         }
+    }
+
+    if (obj_surface && obj_surface->share_info &&
+        obj_config->entrypoint == VAEntrypointVLD) {
+        obj_surface->share_info->crop_width = driver_data->render_rect.width;
+        obj_surface->share_info->crop_height = driver_data->render_rect.height;
     }
 
     if (driver_data->is_oold &&  !obj_surface->psb_surface->in_loop_buf) {
