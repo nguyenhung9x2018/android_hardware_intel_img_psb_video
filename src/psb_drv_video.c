@@ -694,7 +694,7 @@ VAStatus psb_CreateSurfaces2(
     unsigned int flags = 0;
     int memory_type = -1;
     VASurfaceAttribExternalBuffers  *pExternalBufDesc = NULL;
-    VASurfaceAttributeTPI attribute_tpi;
+    PsbSurfaceAttributeTPI attribute_tpi;
 
     CHECK_INVALID_PARAM(num_surfaces <= 0);
     CHECK_SURFACE(surface_list);
@@ -727,7 +727,7 @@ VAStatus psb_CreateSurfaces2(
                     attribute_tpi.luma_offset = pExternalBufDesc->offsets[0];
                     attribute_tpi.chroma_u_offset = pExternalBufDesc->offsets[1];
                     attribute_tpi.chroma_v_offset = pExternalBufDesc->offsets[2];
-                    attribute_tpi.reserved[0] = (unsigned int) pExternalBufDesc->private_data;
+                    attribute_tpi.reserved[0] = (unsigned long) pExternalBufDesc->private_data;
                     if (pExternalBufDesc->flags & VA_SURFACE_EXTBUF_DESC_ENABLE_TILING)
                         attribute_tpi.tiling = 1;
                     else
@@ -773,6 +773,7 @@ VAStatus psb_CreateSurfaces2(
     else if(memory_type !=-1 && pExternalBufDesc != NULL) {
         attribute_tpi.type = memory_type;
         vaStatus = psb_CreateSurfacesWithAttribute(ctx, width, height, format, num_surfaces, surface_list, &attribute_tpi);
+        pExternalBufDesc->private_data = (void *)(attribute_tpi.reserved[1]);
         if (attribute_tpi.buffers) free(attribute_tpi.buffers);
         return vaStatus;
     }

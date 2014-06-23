@@ -33,6 +33,7 @@
 
 #include <va/va_backend.h>
 #include <va/va.h>
+#include <va/va_tpi.h>
 
 #include <va/va_vpp.h>
 
@@ -600,6 +601,26 @@ struct object_subpic_s {
 
     unsigned char *surfaces; /* surfaces, associated with this subpicture */
 };
+
+typedef struct _PsbSurfaceAttributeTPI {
+    VASurfaceMemoryType type;
+    unsigned int width;
+    unsigned int height;
+    unsigned int size;
+    unsigned int pixel_format; /* buffer format */
+    unsigned int tiling; /* the memory is tiling or not */
+    unsigned int luma_stride; /* luma stride, could be width aligned with a special value */
+    unsigned int chroma_u_stride; /* chroma stride */
+    unsigned int chroma_v_stride;
+    unsigned int luma_offset; /* could be 0 */
+    unsigned int chroma_u_offset; /* U offset from the beginning of the memory */
+    unsigned int chroma_v_offset; /* V offset from the beginning of the memory */
+    unsigned int count; /* buffer count for surface creation */
+    unsigned long *buffers; /* buffer handles or user pointers */
+    unsigned long reserved[4]; /* used to pass additional information, like	362
+			* Android native window pointer	363
+			*/
+} PsbSurfaceAttributeTPI;
 
 #define MEMSET_OBJECT(ptr, data_struct) \
         memset((unsigned char *)ptr + sizeof(struct object_base_s),\
