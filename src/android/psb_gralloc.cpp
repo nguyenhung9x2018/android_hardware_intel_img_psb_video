@@ -55,9 +55,9 @@ int gralloc_lock(buffer_handle_t handle,
     int err, j;
 
     if (!mAllocMod) {
-        LOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
+        ALOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
         if (gralloc_init()) {
-            LOGE("%s: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
+            ALOGE("%s: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
             return -1;
         }
     }
@@ -65,7 +65,7 @@ int gralloc_lock(buffer_handle_t handle,
     err = mAllocMod->lock(mAllocMod, handle, usage,
                           left, top, width, height,
                           vaddr);
-    LOGV("gralloc_lock: handle is %lx, usage is %x, vaddr is %x.\n", handle, usage, *vaddr);
+    ALOGV("gralloc_lock: handle is %lx, usage is %x, vaddr is %x.\n", handle, usage, *vaddr);
 
 //#ifdef BAYTRAIL
 #if 0
@@ -93,10 +93,10 @@ int gralloc_lock(buffer_handle_t handle,
     }
 #endif
     if (err){
-        LOGE("lock(...) failed %d (%s).\n", err, strerror(-err));
+        ALOGE("lock(...) failed %d (%s).\n", err, strerror(-err));
         return -1;
     } else {
-        LOGV("lock returned with address %p\n", *vaddr);
+        ALOGV("lock returned with address %p\n", *vaddr);
     }
 
     return err;
@@ -107,19 +107,19 @@ int gralloc_unlock(buffer_handle_t handle)
     int err;
 
     if (!mAllocMod) {
-        LOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
+        ALOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
         if (gralloc_init()) {
-            LOGE("%s: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
+            ALOGE("%s: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
             return -1;
         }
     }
 
     err = mAllocMod->unlock(mAllocMod, handle);
     if (err) {
-        LOGE("unlock(...) failed %d (%s)", err, strerror(-err));
+        ALOGE("unlock(...) failed %d (%s)", err, strerror(-err));
         return -1;
     } else {
-        LOGV("unlock returned\n");
+        ALOGV("unlock returned\n");
     }
 
     return err;
@@ -129,10 +129,10 @@ int gralloc_init(void)
 {
     int err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
     if (err) {
-        LOGE("FATAL: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
+        ALOGE("FATAL: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
         return -1;
     } else
-        LOGD("hw_get_module returned\n");
+        ALOGD("hw_get_module returned\n");
     mAllocMod = (gralloc_module_t *)module;
 
     return 0;
@@ -146,7 +146,7 @@ int gralloc_getdisplaystatus(buffer_handle_t handle,  int* status)
 
     get_display_status = (int (*)(gralloc_module_t*, buffer_handle_t, int*))(mAllocMod->reserved_proc[0]);
     if (get_display_status == NULL) {
-        LOGE("can't get gralloc_getdisplaystatus(...) \n");
+        ALOGE("can't get gralloc_getdisplaystatus(...) \n");
         return -1;
     }
     err = (*get_display_status)(mAllocMod, handle, status);
@@ -155,7 +155,7 @@ int gralloc_getdisplaystatus(buffer_handle_t handle,  int* status)
     *status = mAllocMod->perform(mAllocMod, INTEL_UFO_GRALLOC_MODULE_PERFORM_GET_BO_STATUS, handle);
 #endif
     if (err){
-        LOGE("gralloc_getdisplaystatus(...) failed %d (%s).\n", err, strerror(-err));
+        ALOGE("gralloc_getdisplaystatus(...) failed %d (%s).\n", err, strerror(-err));
         return -1;
     }
 

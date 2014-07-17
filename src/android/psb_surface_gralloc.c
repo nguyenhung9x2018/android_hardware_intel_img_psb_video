@@ -112,7 +112,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
     external_buffers = attribute_tpi;
 
-    LOGD("format is 0x%x, width is %d, height is %d, num_surfaces is %d.\n", format, width, height, num_surfaces);
+    ALOGD("format is 0x%x, width is %d, height is %d, num_surfaces is %d.\n", format, width, height, num_surfaces);
     /* We only support one format */
     if ((VA_RT_FORMAT_YUV420 != format)
         && (VA_RT_FORMAT_YUV422 != format)) {
@@ -130,7 +130,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     /* Adjust height to be a multiple of 32 (height of macroblock in interlaced mode) */
     height_origin = height;
     height = (height + 0x1f) & ~0x1f;
-    LOGD("external_buffers->pixel_format is 0x%x.\n", external_buffers->pixel_format);
+    ALOGD("external_buffers->pixel_format is 0x%x.\n", external_buffers->pixel_format);
     /* get native window from the reserved field */
     driver_data->native_window = (void *)external_buffers->reserved[0];
 

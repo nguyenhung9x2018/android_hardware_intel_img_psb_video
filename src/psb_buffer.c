@@ -57,7 +57,7 @@
 #include "tng_jpegES.h"
 #endif
 
-#include "linux/vsp_fw.h"
+#include "vsp_fw.h"
 /*
  * Create buffer
  */

@@ -166,7 +166,7 @@ int psb_android_surfaceflinger_rotate(void* native_window, int *rotation)
     if (mNativeWindow.get()) {
         err = mNativeWindow->query(mNativeWindow.get(), NATIVE_WINDOW_TRANSFORM_HINT, &transform_hint);
         if (err != 0) {
-            LOGE("%s: NATIVE_WINDOW_TRANSFORM_HINT query failed", __func__);
+            ALOGE("%s: NATIVE_WINDOW_TRANSFORM_HINT query failed", __func__);
             return -1;
         }
         switch (transform_hint) {

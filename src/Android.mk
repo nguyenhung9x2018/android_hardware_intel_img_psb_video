@@ -93,24 +93,47 @@ LOCAL_SRC_FILES += \
     tng_jpegES.c \
     tng_slotorder.c \
     tng_hostair.c \
-    tng_trace.c \
+    tng_trace.c
+
+ifeq ($(TARGET_HAS_VPP),true)
+LOCAL_SRC_FILES += \
     vsp_VPP.c \
     vsp_cmdbuf.c \
     vsp_vp8.c \
     vsp_compose.c
+endif
 
 LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/pvr \
-    $(TARGET_OUT_HEADERS)/pvr/pvr2d \
-    $(TARGET_OUT_HEADERS)/libmedia_utils_vpp
+    $(TARGET_OUT_HEADERS)/pvr/pvr2d
 
+ifeq ($(TARGET_HAS_VPP),true)
+LOCAL_C_INCLUDES += \
+    $(TARGET_OUT_HEADERS)/libmedia_utils_vpp
+endif
+
+
+ifeq ($(TARGET_HAS_VPP),true)
 LOCAL_SHARED_LIBRARIES += libpvr2d libvpp_setting
+else
+LOCAL_SHARED_LIBRARIES += libpvr2d
+endif
+
+
+ifeq ($(TARGET_HAS_VPP),true)
 LOCAL_CFLAGS += \
     -DPSBVIDEO_MRFL_VPP -DPSBVIDEO_MRFL \
     -DPSBVIDEO_VPP_TILING -DSLICE_HEADER_PARSING
+else
+LOCAL_CFLAGS += \
+    -DPSBVIDEO_MRFL \
+    -DSLICE_HEADER_PARSING
+endif
 
 ifeq ($(TARGET_BOARD_PLATFORM),merrifield)
+ifeq ($(TARGET_HAS_VPP),true)
 LOCAL_CFLAGS += -DPSBVIDEO_MRFL_VPP_ROTATE
+endif
 endif
 
 else

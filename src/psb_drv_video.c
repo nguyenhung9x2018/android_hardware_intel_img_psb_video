@@ -210,11 +210,13 @@ VAStatus psb_QueryConfigEntrypoints(
 
     for (i = 0; i < PSB_MAX_ENTRYPOINTS; i++) {
 #ifndef BAYTRAIL
+#ifdef PSBVIDEO_MRFL_VPP
         if (profile == VAProfileNone && driver_data->vpp_profile &&
             i == VAEntrypointVideoProc) {
                 entrypoints++;
                 *entrypoint_list++ = i;
 	} else
+#endif
 #endif
 	if (profile != VAProfileNone && driver_data->profile2Format[profile][i]) {
                 entrypoints++;
@@ -271,8 +273,10 @@ VAStatus psb_GetConfigAttributes(
 
 #if defined(BAYTRAIL)
     format_vtable_p format_vtable = driver_data->profile2Format[profile][entrypoint];
-#else
+#elif defined(PSBVIDEO_MRFL_VPP)
     INIT_FORMAT_VTABLE
+#else
+    format_vtable_p format_vtable = driver_data->profile2Format[profile][entrypoint];
 #endif
     int i;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
@@ -395,10 +399,11 @@ VAStatus psb_CreateConfig(
     INIT_DRIVER_DATA
 #if defined(BAYTRAIL)
     format_vtable_p format_vtable = driver_data->profile2Format[profile][entrypoint];
-#else
+#elif defined(PSBVIDEO_MRFL_VPP)
     INIT_FORMAT_VTABLE
+#else
+    format_vtable_p format_vtable = driver_data->profile2Format[profile][entrypoint];
 #endif
-
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int configID;
     object_config_p obj_config;
@@ -3311,7 +3316,7 @@ EXPORT VAStatus __vaDriverInit_0_31(VADriverContextP ctx)
     }
 #endif
 
-#ifdef PSBVIDEO_MRFL
+#ifdef PSBVIDEO_MRFL_VPP
     if (IS_MRFL(driver_data)) {
         if (*((unsigned int *)ctx->native_dpy) == 0x56454450 /* VEDP */) {
 
