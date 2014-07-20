@@ -33,7 +33,7 @@
 #include <math.h>
 
 #ifdef ANDROID
-#include <ttm/ttm_placement.h>
+#include <drm/ttm/ttm_placement.h>
 #include <linux/psb_drm.h>
 #else
 #include <psb_drm.h>
