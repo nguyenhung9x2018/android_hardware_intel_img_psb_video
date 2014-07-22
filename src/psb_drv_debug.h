@@ -152,7 +152,7 @@ uint32_t     debug_dump_size[MAX_DUMP_COUNT];
 uint32_t     debug_dump_count;
 
 int psb_cmdbuf_dump(unsigned int *buffer, int byte_size);
-void psb__dump_va_buffers(object_buffer_p obj_buffer);
-void psb__dump_va_buffers_verbose(object_buffer_p obj_buffer);
+int psb__dump_va_buffers(object_buffer_p obj_buffer);
+int psb__dump_va_buffers_verbose(object_buffer_p obj_buffer);
 
 #endif /* _PSB_DEBUG_H_ */

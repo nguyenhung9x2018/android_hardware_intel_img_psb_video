@@ -31,7 +31,7 @@
 
 // This file was automatically generated from ../release/H263FirmwareVBR.dnl using dnl2c.
 
-unsigned char *szH263VBR_MTXTOPAZFW_buildtag = "TOPAZ_DDKBUILD_00-00-00-0146";
+char *szH263VBR_MTXTOPAZFW_buildtag = "TOPAZ_DDKBUILD_00-00-00-0146";
 
 unsigned int ui32H263VBR_MTXTOPAZFWTextSize = 4578;
 unsigned int ui32H263VBR_MTXTOPAZFWDataSize = 3600;

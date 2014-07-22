@@ -247,7 +247,7 @@ static void psb__VAImageCheckRegion(
 
 
 VAStatus psb_QueryImageFormats(
-    VADriverContextP ctx,
+    VADriverContextP __maybe_unused ctx,
     VAImageFormat *format_list,        /* out */
     int *num_formats           /* out */
 )
@@ -733,8 +733,8 @@ static VAStatus tng_unpack_vsp_rec(
     int src_width, int src_height,
     unsigned char *p_srcY, unsigned char *p_srcUV,
     unsigned char *p_dstY, unsigned char *p_dstU,
-    int dstY_stride, int dstU_stride, int dstV_stride,
-    int surface_height)
+    int dstY_stride, int dstU_stride, int __maybe_unused dstV_stride,
+    int __maybe_unused surface_height)
 {
     unsigned char *tmp_dstY = p_dstY;
     unsigned char *tmp_dstU = p_dstU;
@@ -771,8 +771,8 @@ static VAStatus tng_unpack_topaz_rec(
     int src_width, int src_height,
     unsigned char *p_srcY, unsigned char *p_srcUV,
     unsigned char *p_dstY, unsigned char *p_dstU, unsigned char *p_dstV,
-    int dstY_stride, int dstU_stride, int dstV_stride,
-    int surface_height)
+    int dstY_stride, int __maybe_unused dstU_stride, int __maybe_unused dstV_stride,
+    int __maybe_unused surface_height)
 {
     unsigned char *tmp_dstY = p_dstY;
     unsigned char *tmp_dstU = p_dstU;
@@ -1172,10 +1172,10 @@ VAStatus psb_PutImage(
     INIT_DRIVER_DATA;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     int ret;
-    CHECK_INVALID_PARAM((src_width == -1) ||
-                        (src_height == -1) ||
-                        (dest_width == ~0) ||
-                        (dest_height == ~0));
+    CHECK_INVALID_PARAM(((int)src_width == -1) ||
+                        ((int)src_height == -1) ||
+                        ((int)dest_width == ~0) ||
+                        ((int)dest_height == ~0));
 
     if ((src_width == dest_width) && (src_height == dest_height)) {
         /* Shortcut if scaling is not required */
@@ -1481,7 +1481,7 @@ static VAStatus psb__DelinkSurfaceFromSubpict(
 
 
 VAStatus psb_QuerySubpictureFormats(
-    VADriverContextP ctx,
+    VADriverContextP __maybe_unused ctx,
     VAImageFormat *format_list,        /* out */
     unsigned int *flags,       /* out */
     unsigned int *num_formats  /* out */
@@ -1963,7 +1963,7 @@ static  VADisplayAttribute psb__DisplayAttribute[] = {
  * returned in "attr_list" is returned in "num_attributes".
  */
 VAStatus psb_QueryDisplayAttributes(
-    VADriverContextP ctx,
+    VADriverContextP __maybe_unused ctx,
     VADisplayAttribute *attr_list,      /* out */
     int *num_attributes         /* out */
 )

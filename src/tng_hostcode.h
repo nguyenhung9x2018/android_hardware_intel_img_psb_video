@@ -473,7 +473,7 @@ struct context_ENC_s {
 
     /* qp/maxqp/minqp/bitrate/intra_period */
     uint32_t rc_update_flag;
-    IMG_INT16 max_qp;
+    IMG_UINT16 max_qp;
 };
 
 typedef struct context_ENC_s *context_ENC_p;

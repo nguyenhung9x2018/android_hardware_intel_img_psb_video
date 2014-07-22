@@ -106,7 +106,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     int format,
     int num_surfaces,
     VASurfaceID *surface_list,        /* out */
-    VASurfaceAttributeTPI *attribute_tpi
+    PsbSurfaceAttributeTPI *attribute_tpi
 );
 
 #else
@@ -123,7 +123,7 @@ static VAStatus psb_CreateSurfacesFromGralloc(
     int format,
     int num_surfaces,
     VASurfaceID *surface_list,        /* out */
-    VASurfaceAttributeTPI *attribute_tpi
+    PsbSurfaceAttributeTPI *attribute_tpi
 )
 {
     return VA_STATUS_ERROR_INVALID_PARAMETER;

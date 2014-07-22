@@ -549,11 +549,11 @@ VAStatus psb_CreateScalingSurface(
 }
 #else
 VAStatus psb_CreateScalingSurface(
-        object_context_p obj_context,
-        object_surface_p obj_surface
+        object_context_p __maybe_unused obj_context,
+        object_surface_p __maybe_unused obj_surface
 )
 {
-        return VA_STATUS_ERROR_OPERATION_FAILED;
+    return VA_STATUS_ERROR_OPERATION_FAILED;
 }
 #endif
 
@@ -731,24 +731,24 @@ VAStatus psb_DestroyRotateBuffer(
     object_context_p obj_context,
     object_surface_p obj_surface)
 {
-	VAStatus vaStatus = VA_STATUS_SUCCESS;
-	psb_surface_share_info_p share_info = obj_surface->share_info;
-        psb_driver_data_p driver_data = obj_context->driver_data;
-	psb_surface_p rotate_surface = obj_surface->out_loop_surface;
-	struct psb_buffer_s psb_buf;
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    psb_surface_share_info_p share_info = obj_surface->share_info;
+    psb_driver_data_p driver_data = obj_context->driver_data;
+    psb_surface_p rotate_surface = obj_surface->out_loop_surface;
+    struct psb_buffer_s psb_buf;
 
-	if (share_info && share_info->out_loop_khandle) {
-		drv_debug_msg(VIDEO_DEBUG_GENERAL,"psb_DestroyRotateBuffer out_loop_khandle=%x\n", share_info->out_loop_khandle);
-		vaStatus = psb_kbuffer_reference(driver_data, &psb_buf, share_info->out_loop_khandle);
-		if (vaStatus != VA_STATUS_SUCCESS)
-			return vaStatus;
-		psb_buffer_destroy(&psb_buf);
-		share_info->out_loop_khandle = NULL;
-	}
+    if (share_info && share_info->out_loop_khandle) {
+        drv_debug_msg(VIDEO_DEBUG_GENERAL,"psb_DestroyRotateBuffer out_loop_khandle=%x\n", share_info->out_loop_khandle);
+        vaStatus = psb_kbuffer_reference(driver_data, &psb_buf, share_info->out_loop_khandle);
+        if (vaStatus != VA_STATUS_SUCCESS)
+            return vaStatus;
+        psb_buffer_destroy(&psb_buf);
+        share_info->out_loop_khandle = 0;
+    }
 
-	if (rotate_surface)
-		free(rotate_surface);
+    if (rotate_surface)
+        free(rotate_surface);
 
-	return vaStatus;
+    return vaStatus;
 }
 

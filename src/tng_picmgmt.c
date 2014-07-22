@@ -75,7 +75,7 @@ VAStatus tng_picmgmt_update(context_ENC_p ctx, IMG_PICMGMT_TYPE eType, unsigned 
 * Picture management functions
 *
 ******************************************************************************/
-void tng__picmgmt_long_term_refs(context_ENC_p ctx, IMG_UINT32 ui32FrameNum)
+void tng__picmgmt_long_term_refs(context_ENC_p __maybe_unused ctx, IMG_UINT32 __maybe_unused ui32FrameNum)
 {
 #ifdef _TNG_ENABLE_PITMGMT_
     IMG_BOOL                bIsLongTermRef;
@@ -724,7 +724,7 @@ IMG_UINT32 tng_send_rec_frames(
 IMG_UINT32 tng_send_ref_frames(
     context_ENC_p ctx,
     IMG_UINT32    ui32refindex,
-    IMG_BOOL      bLongTerm)
+    IMG_BOOL      __maybe_unused bLongTerm)
 {
     //VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int srf_buf_offset;

@@ -1620,11 +1620,9 @@ static void psb__H264_choose_ec_frames(context_H264_p ctx)
     if (ctx->slice_param == NULL)
         return;
     /* If reference picture list has a valid entry, this is a P or B frame and we conceal from the frame that is at the top of the list*/
-    if (ctx->slice_param->num_ref_idx_l0_active_minus1 >= 0)
-    {
-        object_surface_p ref_surface = SURFACE(ctx->slice_param->RefPicList0[0].picture_id);
-        ctx->obj_context->ec_target = ref_surface;
-    }
+    object_surface_p ref_surface = SURFACE(ctx->slice_param->RefPicList0[0].picture_id);
+    ctx->obj_context->ec_target = ref_surface;
+
     /* Otherwise we conceal from the previous I or P frame*/
     if (!ctx->obj_context->ec_target)
     {

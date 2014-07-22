@@ -69,6 +69,12 @@
 #include "hwdefs/dxva_fw_flags.h"
 #include <wsbm/wsbm_pool.h>
 
+#ifdef __GNUC__
+# define __maybe_unused __attribute__((__unused__))
+#else
+# define __maybe_unused
+#endif
+
 #ifndef min
 #define min(a, b) ((a) < (b)) ? (a) : (b)
 #endif
@@ -750,9 +756,12 @@ inline static int Rotation2Angle(int rotation)
 int psb_parse_config(char *env, char *env_value);
 void psb__destroy_surface(psb_driver_data_p driver_data, object_surface_p obj_surface);
 unsigned long psb_tile_stride_mode(int w);
+VAStatus psb__checkSurfaceDimensions(psb_driver_data_p driver_data, int width, int height);
 
 int LOCK_HARDWARE(psb_driver_data_p driver_data);
 int UNLOCK_HARDWARE(psb_driver_data_p driver_data);
+unsigned long psb__tile_stride_log2_256(int w);
+int psb_update_context(psb_driver_data_p driver_data, unsigned long ctx_type);
 
 #define CHECK_SURFACE(obj_surface) \
     do { \

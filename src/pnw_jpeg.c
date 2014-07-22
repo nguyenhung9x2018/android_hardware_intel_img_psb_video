@@ -58,8 +58,8 @@
 static const uint32_t aui32_jpg_mtx_num[PNW_JPEG_MAX_SCAN_NUM] = {0x0, 0x1, 0x1, 0x5, 0x5, 0x15, 0x15};
 
 static void pnw_jpeg_QueryConfigAttributes(
-    VAProfile profile,
-    VAEntrypoint entrypoint,
+    VAProfile __maybe_unused profile,
+    VAEntrypoint __maybe_unused entrypoint,
     VAConfigAttrib *attrib_list,
     int num_attribs)
 {

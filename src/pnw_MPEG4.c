@@ -108,7 +108,7 @@ typedef enum {
 
 /* Format is: opcode, width, symbol. All VLC tables are concatenated.                 */
 #define VLC_PACK(a,b,c)         ( ( (a) << 12 ) | ( (b) << 9  ) | (c) )
-const static IMG_UINT16 gaui16mpeg4VlcTableDataPacked[] =
+static const IMG_UINT16 gaui16mpeg4VlcTableDataPacked[] =
 {
 /* B6_mcbpc_i_s_vops_piece.out */
 	VLC_PACK( 4 , 0 , 12 ) ,
@@ -1729,7 +1729,7 @@ static void psb__MPEG4_write_VLC_tables(context_MPEG4_p ctx)
     psb_cmdbuf_skip_end_block(cmdbuf);
 }
 
-static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterBufferMPEG4 *slice_param)
+static void psb__MPEG4_set_picture_params(context_MPEG4_p ctx, VASliceParameterBufferMPEG4 __maybe_unused * slice_param)
 {
     uint32_t cmd;
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;

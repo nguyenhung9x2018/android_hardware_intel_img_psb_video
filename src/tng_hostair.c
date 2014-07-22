@@ -253,7 +253,7 @@ static VAStatus tng__map_inp_ctrl_buf(
 
 static VAStatus tng__unmap_inp_ctrl_buf( 
     context_ENC_p ctx,
-    IMG_UINT8   ui8SlotNumber,
+    IMG_UINT8   __maybe_unused ui8SlotNumber,
     IMG_UINT8 **ppsInpCtrlBuf)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS; 
@@ -278,7 +278,7 @@ static void tng__fill_inp_ctrl_buf(
     IMG_UINT8 *pInpCtrlBuf,
     IMG_INT16 i16IntraRefresh,
     IMG_INT8* pi8QP,
-    IMG_UINT32 ui32HalfWayBU)
+    IMG_UINT32 __maybe_unused ui32HalfWayBU)
 {
     IMG_PVOID   pvBuffer;
     IMG_UINT32  ui32MBFrameWidth;
@@ -293,6 +293,7 @@ static void tng__fill_inp_ctrl_buf(
     IMG_INT8	i8QPInit;
     IMG_INT8	i8QP;
     IMG_INT8	iMaxQP;
+
 #ifdef BRN_30324
     IMG_UINT32 ui32HalfWayMB=ui32HalfWayBU * ctx->sRCParams.ui32BUSize;
 #endif
@@ -384,7 +385,7 @@ static void tng__fill_inp_ctrl_buf(
 static void tng__fill_input_control(
     context_ENC_p ctx,
     IMG_UINT8 ui8SlotNum,
-    IMG_UINT32 ui32HalfWayBU)
+    IMG_UINT32 __maybe_unused ui32HalfWayBU)
 {
     IMG_UINT8 * pInpCtrlBuf = NULL;
     IMG_INT8 i8InitialQp = ctx->sRCParams.ui32InitialQp;
@@ -548,7 +549,7 @@ static void tng__update_air_send(context_ENC_p ctx, IMG_UINT8 ui8SlotNum)
 //IMG_V_GetFirstPassOutBuf
 VAStatus tng__map_first_pass_out_buf( 
     context_ENC_p ctx,
-    IMG_UINT8   ui8SlotNumber,
+    IMG_UINT8   __maybe_unused ui8SlotNumber,
     IMG_UINT8 **ppsFirstPassOutBuf)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS; 
@@ -573,7 +574,7 @@ VAStatus tng__map_first_pass_out_buf(
 
 VAStatus tng__unmap_first_pass_out_buf( 
     context_ENC_p ctx,
-    IMG_UINT8   ui8SlotNumber,
+    IMG_UINT8 __maybe_unused ui8SlotNumber,
     IMG_UINT8 **ppsFirstPassOutBuf)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS; 
@@ -591,7 +592,7 @@ VAStatus tng__unmap_first_pass_out_buf(
 //IMG_V_GetBestMBDecisionOutBuf
 VAStatus tng__map_best_mb_decision_out_buf( 
     context_ENC_p ctx,
-    IMG_UINT8   ui8SlotNumber,
+    IMG_UINT8   __maybe_unused ui8SlotNumber,
     IMG_UINT8  **ppsBestMBDecisionOutBuf)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS; 
@@ -608,7 +609,7 @@ VAStatus tng__map_best_mb_decision_out_buf(
 
 VAStatus tng__unmap_best_mb_decision_out_buf( 
     context_ENC_p ctx,
-    IMG_UINT8   ui8SlotNumber,
+    IMG_UINT8   __maybe_unused ui8SlotNumber,
     IMG_UINT8  **ppsBestMBDecisionOutBuf)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS; 
@@ -846,7 +847,7 @@ static void tng_update_air_calc(context_ENC_p ctx, IMG_UINT8 ui8SlotNum)
  * Inputs                   : 
  * Description           : 
  ************************************************************************************/
-void tng_air_set_input_control(context_ENC_p ctx, IMG_UINT8 ui8StreamID)
+void tng_air_set_input_control(context_ENC_p ctx, IMG_UINT8 __maybe_unused ui8StreamID)
 {
     IMG_UINT8 ui8SlotIndex = ctx->ui8SlotsCoded;
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: slot index = %d\n", __FUNCTION__, ctx->ui8SlotsCoded);
@@ -868,7 +869,7 @@ void tng_air_set_input_control(context_ENC_p ctx, IMG_UINT8 ui8StreamID)
  * Inputs                   : 
  * Description           : 
  ************************************************************************************/
-void tng_air_set_output_control(context_ENC_p ctx, IMG_UINT8 ui8StreamID)
+void tng_air_set_output_control(context_ENC_p ctx, IMG_UINT8 __maybe_unused ui8StreamID)
 {
     IMG_UINT8 ui8SlotIndex = ctx->ui8SlotsCoded;
 

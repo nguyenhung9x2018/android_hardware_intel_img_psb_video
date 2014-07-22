@@ -38,6 +38,7 @@
 #endif
 #include <va/va_drmcommon.h>
 #include <va/va_android.h>
+#include <va/va_tpi.h>
 
 #include "psb_drv_video.h"
 #include "psb_texture.h"
@@ -95,6 +96,7 @@
 #endif
 #include "pnw_rotate.h"
 #include "psb_surface_attrib.h"
+#include "android/psb_gralloc.h"
 
 #ifndef PSB_PACKAGE_VERSION
 #define PSB_PACKAGE_VERSION "Undefined"
@@ -240,7 +242,7 @@ VAStatus psb_QueryConfigEntrypoints(
  * Figure out if we should return VA_STATUS_ERROR_UNSUPPORTED_PROFILE
  * or VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT
  */
-static VAStatus psb__error_unsupported_profile_entrypoint(psb_driver_data_p driver_data, VAProfile profile, VAEntrypoint entrypoint)
+static VAStatus psb__error_unsupported_profile_entrypoint(psb_driver_data_p driver_data, VAProfile profile, VAEntrypoint __maybe_unused entrypoint)
 {
     /* Does the driver support _any_ entrypoint for this profile? */
     if (profile < PSB_MAX_PROFILES) {
@@ -623,15 +625,15 @@ VAStatus psb__checkSurfaceDimensions(psb_driver_data_p driver_data, int width, i
 }
 
 VAStatus psb_GetSurfaceAttributes(
-        VADisplay dpy,
-        VAConfigID config,
+        VADriverContextP    __maybe_unused ctx,
+        VAConfigID __maybe_unused config,
         VASurfaceAttrib *attrib_list,
         unsigned int num_attribs
         )
 {
     DEBUG_FUNC_ENTER
 
-    int i;
+    uint32_t i;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
     CHECK_INVALID_PARAM(attrib_list == NULL);
@@ -668,12 +670,12 @@ VAStatus psb_GetSurfaceAttributes(
 }
 
 VAStatus psb_CreateSurfaces(
-        VADriverContextP ctx,
-        int width,
-        int height,
-        int format,
-        int num_surfaces,
-        VASurfaceID *surface_list        /* out */
+        VADriverContextP __maybe_unused ctx,
+        int __maybe_unused width,
+        int __maybe_unused height,
+        int __maybe_unused format,
+        int __maybe_unused num_surfaces,
+        VASurfaceID __maybe_unused * surface_list        /* out */
 )
 {
     return VA_STATUS_ERROR_UNIMPLEMENTED;
@@ -681,19 +683,20 @@ VAStatus psb_CreateSurfaces(
 
 VAStatus psb_CreateSurfaces2(
     VADriverContextP ctx,
-    int format,
-    int width,
-    int height,
+    unsigned int format,
+    unsigned int width,
+    unsigned int height,
     VASurfaceID *surface_list,        /* out */
-    int num_surfaces,
+    unsigned int num_surfaces,
     VASurfaceAttrib *attrib_list,
-    int num_attribs
+    unsigned int num_attribs
 )
 {
     DEBUG_FUNC_ENTER
     INIT_DRIVER_DATA
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    int i, height_origin, buffer_stride = 0;
+    unsigned int i;
+    int height_origin, buffer_stride = 0;
     driver_data->protected = (VA_RT_FORMAT_PROTECTED & format);
     unsigned long fourcc;
     unsigned int flags = 0;
@@ -777,7 +780,7 @@ VAStatus psb_CreateSurfaces2(
     }
     else if(memory_type !=-1 && pExternalBufDesc != NULL) {
         attribute_tpi.type = memory_type;
-        vaStatus = psb_CreateSurfacesWithAttribute(ctx, width, height, format, num_surfaces, surface_list, &attribute_tpi);
+        vaStatus = psb_CreateSurfacesWithAttribute(ctx, width, height, format, num_surfaces, surface_list, (VASurfaceAttributeTPI *)&attribute_tpi);
         pExternalBufDesc->private_data = (void *)(attribute_tpi.reserved[1]);
         if (attribute_tpi.buffers) free(attribute_tpi.buffers);
         return vaStatus;
@@ -1158,6 +1161,9 @@ VAStatus psb_CreateContext(
             else
                 obj_context->msvdx_tile = psb__tile_stride_log2_256(obj_surface->width);
 #endif
+        else {
+            ;
+        }
 #endif
 #if 0
         /* for decode, move the surface into |TT */
@@ -1408,7 +1414,7 @@ static VAStatus psb__allocate_malloc_buffer(object_buffer_p obj_buffer, int size
 
 static VAStatus psb__unmap_buffer(object_buffer_p obj_buffer);
 
-static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_context_p obj_context, object_buffer_p obj_buffer, int size, unsigned char *data, VABufferType type)
+static VAStatus psb__allocate_BO_buffer(psb_driver_data_p driver_data, object_context_p __maybe_unused obj_context, object_buffer_p obj_buffer, int size, unsigned char *data, VABufferType type)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
 
@@ -2762,19 +2768,19 @@ VAStatus psb_GetEGLClientBufferFromSurface(
 VAStatus psb_PutSurfaceBuf(
     VADriverContextP ctx,
     VASurfaceID surface,
-    unsigned char* data,
-    int* data_len,
-    short srcx,
-    short srcy,
-    unsigned short srcw,
-    unsigned short srch,
-    short destx,
-    short desty,
-    unsigned short destw,
-    unsigned short desth,
-    VARectangle *cliprects, /* client supplied clip list */
-    unsigned int number_cliprects, /* number of clip rects in the clip list */
-    unsigned int flags /* de-interlacing flags */
+    unsigned char __maybe_unused * data,
+    int __maybe_unused * data_len,
+    short __maybe_unused srcx,
+    short __maybe_unused srcy,
+    unsigned short __maybe_unused srcw,
+    unsigned short __maybe_unused srch,
+    short __maybe_unused destx,
+    short __maybe_unused desty,
+    unsigned short __maybe_unused destw,
+    unsigned short __maybe_unused desth,
+    VARectangle __maybe_unused * cliprects, /* client supplied clip list */
+    unsigned int __maybe_unused number_cliprects, /* number of clip rects in the clip list */
+    unsigned int __maybe_unused flags /* de-interlacing flags */
 )
 {
     DEBUG_FUNC_ENTER

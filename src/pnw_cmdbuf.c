@@ -398,7 +398,7 @@ static int
 pnwDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_count, unsigned cmdBufHandle,
              unsigned cmdBufOffset, unsigned cmdBufSize,
              unsigned relocBufHandle, unsigned relocBufOffset,
-             unsigned numRelocs, int damage,
+             unsigned numRelocs, int __maybe_unused damage,
              unsigned engine, unsigned fence_flags, struct psb_ttm_fence_rep *fence_rep)
 {
     drm_psb_cmdbuf_arg_t ca;
@@ -524,9 +524,8 @@ lnc_fence_wait(psb_driver_data_p driver_data,
  *
  * Returns 0 on success
  */
-int pnw_context_submit_cmdbuf(object_context_p obj_context)
+int pnw_context_submit_cmdbuf(object_context_p __maybe_unused obj_context)
 {
-
     return 0;
 }
 
@@ -540,7 +539,7 @@ int pnw_context_submit_cmdbuf(object_context_p obj_context)
  * vaQuerySurfaceStatus is supposed only to be called after vaEndPicture/vaSyncSurface,
  * The caller should ensure the surface pertains to an encode context
  */
-int pnw_surface_get_frameskip(psb_driver_data_p driver_data,
+int pnw_surface_get_frameskip(psb_driver_data_p __maybe_unused driver_data,
                               psb_surface_p surface,
                               int *frame_skip)
 {

@@ -594,7 +594,7 @@ void SetupMCUDetails(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext,
 /*                      with the source image data                                                                               */
 /*****************************************************************************/
 
-IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, object_surface_p pTFrame)
+IMG_ERRORCODE InitializeJpegEncode(TOPAZSC_JPEG_ENCODER_CONTEXT * pContext, object_surface_p __maybe_unused pTFrame)
 {
     IMG_ERRORCODE rc = IMG_ERR_OK;
     IMG_UINT8  uc_i = 0;
@@ -1211,7 +1211,7 @@ IMG_UINT32 JPGEncodeHeader(/*in */              TOPAZSC_JPEG_ENCODER_CONTEXT *pC
  * Description        : Issues the Setup structure to MTX
  ************************************************************************************/
 
-IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UINT32 ui32ComponentsInScan, IMG_UINT8* aui8Planes,  object_surface_p pTFrame, const IMG_UINT32 ui32TableA , const IMG_UINT32 ui32TableB)
+IMG_UINT32 SetupIssueSetup(TOPAZSC_JPEG_ENCODER_CONTEXT *pContext, const IMG_UINT32 ui32ComponentsInScan, IMG_UINT8 __maybe_unused * aui8Planes,  object_surface_p pTFrame, const IMG_UINT32 ui32TableA , const IMG_UINT32 __maybe_unused ui32TableB)
 {
     IMG_UINT32 ReturnCode = 0;
     IMG_INT32 i32Lp;

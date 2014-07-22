@@ -60,7 +60,7 @@ struct psb_surface_s {
     struct psb_buffer_s *in_loop_buf;
     struct psb_buffer_s *ref_buf;
     psb_surface_stride_t stride_mode;
-    int stride;
+    unsigned int stride;
     unsigned int luma_offset;
     unsigned int chroma_offset;
     /* Used to store driver private data, e.g. decoder specific intermediate status data

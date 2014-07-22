@@ -160,13 +160,13 @@ VAStatus psb_surface_create_for_userptr(
     psb_driver_data_p driver_data,
     int width, int height,
     unsigned size, /* total buffer size need to be allocated */
-    unsigned int fourcc, /* expected fourcc */
+    unsigned int __maybe_unused fourcc, /* expected fourcc */
     unsigned int luma_stride, /* luma stride, could be width aligned with a special value */
-    unsigned int chroma_u_stride, /* chroma stride */
-    unsigned int chroma_v_stride,
+    unsigned int __maybe_unused chroma_u_stride, /* chroma stride */
+    unsigned int __maybe_unused chroma_v_stride,
     unsigned int luma_offset, /* could be 0 */
     unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
-    unsigned int chroma_v_offset,
+    unsigned int __maybe_unused chroma_v_offset,
     psb_surface_p psb_surface /* out */
 )
 {
@@ -193,14 +193,14 @@ VAStatus psb_surface_create_from_kbuf(
     psb_driver_data_p driver_data,
     int width, int height,
     unsigned size, /* total buffer size need to be allocated */
-    unsigned int fourcc, /* expected fourcc */
-    int kbuf_handle,
+    unsigned int __maybe_unused fourcc, /* expected fourcc */
+    int __maybe_unused kbuf_handle,
     unsigned int luma_stride, /* luma stride, could be width aligned with a special value */
-    unsigned int chroma_u_stride, /* chroma stride */
-    unsigned int chroma_v_stride,
-    unsigned int luma_offset, /* could be 0 */
+    unsigned int __maybe_unused chroma_u_stride, /* chroma stride */
+    unsigned int __maybe_unused chroma_v_stride,
+    unsigned int __maybe_unused luma_offset, /* could be 0 */
     unsigned int chroma_u_offset, /* UV offset from the beginning of the memory */
-    unsigned int chroma_v_offset,
+    unsigned int __maybe_unused chroma_v_offset,
     psb_surface_p psb_surface /* out */
 )
 {

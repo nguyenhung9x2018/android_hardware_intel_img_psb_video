@@ -640,10 +640,10 @@ static void psb__VC1_trace_pic_params(VAPictureParameterBufferVC1 *p)
     P2(is_first_field);
     P2(intensity_compensation);
 
-#define P4(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->entrypoint_fields.bits.x)
-    P4(closed_entry);
-    P4(broken_link);
-    P4(loopfilter);
+#define P1(x)   psb__trace_message("PARAMS: " #x "\t= %d\n", p->entrypoint_fields.bits.x)
+    P1(closed_entry);
+    P1(broken_link);
+    P1(loopfilter);
 
     P(conditional_overlap_flag);
     P(fast_uvmc_flag);

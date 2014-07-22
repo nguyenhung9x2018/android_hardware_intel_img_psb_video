@@ -31,7 +31,7 @@
 
 // This file was automatically generated from ../release/H264FirmwareVCM.dnl using dnl2c.
 
-unsigned char *szH264VCM_MTXTOPAZFW_buildtag = "TOPAZ_DDKBUILD_00-00-00-0146";
+char *szH264VCM_MTXTOPAZFW_buildtag = "TOPAZ_DDKBUILD_00-00-00-0146";
 
 unsigned int ui32H264VCM_MTXTOPAZFWTextSize = 4834;
 unsigned int ui32H264VCM_MTXTOPAZFWDataSize = 3344;

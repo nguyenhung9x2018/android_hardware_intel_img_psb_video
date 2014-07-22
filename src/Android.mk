@@ -147,7 +147,7 @@ LOCAL_SRC_FILES += android/psb_mds.cpp
 LOCAL_CFLAGS += -DTARGET_HAS_MULTIPLE_DISPLAY
 LOCAL_SHARED_LIBRARIES += libmultidisplay
 endif
-
+LOCAL_CFLAGS += -Werror
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := pvr_drv_video
 

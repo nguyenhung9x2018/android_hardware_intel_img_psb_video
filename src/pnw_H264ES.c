@@ -49,8 +49,8 @@
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 static void pnw_H264ES_QueryConfigAttributes(
-        VAProfile profile,
-        VAEntrypoint entrypoint,
+        VAProfile __maybe_unused profile,
+        VAEntrypoint __maybe_unused entrypoint,
         VAConfigAttrib *attrib_list,
         int num_attribs)
 {

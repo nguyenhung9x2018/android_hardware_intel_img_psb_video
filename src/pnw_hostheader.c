@@ -928,7 +928,7 @@ static void pnw__H264_writebits_slice_header(
     MTX_HEADER_PARAMS *mtx_hdr,
     MTX_HEADER_ELEMENT **elt_p,
     H264_SLICE_HEADER_PARAMS *pSlHParams,
-    IMG_BOOL bCabacEnabled,
+    IMG_BOOL __maybe_unused bCabacEnabled,
     IMG_UINT16 uiIdrPicId)
 {
 #ifdef USESTATICWHEREPOSSIBLE
@@ -1061,13 +1061,14 @@ static IMG_UINT8 Bits2Code(IMG_UINT32 CodeVal)
 static void pnw__MPEG4_writebits_sequence_header(
     MTX_HEADER_PARAMS *mtx_hdr,
     MTX_HEADER_ELEMENT **elt_p,
-    IMG_BOOL bBFrame,
+    IMG_BOOL __maybe_unused bBFrame,
     MPEG4_PROFILE_TYPE bProfile,
     IMG_UINT8 Profile_and_level_indication,
-    FIXED_VOP_TIME_TYPE sFixed_vop_time_increment,
+    FIXED_VOP_TIME_TYPE __maybe_unused sFixed_vop_time_increment,
     IMG_UINT32 Picture_Width_Pixels,
     IMG_UINT32 Picture_Height_Pixels,
-    VBVPARAMS *sVBVParams, IMG_UINT32 VopTimeResolution) /* Send NULL pointer if there are no VBVParams */
+    VBVPARAMS __maybe_unused * sVBVParams,
+    IMG_UINT32 VopTimeResolution) /* Send NULL pointer if there are no VBVParams */
 {
     /* Essential we insert the element before we try to fill it! */
     pnw__insert_element_token(mtx_hdr, elt_p, ELEMENT_STARTCODE_RAWDATA);
@@ -1826,24 +1827,24 @@ static void pnw__H264_writebits_SEI_picture_timing_header(
     IMG_UINT32 ui32cpb_removal_delay,
     IMG_UINT32 ui32dpb_output_delay,
     IMG_UINT8 ui8pic_struct_present_flag,
-    IMG_UINT8 ui8pic_struct,
-    IMG_UINT8 ui8NumClockTS,
-    IMG_UINT8 *aui8clock_timestamp_flag,
-    IMG_UINT8 ui8full_timestamp_flag,
-    IMG_UINT8 ui8seconds_flag,
-    IMG_UINT8 ui8minutes_flag,
-    IMG_UINT8 ui8hours_flag,
-    IMG_UINT8 ui8seconds_value,
-    IMG_UINT8 ui8minutes_value,
-    IMG_UINT8 ui8hours_value,
-    IMG_UINT8 ui8ct_type,
-    IMG_UINT8 ui8nuit_field_based_flag,
-    IMG_UINT8 ui8counting_type,
-    IMG_UINT8 ui8discontinuity_flag,
-    IMG_UINT8 ui8cnt_dropped_flag,
-    IMG_UINT8 ui8n_frames,
-    IMG_UINT8 ui8time_offset_length,
-    IMG_UINT32 i32time_offset)
+    IMG_UINT8 __maybe_unused ui8pic_struct,
+    IMG_UINT8 __maybe_unused ui8NumClockTS,
+    IMG_UINT8 __maybe_unused * aui8clock_timestamp_flag,
+    IMG_UINT8 __maybe_unused ui8full_timestamp_flag,
+    IMG_UINT8 __maybe_unused ui8seconds_flag,
+    IMG_UINT8 __maybe_unused ui8minutes_flag,
+    IMG_UINT8 __maybe_unused ui8hours_flag,
+    IMG_UINT8 __maybe_unused ui8seconds_value,
+    IMG_UINT8 __maybe_unused ui8minutes_value,
+    IMG_UINT8 __maybe_unused ui8hours_value,
+    IMG_UINT8 __maybe_unused ui8ct_type,
+    IMG_UINT8 __maybe_unused ui8nuit_field_based_flag,
+    IMG_UINT8 __maybe_unused ui8counting_type,
+    IMG_UINT8 __maybe_unused ui8discontinuity_flag,
+    IMG_UINT8 __maybe_unused ui8cnt_dropped_flag,
+    IMG_UINT8 __maybe_unused ui8n_frames,
+    IMG_UINT8 __maybe_unused ui8time_offset_length,
+    IMG_UINT32 __maybe_unused i32time_offset)
 {
     IMG_UINT8 ui8PayloadSizeBits, ui8Tmp;
 #ifdef SEI_NOT_USE_TOKEN_ALIGN

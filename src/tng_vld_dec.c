@@ -225,7 +225,7 @@ VAStatus vld_dec_process_slice_data(context_DEC_p ctx, object_buffer_p obj_buffe
         }
 
         slice_param = slice_buf->buffer_data;
-        slice_param += element_idx * element_size;
+        slice_param = (void *)((unsigned long)slice_param + element_idx * element_size);
         element_idx++;
         vaStatus = vld_dec_process_slice(ctx, slice_param, obj_buffer);
         if (vaStatus != VA_STATUS_SUCCESS) {
@@ -497,7 +497,7 @@ void vld_dec_yuv_rotate(object_context_p obj_context)
     buffer.num_elements = 1;
     buffer.type = YUVProcessorSurfaceType;
     buffer.size = sizeof(struct surface_param_s);
-    buffer.buffer_data = &surface_param;
+    buffer.buffer_data = (unsigned char *)&surface_param;
 
     vtable->createContext(obj_context, NULL);
     vtable->beginPicture(obj_context);

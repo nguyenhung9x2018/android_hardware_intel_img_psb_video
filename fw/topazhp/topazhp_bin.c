@@ -156,7 +156,7 @@ static void create_firmware_A0(fw_table_t *tng_fw_table, FILE *fp)
 {
     struct fw_table_A0 sec_t[FW_NUM];
     const unsigned int ui_secure_align = SECURE_ALIGN - 1;
-    int i = 0;
+    unsigned int i = 0;
     int iter = 0;
     int size = 0;
 

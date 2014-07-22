@@ -581,7 +581,7 @@ int psb_codedbuf_map_mangle(
     unsigned char *raw_codedbuf;
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     unsigned int next_buf_off;
-    int i;
+    uint32_t i;
 
     CHECK_INVALID_PARAM(pbuf == NULL);
 

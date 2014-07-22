@@ -28,6 +28,7 @@
 #include "psb_drv_video.h"
 #include "psb_drv_debug.h"
 #include "psb_surface.h"
+#include "psb_surface_attrib.h"
 
 #include <gralloc.h>
 #include "android/psb_gralloc.h"
@@ -35,6 +36,7 @@
 #ifndef BAYTRAIL
 #include <hal/hal_public.h>
 #endif
+#include <wsbm/wsbm_manager.h>
 
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define CONFIG(id)  ((object_config_p) object_heap_lookup( &driver_data->config_heap, id ))
@@ -89,7 +91,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     int format,
     int num_surfaces,
     VASurfaceID *surface_list,        /* out */
-    VASurfaceAttributeTPI *attribute_tpi
+    PsbSurfaceAttributeTPI *attribute_tpi
 )
 {
     INIT_DRIVER_DATA
@@ -354,7 +356,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
         }
 
         handle = (unsigned long)external_buffers->buffers[i];
-        if (gralloc_lock(handle, usage, 0, 0, width, height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])) {
+        if (gralloc_lock((buffer_handle_t)handle, usage, 0, 0, width, height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         } else {
             int cache_flag = PSB_USER_BUFFER_UNCACHED;
@@ -362,9 +364,9 @@ VAStatus psb_CreateSurfacesFromGralloc(
             cache_flag = 0;
 #endif
             vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
-                    external_buffers, psb_surface, vaddr[GRALLOC_SUB_BUFFER0],
-                    cache_flag);
-            psb_surface->buf.handle = handle;
+                    (VASurfaceAttributeTPI *)external_buffers, psb_surface,
+                    vaddr[GRALLOC_SUB_BUFFER0], cache_flag);
+            psb_surface->buf.handle = (void *)handle;
             obj_surface->share_info = NULL;
 
             if ((gfx_colorformat != HAL_PIXEL_FORMAT_NV12) &&
@@ -412,7 +414,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
                                          "surface_id= 0x%x, vaddr[0] (0x%x), vaddr[1] (0x%x)\n",
                                          __FUNCTION__, surfaceID, vaddr[GRALLOC_SUB_BUFFER0], vaddr[GRALLOC_SUB_BUFFER1]);
             }
-            gralloc_unlock(handle);
+            gralloc_unlock((buffer_handle_t)handle);
             psb_surface->buf.user_ptr = NULL;
         }
                 

@@ -57,7 +57,7 @@ int gralloc_lock(buffer_handle_t handle,
     if (!mAllocMod) {
         ALOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
         if (gralloc_init()) {
-            ALOGE("%s: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
+            ALOGE("%s: can't find the %s module", __func__, GRALLOC_HARDWARE_MODULE_ID);
             return -1;
         }
     }
@@ -65,7 +65,7 @@ int gralloc_lock(buffer_handle_t handle,
     err = mAllocMod->lock(mAllocMod, handle, usage,
                           left, top, width, height,
                           vaddr);
-    ALOGV("gralloc_lock: handle is %lx, usage is %x, vaddr is %x.\n", handle, usage, *vaddr);
+    ALOGV("gralloc_lock: handle is %p, usage is %x, vaddr is %x.\n", handle, usage, *vaddr);
 
 //#ifdef BAYTRAIL
 #if 0
@@ -109,7 +109,7 @@ int gralloc_unlock(buffer_handle_t handle)
     if (!mAllocMod) {
         ALOGW("%s: gralloc module has not been initialized. Should initialize it first", __func__);
         if (gralloc_init()) {
-            ALOGE("%s: can't find the %s module", GRALLOC_HARDWARE_MODULE_ID);
+            ALOGE("%s: can't find the %s module", __func__, GRALLOC_HARDWARE_MODULE_ID);
             return -1;
         }
     }

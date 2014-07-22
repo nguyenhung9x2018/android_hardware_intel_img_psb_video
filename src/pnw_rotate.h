@@ -26,7 +26,7 @@
  *    Jason Hu <jason.hu@intel.com>
  *    Shengquan Yuan  <shengquan.yuan@intel.com>
  */
-
+#include "psb_surface.h"
 #ifdef ANDROID
 static uint32_t VAROTATION2HAL(int va_rotate) {
         switch (va_rotate) {
@@ -76,6 +76,22 @@ VAStatus psb_CreateOutLoopSurface(
     int msvdx_rotate
 );
 
+VAStatus psb_CreateScalingSurface(
+    object_context_p obj_context,
+    object_surface_p obj_surface
+);
 
+VAStatus psb_CreateRotateSurface(
+    object_context_p obj_context,
+    object_surface_p obj_surface,
+    int msvdx_rotate
+);
 
+int psb__dump_NV12_buffers(
+    psb_surface_p psb_surface,
+    short srcx,
+    short srcy,
+    unsigned short srcw,
+    unsigned short srch
+);
 

@@ -31,6 +31,7 @@
 #include <va/va_backend_tpi.h>
 #include <va/va_backend_egl.h>
 #include <va/va_drmcommon.h>
+#include <stdlib.h>
 
 #include "psb_drv_video.h"
 #include "psb_drv_debug.h"
@@ -330,25 +331,25 @@ void drv_debug_msg(DEBUG_LEVEL debug_level, const char *msg, ...)
     }
 }
 
-void psb__dump_I420_buffers(
+int psb__dump_I420_buffers(
     psb_surface_p psb_surface,
-    short srcx,
+    short __maybe_unused srcx,
     short srcy,
     unsigned short srcw,
     unsigned short srch)
 {
-    void *mapped_buffer;
-    void *mapped_buffer1, *mapped_buffer2;
+    unsigned char *mapped_buffer;
+    unsigned char *mapped_buffer1, *mapped_buffer2;
 
     if (psb_dump_yuvbuf_fp) {
-        psb_buffer_map(&psb_surface->buf, &mapped_buffer);
+        psb_buffer_map(&psb_surface->buf, (unsigned char**)&mapped_buffer);
         if(mapped_buffer == NULL)
             return VA_STATUS_ERROR_INVALID_BUFFER;
 
         int j,k;
         mapped_buffer1 = mapped_buffer + psb_surface->stride * srcy;
-        mapped_buffer2= mapped_buffer + psb_surface->stride * (srch + srcy / 2);
-        mapped_buffer=mapped_buffer2;
+        mapped_buffer2 = mapped_buffer + psb_surface->stride * (srch + srcy / 2);
+        mapped_buffer = mapped_buffer2;
 
         for(j = 0; j < srch; ++j)
         {
@@ -356,23 +357,22 @@ void psb__dump_I420_buffers(
             mapped_buffer1 += psb_surface->stride;
         }
 
-        for(j = 0 ; j < srch /2; ++j)
-        {
-            for(k = 0; k < srcw; ++k)
-            {
+         for(j = 0; j < srch /2; ++j) {
+            for(k = 0; k < srcw; ++k) {
                 if((k%2) == 0)fwrite(mapped_buffer2, 1, 1, psb_dump_yuvbuf_fp);
 
                 mapped_buffer2++;
             }
-            mapped_buffer2 += psb_surface->stride-srcw;
+            mapped_buffer2 += psb_surface->stride - srcw;
         }
 
-        mapped_buffer2=mapped_buffer;
-        for(j = 0 ; j < srch /2; ++j)
+        mapped_buffer2 = mapped_buffer;
+        for(j = 0; j < srch /2; ++j)
         {
             for(k = 0; k < srcw; ++k)
             {
-                if((k%2) == 1)fwrite(mapped_buffer2, 1, 1, psb_dump_yuvbuf_fp);
+                if((k % 2) == 1)
+                    fwrite(mapped_buffer2, 1, 1, psb_dump_yuvbuf_fp);
                 mapped_buffer2++;
             }
             mapped_buffer2 += psb_surface->stride-srcw;
@@ -380,27 +380,29 @@ void psb__dump_I420_buffers(
 
         psb_buffer_unmap(&psb_surface->buf);
     }
+
+    return 0;
 }
 
-void psb__dump_NV12_buffers(
+int psb__dump_NV12_buffers(
     psb_surface_p psb_surface,
-    short srcx,
-    short srcy,
+    short __maybe_unused srcx,
+    short __maybe_unused srcy,
     unsigned short srcw,
     unsigned short srch)
 {
-    void *mapped_buffer;
-    void *mapped_start;
+    unsigned char *mapped_buffer;
+    unsigned char *mapped_start;
 
     if (psb_dump_yuvbuf_fp) {
-        psb_buffer_map(&psb_surface->buf, &mapped_buffer);
+        psb_buffer_map(&psb_surface->buf, (unsigned char **)&mapped_buffer);
         if(mapped_buffer == NULL)
             return VA_STATUS_ERROR_INVALID_BUFFER;
 
         int i;
         int row = srch;
 
-	mapped_start = mapped_buffer;
+        mapped_start = mapped_buffer;
         for(i = 0; i < row; ++i)
         {
             fwrite(mapped_buffer,  srcw, 1, psb_dump_yuvbuf_fp);
@@ -415,6 +417,8 @@ void psb__dump_NV12_buffers(
         }
         psb_buffer_unmap(&psb_surface->buf);
     }
+
+    return 0;
 }
 
 int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
@@ -432,7 +436,7 @@ int psb_cmdbuf_dump(unsigned int *buffer, int byte_size)
     }
 
     int idx=0;
-    int x;
+    unsigned int x;
     while( idx <  byte_size / 4 )
     {
         unsigned int cmd = buffer[idx++];
@@ -596,7 +600,7 @@ void debug_dump_cmdbuf(uint32_t *cmd_idx, uint32_t cmd_size_in_bytes)
 {
     uint32_t cmd_size = cmd_size_in_bytes / sizeof(uint32_t);
     uint32_t *cmd_end = cmd_idx + cmd_size;
-    unsigned char *cmd_start = cmd_idx;
+    unsigned char *cmd_start = (unsigned char *)cmd_idx;
     struct {
         unsigned int start;
         unsigned int end;
@@ -832,10 +836,10 @@ void psb__hexdump(unsigned char *addr, int size)
 }
 /********************* dump buffer when flush cmdbuf - end*************************/
 
-void psb__dump_va_buffers(object_buffer_p obj_buffer)
+int  psb__dump_va_buffers(object_buffer_p obj_buffer)
 {
-    int j,k;
-    void *mapped_buffer;
+    unsigned int j,k;
+    unsigned char *mapped_buffer;
     int print_num;
 
     if(psb_dump_vabuf_fp) {
@@ -848,20 +852,20 @@ void psb__dump_va_buffers(object_buffer_p obj_buffer)
             case VASliceParameterBufferType:
                 j=0;
                 for(k=0;k < obj_buffer->size;++k)
-                    print_num = fprintf(psb_dump_vabuf_fp,"0x%02lx ,",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    print_num = fprintf(psb_dump_vabuf_fp,"0x%02x ,",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                     fprintf(psb_dump_vabuf_fp,"\n ");
                 break;
 
             case VASliceGroupMapBufferType:
             case VABitPlaneBufferType:
-                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                psb_buffer_map(obj_buffer->psb_buffer, (unsigned char **)&mapped_buffer);
                 if(mapped_buffer == NULL)
                     return VA_STATUS_ERROR_INVALID_BUFFER;
 
                 for(j=0; j<obj_buffer->size;++j) {
                     if(j%16 == 0) fprintf(psb_dump_vabuf_fp,"\n");
                     for(k=0;k < obj_buffer->num_elements;++k)
-                        fprintf(psb_dump_vabuf_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_fp,"0x%02x   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
                 }
 
                 psb_buffer_unmap(obj_buffer->psb_buffer);
@@ -870,13 +874,13 @@ void psb__dump_va_buffers(object_buffer_p obj_buffer)
             case VASliceDataBufferType:
             case VAProtectedSliceDataBufferType:
                 fprintf(psb_dump_vabuf_fp,"first 256 bytes:\n");
-                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                psb_buffer_map(obj_buffer->psb_buffer, (unsigned char **)&mapped_buffer);
                 if (!mapped_buffer)
                     break;
                 for(j=0; j<256;++j) {
                     if(j%16 == 0) fprintf(psb_dump_vabuf_fp,"\n");
                     for(k=0;k < obj_buffer->num_elements;++k)
-                        fprintf(psb_dump_vabuf_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_fp,"0x%02x   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
                 }
                 psb_buffer_unmap(obj_buffer->psb_buffer);
                 break;
@@ -890,12 +894,13 @@ void psb__dump_va_buffers(object_buffer_p obj_buffer)
         fsync(fileno(psb_dump_vabuf_fp));
     }
 
+    return 0;
 }
 
-void psb__dump_va_buffers_verbose(object_buffer_p obj_buffer)
+int  psb__dump_va_buffers_verbose(object_buffer_p obj_buffer)
 {
-    int j,k;
-    void *mapped_buffer;
+    unsigned int j,k;
+    unsigned char *mapped_buffer;
     if(psb_dump_vabuf_verbose_fp) {
         fprintf(psb_dump_vabuf_verbose_fp, "%s", buffer_type_to_string(obj_buffer->type));
         fprintf(psb_dump_vabuf_verbose_fp, "BUFF SIZE :%d	NUMELEMENTS:%d BUFF INFO:\n", obj_buffer->size, obj_buffer->num_elements);
@@ -906,71 +911,71 @@ void psb__dump_va_buffers_verbose(object_buffer_p obj_buffer)
                     else fprintf(psb_dump_vabuf_verbose_fp,"\nReferenceFrames%d\n", j / 20);
                     fprintf(psb_dump_vabuf_verbose_fp,"picture_id:");
                     for(k=0;k < 4;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"    frame_idx:");
                     for(k=4;k < 8;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"    flags:");
                     for(k=8;k < 12;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"    TopFieldOrderCnt:");
                     for(k=12;k < 16;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"    BottomFieldOrderCnt:");
                     for(k=16;k < 20;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 }
                 j=340;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\npicture_width_in_mbs_minus1:");
                 for(k=0;k < 2;++k)
-                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=342;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp, "\npicture_height_in_mbs_minus1:");
                 for(k=0;k < 2;++k)
-                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=344;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,  "\nbit_depth_luma_minus8:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=345;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp, "\nbit_depth_chroma_minus8:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=346;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp, "\nnum_ref_frames:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=348;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nseq_fields_value:");
                 for(k=0;k < 4;++k)
-                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=352;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nnum_slice_groups_minus1:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=353;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nslice_group_map_type:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=354;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp, "\nslice_group_change_rate_minus1:");
                 for(k=0;k < 2;++k)
-                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=356;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\npic_init_qp_minus26:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=357;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\npic_init_qs_minus26:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=358;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nchroma_qp_index_offset:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=359;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp, "\nsecond_chroma_qp_index_offset:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=360;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\npic_fields_value:");
                 for(k=0;k < 4;++k)
-                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=364;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nframe_num:");
                 for(k=0;k < 2;++k)
-                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 break;
 
             case VAIQMatrixBufferType:
@@ -978,14 +983,14 @@ void psb__dump_va_buffers_verbose(object_buffer_p obj_buffer)
                     fprintf(psb_dump_vabuf_verbose_fp,"\nScalingList4x4_%d:", j/16);
                     for(k=0; k<16;++k) {
                         if(k%4 == 0) fprintf(psb_dump_vabuf_verbose_fp, "\n");
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                     }
                 }
                 for(j=96;j<224;j=j+64) {
                     fprintf(psb_dump_vabuf_verbose_fp,"\nScalingList4x4_%d:",( j-96)/64);
                     for(k=0; k<64;++k) {
                         if(k%8 == 0) fprintf(psb_dump_vabuf_verbose_fp, "\n");
-                        fprintf(psb_dump_vabuf_verbose_fp, "0x%02lx   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp, "0x%02x   ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                     }
                 }
                 break;
@@ -994,123 +999,123 @@ void psb__dump_va_buffers_verbose(object_buffer_p obj_buffer)
                 j=0;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nslice_data_size:");
                 for(k=0;k < 4;++k)
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=4;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nslice_data_offset:");
                 for(k=0;k < 4;++k)
-                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=8;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nslice_data_flag:");
                 for(k=0;k < 4;++k)
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=12;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nslice_data_bit_offset:");
                 for(k=0;k < 2;++k)
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=14;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nfirst_mb_in_slice:");
                 for(k=0;k < 2;++k)
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=16;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nslice_type:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=17;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\ndirect_spatial_mv_pred_flag:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=18;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,  "\nnum_ref_idx_l0_active_minus1:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=19;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp, "\nnum_ref_idx_l1_active_minus1:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=20;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\ncabac_init_idc:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=21;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nslice_qp_delta:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=22;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp, "\ndisable_deblocking_filter_idc:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=23;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nslice_alpha_c0_offset_div2:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=24;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nslice_beta_offset_div2:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 for(j=28; j < 668; j = j+20) {
                     fprintf(psb_dump_vabuf_verbose_fp,"\nRefPicList0 ListIndex=%d\n", (j -28)/ 20);
                     fprintf(psb_dump_vabuf_verbose_fp,"picture_id:");
                     for(k=0;k < 4;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"   frame_idx:");
                     for(k=4;k < 8;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"   flags:");
                     for(k=8;k < 12;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"   TopFieldOrderCnt:");
                     for(k=12;k < 16;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"   BottomFieldOrderCnt:");
                     for(k=16;k < 20;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                     }
                 for(j=668; j < 1308; j = j+20) {
                     fprintf(psb_dump_vabuf_verbose_fp,"\nRefPicList1 ListIndex=%d\n", (j -668)/ 20);
                     fprintf(psb_dump_vabuf_verbose_fp,"picture_id:");
                     for(k=0;k < 4;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"   frame_idx:");
                     for(k=4;k < 8;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"   flags:");
                     for(k=8;k < 12;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"   TopFieldOrderCnt:");
                     for(k=12;k < 16;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp,"   BottomFieldOrderCnt:");
                     for(k=16;k < 20;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                     }
                 j=1308;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nluma_log2_weight_denom:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
 j=1309;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nchroma_log2_weight_denom:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=1310;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nluma_weight_l0_flag:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=1312;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nluma_weight_l0:");
                 for(j=1312;j<1376;j=j+2) {
                     if((j-1312)%16 == 0)fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     fprintf(psb_dump_vabuf_verbose_fp,"     :");
                     for(k=0;k < 2;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 }
                 fprintf(psb_dump_vabuf_verbose_fp,"\nluma_offset_l0:");
                 for(j=1376;j<1440;j=j+2) {
                     if((j-1376)%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     fprintf(psb_dump_vabuf_verbose_fp,"     ");
                     for(k=0;k < 2;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 }
                 j=1440;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nchroma_weight_l0_flag:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 j=1442;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nchroma_weight_l0:");
                 for(j=1442;j<1570;j=j+4) {
                     if((j-1442)%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     fprintf(psb_dump_vabuf_verbose_fp,"     ");
                     for(k=0;k < 2;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp," , ");
                     for(k=2;k < 4;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
 
                 }
 
@@ -1119,62 +1124,62 @@ j=1309;k=0;
                     if((j-1570)%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     fprintf(psb_dump_vabuf_verbose_fp,"     ");
                     for(k=0;k < 2;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp," , ");
                     for(k=2;k < 4;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 }
                 j=1698;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nluma_weight_l1_flag:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 fprintf(psb_dump_vabuf_verbose_fp,"\nluma_weight_l1:");
                 for(j=1700;j<1764;j=j+2) {
                     if((j-1700)%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     fprintf(psb_dump_vabuf_verbose_fp,"     ");
                     for(k=0;k < 2;++k)
-                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 }
                 fprintf(psb_dump_vabuf_verbose_fp,"\nluma_offset_l1:");
                 for(j=1764;j<1828;j=j+2) {
                     if((j-1764)%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     fprintf(psb_dump_vabuf_verbose_fp,"     ");
                     for(k=0;k < 2;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 }
                 j=1828;k=0;
                 fprintf(psb_dump_vabuf_verbose_fp,"\nchroma_weight_l1_flag:");
-                fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 fprintf(psb_dump_vabuf_verbose_fp,"\nchroma_weight_l1:");
                 for(j=1830;j<1958;j=j+4) {
                     if((j-1830)%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     fprintf(psb_dump_vabuf_verbose_fp,"     ");
                     for(k=0;k < 2;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp," , ");
                     for(k=2;k < 4;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 }
                 fprintf(psb_dump_vabuf_verbose_fp,"\nchroma_offset_l1:");
                 for(j=1958;j<2086;j=j+4) {
                     if((j-1958)%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     fprintf(psb_dump_vabuf_verbose_fp,"     ");
                     for(k=0;k < 2;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                         fprintf(psb_dump_vabuf_verbose_fp," , ");
                     for(k=2;k < 4;++k)
-                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
+                    fprintf(psb_dump_vabuf_verbose_fp,"0x%02x ",*((unsigned char *)(obj_buffer->buffer_data+obj_buffer->num_elements*j+k)));
                 }
                 break;
 
             case VASliceGroupMapBufferType:
-                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                psb_buffer_map(obj_buffer->psb_buffer, (unsigned char **)&mapped_buffer);
                 if(mapped_buffer == NULL)
                     return VA_STATUS_ERROR_INVALID_BUFFER;
 
                 for(j=0; j<obj_buffer->size;++j) {
                     if(j%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     for(k=0;k < obj_buffer->num_elements;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
                 }
                 psb_buffer_unmap(obj_buffer->psb_buffer);
                 break;
@@ -1182,13 +1187,13 @@ j=1309;k=0;
             case VASliceDataBufferType:
             case VAProtectedSliceDataBufferType:
                 fprintf(psb_dump_vabuf_verbose_fp,"first 256 bytes:\n");
-                psb_buffer_map(obj_buffer->psb_buffer, &mapped_buffer);
+                psb_buffer_map(obj_buffer->psb_buffer,(unsigned char **)&mapped_buffer);
                 if(mapped_buffer == NULL)
                     return VA_STATUS_ERROR_INVALID_BUFFER;
                 for(j=0; j<256;++j) {
                     if(j%16 == 0) fprintf(psb_dump_vabuf_verbose_fp,"\n");
                     for(k=0;k < obj_buffer->num_elements;++k)
-                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02lx   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
+                        fprintf(psb_dump_vabuf_verbose_fp,"0x%02x   ",*((unsigned char *)(mapped_buffer+obj_buffer->num_elements*j+k)));
                 }
                 psb_buffer_unmap(obj_buffer->psb_buffer);
                 break;
@@ -1200,5 +1205,6 @@ j=1309;k=0;
         fflush(psb_dump_vabuf_verbose_fp);
         fsync(fileno(psb_dump_vabuf_verbose_fp));
     }
+    return 0;
 }
 

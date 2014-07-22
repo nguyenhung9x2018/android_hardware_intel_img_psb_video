@@ -181,7 +181,7 @@ static int CalculateDCScaler(IMG_INT iQP, IMG_BOOL bChroma)
 static void LoadMPEG4Bias(
     pnw_cmdbuf_p cmdbuf,
     IMG_INT32 i32Core,
-    IMG_UINT8 ui8THSkip
+    IMG_UINT8 __maybe_unused ui8THSkip
 )
 {
     IMG_INT16 n;
@@ -238,7 +238,7 @@ static void LoadMPEG4Bias(
 }
 
 static void LoadH263Bias(
-    pnw_cmdbuf_p cmdbuf, IMG_INT32 i32Core, IMG_UINT8 ui8THSkip)
+    pnw_cmdbuf_p cmdbuf, IMG_INT32 i32Core, IMG_UINT8 __maybe_unused ui8THSkip)
 {
     IMG_INT16 n;
     IMG_INT16 iX;
@@ -492,7 +492,7 @@ void pnw_DestroyContext(object_context_p obj_context)
 
 VAStatus pnw_CreateContext(
     object_context_p obj_context,
-    object_config_p obj_config,
+    object_config_p __maybe_unused obj_config,
     unsigned char is_JPEG)
 {
     int width, height;
@@ -974,7 +974,8 @@ static VAStatus pnw_SetupRCParam(context_ENC_p ctx)
 VAStatus pnw_EndPicture(context_ENC_p ctx)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
-    int i;
+    unsigned int i;
+    int index;
     pnw_cmdbuf_p cmdbuf = ctx->obj_context->pnw_cmdbuf;
     PIC_PARAMS *psPicParams = (PIC_PARAMS *)cmdbuf->pic_params_p;
     PIC_PARAMS *psPicParamsSlave = NULL;
@@ -1070,9 +1071,9 @@ VAStatus pnw_EndPicture(context_ENC_p ctx)
     SET_CODEDBUF_INFO(NONE_VCL_NUM, ctx->coded_buf->codedbuf_aux_info,
         ctx->none_vcl_nal);
 
-    for (i = (ctx->ParallelCores - 1); i >= 0; i--) {
+    for (index = (ctx->ParallelCores - 1); index >= 0; index--) {
         pnw_cmdbuf_insert_command_package(ctx->obj_context,
-                                          i,
+                                          index,
                                           MTX_CMDID_END_PIC,
                                           NULL,
                                           0);

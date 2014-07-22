@@ -36,6 +36,7 @@
 #include "psb_def.h"
 #include "psb_drv_debug.h"
 #include "psb_cmdbuf.h"
+#include "psb_buffer.h"
 #include <stdio.h>
 #include "psb_output.h"
 #include "tng_picmgmt.h"
@@ -1692,7 +1693,7 @@ static IMG_UINT32 tng__prepare_encode_sliceparams(
     context_ENC_p ctx,
     IMG_UINT32  ui32SliceBufIdx,
     IMG_UINT32  ui32SliceType,
-    IMG_UINT16  ui16CurrentRow,
+    IMG_UINT16  __maybe_unused ui16CurrentRow,
     IMG_UINT16  ui16SliceHeight,
     IMG_UINT8   uiDeblockIDC,
     IMG_BOOL    bFieldMode,
@@ -3384,15 +3385,17 @@ static void tng__rc_update(
     IMG_UINT8 ui8NewFrameMaxQP,
     IMG_UINT16 ui16NewIntraPeriod)
 {
-    tng_cmdbuf_insert_command(ctx->obj_context,
-	ctx->ui32StreamID,
-	MTX_CMDID_RC_UPDATE,
-	F_ENCODE(ui8NewFrameQP, MTX_MSG_RC_UPDATE_QP) |
-	F_ENCODE(ui32NewBitrate, MTX_MSG_RC_UPDATE_BITRATE),
-	F_ENCODE(ui8NewFrameMinQP, MTX_MSG_RC_UPDATE_MIN_QP) |
-	F_ENCODE(ui8NewFrameMaxQP, MTX_MSG_RC_UPDATE_MAX_QP) |
-	F_ENCODE(ui16NewIntraPeriod, MTX_MSG_RC_UPDATE_INTRA),
-	0);
+    psb_buffer_p buf = (psb_buffer_p)(F_ENCODE(ui8NewFrameMinQP, MTX_MSG_RC_UPDATE_MIN_QP) |
+                        F_ENCODE(ui8NewFrameMaxQP, MTX_MSG_RC_UPDATE_MAX_QP) |
+                        F_ENCODE(ui16NewIntraPeriod, MTX_MSG_RC_UPDATE_INTRA));
+    tng_cmdbuf_insert_command(
+                        ctx->obj_context,
+                        ctx->ui32StreamID,
+                        MTX_CMDID_RC_UPDATE,
+                        F_ENCODE(ui8NewFrameQP, MTX_MSG_RC_UPDATE_QP) |
+                            F_ENCODE(ui32NewBitrate, MTX_MSG_RC_UPDATE_BITRATE),
+                        buf,
+                        0);
 }
 
 static VAStatus tng__update_ratecontrol(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
@@ -3517,10 +3520,11 @@ static VAStatus tng__cmdbuf_provide_buffer(context_ENC_p ctx, IMG_UINT32 ui32Str
     return vaStatus;
 }
 
-VAStatus tng__set_ctx_buf(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
+VAStatus tng__set_ctx_buf(context_ENC_p ctx, IMG_UINT32 __maybe_unused ui32StreamID)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     IMG_UINT8 ui8IsJpeg;
+
     vaStatus = tng__validate_params(ctx);
     if (vaStatus != VA_STATUS_SUCCESS) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "validate params");
@@ -3542,7 +3546,7 @@ VAStatus tng__set_ctx_buf(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
     return vaStatus;
 }
 
-static VAStatus tng__set_headers (context_ENC_p ctx, IMG_UINT32 ui32StreamID)
+static VAStatus tng__set_headers (context_ENC_p ctx, IMG_UINT32 __maybe_unused ui32StreamID)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     IMG_UINT8 ui8SlotIdx = 0;
@@ -3558,9 +3562,10 @@ static VAStatus tng__set_headers (context_ENC_p ctx, IMG_UINT32 ui32StreamID)
     return vaStatus;
 }
 
-static VAStatus tng__set_cmd_buf(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
+static VAStatus tng__set_cmd_buf(context_ENC_p ctx, IMG_UINT32 __maybe_unused ui32StreamID)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
+
     vaStatus = tng__cmdbuf_new_codec(ctx);
     if (vaStatus != VA_STATUS_SUCCESS) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "cmdbuf new codec\n");
@@ -3587,6 +3592,8 @@ VAStatus tng__end_one_frame(context_ENC_p ctx, IMG_UINT32 ui32StreamID)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_frame_buf *ps_buf = &(ctx->ctx_frame_buf);
+
+    drv_debug_msg(VIDEO_DEBUG_GENERAL, "ui32StreamID is %d.\n", ui32StreamID);
 
     /* save current settings */
     ps_buf->previous_src_surface = ps_buf->src_surface;

@@ -203,8 +203,8 @@ struct context_ENC_s {
     IMG_INT16       RawWidth;
     IMG_INT16       RawHeight;
 
-    IMG_INT16       Width;  /* ~0xf & (RawWidth + 0xf)*/
-    IMG_INT16       Height;     /* ~0xf & (RawHeight + 0xf */
+    IMG_UINT16       Width;  /* ~0xf & (RawWidth + 0xf)*/
+    IMG_UINT16       Height;     /* ~0xf & (RawHeight + 0xf */
 
     IMG_UINT16       Slices;
     enum drm_pnw_topaz_codec eCodec;

@@ -486,7 +486,7 @@ static void AssignCodedDataBuffers(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
         pJPEGContext->sScan_Encode_Info.aBufferTable[ui8Loop].ui16ScanNumber = 0; // Indicates buffer is idle
 
         pJPEGContext->sScan_Encode_Info.aBufferTable[ui8Loop].pMemInfo = (void *)
-                (pJPEGContext->jpeg_coded_buf.pMemInfo + PTG_JPEG_HEADER_MAX_SIZE +
+                ((IMG_UINT32)pJPEGContext->jpeg_coded_buf.pMemInfo + PTG_JPEG_HEADER_MAX_SIZE +
                  ui8Loop * pJPEGContext->ui32SizePerCodedBuffer);
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "aBufferTable[%d].pMemInfo: 0x%x\n", ui8Loop,
                                  (unsigned int)(pJPEGContext->sScan_Encode_Info.aBufferTable[ui8Loop].pMemInfo));
@@ -590,7 +590,7 @@ static IMG_ERRORCODE SetMTXSetup(
 
 static void IssueMTXSetup(TOPAZHP_JPEG_ENCODER_CONTEXT *pJPEGContext)
 {
-    int i;
+    uint32_t i;
     context_ENC_p ctx = (context_ENC_p)pJPEGContext->ctx;
 
     /* Dump MTX setup data for debug */
@@ -962,8 +962,8 @@ static IMG_ERRORCODE IssueBufferToHW(
 }
 
 static void tng_jpeg_QueryConfigAttributes(
-    VAProfile profile,
-    VAEntrypoint entrypoint,
+    VAProfile __maybe_unused profile,
+    VAEntrypoint __maybe_unused entrypoint,
     VAConfigAttrib *attrib_list,
     int num_attribs)
 {
@@ -1175,7 +1175,7 @@ static VAStatus tng_jpeg_BeginPicture(
 
 
     /* Map MTX setup buffer */
-    vaStatus = psb_buffer_map(&cmdbuf->jpeg_header_mem, &cmdbuf->jpeg_header_mem_p);
+    vaStatus = psb_buffer_map(&cmdbuf->jpeg_header_mem, (unsigned char **)&cmdbuf->jpeg_header_mem_p);
     if (vaStatus) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "Fail to map MTX setup buffer\n");
         return vaStatus;
@@ -1186,7 +1186,7 @@ static VAStatus tng_jpeg_BeginPicture(
 
 
     /* Map MTX setup interface buffer */
-    vaStatus = psb_buffer_map(&cmdbuf->jpeg_header_interface_mem, &cmdbuf->jpeg_header_interface_mem_p);
+    vaStatus = psb_buffer_map(&cmdbuf->jpeg_header_interface_mem, (unsigned char **)&cmdbuf->jpeg_header_interface_mem_p);
     if (vaStatus) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "Fail to map MTX setup interface buffer\n");
         psb_buffer_unmap(&cmdbuf->jpeg_header_mem);
@@ -1198,7 +1198,7 @@ static VAStatus tng_jpeg_BeginPicture(
 
 
     /* Map quantization table buffer */
-    vaStatus = psb_buffer_map(&cmdbuf->jpeg_pic_params, &cmdbuf->jpeg_pic_params_p);
+    vaStatus = psb_buffer_map(&cmdbuf->jpeg_pic_params, (unsigned char **)&cmdbuf->jpeg_pic_params_p);
     if (vaStatus) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "Fail to map quantization table buffer\n");
         psb_buffer_unmap(&cmdbuf->jpeg_header_mem);
@@ -1320,7 +1320,7 @@ static VAStatus ProcessPictureParam(context_ENC_p ctx, object_buffer_p obj_buffe
     }
 
     /* Map coded buffer */
-    vaStatus = psb_buffer_map(ps_buf->coded_buf->psb_buffer, &jpeg_ctx->jpeg_coded_buf.pMemInfo);
+    vaStatus = psb_buffer_map(ps_buf->coded_buf->psb_buffer, (unsigned char **)&jpeg_ctx->jpeg_coded_buf.pMemInfo);
     if (vaStatus) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "ERROR: Map coded_buf failed!");
         return vaStatus;
@@ -1532,14 +1532,14 @@ VAStatus tng_jpeg_AppendMarkers(object_context_p obj_context, void *raw_coded_bu
 
             // OUTPUT RESTART INTERVAL TO CODED BUFFER
             tng_OutputResetIntervalToCB(
-                (IMG_UINT8 *)(pSegStart + sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed),
+                (IMG_UINT8 *)((IMG_UINT32)pSegStart + sizeof(BUFFER_HEADER) + pBufHeader->ui32BytesUsed),
                 ui16BCnt - 1);
 
             pBufHeader->ui32BytesUsed += 2;
         }
 
         jpeg_ctx_p->jpeg_coded_buf.ui32BytesWritten += pBufHeader->ui32BytesUsed;
-        pSegStart = raw_coded_buf + pBufHeader->ui32Reserved3;
+        pSegStart = (void *)((IMG_UINT32)raw_coded_buf + pBufHeader->ui32Reserved3);
     }
 
     pBufHeader = (BUFFER_HEADER *)pSegStart;

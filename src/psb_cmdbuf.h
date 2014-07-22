@@ -33,7 +33,7 @@
 #include "psb_drv_video.h"
 #include "psb_buffer.h"
 //#include "xf86mm.h"
-
+#include "hwdefs/dxva_fw_ctrl.h"
 #include "hwdefs/lldma_defs.h"
 
 #include <stdint.h>
@@ -228,6 +228,7 @@ int psb_context_submit_cmdbuf(object_context_p obj_context);
  * Return 0 on success
  */
 int psb_context_flush_cmdbuf(object_context_p obj_context);
+void psb_cmdbuf_skip_start_block(psb_cmdbuf_p cmdbuf, uint32_t skip_condition);
 
 /*
  * Write a SR_SETUP_CMD referencing a bitstream buffer to the command buffer
@@ -244,6 +245,13 @@ void psb_cmdbuf_dma_write_bitstream(psb_cmdbuf_p cmdbuf,
                                       uint32_t size_in_bytes,
                                       uint32_t offset_in_bits,
                                       uint32_t flags);
+
+void psb_cmdbuf_dma_write_cmdbuf(psb_cmdbuf_p cmdbuf,
+    psb_buffer_p bitstream_buf,
+    uint32_t buffer_offset,
+    uint32_t size,
+    uint32_t dest_offset,
+    DMA_TYPE type);
 
 #ifdef SLICE_HEADER_PARSING
 void psb_cmdbuf_dma_write_key(psb_cmdbuf_p cmdbuf,
@@ -317,5 +325,9 @@ int psb_cmdbuf_second_pass(object_context_p obj_context,
                           );
 
 void *psb_cmdbuf_alloc_space(psb_cmdbuf_p cmdbuf, uint32_t byte_size);
+
+void psb_cmdbuf_dma_write_bitstream_chained(psb_cmdbuf_p cmdbuf,
+        psb_buffer_p bitstream_buf,
+        uint32_t size_in_bytes);
 
 #endif /* _PSB_CMDBUF_H_ */

@@ -116,11 +116,13 @@ static void tng_calculate_scaler_coeff(    float   fPitch,
     /* first half as the function is symetrical.                                                    */
     float fScale = 1.0f / fPitch;
     IMG_UINT32 i, t;
-    float flTable[SCC_MAXTAP][SCC_MAXINTPT] = {0.0};
+    float flTable[SCC_MAXTAP][SCC_MAXINTPT];
     IMG_INT32 nTotal;
     float ftotal;
     IMG_INT32 val;
     IMG_INT32 mT, mI; /* mirrored / middle Values for I and T */
+
+    memset(flTable, 0.0, SCC_MAXTAP * SCC_MAXINTPT);
 
     if (fScale > 1.0f)
     {
@@ -311,7 +313,6 @@ void tng_calculate_scaler_coff_reg(object_context_p obj_context)
 void tng_ved_write_scale_reg(object_context_p obj_context)
 {
     uint32_t cmd = 0;
-    static b_scaling_init = 0;
     psb_cmdbuf_p cmdbuf = obj_context->cmdbuf;
     context_DEC_p ctx = (context_DEC_p) obj_context->format_data;
     object_surface_p src_surface = obj_context->current_render_target;

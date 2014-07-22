@@ -38,6 +38,7 @@
 #include "tng_cmdbuf.h"
 #include "tng_hostbias.h"
 #include "psb_drv_debug.h"
+#include <stdlib.h>
 
 #define UNINIT_PARAM 0xCDCDCDCD
 #define TOPAZHP_DEFAULT_bZeroDetectionDisable IMG_FALSE
@@ -56,22 +57,23 @@
 #define MIN_32_REV 0x00030200
 #define MAX_32_REV 0x00030299
 // New MP4 Lambda table
-static IMG_INT8 MPEG4_QPLAMBDA_MAP[31] = {
-	0,  0,  1,  2,  3, 
-	3,  4,  4,  5,  5,
-	6,  6,  7,  7,  8,  
-	8,  9,  9,  10, 10,
-	11, 11, 11, 11, 12,
-	12, 12, 12, 13, 13, 13 
+static IMG_UINT8 MPEG4_QPLAMBDA_MAP[31] = {
+    0,  0,  1,  2,  3,
+    3,  4,  4,  5,  5,
+    6,  6,  7,  7,  8,
+    8,  9,  9,  10, 10,
+    11, 11, 11, 11, 12,
+    12, 12, 12, 13, 13, 13
 };
 
-static IMG_INT8 H263_QPLAMBDA_MAP[31] = {
- 0, 0, 1, 1, 2,
- 2, 3, 3, 4, 4,
- 4, 5, 5, 5, 6,
- 6, 6, 7, 7, 7,
- 7, 8, 8, 8, 8,
- 9, 9, 9, 9, 10,10 };
+static IMG_UINT8 H263_QPLAMBDA_MAP[31] = {
+    0, 0, 1, 1, 2,
+    2, 3, 3, 4, 4,
+    4, 5, 5, 5, 6,
+    6, 6, 7, 7, 7,
+    7, 8, 8, 8, 8,
+    9, 9, 9, 9, 10,10
+};
 
 // new H.264 Lambda
 static IMG_INT8 H264_QPLAMBDA_MAP_SAD[40] = {
@@ -237,32 +239,30 @@ tng__MPEG4ES_generate_bias_tables(
 	ctx->sBiasTables.aui32LambdaBias[n] = ui32RegVal;
     }
 
-    for(n=31;n>=1;n-=2)
-    {
-	if(psBiasParams->bRCEnable || psBiasParams->bRCBiases)
-	{
-	    uDirectVecBias = psBiasParams->uTHSkipIPE * uiLambda;
-	    iInterMBBias    = psBiasParams->uTHInter * (n - psBiasParams->uTHInterQP);
-	    if(iInterMBBias < 0) 
-	    iInterMBBias	= 0;
-	    if(iInterMBBias > psBiasParams->uTHInterMaxLevel)
-		iInterMBBias	= psBiasParams->uTHInterMaxLevel;					
-		iIntra16Bias = 0;
-	    } else {
-		uDirectVecBias  = psBiasParams->uIPESkipVecBias;
-		iInterMBBias    = psBiasParams->iInterMBBias;
-		iIntra16Bias    = psBiasParams->iIntra16Bias;
-	    }
+    for(n=31;n>=1;n-=2) {
+        if(psBiasParams->bRCEnable || psBiasParams->bRCBiases) {
+            uDirectVecBias = psBiasParams->uTHSkipIPE * uiLambda;
+            iInterMBBias    = psBiasParams->uTHInter * (n - psBiasParams->uTHInterQP);
+            //if(iInterMBBias < 0)
+            //    iInterMBBias	= 0;
+            if(iInterMBBias > psBiasParams->uTHInterMaxLevel)
+                iInterMBBias	= psBiasParams->uTHInterMaxLevel;
+            iIntra16Bias = 0;
+        } else {
+            uDirectVecBias  = psBiasParams->uIPESkipVecBias;
+            iInterMBBias    = psBiasParams->iInterMBBias;
+            iIntra16Bias    = psBiasParams->iIntra16Bias;
+        }
 
-	    ctx->sBiasTables.aui32IntraBias[n] = iIntra16Bias;
-	    ctx->sBiasTables.aui32InterBias_P[n] = iInterMBBias;
-	    ctx->sBiasTables.aui32DirectBias_P[n] = uDirectVecBias;
+        ctx->sBiasTables.aui32IntraBias[n] = iIntra16Bias;
+        ctx->sBiasTables.aui32InterBias_P[n] = iInterMBBias;
+        ctx->sBiasTables.aui32DirectBias_P[n] = uDirectVecBias;
     }
 
     if(psBiasParams->bRCEnable || psBiasParams->bRCBiases)
-	ctx->sBiasTables.ui32sz1 = psBiasParams->uisz1;
+        ctx->sBiasTables.ui32sz1 = psBiasParams->uisz1;
     else
-	ctx->sBiasTables.ui32sz1 = psBiasParams->uisz2;
+        ctx->sBiasTables.ui32sz1 = psBiasParams->uisz2;
 }
 
 /**************************************************************************************************
@@ -306,32 +306,30 @@ tng__H263ES_generate_bias_tables(
    	ctx->sBiasTables.aui32LambdaBias[n] = ui32RegVal;
     }
 
-    for(n=31;n>=1;n-=2)
-    {
-	if(psBiasParams->bRCEnable || psBiasParams->bRCBiases)
-	{
-	    uDirectVecBias = psBiasParams->uTHSkipIPE * uiLambda;
-	    iInterMBBias    = psBiasParams->uTHInter * (n - psBiasParams->uTHInterQP);
-	    if(iInterMBBias < 0) 
-	  	iInterMBBias	= 0;
-	    if(iInterMBBias > psBiasParams->uTHInterMaxLevel)
-		iInterMBBias	= psBiasParams->uTHInterMaxLevel;
-		iIntra16Bias = 0;
-	} else {
-	    uDirectVecBias  = psBiasParams->uIPESkipVecBias;
-	    iInterMBBias    = psBiasParams->iInterMBBias;
-	    iIntra16Bias    = psBiasParams->iIntra16Bias;
-	}
+    for(n=31;n>=1;n-=2) {
+        if(psBiasParams->bRCEnable || psBiasParams->bRCBiases) {
+            uDirectVecBias = psBiasParams->uTHSkipIPE * uiLambda;
+            iInterMBBias    = psBiasParams->uTHInter * (n - psBiasParams->uTHInterQP);
+            //if(iInterMBBias < 0)
+            //    iInterMBBias	= 0;
+            if(iInterMBBias > psBiasParams->uTHInterMaxLevel)
+                iInterMBBias	= psBiasParams->uTHInterMaxLevel;
+            iIntra16Bias = 0;
+        } else {
+            uDirectVecBias  = psBiasParams->uIPESkipVecBias;
+            iInterMBBias    = psBiasParams->iInterMBBias;
+            iIntra16Bias    = psBiasParams->iIntra16Bias;
+        }
 
-	ctx->sBiasTables.aui32IntraBias[n] = iIntra16Bias;
-	ctx->sBiasTables.aui32InterBias_P[n] = iInterMBBias;
-	ctx->sBiasTables.aui32DirectBias_P[n] = uDirectVecBias;
+        ctx->sBiasTables.aui32IntraBias[n] = iIntra16Bias;
+        ctx->sBiasTables.aui32InterBias_P[n] = iInterMBBias;
+        ctx->sBiasTables.aui32DirectBias_P[n] = uDirectVecBias;
     }
 
     if(psBiasParams->bRCEnable || psBiasParams->bRCBiases)
-	ctx->sBiasTables.ui32sz1 = psBiasParams->uisz1;
+        ctx->sBiasTables.ui32sz1 = psBiasParams->uisz1;
     else
-	ctx->sBiasTables.ui32sz1 = psBiasParams->uisz2;
+        ctx->sBiasTables.ui32sz1 = psBiasParams->uisz2;
 }
 
 /**************************************************************************************************
@@ -504,7 +502,7 @@ static IMG_INT H263_LAMBDA_COEFFS[3] = {
 
 static void tng__H263ES_load_bias_tables(
     context_ENC_p ctx,
-    IMG_FRAME_TYPE eFrameType)
+    IMG_FRAME_TYPE __maybe_unused eFrameType)
 {
     IMG_INT32 n;
     IMG_UINT32 ui32RegVal;

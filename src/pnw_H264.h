@@ -32,6 +32,8 @@
 #define _PNW_H264_H_
 
 #include "psb_drv_video.h"
+#include "hwdefs/dxva_fw_ctrl.h"
+#include "psb_cmdbuf.h"
 
 extern struct format_vtable_s pnw_H264_vtable;
 

@@ -209,10 +209,10 @@ typedef struct context_JPEG_s *context_JPEG_p;
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &ctx->obj_context->driver_data->surface_heap, id ))
 
 static void tng_JPEG_QueryConfigAttributes(
-    VAProfile profile,
-    VAEntrypoint entrypoint,
-    VAConfigAttrib *attrib_list,
-    int num_attribs) {
+    VAProfile __maybe_unused profile,
+    VAEntrypoint __maybe_unused entrypoint,
+    VAConfigAttrib __maybe_unused * attrib_list,
+    int __maybe_unused num_attribs) {
     /* No JPEG specific attributes */
 }
 
@@ -366,35 +366,6 @@ static void tng_JPEG_DestroyContext(
     obj_context->format_data = NULL;
 }
 
-static void compile_huffman_tables(context_JPEG_p ctx) {
-    VAStatus vaStatus = VA_STATUS_SUCCESS;
-    ctx->huffman_table_space = 1984;
-
-    if (0 == psb_buffer_map(&ctx->vlc_packed_table, &ctx->huffman_table_RAM)) {
-
-	// Compile Tables
-        uint32_t table_class;
-        uint32_t table_id;
-	for (table_class = 0; table_class < TABLE_CLASS_NUM; table_class++) {
-            for (table_id = 0; table_id < JPEG_MAX_SETS_HUFFMAN_TABLES; table_id++) {
-                if (ctx->symbol_stats[table_class][table_id].num_codes) {
-                    JPG_VLC_CompileTable(ctx->symbol_codes[table_class][table_id],
-                        &ctx->symbol_stats[table_class][table_id], ctx->huffman_table_space, ctx->huffman_table_RAM,
-                        &ctx->table_stats[table_class][table_id]);
-                    ctx->huffman_table_space -= ctx->table_stats[table_class][table_id].size;
-                    ctx->huffman_table_RAM += ctx->table_stats[table_class][table_id].size;
-                }
-
-            }
-        }
-        psb_buffer_unmap(&ctx->vlc_packed_table);
-    } else {
-        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
-        DEBUG_FAILURE;
-    }
-
-}
-
 static uint16_t jpg_vlc_valid_symbol(const vlc_symbol_code_jpeg * symbol_code, const uint32_t leading) {
     uint16_t entry = 0;
     IMG_ASSERT( (symbol_code->code_length - leading - 1) >= 0 );
@@ -542,12 +513,13 @@ jpg_vlc_decode_direct(
     return num_vlc_ops;
 }
 
-void JPG_VLC_CompileTable(
+static void JPG_VLC_CompileTable(
     const vlc_symbol_code_jpeg * symbol_codes,
     const vlc_symbol_stats_jpeg * psSymbolStats,
-    const uint32_t ram_size,
+    const uint32_t __maybe_unused ram_size,
     uint16_t * table_ram,
-    vlc_table_stats_jpeg * ptable_stats) {
+    vlc_table_stats_jpeg * ptable_stats)
+{
     ptable_stats->initial_width = 5;
     ptable_stats->initial_opcode = JPG_OP_DECODE_DIRECT;
 
@@ -560,6 +532,34 @@ void JPG_VLC_CompileTable(
         0);
 
     IMG_ASSERT( ptable_stats->size <= ram_size );
+}
+
+static void compile_huffman_tables(context_JPEG_p ctx) {
+    VAStatus vaStatus = VA_STATUS_SUCCESS;
+    ctx->huffman_table_space = 1984;
+
+    if (0 == psb_buffer_map(&ctx->vlc_packed_table, (unsigned char **)&ctx->huffman_table_RAM)) {
+        // Compile Tables
+        uint32_t table_class;
+        uint32_t table_id;
+        for (table_class = 0; table_class < TABLE_CLASS_NUM; table_class++) {
+            for (table_id = 0; table_id < JPEG_MAX_SETS_HUFFMAN_TABLES; table_id++) {
+                if (ctx->symbol_stats[table_class][table_id].num_codes) {
+                    JPG_VLC_CompileTable(ctx->symbol_codes[table_class][table_id],
+                        &ctx->symbol_stats[table_class][table_id], ctx->huffman_table_space, ctx->huffman_table_RAM,
+                        &ctx->table_stats[table_class][table_id]);
+                    ctx->huffman_table_space -= ctx->table_stats[table_class][table_id].size;
+                    ctx->huffman_table_RAM += ctx->table_stats[table_class][table_id].size;
+                }
+
+            }
+        }
+        psb_buffer_unmap(&ctx->vlc_packed_table);
+    } else {
+        vaStatus = VA_STATUS_ERROR_ALLOCATION_FAILED;
+        DEBUG_FAILURE;
+    }
+
 }
 
 static VAStatus tng__JPEG_process_picture_param(context_JPEG_p ctx, object_buffer_p obj_buffer) {
@@ -979,7 +979,7 @@ static void tng__JPEG_set_register(context_JPEG_p ctx, VASliceParameterBufferJPE
     psb_cmdbuf_rendec_end(cmdbuf);
 }
 
-static void tng__JPEG_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase *vld_slice_param)
+static void tng__JPEG_begin_slice(context_DEC_p dec_ctx, VASliceParameterBufferBase __maybe_unused * vld_slice_param)
 {
     context_JPEG_p ctx = (context_JPEG_p)dec_ctx;
 
@@ -1010,7 +1010,7 @@ static void tng__JPEG_end_slice(context_DEC_p dec_ctx)
     ctx->obj_context->flags = FW_VA_RENDER_IS_FIRST_SLICE | FW_VA_RENDER_IS_LAST_SLICE | FW_INTERNAL_CONTEXT_SWITCH;
     ctx->obj_context->first_mb = 0;
     ctx->obj_context->last_mb = ((ctx->picture_height_mb - 1) << 8) | (ctx->picture_width_mb - 1);
-    *(dec_ctx->slice_first_pic_last) = (ctx->obj_context->first_mb << 16) | (ctx->obj_context->last_mb) & 0xfefe;
+    *(dec_ctx->slice_first_pic_last) = (ctx->obj_context->first_mb << 16) | ((ctx->obj_context->last_mb) & 0xfefe);
 
 }
 

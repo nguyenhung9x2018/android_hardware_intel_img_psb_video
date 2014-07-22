@@ -423,7 +423,7 @@ static void tng_VP8_QueryConfigAttributes(
 
 static VAStatus tng_VP8_ValidateConfig(
     object_config_p obj_config) {
-    uint32_t i;
+    int i;
     /* Check all attributes */
     for (i = 0; i < obj_config->attrib_count; i++) {
         switch (obj_config->attrib_list[i].type) {
@@ -449,7 +449,7 @@ static VAStatus tng_VP8_process_buffer(context_DEC_p dec_ctx, object_buffer_p bu
 
 static VAStatus tng_VP8_CreateContext(
     object_context_p obj_context,
-    object_config_p obj_config) {
+    object_config_p __maybe_unused obj_config) {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_VP8_p ctx;
 
@@ -985,7 +985,7 @@ static void tng__VP8_set_slice_param(context_VP8_p ctx) {
 
     {
         uint32_t last_mb_row = ((ctx->pic_params->frame_height + 15) / 16) - 1;
-        unsigned int pic_last_mb_xy = (last_mb_row << 8) | ((ctx->pic_params->frame_width + 15) / 16) - 1;
+        unsigned int pic_last_mb_xy = (last_mb_row << 8) | (((ctx->pic_params->frame_width + 15) / 16) - 1);
 	unsigned int slice_first_mb_xy = 0; /* NA */
         *ctx->dec_ctx.slice_first_pic_last = (slice_first_mb_xy << 16) | pic_last_mb_xy;
 	//ctx->cmd_header->uiSliceFirstMbYX_uiPicLastMbYX = (slice_first_mb_xy << 16) | pic_last_mb_xy;
@@ -1364,7 +1364,7 @@ static void tng__VP8_set_probility_reg(context_VP8_p ctx) {
 
     /* First write the data for the first partition */
     /* Write the probability data in the probability data buffer */
-    psb_buffer_map(&ctx->probability_data_1st_part, (void **)&probs_buffer_1stPart);
+    psb_buffer_map(&ctx->probability_data_1st_part, (unsigned char **)&probs_buffer_1stPart);
     if(NULL == probs_buffer_1stPart) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng__VP8_set_probility_reg: map buffer fail\n");
         return;
@@ -1372,7 +1372,7 @@ static void tng__VP8_set_probility_reg(context_VP8_p ctx) {
     {
         memset(probs_buffer_1stPart, 0, sizeof(ctx->probability_data_1st_part));
         if(ctx->pic_params->pic_fields.bits.key_frame == 0) {
-            tng_KeyFrame_BModeProbsDataCompile(b_mode_prob, probs_buffer_1stPart);
+            tng_KeyFrame_BModeProbsDataCompile((uint8_t *)b_mode_prob, probs_buffer_1stPart);
         } else {
             tng_InterFrame_YModeProbsDataCompile(ctx->pic_params->y_mode_probs, probs_buffer_1stPart);
 
@@ -1380,7 +1380,7 @@ static void tng__VP8_set_probility_reg(context_VP8_p ctx) {
             tng_InterFrame_UVModeProbsDataCompile(ctx->pic_params->uv_mode_probs, probs_buffer_1stPart);
 
             probs_buffer_1stPart += (CABAC_LSR_InterFrame_MVContextProb_Address >>2) - ( CABAC_LSR_InterFrame_UVModeProb_Address >> 2);
-            tng_InterFrame_MVContextProbsDataCompile(ctx->pic_params->mv_probs, probs_buffer_1stPart);
+            tng_InterFrame_MVContextProbsDataCompile((uint8_t *)ctx->pic_params->mv_probs, probs_buffer_1stPart);
         }
 
         psb_buffer_unmap(&ctx->probability_data_1st_part);
@@ -1390,7 +1390,7 @@ static void tng__VP8_set_probility_reg(context_VP8_p ctx) {
     }
     
     /* Write the probability data for the second partition and create a linked list */ 
-    psb_buffer_map(&ctx->probability_data_2nd_part, (void **) &probs_buffer_2ndPart);
+    psb_buffer_map(&ctx->probability_data_2nd_part, (unsigned char **)&probs_buffer_2ndPart);
     if(NULL == probs_buffer_2ndPart) {
         drv_debug_msg(VIDEO_DEBUG_GENERAL, "tng__VP8_set_probility_reg: map buffer fail\n");
         return;
@@ -1399,7 +1399,7 @@ static void tng__VP8_set_probility_reg(context_VP8_p ctx) {
     {
         memset(probs_buffer_2ndPart, 0, sizeof(ctx->probability_data_2nd_part));
         /* for any other partition */
-        tng_DCT_Coefficient_ProbsDataCompile(ctx->probs_params->dct_coeff_probs, probs_buffer_2ndPart);
+        tng_DCT_Coefficient_ProbsDataCompile((Probability *)ctx->probs_params->dct_coeff_probs, probs_buffer_2ndPart);
 
         psb_buffer_unmap(&ctx->probability_data_2nd_part);
 

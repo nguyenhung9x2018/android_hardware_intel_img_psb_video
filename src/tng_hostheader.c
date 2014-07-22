@@ -50,9 +50,9 @@
 /* SOME USEFUL TEST FUNCTIONS */
 #ifndef TOPAZ_MTX_HW
 static void Show_Bits(
-    IMG_UINT8 *ucBitStream,
-    IMG_UINT32 ByteStartBit,
-    IMG_UINT32 Bits)
+    IMG_UINT8 __maybe_unused * ucBitStream,
+    IMG_UINT32 __maybe_unused ByteStartBit,
+    IMG_UINT32 __maybe_unused Bits)
 {
     return ;
 #if 0
@@ -84,8 +84,8 @@ static void Show_Bits(
 #ifndef TOPAZ_MTX_HW
 
 static void Show_Elements(
-    MTX_HEADER_PARAMS *mtx_hdr,
-    MTX_HEADER_ELEMENT **aui32ElementPointers)
+    MTX_HEADER_PARAMS __maybe_unused * mtx_hdr,
+    MTX_HEADER_ELEMENT __maybe_unused ** aui32ElementPointers)
 {
     return ;
 #if 0
@@ -389,7 +389,7 @@ static void CheckStartRawDataElement(MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_
 
 
 static void tng__insert_prefix_nal_header(MTX_HEADER_PARAMS *pMTX_Header, MTX_HEADER_ELEMENT **aui32ElementPointers,
-        H264_SLICE_HEADER_PARAMS *pSlHParams, IMG_BOOL bCabacEnabled)
+        H264_SLICE_HEADER_PARAMS *pSlHParams, IMG_BOOL __maybe_unused bCabacEnabled)
 {
     tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
 
@@ -482,7 +482,7 @@ static void tng__H264ES_writebits_picture_header(
     MTX_HEADER_PARAMS *pMTX_Header,
     MTX_HEADER_ELEMENT **aui32ElementPointers,
     H264_PICTURE_HEADER_PARAMS *pPHParams,
-    H264_SCALING_MATRIX_PARAMS * psScalingMatrix)
+    H264_SCALING_MATRIX_PARAMS __maybe_unused * psScalingMatrix)
 {
 #ifdef _TOPAZHP_TRACE_
     drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s: pic_parameter_set_id = %d\n",__FUNCTION__, pPHParams->pic_parameter_set_id);
@@ -634,7 +634,7 @@ static void tng__H264ES_writebits_sequence_header(
     H264_SEQUENCE_HEADER_PARAMS *pSHParams,
     H264_CROP_PARAMS *psCrop,
     H264_SCALING_MATRIX_PARAMS * psScalingMatrix,
-    IMG_BOOL8 bASO)
+    IMG_BOOL8 __maybe_unused bASO)
 {
     tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
     tng__H264_writebits_startcode_prefix_element(pMTX_Header, aui32ElementPointers, 4);
@@ -1056,7 +1056,7 @@ void H263_NOTFORSIMS_WriteBits_VideoPictureHeader(MTX_HEADER_PARAMS *pMTX_Header
 					   H263_PICTURE_CODING_TYPE PictureCodingType,
 					   //IMG_UINT8 ui8Q_Scale,
 					   H263_SOURCE_FORMAT_TYPE SourceFormatType,
-					   IMG_UINT8 ui8FrameRate,
+					   IMG_UINT8 __maybe_unused ui8FrameRate,
 					   IMG_UINT32 ui32PictureWidth,
 					   IMG_UINT32 ui32PictureHeight
 					   )
@@ -1381,7 +1381,7 @@ static void tng__MPEG4_writebits_sequence_header(
     IMG_BOOL bBFrame,
     MPEG4_PROFILE_TYPE bProfile,
     IMG_UINT8 ui8Profile_and_level_indication,
-    FIXED_VOP_TIME_TYPE sFixed_vop_time_increment,
+    FIXED_VOP_TIME_TYPE __maybe_unused sFixed_vop_time_increment,
     IMG_UINT32 Picture_Width_Pixels,
     IMG_UINT32 Picture_Height_Pixels,
     VBVPARAMS *sVBVParams, IMG_UINT32 ui32VopTimeResolution) /* Send NULL pointer if there are no VBVParams */
@@ -1707,7 +1707,7 @@ static void H263_writebits_VideoPictureHeader(
     H263_PICTURE_CODING_TYPE PictureCodingType,
     //IMG_UINT8 Q_Scale,
     H263_SOURCE_FORMAT_TYPE SourceFormatType,
-    IMG_UINT8 FrameRate,
+    IMG_UINT8 __maybe_unused FrameRate,
     IMG_UINT32 PictureWidth,
     IMG_UINT32 PictureHeight)
 {
@@ -1966,8 +1966,8 @@ static void tng__H264ES_writebits_SEI_buffering_period_header(
     IMG_UINT8 ui8NalHrdBpPresentFlag,
     IMG_UINT8 ui8nal_cpb_cnt_minus1,
     IMG_UINT8 ui8nal_initial_cpb_removal_delay_length,
-    IMG_UINT32 ui32nal_initial_cpb_removal_delay,
-    IMG_UINT32 ui32nal_initial_cpb_removal_delay_offset,
+    IMG_UINT32 __maybe_unused ui32nal_initial_cpb_removal_delay,
+    IMG_UINT32 __maybe_unused ui32nal_initial_cpb_removal_delay_offset,
     IMG_UINT8 ui8VclHrdBpPresentFlag,
     IMG_UINT8 ui8vcl_cpb_cnt_minus1,
     IMG_UINT32 ui32vcl_initial_cpb_removal_delay,
@@ -1978,6 +1978,7 @@ static void tng__H264ES_writebits_SEI_buffering_period_header(
 #ifdef SEI_NOT_USE_TOKEN_ALIGN
     IMG_UINT8 ui8Pad;
 #endif
+
     // Essential we insert the element before we try to fill it!
     tng__insert_element_token(pMTX_Header,
         aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
@@ -2088,8 +2089,8 @@ static void tng__H264ES_writebits_SEI_picture_timing_header(
     IMG_UINT8 ui8CpbDpbDelaysPresentFlag,
     IMG_UINT32 ui32cpb_removal_delay_length_minus1,
     IMG_UINT32 ui32dpb_output_delay_length_minus1,
-    IMG_UINT32 ui32cpb_removal_delay,
-    IMG_UINT32 ui32dpb_output_delay,
+    IMG_UINT32 __maybe_unused ui32cpb_removal_delay,
+    IMG_UINT32 __maybe_unused ui32dpb_output_delay,
     IMG_UINT8 ui8pic_struct_present_flag,
     IMG_UINT8 ui8pic_struct,
     IMG_UINT8 ui8NumClockTS,
@@ -2558,7 +2559,7 @@ static void tng__H264ES_writebits_mvc_sequence_header(
     MTX_HEADER_ELEMENT **aui32ElementPointers,
     H264_SEQUENCE_HEADER_PARAMS *pSHParams,
     H264_CROP_PARAMS *psCrop,
-    H264_SCALING_MATRIX_PARAMS * psScalingMatrix)
+    H264_SCALING_MATRIX_PARAMS __maybe_unused * psScalingMatrix)
 {
     tng__insert_element_token(pMTX_Header, aui32ElementPointers, ELEMENT_STARTCODE_RAWDATA);
     tng__H264_writebits_startcode_prefix_element(pMTX_Header, aui32ElementPointers, 4);
@@ -2738,7 +2739,7 @@ void tng__H264ES_prepare_mvc_sequence_header(
     IMG_BOOL  bPpsScaling,
     IMG_BOOL  bUseDefaultScalingList,
     IMG_BOOL  bEnableLossless,
-    IMG_BOOL  bASO)
+    IMG_BOOL  __maybe_unused bASO)
 {
     H264_SEQUENCE_HEADER_PARAMS sSHParams;
     MTX_HEADER_PARAMS * pMTX_Header;
@@ -2837,7 +2838,7 @@ void tng__H264_prepare_slice_header(
     IMG_UINT32      ui32DisplayFrameNumber,
     IMG_UINT32      ui32FrameNumId,
     IMG_UINT32      uiFirst_MB_Address,
-    IMG_UINT32      uiMBSkipRun,
+    IMG_UINT32      __maybe_unused uiMBSkipRun,
     IMG_BOOL        bCabacEnabled,
     IMG_BOOL        bIsInterlaced,
     IMG_UINT8       ui8FieldNum,
@@ -3403,7 +3404,7 @@ void tng__H264ES_notforsims_prepare_sliceheader(
     IMG_UINT32      ui32SliceType,
     IMG_UINT8       ui8DisableDeblockingFilterIDC,
     IMG_UINT32      uiFirst_MB_Address,
-    IMG_UINT32      uiMBSkipRun,
+    IMG_UINT32      __maybe_unused uiMBSkipRun,
     IMG_BOOL        bCabacEnabled,
     IMG_BOOL        bIsInterlaced,
     IMG_UINT16      ui16MvcViewIdx,

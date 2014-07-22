@@ -33,7 +33,7 @@
 
 // This file was automatically generated from ../release/MPG4Firmware.dnl using dnl2c.
 
-unsigned char *szMPG4_MTXTOPAZFW_buildtag = "TOPAZ_DDKBUILD_00-00-00-0146";
+char *szMPG4_MTXTOPAZFW_buildtag = "TOPAZ_DDKBUILD_00-00-00-0146";
 
 unsigned int ui32MPG4_MTXTOPAZFWTextSize = 3309;
 unsigned int ui32MPG4_MTXTOPAZFWDataSize = 4880;

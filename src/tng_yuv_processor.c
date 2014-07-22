@@ -38,16 +38,16 @@
 #define SURFACE(id)   ((object_surface_p) object_heap_lookup( &dec_ctx->obj_context->driver_data->surface_heap, id ))
 
 static void tng_yuv_processor_QueryConfigAttributes(
-    VAProfile profile,
-    VAEntrypoint entrypoint,
-    VAConfigAttrib *attrib_list,
-    int num_attribs)
+    VAProfile __maybe_unused rofile,
+    VAEntrypoint __maybe_unused entrypoint,
+    VAConfigAttrib __maybe_unused * attrib_list,
+    int __maybe_unused num_attribs)
 {
     /* No specific attributes */
 }
 
 static VAStatus tng_yuv_processor_ValidateConfig(
-    object_config_p obj_config)
+    object_config_p __maybe_unused obj_config)
 {
     return VA_STATUS_SUCCESS;
 }
@@ -56,7 +56,7 @@ static VAStatus tng_yuv_processor_process_buffer( context_DEC_p, object_buffer_p
 
 static VAStatus tng_yuv_processor_CreateContext(
     object_context_p obj_context,
-    object_config_p obj_config)
+    object_config_p __maybe_unused obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_DEC_p dec_ctx = (context_DEC_p) obj_context->format_data;
@@ -109,7 +109,7 @@ static void tng_yuv_processor_DestroyContext(
 }
 
 static VAStatus tng_yuv_processor_BeginPicture(
-    object_context_p obj_context)
+    object_context_p __maybe_unused obj_context)
 {
     return VA_STATUS_SUCCESS;
 }
@@ -311,9 +311,9 @@ static VAStatus tng_yuv_processor_process_buffer(
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     object_buffer_p obj_buffer = buffer;
-
+    unsigned int type = obj_buffer->type;
     {
-        switch (obj_buffer->type) {
+        switch (type) {
         case YUVProcessorSurfaceType:
         case VAProcPipelineParameterBufferType:
             vaStatus = tng__yuv_processor_execute(dec_ctx, obj_buffer);

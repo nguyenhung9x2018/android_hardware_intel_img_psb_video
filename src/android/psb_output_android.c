@@ -157,7 +157,7 @@ static VAStatus psb_putsurface_ctexture(
     short desty,
     unsigned short destw,
     unsigned short desth,
-    unsigned int flags /* de-interlacing flags */
+    unsigned int __maybe_unused flags /* de-interlacing flags */
 )
 {
     INIT_DRIVER_DATA;
@@ -458,7 +458,7 @@ static int psb_check_outputmethod(
 VAStatus psb_PutSurface(
     VADriverContextP ctx,
     VASurfaceID surface,
-    void *android_isurface,
+    void __maybe_unused * android_isurface,
     short srcx,
     short srcy,
     unsigned short srcw,
@@ -478,6 +478,7 @@ VAStatus psb_PutSurface(
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     PsbPortPrivPtr pPriv = (PsbPortPrivPtr)(&driver_data->coverlay_priv);
     int ret = 0;
+
 #ifndef BAYTRAIL
 
     obj_surface = SURFACE(surface);

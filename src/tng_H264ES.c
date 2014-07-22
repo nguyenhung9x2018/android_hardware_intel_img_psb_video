@@ -98,7 +98,7 @@ static VAStatus tng__H264ES_init_profile(
 
 static VAStatus tng__H264ES_get_codec_type(
     object_context_p obj_context,
-    object_config_p obj_config)
+    object_config_p __maybe_unused obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
@@ -145,7 +145,7 @@ static VAStatus tng__H264ES_get_codec_type(
 
 static VAStatus tng__H264ES_init_format_mode(
     object_context_p obj_context,
-    object_config_p obj_config)
+    object_config_p __maybe_unused obj_config)
 {
     VAStatus vaStatus = VA_STATUS_SUCCESS;
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
@@ -158,7 +158,7 @@ static VAStatus tng__H264ES_init_format_mode(
 }
 
 static void tng__H264ES_init_context(object_context_p obj_context,
-    object_config_p obj_config)
+    object_config_p __maybe_unused obj_config)
 {
     context_ENC_p ctx = (context_ENC_p) obj_context->format_data;
     //This parameter need not be exposed
@@ -224,7 +224,7 @@ static VAStatus tng__H264ES_process_misc_framerate_param(context_ENC_p ctx, obje
 
 static VAStatus tng__H264ES_process_misc_ratecontrol_param(context_ENC_p ctx, object_buffer_p obj_buffer)
 {
-    IMG_UINT32 ui32BitsPerFrame;
+    IMG_INT32 ui32BitsPerFrame;
     VAEncMiscParameterRateControl *psMiscRcParams;
     IMG_RC_PARAMS *psRCParams = &(ctx->sRCParams);
     VAEncMiscParameterBuffer *pBuffer = (VAEncMiscParameterBuffer *) obj_buffer->buffer_data;
@@ -1148,8 +1148,8 @@ static VAStatus tng__H264ES_process_misc_param(context_ENC_p ctx, object_buffer_
 }
 
 static void tng_H264ES_QueryConfigAttributes(
-    VAProfile profile,
-    VAEntrypoint entrypoint,
+    VAProfile __maybe_unused profile,
+    VAEntrypoint __maybe_unused entrypoint,
     VAConfigAttrib *attrib_list,
     int num_attribs)
 {

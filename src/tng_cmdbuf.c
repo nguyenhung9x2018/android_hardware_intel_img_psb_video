@@ -415,53 +415,52 @@ void tng_cmdbuf_insert_command(
     *cmdbuf->cmd_idx++ = cmd_data;
 /* Command data address */
     if (data_addr) {
-	if (cmd_id == MTX_CMDID_RC_UPDATE) {
-	    *cmdbuf->cmd_idx++ = data_addr;
-	    drv_debug_msg(VIDEO_DEBUG_GENERAL,
-		"%s: data_addr = 0x%08x\n",
-		__FUNCTION__, *(cmdbuf->cmd_idx));
-	} else {
+        if (cmd_id == MTX_CMDID_RC_UPDATE) {
+            *cmdbuf->cmd_idx++ = (IMG_UINT32)data_addr;
+            drv_debug_msg(VIDEO_DEBUG_GENERAL,
+                        "%s: data_addr = 0x%08x\n",
+                        __FUNCTION__, *(cmdbuf->cmd_idx));
+        } else {
             if ((cmd_id >= MTX_CMDID_SETQUANT) && (cmd_id <= MTX_CMDID_SETUP)) {
                 if (cmd_id == MTX_CMDID_ISSUEBUFF)
                     TNG_RELOC_CMDBUF_START(cmdbuf->cmd_idx, offset, data_addr);
-		else
+                else
                     tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
-	    }
-	    else {
+            } else {
 #ifdef _TNG_RELOC_
-		TNG_RELOC_CMDBUF_START(cmdbuf->cmd_idx, offset, data_addr);
+                TNG_RELOC_CMDBUF_START(cmdbuf->cmd_idx, offset, data_addr);
 #else
-		tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
+                tng_cmdbuf_set_phys(cmdbuf->cmd_idx, 0, data_addr, offset, 0);
 #endif
-	    }
+            }
             drv_debug_msg(VIDEO_DEBUG_GENERAL,
                 "%s: data_addr = 0x%08x\n",
                 __FUNCTION__, *(cmdbuf->cmd_idx));
             cmdbuf->cmd_idx++;
-	}
+        }
     } else {
-	*cmdbuf->cmd_idx++ = 0;
+        *cmdbuf->cmd_idx++ = 0;
     }
 
     if (cmd_id == MTX_CMDID_SW_FILL_INPUT_CTRL) {
-	*cmdbuf->cmd_idx++ = ctx->ui16IntraRefresh;
-	*cmdbuf->cmd_idx++ = ctx->sRCParams.ui32InitialQp;
-	*cmdbuf->cmd_idx++ = ctx->sRCParams.iMinQP;
-	*cmdbuf->cmd_idx++ = ctx->ctx_mem_size.mb_ctrl_in_params;
-	*cmdbuf->cmd_idx++ = ctx->ui32pseudo_rand_seed;
+        *cmdbuf->cmd_idx++ = ctx->ui16IntraRefresh;
+        *cmdbuf->cmd_idx++ = ctx->sRCParams.ui32InitialQp;
+        *cmdbuf->cmd_idx++ = ctx->sRCParams.iMinQP;
+        *cmdbuf->cmd_idx++ = ctx->ctx_mem_size.mb_ctrl_in_params;
+        *cmdbuf->cmd_idx++ = ctx->ui32pseudo_rand_seed;
     }
 
     if (cmd_id == MTX_CMDID_SW_UPDATE_AIR_SEND) {
-	*cmdbuf->cmd_idx++ = ctx->sAirInfo.i16AIRSkipCnt;
-	*cmdbuf->cmd_idx++ = ctx->sAirInfo.i32NumAIRSPerFrame;
-	*cmdbuf->cmd_idx++ = ctx->ctx_mem_size.mb_ctrl_in_params;
-	*cmdbuf->cmd_idx++ = ctx->ui32FrameCount[0];
+        *cmdbuf->cmd_idx++ = ctx->sAirInfo.i16AIRSkipCnt;
+        *cmdbuf->cmd_idx++ = ctx->sAirInfo.i32NumAIRSPerFrame;
+        *cmdbuf->cmd_idx++ = ctx->ctx_mem_size.mb_ctrl_in_params;
+        *cmdbuf->cmd_idx++ = ctx->ui32FrameCount[0];
     }
 
     if (cmd_id == MTX_CMDID_SW_UPDATE_AIR_CALC) {
-	*cmdbuf->cmd_idx++ = ctx->ctx_mem_size.first_pass_out_best_multipass_param;
-	*cmdbuf->cmd_idx++ = ctx->sAirInfo.i32SAD_Threshold;
-	*cmdbuf->cmd_idx++ = ctx->ui8EnableSelStatsFlags;
+        *cmdbuf->cmd_idx++ = ctx->ctx_mem_size.first_pass_out_best_multipass_param;
+        *cmdbuf->cmd_idx++ = ctx->sAirInfo.i32SAD_Threshold;
+        *cmdbuf->cmd_idx++ = ctx->ui8EnableSelStatsFlags;
     }
 
     /* Command data address */
@@ -471,12 +470,12 @@ void tng_cmdbuf_insert_command(
             "%s: cmd_param = 0x%08x\n",
             __FUNCTION__, *(cmdbuf->cmd_idx - 1));
 
-	if (data_addr)
-	    *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(data_addr->drm_buf));
+    if (data_addr)
+        *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(data_addr->drm_buf));
 
-	*(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_mb_ctrl_in_params.drm_buf));
-	*(cmdbuf->cmd_idx)++ =  wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_first_pass_out_params.drm_buf));
-	*(cmdbuf->cmd_idx)++ =  wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_first_pass_out_best_multipass_param.drm_buf));
+        *(cmdbuf->cmd_idx)++ = wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_mb_ctrl_in_params.drm_buf));
+        *(cmdbuf->cmd_idx)++ =  wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_first_pass_out_params.drm_buf));
+        *(cmdbuf->cmd_idx)++ =  wsbmKBufHandle(wsbmKBuf(ps_mem->bufs_first_pass_out_best_multipass_param.drm_buf));
     }
 
     if (cmd_id == MTX_CMDID_SETUP_INTERFACE) {
@@ -545,7 +544,7 @@ static int
 ptgDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_count, unsigned cmdBufHandle,
              unsigned cmdBufOffset, unsigned cmdBufSize,
              unsigned relocBufHandle, unsigned relocBufOffset,
-             unsigned numRelocs, int damage,
+             unsigned numRelocs, int __maybe_unused damage,
              unsigned engine, unsigned fence_flags, struct psb_ttm_fence_rep *fence_rep)
 {
     drm_psb_cmdbuf_arg_t ca;
@@ -688,9 +687,8 @@ lnc_fence_wait(psb_driver_data_p driver_data,
  *
  * Returns 0 on success
  */
-int tng_context_submit_cmdbuf(object_context_p obj_context)
+int tng_context_submit_cmdbuf(object_context_p __maybe_unused obj_context)
 {
-
     return 0;
 }
 
@@ -704,7 +702,7 @@ int tng_context_submit_cmdbuf(object_context_p obj_context)
  * vaQuerySurfaceStatus is supposed only to be called after vaEndPicture/vaSyncSurface,
  * The caller should ensure the surface pertains to an encode context
  */
-int tng_surface_get_frameskip(psb_driver_data_p driver_data,
+int tng_surface_get_frameskip(psb_driver_data_p __maybe_unused driver_data,
                               psb_surface_p surface,
                               int *frame_skip)
 {

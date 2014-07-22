@@ -520,10 +520,10 @@ typedef struct context_MPEG2_s *context_MPEG2_p;
 
 
 static void pnw_MPEG2_QueryConfigAttributes(
-    VAProfile profile,
-    VAEntrypoint entrypoint,
-    VAConfigAttrib *attrib_list,
-    int num_attribs)
+    VAProfile __maybe_unused profile,
+    VAEntrypoint __maybe_unused entrypoint,
+    VAConfigAttrib __maybe_unused * attrib_list,
+    int __maybe_unused num_attribs)
 {
     /* No MPEG2 specific attributes */
 }
@@ -858,7 +858,7 @@ static void psb__MPEG2_write_VLC_tables(context_MPEG2_p ctx)
     /* VLC Table */
     /* Write a LLDMA Cmd to transfer VLD Table data */
     psb_cmdbuf_dma_write_cmdbuf(cmdbuf, &ctx->vlc_packed_table, 0,
-                                  sizeof(gaui16mpeg2VlcTableDataPacked),
+                                  sizeof(gaui16mpeg2VlcTableDataPacked), 0,
                                   DMA_TYPE_VLC_TABLE);
 
     /* Write the vec registers with the index data for each of the tables and then write    */

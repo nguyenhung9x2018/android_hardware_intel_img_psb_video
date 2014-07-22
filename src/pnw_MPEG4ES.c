@@ -50,9 +50,9 @@
 
 
 static void pnw_MPEG4ES_QueryConfigAttributes(
-    VAProfile profile,
-    VAEntrypoint entrypoint,
-    VAConfigAttrib *attrib_list,
+    VAProfile __maybe_unused profile,
+    VAEntrypoint __maybe_unused entrypoint,
+    VAConfigAttrib * attrib_list,
     int num_attribs)
 {
     int i;

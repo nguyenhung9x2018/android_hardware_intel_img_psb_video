@@ -88,7 +88,7 @@ int main()
         /* index   header
          * { ver, codec, text_size, data_size, date_location }
          * fw_text fw_data */
-        { 0, {0, 0, 0, 0, 0} },
+        { 0, {0, 0, 0, 0, 0}, NULL, NULL },
         {
             FW_H264_NO_RC,
             {

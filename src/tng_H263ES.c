@@ -57,8 +57,8 @@
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
 static void tng_H263ES_QueryConfigAttributes(
-    VAProfile profile,
-    VAEntrypoint entrypoint,
+    VAProfile __maybe_unused profile,
+    VAEntrypoint __maybe_unused entrypoint,
     VAConfigAttrib *attrib_list,
     int num_attribs)
 {
@@ -69,18 +69,18 @@ static void tng_H263ES_QueryConfigAttributes(
     /* RateControl attributes */
     for (i = 0; i < num_attribs; i++) {
         switch (attrib_list[i].type) {
-	case VAConfigAttribRTFormat:
-	    break;
+            case VAConfigAttribRTFormat:
+        break;
 
-	case VAConfigAttribEncAutoReference:
-	    attrib_list[i].value = 1;
-	    break;
-
-	case VAConfigAttribEncMaxRefFrames:
-	    attrib_list[i].value = 2;
+        case VAConfigAttribEncAutoReference:
+            attrib_list[i].value = 1;
             break;
 
-            case VAConfigAttribRateControl:
+        case VAConfigAttribEncMaxRefFrames:
+            attrib_list[i].value = 2;
+            break;
+
+        case VAConfigAttribRateControl:
             attrib_list[i].value = VA_RC_NONE | VA_RC_CBR | VA_RC_VBR;
             break;
 

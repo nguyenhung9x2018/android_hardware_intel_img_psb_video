@@ -571,7 +571,7 @@ VAStatus  psb_CreateSurfaceFromUserspace(
     }
 
     for (i=0; i < num_surfaces; i++) {
-        vaddr = attribute_tpi->buffers[i];
+        vaddr = (unsigned int *)(attribute_tpi->buffers[i]);
         surfaceID = object_heap_allocate(&driver_data->surface_heap);
         obj_surface = SURFACE(surfaceID);
         if (NULL == obj_surface) {
@@ -670,10 +670,10 @@ VAStatus  psb_CreateSurfaceFromION(
     }
 
     for (i=0; i < num_surfaces; i++) {
-        ion_source_share.handle = NULL;
+        ion_source_share.handle = 0;
         ion_source_share.fd = (int)(attribute_tpi->buffers[i]);
         ion_ret = ioctl(ion_fd, ION_IOC_IMPORT, &ion_source_share);
-            if ((ion_ret < 0) || (NULL == ion_source_share.handle)) {
+            if ((ion_ret < 0) || (0 == ion_source_share.handle)) {
             close(ion_fd);
             drv_debug_msg(VIDEO_DEBUG_ERROR, "%s: Fail to import the ion fd!\n", __FUNCTION__);
             return VA_STATUS_ERROR_UNKNOWN;
@@ -804,7 +804,7 @@ VAStatus psb_CreateSurfacesWithAttribute(
     case VAExternalMemoryAndroidGrallocBuffer:
         vaStatus = psb_CreateSurfacesFromGralloc(ctx, width, height,
                                                  format, num_surfaces, surface_list,
-                                                 attribute_tpi);
+                                                 (PsbSurfaceAttributeTPI *)attribute_tpi);
         return vaStatus;
 #ifdef ANDROID
     case VAExternalMemoryIONSharedFD:

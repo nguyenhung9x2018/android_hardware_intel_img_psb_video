@@ -54,12 +54,12 @@
      (((eFormat) == IMG_CODEC_YV16) ? 2 : 1))
 
 #define JPEG_MCU_PER_CORE(width, height, core, eFormat) \
-        ((core) > 1 ? ((JPEG_MCU_NUMBER(width, height, eFormat) + (core) - 1) / (core))\
-         :JPEG_MCU_NUMBER(width, height, eFormat))
+        ((core) > 1 ? (((uint32_t)JPEG_MCU_NUMBER(width, height, eFormat) + (core) - 1) / (core))\
+         :(uint32_t)JPEG_MCU_NUMBER(width, height, eFormat))
 
 #define JPEG_SCANNING_COUNT(width, height, core, eFormat) \
-    ((JPEG_MCU_PER_CORE(width, height, core, eFormat) > JPEG_MAX_MCU_PER_SCAN) ? \
-      ((JPEG_MCU_NUMBER(width, height, eFormat) + JPEG_MAX_MCU_PER_SCAN - 1) \
+    ((uint32_t)(JPEG_MCU_PER_CORE(width, height, core, eFormat) > JPEG_MAX_MCU_PER_SCAN) ? \
+      ((uint32_t)(JPEG_MCU_NUMBER(width, height, eFormat) + JPEG_MAX_MCU_PER_SCAN - 1) \
         / JPEG_MAX_MCU_PER_SCAN) \
        : (core))
 

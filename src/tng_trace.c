@@ -365,7 +365,7 @@ int apSliceParamsTemplates_dump(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex, I
 
 static int apPicHdrTemplates_dump(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex, IMG_UINT32 count)
 {
-    int i;
+    uint32_t i;
     context_ENC_mem *ps_mem = &(ctx->ctx_mem[ui32StreamIndex]);
     MTX_HEADER_PARAMS *data;
 
@@ -376,13 +376,13 @@ static int apPicHdrTemplates_dump(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex,
     }
 
     for (i = 0; i < count; i++) {
-	data = ps_mem->bufs_pic_template.virtual_addr + (ctx->ctx_mem_size.pic_template * i);
+        data = (MTX_HEADER_PARAMS *)(ps_mem->bufs_pic_template.virtual_addr + ctx->ctx_mem_size.pic_template * i);
         drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\tapPicHdrTemplates[%02d]=0x%08x  {\n", i, data);
-	PRINT_ARRAY_BYTE(data, 64);                        \
+        PRINT_ARRAY_BYTE(data, 64);                        \
         drv_debug_msg(VIDEO_ENCODE_PDUMP,"\t\t}\n");
     }
 
-    data = ps_mem->bufs_pic_template.virtual_addr;
+    data = (MTX_HEADER_PARAMS *)ps_mem->bufs_pic_template.virtual_addr;
     MTX_HEADER_PARAMS_dump(data);
 
     psb_buffer_unmap(&(ps_mem->bufs_pic_template));
@@ -523,7 +523,7 @@ static int pFirstPassOutBestMultipassParamAddr_dump(context_ENC_p ctx)
     return 0;
 }
 
-static int pMBCtrlInParamsAddr_dump(context_ENC_p ctx, IMG_UINT32 ui32StreamIndex)
+static int pMBCtrlInParamsAddr_dump(context_ENC_p ctx, IMG_UINT32 __maybe_unused ui32StreamIndex)
 {
     int i;
     context_ENC_mem* ps_mem = &(ctx->ctx_mem[0]);

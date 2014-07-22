@@ -370,9 +370,9 @@ typedef struct tag_IMG_BIAS_PARAMS {
     IMG_UINT32  uTHSkipIPE;
     IMG_UINT32  uTHSkipSPE;
 
-    IMG_INT32       iIntra16Bias;
-    IMG_INT32       iInterMBBias;
-    IMG_INT32       iInterMBBiasB;
+    IMG_UINT32       iIntra16Bias;
+    IMG_UINT32       iInterMBBias;
+    IMG_UINT32       iInterMBBiasB;
 
     IMG_BOOL16      bRCEnable;
     IMG_BOOL16      bRCBiases;
@@ -428,7 +428,7 @@ typedef struct _RC_PARAMS_ {
     IMG_UINT32  ui32SliceMBLimit;
     IMG_INT32   i32InitialLevel;
     IMG_INT32   i32InitialDelay;
-    IMG_INT16   iMinQP;
+    IMG_UINT16   iMinQP;
     IMG_UINT16  ui16BFrames;
     IMG_BOOL16  b16Hierarchical;
     IMG_BOOL16  bIsH264Codec;

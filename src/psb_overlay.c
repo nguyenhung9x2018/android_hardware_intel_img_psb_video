@@ -53,7 +53,7 @@ int psb_xrandr_single_mode();
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData
 #define SURFACE(id) ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
-#define GET_SURFACE_INFO_rotate(psb_surface) ((int) (psb_surface)->extra_info[5])
+//#define GET_SURFACE_INFO_rotate(psb_surface) ((int) (psb_surface)->extra_info[5])
 
 #ifndef VA_FOURCC_I420
 #define VA_FOURCC_I420          0x30323449
@@ -409,9 +409,9 @@ UpdateCoeff(int taps, double fCutoff, Bool isHoriz, Bool isY, coeffPtr pCoeff)
 
 static void
 i830_display_video(
-    VADriverContextP ctx, PsbPortPrivPtr pPriv, VASurfaceID surface,
+    VADriverContextP ctx, PsbPortPrivPtr pPriv, VASurfaceID __maybe_unused surface,
     int id, short width, short height,
-    int dstPitch, int srcPitch, int x1, int y1, int x2, int y2, BoxPtr dstBox,
+    int dstPitch, int srcPitch, int __maybe_unused x1, int __maybe_unused y1, int __maybe_unused x2, int __maybe_unused y2, BoxPtr dstBox,
     short src_w, short src_h, short drw_w, short drw_h,
     unsigned int flags, int overlayId, int pipeId)
 {
@@ -923,15 +923,15 @@ static void I830PutImageFlipRotateSurface(
 }
 
 
-static void I830PutImageFlipRotateDebug(
+static int I830PutImageFlipRotateDebug(
     VADriverContextP ctx,
     VASurfaceID surface,
-    short src_x, short src_y,
-    short src_w, short src_h,
-    short drw_x, short drw_y,
-    short drw_w, short drw_h,
-    int fourcc, int flags,
-    int overlayId,
+    short __maybe_unused src_x, short __maybe_unused src_y,
+    short __maybe_unused src_w, short __maybe_unused src_h,
+    short __maybe_unused drw_x, short __maybe_unused drw_y,
+    short __maybe_unused drw_w, short __maybe_unused drw_h,
+    int __maybe_unused fourcc, int __maybe_unused flags,
+    int __maybe_unused overlayId,
     int pipeId)
 {
     INIT_DRIVER_DATA;
@@ -943,7 +943,7 @@ static void I830PutImageFlipRotateDebug(
     CHECK_SURFACE(obj_surface);
 
     if (pipeId != 0)
-        return;
+        return -1;
 
     psb_surface = obj_surface->out_loop_surface;
     psb_buffer_p buf = &psb_surface->buf;
@@ -955,13 +955,13 @@ static void I830PutImageFlipRotateDebug(
     if (pf == NULL)
         if ((pf = fopen("/home/dump.yuv", "w+")) == NULL) {
             printf("Open yuv file fails\n");
-	    return;
+            return -1;
         }
     ret = psb_buffer_map(buf, &data);
 
     if (ret) {
         printf("Map buffer fail\n");
-	return;
+        return -1;
     }
     for (i = 0; i < obj_surface->height_r; i++) {
         fwrite(data, 1, obj_surface->width_r, pf);
@@ -971,7 +971,7 @@ static void I830PutImageFlipRotateDebug(
     buffer = malloc(obj_surface->height_r * obj_surface->width_r);
     if (!buffer) {
         printf("Alloc chroma buffer fail\n");
-	return;
+        return -1;
     }
     header = buffer;
     chroma = data;
@@ -995,8 +995,10 @@ static void I830PutImageFlipRotateDebug(
     fwrite(header, obj_surface->height_r / 2, obj_surface->width_r, pf);
     free(header);
     psb_buffer_unmap(buf);
+    return 0;
+
 dump_out:
-    ;
+    return -1;
 }
 
 
