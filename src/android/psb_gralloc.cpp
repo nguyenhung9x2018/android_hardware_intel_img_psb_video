@@ -65,7 +65,7 @@ int gralloc_lock(buffer_handle_t handle,
     err = mAllocMod->lock(mAllocMod, handle, usage,
                           left, top, width, height,
                           vaddr);
-    ALOGV("gralloc_lock: handle is %p, usage is %x, vaddr is %x.\n", handle, usage, *vaddr);
+    ALOGV("gralloc_lock: handle is %p, usage is %x, vaddr is %p.\n", handle, usage, *vaddr);
 
 //#ifdef BAYTRAIL
 #if 0
