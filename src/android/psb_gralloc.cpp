@@ -37,6 +37,10 @@
 #ifdef BAYTRAIL
 #include <ufo/gralloc.h>
 #endif
+#ifndef BAYTRAIL
+#include <hal/hal_public.h>
+#endif
+
 using namespace android;
 
 #ifdef  LOG_TAG
@@ -160,4 +164,9 @@ int gralloc_getdisplaystatus(buffer_handle_t handle,  int* status)
     }
 
     return err;
+}
+
+int gralloc_getbuffd(buffer_handle_t handle)
+{
+    return ((IMG_native_handle_t*)handle)->fd[0];
 }
