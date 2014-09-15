@@ -39,6 +39,7 @@ LOCAL_C_INCLUDES := \
     $(TARGET_OUT_HEADERS)/libwsbm \
     $(TARGET_OUT_HEADERS)/libdrm \
     $(TARGET_OUT_HEADERS)/opengles \
+    $(TARGET_OUT_HEADERS)/pvr \
     $(LOCAL_PATH)/hwdefs
 
 LOCAL_SHARED_LIBRARIES += libdl libdrm libwsbm libcutils \
@@ -103,9 +104,6 @@ LOCAL_SRC_FILES += \
     vsp_compose.c
 endif
 
-LOCAL_C_INCLUDES += \
-    $(TARGET_OUT_HEADERS)/pvr \
-    $(TARGET_OUT_HEADERS)/pvr/pvr2d
 
 ifeq ($(TARGET_HAS_VPP),true)
 LOCAL_C_INCLUDES += \
@@ -114,9 +112,7 @@ endif
 
 
 ifeq ($(TARGET_HAS_VPP),true)
-LOCAL_SHARED_LIBRARIES += libpvr2d libvpp_setting
-else
-LOCAL_SHARED_LIBRARIES += libpvr2d
+LOCAL_SHARED_LIBRARIES += libvpp_setting
 endif
 
 
