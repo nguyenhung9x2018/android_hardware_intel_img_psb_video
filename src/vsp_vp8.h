@@ -31,7 +31,7 @@
 #define _VSP_VP8_H_
 
 #include "psb_drv_video.h"
-#include <linux/vsp_fw.h>
+#include "vsp_fw.h"
 
 extern struct format_vtable_s vsp_VP8_vtable;
 

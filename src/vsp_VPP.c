@@ -135,21 +135,21 @@ struct filter_strength vpp_strength[STRENGTH_NUM] = {
 		 * type(0-Denoise,1-Deblock), value_thr, cnt_thr, coef, temp_thr1, temp_thr2, _pad[2]
 		 */
 		.denoise_deblock = {
-			[QCIF_TO_QVGA]    = {1, 15, 47, 35, 0, 0, 0, 0},
-			[QVGA_TO_VGA]     = {0, 7,  48, 47, 0, 0, 0, 0},
-			[VGA_TO_SD]       = {0, 10, 8,  9,  1, 3, 0, 0},
-			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, 0, 0},
-			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, 0, 0}
+			[QCIF_TO_QVGA]    = {1, 15, 47, 35, 0, 0, {0, 0}},
+			[QVGA_TO_VGA]     = {0, 7,  48, 47, 0, 0, {0, 0}},
+			[VGA_TO_SD]       = {0, 10, 8,  9,  1, 3, {0, 0}},
+			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, {0, 0}},
+			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, {0, 0}}
 		},
 		/* structure:
 		 * temp_detect, temp_correct, clip_thr, mid_thr, luma_amm, chroma_amm, _pad[2]
 		 */
 		.enhancer = {
-			[QCIF_TO_QVGA]    = {200, 100, 1, 42, 40, 60, 0, 0},
-			[QVGA_TO_VGA]     = {220, 180, 1, 42, 40, 60, 0, 0},
-			[VGA_TO_SD]       = {220, 200, 1, 42, 40, 60, 0, 0},
-			[SD_TO_720P]      = {100, 100, 5, 33, 0,  0,  0, 0},
-			[HD720P_TO_1080P] = {100, 100, 5, 33, 0,  0,  0, 0}
+			[QCIF_TO_QVGA]    = {200, 100, 1, 42, 40, 60, {0, 0}},
+			[QVGA_TO_VGA]     = {220, 180, 1, 42, 40, 60, {0, 0}},
+			[VGA_TO_SD]       = {220, 200, 1, 42, 40, 60, {0, 0}},
+			[SD_TO_720P]      = {100, 100, 5, 33, 0,  0,  {0, 0}},
+			[HD720P_TO_1080P] = {100, 100, 5, 33, 0,  0,  {0, 0}}
 		},
 		.sharpen = {
 			[QCIF_TO_QVGA]    = { .quality = SHARPEN_ON },
@@ -161,18 +161,18 @@ struct filter_strength vpp_strength[STRENGTH_NUM] = {
 	},
 	[MEDIUM_STRENGTH] = {
 		.denoise_deblock = {
-			[QCIF_TO_QVGA]    = {1, 25, 47, 12, 0, 0, 0, 0},
-			[QVGA_TO_VGA]     = {0, 10, 48, 47, 0, 0, 0, 0},
-			[VGA_TO_SD]       = {0, 20, 8,  9,  2, 4, 0, 0},
-			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, 0, 0},
-			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, 0, 0}
+			[QCIF_TO_QVGA]    = {1, 25, 47, 12, 0, 0, {0, 0}},
+			[QVGA_TO_VGA]     = {0, 10, 48, 47, 0, 0, {0, 0}},
+			[VGA_TO_SD]       = {0, 20, 8,  9,  2, 4, {0, 0}},
+			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, {0, 0}},
+			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, {0, 0}}
 		},
 		.enhancer = {
-			[QCIF_TO_QVGA]    = {100, 100, 1, 33, 100, 100, 0, 0},
-			[QVGA_TO_VGA]     = {100, 180, 1, 33, 100, 100, 0, 0},
-			[VGA_TO_SD]       = {100, 200, 1, 33, 100, 100, 0, 0},
-			[SD_TO_720P]      = {100, 100, 5, 33, 0,   0,   0, 0},
-			[HD720P_TO_1080P] = {100, 100, 5, 33, 0,   0,   0, 0}
+			[QCIF_TO_QVGA]    = {100, 100, 1, 33, 100, 100, {0, 0}},
+			[QVGA_TO_VGA]     = {100, 180, 1, 33, 100, 100, {0, 0}},
+			[VGA_TO_SD]       = {100, 200, 1, 33, 100, 100, {0, 0}},
+			[SD_TO_720P]      = {100, 100, 5, 33, 0,   0,   {0, 0}},
+			[HD720P_TO_1080P] = {100, 100, 5, 33, 0,   0,   {0, 0}}
 		},
 		.sharpen = {
 			[QCIF_TO_QVGA]    = { .quality = SHARPEN_ON },
@@ -184,18 +184,18 @@ struct filter_strength vpp_strength[STRENGTH_NUM] = {
 	},
 	[HIGH_STRENGTH] = {
 		.denoise_deblock = {
-			[QCIF_TO_QVGA]    = {1, 30, 40, 10, 0, 0, 0, 0},
-			[QVGA_TO_VGA]     = {0, 15, 45, 25, 0, 0, 0, 0},
-			[VGA_TO_SD]       = {0, 20, 7,  5,  3, 6, 0, 0},
-			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, 0, 0},
-			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, 0, 0}
+			[QCIF_TO_QVGA]    = {1, 30, 40, 10, 0, 0, {0, 0}},
+			[QVGA_TO_VGA]     = {0, 15, 45, 25, 0, 0, {0, 0}},
+			[VGA_TO_SD]       = {0, 20, 7,  5,  3, 6, {0, 0}},
+			[SD_TO_720P]      = {0, 10, 48, 47, 0, 0, {0, 0}},
+			[HD720P_TO_1080P] = {0, 10, 48, 47, 0, 0, {0, 0}}
 		},
 		.enhancer = {
-			[QCIF_TO_QVGA]    = {100, 100, 5, 33, 150, 200, 0, 0},
-			[QVGA_TO_VGA]     = {100, 180, 5, 33, 150, 200, 0, 0},
-			[VGA_TO_SD]       = {100, 200, 5, 33, 100, 150, 0, 0},
-			[SD_TO_720P]      = {100, 100, 5, 33, 0,   0,   0, 0},
-			[HD720P_TO_1080P] = {100, 100, 5, 33, 0,   0,   0, 0}
+			[QCIF_TO_QVGA]    = {100, 100, 5, 33, 150, 200, {0, 0}},
+			[QVGA_TO_VGA]     = {100, 180, 5, 33, 150, 200, {0, 0}},
+			[VGA_TO_SD]       = {100, 200, 5, 33, 100, 150, {0, 0}},
+			[SD_TO_720P]      = {100, 100, 5, 33, 0,   0,   {0, 0}},
+			[HD720P_TO_1080P] = {100, 100, 5, 33, 0,   0,   {0, 0}}
 		},
 		.sharpen = {
 			[QCIF_TO_QVGA]    = { .quality = SHARPEN_ON },
@@ -215,10 +215,10 @@ static int check_resolution(int width, int height);
 static int check_vpp_strength(int value);
 
 static void vsp_VPP_QueryConfigAttributes(
-	VAProfile profile,
-	VAEntrypoint entrypoint,
-	VAConfigAttrib *attrib_list,
-	int num_attribs)
+	VAProfile __maybe_unused profile,
+	VAEntrypoint __maybe_unused entrypoint,
+	VAConfigAttrib __maybe_unused *attrib_list,
+	int __maybe_unused num_attribs)
 {
 	/* No VPP specific attributes */
 	return;
@@ -538,8 +538,8 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 #endif
 	/*  According to VIED's design, the width must be multiple of 16 */
 	width = ALIGN_TO_16(input_surface->width);
-	if (width > input_surface->psb_surface->stride)
-		width = input_surface->psb_surface->stride;
+	if (width > (int)input_surface->psb_surface->stride)
+		width = (int)input_surface->psb_surface->stride;
 
 	/* Setup input surface */
 	cell_proc_picture_param->num_input_pictures  = 1;
@@ -633,7 +633,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 
 			/*  According to VIED's design, the width must be multiple of 16 */
 			width = ALIGN_TO_16(cur_output_surf->width);
-			if (width > cur_output_surf->psb_surface->stride)
+			if (width > (int)cur_output_surf->psb_surface->stride)
 				width = cur_output_surf->psb_surface->stride;
 			height = cur_output_surf->height_origin;
 			stride = cur_output_surf->psb_surface->stride;

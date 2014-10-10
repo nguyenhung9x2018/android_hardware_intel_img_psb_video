@@ -102,8 +102,8 @@ static void vsp_VP8_DestroyContext(object_context_p obj_context);
 static VAStatus vsp__VP8_check_legal_picture(object_context_p obj_context, object_config_p obj_config);
 
 static void vsp_VP8_QueryConfigAttributes(
-    VAProfile profile,
-    VAEntrypoint entrypoint,
+    VAProfile  __maybe_unused profile,
+    VAEntrypoint __maybe_unused entrypoint,
     VAConfigAttrib *attrib_list,
     int num_attribs)
 {
@@ -115,7 +115,7 @@ static void vsp_VP8_QueryConfigAttributes(
         case VAConfigAttribRTFormat:
             break;
         case VAConfigAttribRateControl:
-            attrib_list[i].value = VA_RC_CBR | VA_RC_VCM;
+            attrib_list[i].value = VA_RC_CBR | VA_RC_VCM | VA_RC_VBR;
             break;
         case VAConfigAttribEncAutoReference:
             attrib_list[i].value = 1;

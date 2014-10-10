@@ -109,7 +109,7 @@ static int get_surface_stride(int width, int tiling)
 
 #ifdef PSBVIDEO_MRFL_VPP
 
-static int isVppOn(void* output) {
+static int isVppOn(void __maybe_unused *output) {
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
     return psb_android_get_mds_vpp_state(output);
 #else

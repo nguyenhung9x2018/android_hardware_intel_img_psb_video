@@ -31,7 +31,7 @@
 
 #include "psb_drv_video.h"
 #include "vsp_VPP.h"
-#include <linux/vsp_fw.h>
+#include "vsp_fw.h"
 
 VAStatus vsp_compose_process_pipeline_param(context_VPP_p ctx, object_context_p obj_context, object_buffer_p obj_buffer);
 

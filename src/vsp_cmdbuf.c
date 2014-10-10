@@ -284,7 +284,7 @@ static int
 vspDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_count, unsigned cmdBufHandle,
              unsigned cmdBufOffset, unsigned cmdBufSize,
              unsigned relocBufHandle, unsigned relocBufOffset,
-             unsigned numRelocs, int damage,
+             unsigned __maybe_unused numRelocs, int __maybe_unused damage,
              unsigned engine, unsigned fence_flags, struct psb_ttm_fence_rep *fence_rep)
 {
 	drm_psb_cmdbuf_arg_t ca;
@@ -292,7 +292,6 @@ vspDRMCmdBuf(int fd, int ioctl_offset, psb_buffer_p *buffer_list, int buffer_cou
 	int i;
 	int ret = 0;
 	uint64_t mask = PSB_GPU_ACCESS_MASK;
-
 	arg_list = (struct psb_validate_arg *) calloc(1, sizeof(struct psb_validate_arg) * buffer_count);
 	if (arg_list == NULL) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Allocate memory failed\n");
@@ -382,9 +381,8 @@ out:
  *
  * Returns 0 on success
  */
-int vsp_context_submit_cmdbuf(object_context_p obj_context)
+int vsp_context_submit_cmdbuf(object_context_p __maybe_unused obj_context)
 {
-
 	return 0;
 }
 

@@ -44,7 +44,7 @@
 #ifdef TARGET_HAS_MULTIPLE_DISPLAY
 #include "psb_mds.h"
 #endif
-#if defined (PSBVIDEO_MRFL_VPP) && !defined (TARGET_HAS_MULTIPLE_DISPLAY)
+#if defined (PSBVIDEO_MRFL_VPP_SETTING) && !defined (TARGET_HAS_MULTIPLE_DISPLAY)
 #include <VPPSetting.h>
 #endif
 
@@ -149,8 +149,12 @@ int psb_android_get_mds_vpp_state(void* output) {
 #ifdef PSBVIDEO_MRFL_VPP
 
 int psb_android_get_vpp_state() {
+#ifdef PSBVIDEO_MRFL_VPP_SETTING
     bool ret = VPPSetting::isVppOn();
     return (ret ? 1 : 0);
+#else
+    return 0;
+#endif
 }
 
 #endif

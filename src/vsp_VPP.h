@@ -30,7 +30,7 @@
 #define _VSP_VPP_H_
 
 #include "psb_drv_video.h"
-#include <linux/vsp_fw.h>
+#include "vsp_fw.h"
 
 #define CONTEXT_VPP_ID 0
 #define CONTEXT_VP8_ID 1

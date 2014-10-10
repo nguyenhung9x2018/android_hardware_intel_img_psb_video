@@ -94,15 +94,11 @@ LOCAL_SRC_FILES += \
     tng_jpegES.c \
     tng_slotorder.c \
     tng_hostair.c \
-    tng_trace.c
-
-ifeq ($(TARGET_HAS_VPP),true)
-LOCAL_SRC_FILES += \
+    tng_trace.c \
     vsp_VPP.c \
-    vsp_cmdbuf.c \
     vsp_vp8.c \
-    vsp_compose.c
-endif
+    vsp_cmdbuf.c \
+    vsp_compose.c \
 
 
 ifeq ($(TARGET_HAS_VPP),true)
@@ -113,6 +109,7 @@ endif
 
 ifeq ($(TARGET_HAS_VPP),true)
 LOCAL_SHARED_LIBRARIES += libvpp_setting
+LOCAL_CFLAGS += DPSBVIDEO_MRFL_VPP_SETTING
 endif
 
 
@@ -122,6 +119,7 @@ LOCAL_CFLAGS += \
     -DPSBVIDEO_VPP_TILING -DSLICE_HEADER_PARSING
 else
 LOCAL_CFLAGS += \
+    -DPSBVIDEO_MRFL_VPP \
     -DPSBVIDEO_MRFL \
     -DSLICE_HEADER_PARSING
 endif
