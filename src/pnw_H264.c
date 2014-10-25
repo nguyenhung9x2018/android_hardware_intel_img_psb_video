@@ -187,6 +187,12 @@ struct context_H264_s {
 
     /* Reference Cache */
     struct psb_buffer_s reference_cache;
+
+    /* map picture_id to dpbidx consistently between pictures */
+    uint32_t dpbidx_not_used_cnt[16];
+    uint32_t map_picture_id_to_dpbidx[16];
+    uint32_t dpbidx_used_this_pic_flags;
+
 };
 
 typedef struct context_H264_s *context_H264_p;
@@ -420,6 +426,10 @@ static VAStatus pnw_H264_CreateContext(
     ctx->dec_ctx.end_slice = psb__H264_end_slice;
     ctx->dec_ctx.process_buffer = pnw_H264_process_buffer;
 
+    ctx->dpbidx_used_this_pic_flags = 0;
+    memset(ctx->dpbidx_not_used_cnt, 0, sizeof(ctx->dpbidx_not_used_cnt));
+    memset(ctx->map_picture_id_to_dpbidx, 0xff, sizeof(ctx->map_picture_id_to_dpbidx));
+
     switch (obj_config->profile) {
     case VAProfileH264Baseline:
         ctx->profile = H264_BASELINE_PROFILE;
@@ -534,6 +544,39 @@ static void psb__H264_trace_pic_params(VAPictureParameterBufferH264 *p)
     P(frame_num);
 }
 
+static uint32_t get_interpic_dpbidx(context_H264_p ctx, uint32_t picture_id)
+{
+    uint32_t dpbidx, i ,max_count;
+
+    /* check if picture_id is already allocated a dpbidx */
+    for (dpbidx = 0; dpbidx < 16; dpbidx++)
+        if (ctx->map_picture_id_to_dpbidx[dpbidx] == picture_id)
+            break;
+
+    /* assign a new picture_id to a new/recycled dpbidx */
+    if (16 == dpbidx)
+    {
+        dpbidx = 0;
+        max_count = ctx->dpbidx_not_used_cnt[0];
+        for (i = 1; i < 16; i++)
+        {
+            if (ctx->dpbidx_not_used_cnt[i] > max_count)
+            {
+                dpbidx = i;
+                max_count = ctx->dpbidx_not_used_cnt[i];
+            }
+        }
+        ctx->map_picture_id_to_dpbidx[dpbidx] = picture_id;
+        ctx->dpbidx_not_used_cnt[dpbidx] = 0;
+    }
+
+    /* record this dpbidx is used this pic to update the dpbidx_not_used_cnt later */
+    ctx->dpbidx_used_this_pic_flags |= (1 << dpbidx);
+
+    return dpbidx;
+}
+
+
 static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffer_p obj_buffer)
 {
     psb_surface_p target_surface = ctx->obj_context->current_render_target->psb_surface;
@@ -612,7 +655,7 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     ctx->picture_size_map_units = ctx->picture_width_mb * ctx->picture_height_map_units;/* (7-14) */
 
     pic_params->seq_fields.bits.mb_adaptive_frame_field_flag = (pic_params->seq_fields.bits.mb_adaptive_frame_field_flag &&
-								!pic_params->pic_fields.bits.field_pic_flag);
+                                                               !pic_params->pic_fields.bits.field_pic_flag);
     /* record just what type of picture we are */
     if (pic_params->pic_fields.bits.field_pic_flag) {
         if (pic_params->CurrPic.flags & VA_PICTURE_H264_BOTTOM_FIELD) {
@@ -628,18 +671,33 @@ static VAStatus psb__H264_process_picture_param(context_H264_p ctx, object_buffe
     }
 
     uint32_t i;
+    /* update the not_used_cnt from the last picture data */
+    for (i = 0; i < 16; i++) {
+        if (!(ctx->dpbidx_used_this_pic_flags & (1 << i)))
+            ctx->dpbidx_not_used_cnt[i]++;
+    }
+
+    ctx->dpbidx_used_this_pic_flags = 0;
     ctx->long_term_frame_flags = 0;
+
+    if (pic_params->num_ref_frames == 0) {
+        ctx->dpbidx_used_this_pic_flags = 0;
+        memset(ctx->dpbidx_not_used_cnt, 0, sizeof(ctx->dpbidx_not_used_cnt));
+        memset(ctx->map_picture_id_to_dpbidx, 0xff, sizeof(ctx->map_picture_id_to_dpbidx));
+    }
     /* We go from high to low so that we are left with the lowest index */
     for (i = pic_params->num_ref_frames; i--;) {
+        uint32_t dpbidx;
         if (pic_params->ReferenceFrames[i].flags == VA_PICTURE_H264_INVALID) {
             continue;
         }
         object_surface_p ref_surface = SURFACE(pic_params->ReferenceFrames[i].picture_id);
-        if (pic_params->ReferenceFrames[i].flags & VA_PICTURE_H264_BOTTOM_FIELD) {
-            ctx->long_term_frame_flags |= 0x01 << i;
-        }
         if (ref_surface) {
-            SET_SURFACE_INFO_dpb_idx(ref_surface->psb_surface, i);
+            dpbidx = get_interpic_dpbidx(ctx, pic_params->ReferenceFrames[i].picture_id);
+            if (pic_params->ReferenceFrames[i].flags & VA_PICTURE_H264_BOTTOM_FIELD) {
+                ctx->long_term_frame_flags |= 0x01 << dpbidx;
+            }
+            SET_SURFACE_INFO_dpb_idx(ref_surface->psb_surface, dpbidx);
         }
     }
 
@@ -906,7 +964,7 @@ static void psb__H264_build_SCA_chunk(context_H264_p ctx)
     psb_cmdbuf_rendec_end(cmdbuf);
 }
 
-static void psb__H264_build_picture_order_chunk(context_H264_p ctx)
+static void psb__H264_build_picture_order_chunk(context_H264_p ctx, uint32_t * map)
 {
     psb_cmdbuf_p cmdbuf = ctx->obj_context->cmdbuf;
     VAPictureParameterBufferH264 *pic_params = ctx->pic_params;
@@ -933,19 +991,22 @@ static void psb__H264_build_picture_order_chunk(context_H264_p ctx)
         pic_params->num_ref_frames = 16;
     }
 
-    for (i = 0; i < pic_params->num_ref_frames; i++) {
-        if (pic_params->ReferenceFrames[i].flags == VA_PICTURE_H264_INVALID) {
-            continue;
-        }
-        reg_value = 0;
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_H264, CR_VEC_H264_BE_TOP_FOC, TOPFIELDORDERCNT,
-                               SIGNTRUNC(pic_params->ReferenceFrames[i].TopFieldOrderCnt));
-        psb_cmdbuf_rendec_write(cmdbuf, reg_value);
+    for (i = 0; i < 16; i++) {
+        if (map[i] < 16) {
+            reg_value = 0;
+            REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_H264, CR_VEC_H264_BE_TOP_FOC, TOPFIELDORDERCNT,
+                                   SIGNTRUNC(pic_params->ReferenceFrames[map[i]].TopFieldOrderCnt));
+            psb_cmdbuf_rendec_write(cmdbuf, reg_value);
 
-        reg_value = 0;
-        REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_H264, CR_VEC_H264_BE_BOT_FOC, BOTTOMFIELDORDERCNT,
-                               SIGNTRUNC(pic_params->ReferenceFrames[i].BottomFieldOrderCnt));
-        psb_cmdbuf_rendec_write(cmdbuf, reg_value);
+            reg_value = 0;
+            REGIO_WRITE_FIELD_LITE(reg_value, MSVDX_VEC_H264, CR_VEC_H264_BE_BOT_FOC, BOTTOMFIELDORDERCNT,
+                               SIGNTRUNC(pic_params->ReferenceFrames[map[i]].BottomFieldOrderCnt));
+            psb_cmdbuf_rendec_write(cmdbuf, reg_value);
+        }
+        else {
+            psb_cmdbuf_rendec_write(cmdbuf, 0);
+            psb_cmdbuf_rendec_write(cmdbuf, 0);
+        }
     }
 
     psb_cmdbuf_rendec_end(cmdbuf);
@@ -1099,6 +1160,36 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     uint32_t reg_value;
     unsigned int i;
 
+    int picture_id = ctx->obj_context->current_render_target->surface_id;
+    for(i = 0; i < 16; i++) {
+        if (ctx->map_picture_id_to_dpbidx[i] == (unsigned int)picture_id)
+            break;
+    }
+
+    if (i < 16) {
+        ctx->map_picture_id_to_dpbidx[i] = 0xff;
+        ctx->dpbidx_not_used_cnt[i] = 0xff00;
+    }
+
+    /* get the dpbidx for the ref pictures */
+        uint32_t map_dpbidx_to_refidx[16];
+        memset(map_dpbidx_to_refidx, 0xff, sizeof(map_dpbidx_to_refidx));
+
+       if (pic_params->num_ref_frames > 16)
+           pic_params->num_ref_frames = 16;
+       for (i = 0; i < pic_params->num_ref_frames; i++) {
+            if (pic_params->ReferenceFrames[i].flags == VA_PICTURE_H264_INVALID) {
+                continue;
+            }
+            object_surface_p ref_surface = SURFACE(pic_params->ReferenceFrames[i].picture_id);
+            if (ref_surface) {
+                uint32_t idx = GET_SURFACE_INFO_dpb_idx(ref_surface->psb_surface);
+                if (idx < 16) {
+                    map_dpbidx_to_refidx[idx] = i;
+                }
+            }
+        }
+
     /* psb_cmdbuf_rendec_start_block( cmdbuf ); */
 
     /* CHUNK: Entdec back-end profile and level */
@@ -1153,7 +1244,7 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
     /* send Picture Order Counts (b frame only?) */
     /* maybe need a state variable to track if this has already been sent for the frame */
     if (slice_param->slice_type == ST_B) {
-        psb__H264_build_picture_order_chunk(ctx);
+        psb__H264_build_picture_order_chunk(ctx, map_dpbidx_to_refidx);
     }
 
     /* CHUNK: BIN */
@@ -1222,23 +1313,22 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
             }
         }
 
-        if (pic_params->num_ref_frames > 16)
-            pic_params->num_ref_frames = 16;
-        /* Only load used surfaces */
-        for (i = 0; i < pic_params->num_ref_frames; i++) {
-            if (pic_params->ReferenceFrames[i].flags == VA_PICTURE_H264_INVALID) {
-                continue;
-            }
-            object_surface_p ref_surface = SURFACE(pic_params->ReferenceFrames[i].picture_id);
-            psb_buffer_p buffer;
+         /* Only load used surfaces */
+        for (i = 0; i < 16; i++) {
+            if (map_dpbidx_to_refidx[i] < 16) {
+//              if (pic_params->ReferenceFrames[map_dpbidx_to_refidx[i]].flags == VA_PICTURE_H264_INVALID) {
+//                  continue;
+//              }
+                object_surface_p ref_surface = SURFACE(pic_params->ReferenceFrames[map_dpbidx_to_refidx[i]].picture_id);
+                psb_buffer_p buffer;
 
-            if (NULL == ref_surface) {
-                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalide reference surface handle\n",
-                                   __FUNCTION__, __LINE__);
-                return;
-            }
+                if (NULL == ref_surface) {
+                    drv_debug_msg(VIDEO_DEBUG_ERROR, "%s L%d Invalide reference surface handle\n",
+                                       __FUNCTION__, __LINE__);
+                    return;
+                }
 
-            buffer = ref_surface->psb_surface->ref_buf;
+                buffer = ref_surface->psb_surface->ref_buf;
             /*
             drv_debug_msg(VIDEO_DEBUG_GENERAL, "pic_params->ReferenceFrames[%d] = %08x --> %08x frame_idx:0x%08x flags:%02x TopFieldOrderCnt: 0x%08x BottomFieldOrderCnt: 0x%08x %s\n",
                                      i,
@@ -1250,19 +1340,21 @@ static void psb__H264_build_rendec_params(context_H264_p ctx, VASliceParameterBu
                                      pic_params->ReferenceFrames[i].BottomFieldOrderCnt,
                                      is_used[i] ? "used" : "");
             */
-            if (ref_surface && is_used[i] && buffer)
-                // GET_SURFACE_INFO_is_used(ref_surface->psb_surface))
-            {
-                psb_cmdbuf_rendec_write_address(cmdbuf, buffer,
-                                                buffer->buffer_ofs);
-                psb_cmdbuf_rendec_write_address(cmdbuf, buffer,
-                                                buffer->buffer_ofs +
-                                                ref_surface->psb_surface->chroma_offset);
-                buffer->unfence_flag = 1;
+                if (ref_surface && is_used[i] && buffer) {
+                    psb_cmdbuf_rendec_write_address(cmdbuf, buffer,
+                                                    buffer->buffer_ofs);
+                    psb_cmdbuf_rendec_write_address(cmdbuf, buffer,
+                                                    buffer->buffer_ofs +
+                                                    ref_surface->psb_surface->chroma_offset);
+                    buffer->unfence_flag = 1;
+                } else {
+                    psb_cmdbuf_rendec_write(cmdbuf, 0xdeadbeef);
+                    psb_cmdbuf_rendec_write(cmdbuf, 0xdeadbeef);
+                }
             } else {
-                psb_cmdbuf_rendec_write(cmdbuf, 0xdeadbeef);
-                psb_cmdbuf_rendec_write(cmdbuf, 0xdeadbeef);
-            }
+            psb_cmdbuf_rendec_write(cmdbuf, 0xdeadbeef);
+            psb_cmdbuf_rendec_write(cmdbuf, 0xdeadbeef);
+        }
         }
         psb_cmdbuf_rendec_end(cmdbuf);
     }
