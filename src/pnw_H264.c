@@ -937,8 +937,10 @@ static VAStatus psb__H264_process_slice_header_group(context_H264_p ctx, object_
     psb__suspend_buffer(driver_data, frame_obj_buffer);
     psb__suspend_buffer(driver_data, slice_header_obj_buffer);
 
-    if (psb_context_flush_cmdbuf(obj_context))
-        drv_debug_msg(VIDEO_DEBUG_GENERAL, "psb_H264: flush parse cmdbuf error\n");
+    if (psb_context_flush_cmdbuf(obj_context)) {
+        drv_debug_msg(VIDEO_DEBUG_ERROR, "psb_H264: flush parse cmdbuf error\n");
+        return VA_STATUS_ERROR_UNKNOWN;
+    }
 
     return vaStatus;
 }
