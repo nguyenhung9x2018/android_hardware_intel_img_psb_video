@@ -112,6 +112,8 @@ VAStatus psb_surface_create_from_ub(
             psb_surface->extra_info[4] = VA_FOURCC_RGBA;
         }
 
+        psb_surface->extra_info[8] = psb_surface->extra_info[4];
+
     } else {
         return VA_STATUS_ERROR_ALLOCATION_FAILED;
     }
@@ -389,6 +391,7 @@ VAStatus psb_CreateSurfacesForUserPtr(
         /* by default, surface fourcc is NV12 */
         memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
         psb_surface->extra_info[4] = fourcc;
+        psb_surface->extra_info[8] = fourcc;
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
 	psb_surface->extra_info[7] = tiling;
 #endif
@@ -526,6 +529,7 @@ VAStatus  psb_CreateSurfaceFromKBuf(
     /* by default, surface fourcc is NV12 */
     memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
     psb_surface->extra_info[4] = kBuf_fourcc;
+    psb_surface->extra_info[8] = kBuf_fourcc;
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
     psb_surface->extra_info[7] = tiling;
 #endif
@@ -618,6 +622,7 @@ VAStatus  psb_CreateSurfaceFromUserspace(
         /* by default, surface fourcc is NV12 */
         memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
         psb_surface->extra_info[4] = fourcc;
+        psb_surface->extra_info[8] = fourcc;
         obj_surface->psb_surface = psb_surface;
 
         /* Error recovery */
@@ -736,6 +741,7 @@ VAStatus  psb_CreateSurfaceFromION(
         /* by default, surface fourcc is NV12 */
         memset(psb_surface->extra_info, 0, sizeof(psb_surface->extra_info));
         psb_surface->extra_info[4] = fourcc;
+        psb_surface->extra_info[8] = fourcc;
         obj_surface->psb_surface = psb_surface;
 
         /* Error recovery */

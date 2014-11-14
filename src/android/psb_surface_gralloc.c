@@ -445,6 +445,8 @@ VAStatus psb_CreateSurfacesFromGralloc(
         buffer_stride = psb_surface->stride;
         /* by default, surface fourcc is NV12 */
         psb_surface->extra_info[4] = fourcc;
+        /* save the pixel format set by application */
+        psb_surface->extra_info[8] = external_buffers->pixel_format;
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
         psb_surface->extra_info[7] = external_buffers->tiling;
 #endif

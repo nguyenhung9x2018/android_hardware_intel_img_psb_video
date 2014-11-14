@@ -404,6 +404,8 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 	struct psb_surface_s *output_surface;
 	psb_surface_share_info_p input_share_info = NULL;
 	psb_surface_share_info_p output_share_info = NULL;
+ 	enum vsp_format format;
+
 
 	psb_driver_data_p driver_data = obj_context->driver_data;
 
@@ -539,6 +541,21 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 	/* get the tiling flag*/
 	tiled = GET_SURFACE_INFO_tiling(input_surface->psb_surface);
 #endif
+
+	/* get the surface format info  */
+	switch (input_surface->psb_surface->extra_info[8]) {
+		case VA_FOURCC_YV12:
+			format = VSP_YV12;
+			break;
+		case VA_FOURCC_NV12:
+			format = VSP_NV12;
+			break;
+		default:
+			vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
+			drv_debug_msg(VIDEO_DEBUG_ERROR, "Only support NV12 and YV12 format!\n");
+			goto out;
+	}
+
 	/*  According to VIED's design, the width must be multiple of 16 */
 	width = ALIGN_TO_16(input_surface->width);
 	if (width > input_surface->psb_surface->stride)
@@ -557,7 +574,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 	cell_proc_picture_param->input_picture[0].width = width;
 	cell_proc_picture_param->input_picture[0].irq = 0;
 	cell_proc_picture_param->input_picture[0].stride = input_surface->psb_surface->stride;
-	cell_proc_picture_param->input_picture[0].format = ctx->format;
+	cell_proc_picture_param->input_picture[0].format = format;
 	cell_proc_picture_param->input_picture[0].tiled = tiled;
 	cell_proc_picture_param->input_picture[0].rot_angle = 0;
 
@@ -665,7 +682,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 		cell_proc_picture_param->output_picture[i].width = width;
 		cell_proc_picture_param->output_picture[i].stride = stride;
 		cell_proc_picture_param->output_picture[i].irq = 1;
-		cell_proc_picture_param->output_picture[i].format = ctx->format;
+		cell_proc_picture_param->output_picture[i].format = format;
 		cell_proc_picture_param->output_picture[i].rot_angle = vsp_rotation_angle;
 		cell_proc_picture_param->output_picture[i].tiled = tiled;
 

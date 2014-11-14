@@ -881,6 +881,7 @@ VAStatus psb_CreateSurfaces2(
         buffer_stride = psb_surface->stride;
         /* by default, surface fourcc is NV12 */
         psb_surface->extra_info[4] = fourcc;
+        psb_surface->extra_info[8] = fourcc;
         obj_surface->psb_surface = psb_surface;
     }
 
