@@ -8,11 +8,11 @@
  * distribute, sub license, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
@@ -118,7 +118,7 @@ struct filter_strength {
 	struct VssProcColorEnhancementParameterBuffer enhancer[RESOLUTION_SET_NUM];
 	struct VssProcSharpenParameterBuffer sharpen[RESOLUTION_SET_NUM];
 };
-	
+
 enum filter_strength_type {
 	INVALID_STRENGTH = -1,
 	LOW_STRENGTH = 0,
@@ -399,9 +399,12 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 	object_surface_p input_surface = NULL;
 	object_surface_p cur_output_surf = NULL;
 	unsigned int rotation_angle = 0, vsp_rotation_angle = 0;
-	int tiled = 0, width = 0, height = 0, stride = 0;
+	unsigned int tiled = 0, width = 0, height = 0, stride = 0;
 	unsigned char *src_addr, *dest_addr;
 	struct psb_surface_s *output_surface;
+	psb_surface_share_info_p input_share_info = NULL;
+	psb_surface_share_info_p output_share_info = NULL;
+
 	psb_driver_data_p driver_data = obj_context->driver_data;
 
 	if (pipeline_param->surface_region != NULL) {
@@ -409,13 +412,13 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 		vaStatus = VA_STATUS_ERROR_UNKNOWN;
 		goto out;
 	}
-		
+
 	if (pipeline_param->output_region != NULL) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Cann't scale\n");
 		vaStatus = VA_STATUS_ERROR_UNKNOWN;
 		goto out;
 	}
-	
+
 	if (pipeline_param->output_background_color != 0) {
 		drv_debug_msg(VIDEO_DEBUG_ERROR, "Cann't support background color here\n");
 		vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
@@ -538,8 +541,12 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 #endif
 	/*  According to VIED's design, the width must be multiple of 16 */
 	width = ALIGN_TO_16(input_surface->width);
-	if (width > (int)input_surface->psb_surface->stride)
-		width = (int)input_surface->psb_surface->stride;
+	if (width > input_surface->psb_surface->stride)
+		width = input_surface->psb_surface->stride;
+
+	/* get the input share info */
+	input_share_info = input_surface->share_info;
+	drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s The input surface %p share info %p\n", __func__, input_surface,input_surface->share_info);
 
 	/* Setup input surface */
 	cell_proc_picture_param->num_input_pictures  = 1;
@@ -633,7 +640,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 
 			/*  According to VIED's design, the width must be multiple of 16 */
 			width = ALIGN_TO_16(cur_output_surf->width);
-			if (width > (int)cur_output_surf->psb_surface->stride)
+			if (width > cur_output_surf->psb_surface->stride)
 				width = cur_output_surf->psb_surface->stride;
 			height = cur_output_surf->height_origin;
 			stride = cur_output_surf->psb_surface->stride;
@@ -661,6 +668,33 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 		cell_proc_picture_param->output_picture[i].format = ctx->format;
 		cell_proc_picture_param->output_picture[i].rot_angle = vsp_rotation_angle;
 		cell_proc_picture_param->output_picture[i].tiled = tiled;
+
+		/* copy the input share info to output */
+		output_share_info = cur_output_surf->share_info;
+		if (input_share_info != NULL && output_share_info != NULL) {
+			memcpy(output_share_info, input_share_info, sizeof(psb_surface_share_info_t));
+			output_share_info->metadata_rotate = 0;
+			output_share_info->surface_rotate = 0;
+			output_share_info->width_r = 0;
+			output_share_info->height_r = 0;
+			output_share_info->out_loop_khandle = 0;
+			output_share_info->out_loop_luma_stride = 0;
+			output_share_info->out_loop_chroma_u_stride = 0;
+			output_share_info->out_loop_chroma_v_stride = 0;
+
+			output_share_info->khandle = 0;
+
+			output_share_info->scaling_khandle = 0;
+			output_share_info->width_s = 0;
+			output_share_info->height_s = 0;
+			output_share_info->scaling_luma_stride = 0;
+			output_share_info->scaling_chroma_u_stride = 0;
+			output_share_info->scaling_chroma_v_stride = 0;
+
+			drv_debug_msg(VIDEO_DEBUG_GENERAL, "The input/output wxh %dx%d\n",input_share_info->width,input_share_info->height);
+		} else {
+			drv_debug_msg(VIDEO_DEBUG_WARNING, "The input/output share_info is NULL!!\n");
+		}
 	}
 
 	vsp_cmdbuf_insert_command(cmdbuf, CONTEXT_VPP_ID, &cmdbuf->param_mem, VssProcPictureCommand,
@@ -807,10 +841,10 @@ vsp_VPP_EndPicture
 };
 
 VAStatus vsp_QueryVideoProcFilters(
-        VADriverContextP    ctx,
-        VAContextID         context,
-        VAProcFilterType   *filters,
-        unsigned int       *num_filters
+	VADriverContextP    ctx,
+	VAContextID         context,
+	VAProcFilterType   *filters,
+	unsigned int       *num_filters
 	)
 {
 	INIT_DRIVER_DATA;
@@ -875,11 +909,11 @@ err:
 }
 
 VAStatus vsp_QueryVideoProcFilterCaps(
-        VADriverContextP    ctx,
-        VAContextID         context,
-        VAProcFilterType    type,
-        void               *filter_caps,
-        unsigned int       *num_filter_caps
+	VADriverContextP    ctx,
+	VAContextID         context,
+	VAProcFilterType    type,
+	void               *filter_caps,
+	unsigned int       *num_filter_caps
 	)
 {
 	INIT_DRIVER_DATA;
@@ -1001,10 +1035,10 @@ err:
 
 VAStatus vsp_QueryVideoProcPipelineCaps(
 	VADriverContextP    ctx,
-        VAContextID         context,
-        VABufferID         *filters,
-        unsigned int        num_filters,
-        VAProcPipelineCaps *pipeline_caps
+	VAContextID         context,
+	VABufferID         *filters,
+	unsigned int        num_filters,
+	VAProcPipelineCaps *pipeline_caps
     )
 {
 	INIT_DRIVER_DATA;
@@ -1294,7 +1328,7 @@ static VAStatus vsp_set_pipeline(context_VPP_p ctx)
 	for (i = 0; i < ctx->num_filters; ++i) {
 		cur_param = (VAProcFilterParameterBufferBase *)ctx->filter_buf[i]->buffer_data;
 		switch (cur_param->type) {
-		case VAProcFilterNone: 
+		case VAProcFilterNone:
 			goto finished;
 			break;
 		case VAProcFilterNoiseReduction:
@@ -1311,7 +1345,7 @@ static VAStatus vsp_set_pipeline(context_VPP_p ctx)
 		case VAProcFilterFrameRateConversion:
 			cell_pipeline_param->filter_pipeline[filter_count++] = VssProcFilterFrameRateConversion;
 			break;
-		default: 
+		default:
 			cell_pipeline_param->filter_pipeline[filter_count++] = -1;
 			vaStatus = VA_STATUS_ERROR_UNKNOWN;
 			goto out;
@@ -1368,7 +1402,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			cell_denoiser_param->type = VssProcDeblock;
 
 			vsp_cmdbuf_insert_command(cmdbuf,
-					          CONTEXT_VPP_ID,
+						  CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcDenoiseParameterCommand,
 						  ctx->denoise_param_offset,
@@ -1382,7 +1416,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			cell_denoiser_param->type = VssProcDegrain;
 
 			vsp_cmdbuf_insert_command(cmdbuf,
-					          CONTEXT_VPP_ID,
+						  CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcDenoiseParameterCommand,
 						  ctx->denoise_param_offset,
@@ -1395,7 +1429,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			       sizeof(ctx->sharpen_param));
 
 			vsp_cmdbuf_insert_command(cmdbuf,
-					          CONTEXT_VPP_ID,
+						  CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcSharpenParameterCommand,
 						  ctx->sharpen_param_offset,
@@ -1408,7 +1442,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			       sizeof(ctx->enhancer_param));
 
 			vsp_cmdbuf_insert_command(cmdbuf,
-					          CONTEXT_VPP_ID,
+						  CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcColorEnhancementParameterCommand,
 						  ctx->enhancer_param_offset,
@@ -1425,7 +1459,7 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			/* set the FRC quality */
 			/* cell_proc_frc_param->quality = VssFrcMediumQuality; */
 			cell_proc_frc_param->quality = VssFrcHighQuality;
-			
+
 			/* check if the input fps is in the range of HW capability */
 			if (ratio == 2)
 				cell_proc_frc_param->conversion_rate = VssFrc2xConversionRate;
@@ -1433,8 +1467,8 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 				cell_proc_frc_param->conversion_rate = VssFrc2_5xConversionRate;
 			else if (ratio == 4)
 				cell_proc_frc_param->conversion_rate = VssFrc4xConversionRate;
-                        else if (ratio == 1.25)
-                                cell_proc_frc_param->conversion_rate = VssFrc1_25xConversionRate;
+			else if (ratio == 1.25)
+				cell_proc_frc_param->conversion_rate = VssFrc1_25xConversionRate;
 			else {
 				drv_debug_msg(VIDEO_DEBUG_ERROR, "invalid frame rate conversion ratio %f \n", ratio);
 				vaStatus = VA_STATUS_ERROR_UNKNOWN;
@@ -1442,13 +1476,13 @@ static VAStatus vsp_set_filter_param(context_VPP_p ctx)
 			}
 
 			vsp_cmdbuf_insert_command(cmdbuf,
-					          CONTEXT_VPP_ID,
+						  CONTEXT_VPP_ID,
 						  &cmdbuf->param_mem,
 						  VssProcFrcParameterCommand,
 						  ctx->frc_param_offset,
 						  sizeof(struct VssProcFrcParameterBuffer));
 			break;
-		default: 
+		default:
 			vaStatus = VA_STATUS_ERROR_UNKNOWN;
 			goto out;
 		}
