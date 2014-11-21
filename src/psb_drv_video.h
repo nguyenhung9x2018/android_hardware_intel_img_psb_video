@@ -503,6 +503,7 @@ struct psb_surface_share_info_s {
 
     unsigned int coded_width;
     unsigned int coded_height;
+    unsigned int initialized;
 };
 
 struct object_surface_s {

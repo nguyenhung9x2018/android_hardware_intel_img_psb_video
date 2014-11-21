@@ -689,25 +689,15 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 		/* copy the input share info to output */
 		output_share_info = cur_output_surf->share_info;
 		if (input_share_info != NULL && output_share_info != NULL) {
-			memcpy(output_share_info, input_share_info, sizeof(psb_surface_share_info_t));
-			output_share_info->metadata_rotate = 0;
-			output_share_info->surface_rotate = 0;
-			output_share_info->width_r = 0;
-			output_share_info->height_r = 0;
-			output_share_info->out_loop_khandle = 0;
-			output_share_info->out_loop_luma_stride = 0;
-			output_share_info->out_loop_chroma_u_stride = 0;
-			output_share_info->out_loop_chroma_v_stride = 0;
+            output_share_info->native_window = input_share_info->native_window;
+            output_share_info->force_output_method = input_share_info->force_output_method;
+            output_share_info->surface_protected = input_share_info->surface_protected;
+            output_share_info->bob_deinterlace = input_share_info->bob_deinterlace;
 
-			output_share_info->khandle = 0;
-
-			output_share_info->scaling_khandle = 0;
-			output_share_info->width_s = 0;
-			output_share_info->height_s = 0;
-			output_share_info->scaling_luma_stride = 0;
-			output_share_info->scaling_chroma_u_stride = 0;
-			output_share_info->scaling_chroma_v_stride = 0;
-
+            output_share_info->crop_width = input_share_info->crop_width;
+            output_share_info->crop_height = input_share_info->crop_height;
+            output_share_info->coded_width = input_share_info->coded_width;
+            output_share_info->coded_height = input_share_info->coded_height;
 			drv_debug_msg(VIDEO_DEBUG_GENERAL, "The input/output wxh %dx%d\n",input_share_info->width,input_share_info->height);
 		} else {
 			drv_debug_msg(VIDEO_DEBUG_WARNING, "The input/output share_info is NULL!!\n");
