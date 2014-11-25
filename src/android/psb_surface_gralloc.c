@@ -383,7 +383,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
                 (format != VA_RT_FORMAT_RGB32)) {
 
                 unsigned int init_share_info = (unsigned int)external_buffers->reserved[2];
-                drv_debug_msg(VIDEO_DEBUG_ERROR, "%s : Create graphic buffer initialized share info %d",__FUNCTION__, init_share_info);
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : Create graphic buffer initialized share info %d",__FUNCTION__, init_share_info);
                 obj_surface->share_info = (psb_surface_share_info_t *)vaddr[GRALLOC_SUB_BUFFER1];
 
                 if (init_share_info) {
