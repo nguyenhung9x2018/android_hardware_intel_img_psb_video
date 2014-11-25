@@ -49,6 +49,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <wsbm/wsbm_manager.h>
+
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &ctx->obj_context->driver_data->buffer_heap, id ))
 
 #define GET_SURFACE_INFO_is_used(psb_surface) ((int) (psb_surface->extra_info[0]))
@@ -936,6 +938,8 @@ static VAStatus psb__H264_process_slice_header_group(context_H264_p ctx, object_
 
     psb__suspend_buffer(driver_data, frame_obj_buffer);
     psb__suspend_buffer(driver_data, slice_header_obj_buffer);
+
+    wsbmBOWaitIdle(ctx->reference_cache.drm_buf, 0);
 
     if (psb_context_flush_cmdbuf(obj_context)) {
         drv_debug_msg(VIDEO_DEBUG_ERROR, "psb_H264: flush parse cmdbuf error\n");
