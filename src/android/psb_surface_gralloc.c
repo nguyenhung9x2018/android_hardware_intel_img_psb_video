@@ -262,6 +262,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
     unsigned long handle;
     int size = num_surfaces * sizeof(unsigned int);
     void *vaddr[GRALLOC_SUB_BUFFER_MAX];
+    unsigned char * surface_data = NULL;
 
 
     /* follow are gralloc-buffers */
@@ -429,6 +430,16 @@ VAStatus psb_CreateSurfacesFromGralloc(
             }
             gralloc_unlock((buffer_handle_t)handle);
             psb_surface->buf.user_ptr = NULL;
+
+            if (psb_buffer_map(&psb_surface->buf, &surface_data)) {
+                drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to map rotation buffer before clear it");
+            }
+            else {
+                size = psb_surface->chroma_offset;
+                memset(surface_data, 0, size);
+                memset(surface_data + size, 0x80, psb_surface->size - size);
+                psb_buffer_unmap(&psb_surface->buf);
+            }
         }
         pthread_mutex_unlock(&gralloc_mutex);
 
