@@ -559,9 +559,17 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
         break;
     case VAEncMiscParameterTypeFrameRate:
         frame_rate_param = (VAEncMiscParameterFrameRate *)pBuffer->data;
-        if (frame_rate_param->framerate < 1 || frame_rate_param->framerate > 65535) {
-            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-            break;
+        if (frame_rate_param->framerate > 120) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%d is invalid."
+                          "framerate could not be larger than 120\n",
+                          frame_rate_param->framerate);
+            frame_rate_param->framerate = 120;
+        }
+        if (frame_rate_param->framerate < 1) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%d is invalid."
+                          "framerate could not be smaller than 1\n",
+                          frame_rate_param->framerate);
+            frame_rate_param->framerate = 1;
         }
 
         if (ctx->temporal_layer_number == 1) {
@@ -587,13 +595,13 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
         break;
     case VAEncMiscParameterTypeRateControl:
         rate_control_param = (VAEncMiscParameterRateControl *)pBuffer->data;
-        if (rate_control_param->initial_qp > 63 ||
+        if (rate_control_param->max_qp > 63 ||
             rate_control_param->min_qp > 63) {
-            drv_debug_msg(VIDEO_DEBUG_ERROR, "Initial_qp(%d) and min_qpinitial_qp(%d) "
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "max_qp(%d) and min_qp(%d) "
                           "are invalid.\nQP shouldn't be larger than 63 for VP8\n",
-                          rate_control_param->initial_qp, rate_control_param->min_qp);
-            vaStatus = VA_STATUS_ERROR_INVALID_PARAMETER;
-            break;
+                          rate_control_param->max_qp, rate_control_param->min_qp);
+            rate_control_param->max_qp = 63;
+            rate_control_param->min_qp = rate_control_param->max_qp;
         }
 
         if (rate_control_param->min_qp != seq->rc_min_quantizer) {
@@ -614,6 +622,13 @@ static VAStatus vsp_vp8_process_misc_param(context_VPP_p ctx, object_buffer_p ob
             drv_debug_msg(VIDEO_DEBUG_ERROR, "rc_undershoot was changed from %d to %d\n",
                           seq->rc_undershoot_pct, rate_control_param->target_percentage);
             seq->rc_undershoot_pct = rate_control_param->target_percentage;
+        }
+
+        if (rate_control_param->bits_per_second / 1000 > 20000) {
+            drv_debug_msg(VIDEO_DEBUG_ERROR, "%d is invalid."
+                          "bitrate could not be larger than 20000\n",
+                          rate_control_param->bits_per_second / 1000);
+            rate_control_param->bits_per_second = 20000000;
         }
 
         if (ctx->temporal_layer_number == 1) {
