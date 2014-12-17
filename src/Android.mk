@@ -26,6 +26,10 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
+# pnw_H264.c, pnw_MPEG4.c, pnw_MPEG2.c, pnw_VC1.c, pnw_H263ES.c, tng_H263ES.c, etc.
+# all use GNU old-style field designator extension.
+LOCAL_CLANG_CFLAGS += -Wno-gnu-designator
+
 LOCAL_CFLAGS := \
     -DLINUX -DANDROID -g -Wall -Wno-unused \
     -DPSBVIDEO_LOG_ENABLE -DPSBVIDEO_VXD392 \
