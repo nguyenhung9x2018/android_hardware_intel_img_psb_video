@@ -43,6 +43,7 @@
 #define CONTEXT(id) ((object_context_p) object_heap_lookup( &driver_data->context_heap, id ))
 #define SURFACE(id)    ((object_surface_p) object_heap_lookup( &driver_data->surface_heap, id ))
 #define BUFFER(id)  ((object_buffer_p) object_heap_lookup( &driver_data->buffer_heap, id ))
+#define SHARE_INFO_INIT_VALUE   0x12345678
 
 static pthread_mutex_t gralloc_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -381,15 +382,14 @@ VAStatus psb_CreateSurfacesFromGralloc(
                 (gfx_colorformat != HAL_PIXEL_FORMAT_YV12) &&
                 (format != VA_RT_FORMAT_RGB32)) {
 
-                unsigned int init_share_info = (unsigned int)external_buffers->reserved[2];
-                drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : Create graphic buffer initialized share info %d",__FUNCTION__, init_share_info);
+                unsigned int decoder_share_info = (unsigned int)external_buffers->reserved[2];
+                drv_debug_msg(VIDEO_DEBUG_GENERAL, "%s : Create graphic buffer initialized share info %d",__FUNCTION__, decoder_share_info);
                 obj_surface->share_info = (psb_surface_share_info_t *)vaddr[GRALLOC_SUB_BUFFER1];
 
-                if (init_share_info) {
+                if (obj_surface->share_info->initialized != SHARE_INFO_INIT_VALUE) {
                     memset(obj_surface->share_info, 0, sizeof(struct psb_surface_share_info_s));
                     // Set clear video the default output method as OUTPUT_FORCE_OVERLAY_FOR_SW_DECODE
                     // if the video can be decoded by HW, will reset the output method as 0 in psb_BeginPicture
-                    obj_surface->share_info->force_output_method = protected ? OUTPUT_FORCE_OVERLAY : OUTPUT_FORCE_OVERLAY_FOR_SW_DECODE;
 #ifdef PSBVIDEO_MSVDX_DEC_TILING
                     obj_surface->share_info->tiling = external_buffers->tiling;
 #endif
@@ -403,8 +403,11 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
                     obj_surface->share_info->khandle = (uint32_t)(wsbmKBufHandle(wsbmKBuf(psb_surface->buf.drm_buf)));
 
-                    obj_surface->share_info->renderStatus = 0;
-                    obj_surface->share_info->used_by_widi = 0;
+                    obj_surface->share_info->initialized = SHARE_INFO_INIT_VALUE;
+                }
+
+                if (decoder_share_info) {
+                    obj_surface->share_info->force_output_method = protected ? OUTPUT_FORCE_OVERLAY : OUTPUT_FORCE_OVERLAY_FOR_SW_DECODE;
                     obj_surface->share_info->native_window = (void *)external_buffers->reserved[0];
 
                     attribute_tpi->reserved[1] = (unsigned long)obj_surface->share_info;
