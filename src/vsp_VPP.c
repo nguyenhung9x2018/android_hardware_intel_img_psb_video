@@ -33,6 +33,8 @@
 #include "psb_drv_debug.h"
 #include "vsp_compose.h"
 
+#include <string.h>
+
 #define INIT_DRIVER_DATA    psb_driver_data_p driver_data = (psb_driver_data_p) ctx->pDriverData;
 #define INIT_CONTEXT_VPP    context_VPP_p ctx = (context_VPP_p) obj_context->format_data;
 #define CONFIG(id)  ((object_config_p) object_heap_lookup( &driver_data->config_heap, id ))
