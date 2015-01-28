@@ -370,7 +370,7 @@ VAStatus psb_CreateSurfacesFromGralloc(
         } else {
             int cache_flag = PSB_USER_BUFFER_UNCACHED;
 #ifdef PSBVIDEO_MRFL
-            cache_flag = 0;
+            //cache_flag = 0;
 #endif
             vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
                     (VASurfaceAttributeTPI *)external_buffers, psb_surface,
