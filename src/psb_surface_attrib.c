@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <malloc.h>
 #ifdef ANDROID
 #include <linux/ion.h>
 #endif
