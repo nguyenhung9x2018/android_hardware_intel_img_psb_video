@@ -172,8 +172,7 @@ psb_HDMIExt_info_p psb_HDMIExt_init(VADriverContextP ctx, psb_android_output_p o
         if (connector->connector_type == DRM_MODE_CONNECTOR_DVID)
             psb_HDMIExt_info->hdmi_connector_id = connector->connector_id;
 
-        if ((connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
-	     connector->connector_type == DRM_MODE_CONNECTOR_TMP_DSI) &&
+        if ((connector->connector_type == DRM_MODE_CONNECTOR_DSI) &&
             (!mipi_connector_id)) {
             mipi_connector_id = connector->connector_id;
             mipi_encoder_id = connector->encoder_id;
