@@ -263,8 +263,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
     unsigned long handle;
     int size = num_surfaces * sizeof(unsigned int);
     void *vaddr[GRALLOC_SUB_BUFFER_MAX];
-    unsigned char * surface_data = NULL;
-
 
     /* follow are gralloc-buffers */
     format = format & (~VA_RT_FORMAT_PROTECTED);
@@ -412,6 +410,15 @@ VAStatus psb_CreateSurfacesFromGralloc(
 
                     attribute_tpi->reserved[1] = (unsigned long)obj_surface->share_info;
 
+                    if (vaddr[GRALLOC_SUB_BUFFER0] == NULL) {
+                        drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to lock graphic buffer in psb_video");
+                    }
+                    else {
+                        size = psb_surface->chroma_offset;
+                        memset((char *)vaddr[GRALLOC_SUB_BUFFER0], 0, size);
+                        memset((char *)vaddr[GRALLOC_SUB_BUFFER0] + size, 0x80, psb_surface->size - size);
+                    }
+
                     obj_surface->share_info->surface_protected = driver_data->protected;
                     if (driver_data->render_rect.width == 0 || driver_data->render_rect.height == 0) {
                         obj_surface->share_info->crop_width = obj_surface->share_info->width;
@@ -433,16 +440,6 @@ VAStatus psb_CreateSurfacesFromGralloc(
             }
             gralloc_unlock((buffer_handle_t)handle);
             psb_surface->buf.user_ptr = NULL;
-
-            if (psb_buffer_map(&psb_surface->buf, &surface_data)) {
-                drv_debug_msg(VIDEO_DEBUG_ERROR, "Failed to map rotation buffer before clear it");
-            }
-            else {
-                size = psb_surface->chroma_offset;
-                memset(surface_data, 0, size);
-                memset(surface_data + size, 0x80, psb_surface->size - size);
-                psb_buffer_unmap(&psb_surface->buf);
-            }
         }
         pthread_mutex_unlock(&gralloc_mutex);
 
