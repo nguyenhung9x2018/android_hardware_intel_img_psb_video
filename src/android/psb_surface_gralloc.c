@@ -418,6 +418,20 @@ VAStatus psb_CreateSurfacesFromGralloc(
                         memset((char *)vaddr[GRALLOC_SUB_BUFFER0], 0, size);
                         memset((char *)vaddr[GRALLOC_SUB_BUFFER0] + size, 0x80, psb_surface->size - size);
                     }
+                    // overlay only support BT.601 and BT.709
+                    if (driver_data->load_csc_matrix == 1) {
+                        obj_surface->share_info->csc_mode = (driver_data->is_BT601 == 1) ? 0 : 1;
+                    } else {
+                        // if csc matrix is not set, use BT601 by default
+                        obj_surface->share_info->csc_mode = 0;
+                    }
+
+                    if (driver_data->set_video_range == 1) {
+                        obj_surface->share_info->video_range = driver_data->video_range;
+                    } else {
+                        // if video range is not set, use limited range by default
+                        obj_surface->share_info->video_range = 0;
+                    }
 
                     obj_surface->share_info->surface_protected = driver_data->protected;
                     if (driver_data->render_rect.width == 0 || driver_data->render_rect.height == 0) {
