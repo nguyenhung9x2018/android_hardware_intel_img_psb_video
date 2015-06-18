@@ -608,9 +608,11 @@ VAStatus  psb_CreateSurfaceFromUserspace(
         if (attribute_tpi->type == VAExternalMemoryNoneCacheUserPointer)
             vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
                     attribute_tpi, psb_surface, vaddr, -1, PSB_USER_BUFFER_UNCACHED);
-        else
+        else {
             vaStatus = psb_surface_create_from_ub(driver_data, width, height, fourcc,
                     attribute_tpi, psb_surface, vaddr, -1,  0);
+            psb_surface->buf.unfence_flag = 2;
+        }
         obj_surface->psb_surface = psb_surface;
 
         if (VA_STATUS_SUCCESS != vaStatus) {
