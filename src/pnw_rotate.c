@@ -426,7 +426,7 @@ void psb_CheckInterlaceRotate(object_context_p obj_context, unsigned char *pic_p
         if (obj_context->interlaced_stream) {
             SET_SURFACE_INFO_rotate(obj_surface->psb_surface, 0);
             obj_context->msvdx_rotate = 0;
-            share_info->bob_deinterlace = 0; //enable interlace flag
+            share_info->bob_deinterlace = 1; //enable interlace flag
         } else {
            share_info->bob_deinterlace = 0;
        }
