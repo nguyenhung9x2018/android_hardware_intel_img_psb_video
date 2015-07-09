@@ -357,13 +357,13 @@ VAStatus psb_CreateSurfacesFromGralloc(
         if (gfx_colorformat == HAL_PIXEL_FORMAT_NV12)
             usage |= GRALLOC_USAGE_SW_READ_OFTEN;
         else {
-#ifdef PSBVIDEO_MRFL
-            usage |= GRALLOC_USAGE_SW_WRITE_OFTEN;
-#endif
+            // video decoder allows app to read/write the buffer
+            usage |= GRALLOC_USAGE_SW_WRITE_RARELY | GRALLOC_USAGE_SW_READ_RARELY;
         }
 
         handle = (unsigned long)external_buffers->buffers[i];
         pthread_mutex_lock(&gralloc_mutex);
+
         if (gralloc_lock((buffer_handle_t)handle, usage, 0, 0, width, height, (void **)&vaddr[GRALLOC_SUB_BUFFER0])) {
             vaStatus = VA_STATUS_ERROR_UNKNOWN;
         } else {
@@ -417,8 +417,10 @@ VAStatus psb_CreateSurfacesFromGralloc(
                     }
                     else {
                         size = psb_surface->chroma_offset;
-                        memset((char *)vaddr[GRALLOC_SUB_BUFFER0], 0, size);
-                        memset((char *)vaddr[GRALLOC_SUB_BUFFER0] + size, 0x80, psb_surface->size - size);
+                        // the following memset was used to work-around Bug 19197299 on L.
+                        // on DDK-1.5 we didn't observe the problem so comment it out.
+                        // memset((char *)vaddr[GRALLOC_SUB_BUFFER0], 0, size);
+                        // memset((char *)vaddr[GRALLOC_SUB_BUFFER0] + size, 0x80, psb_surface->size - size);
                     }
                     // overlay only support BT.601 and BT.709
                     if (driver_data->load_csc_matrix == 1) {
