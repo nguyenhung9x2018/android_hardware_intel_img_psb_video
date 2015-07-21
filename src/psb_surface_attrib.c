@@ -76,12 +76,6 @@ VAStatus psb_surface_create_from_ub(
             psb_surface->stride_mode = STRIDE_1024;
         } else if (1280 == graphic_buffers->luma_stride) {
             psb_surface->stride_mode = STRIDE_1280;
-#ifdef PSBVIDEO_MSVDX_DEC_TILING
-            if (graphic_buffers->tiling) {
-                psb_surface->stride_mode = STRIDE_2048;
-                psb_surface->stride = 2048;
-            }
-#endif
         } else if (2048 == graphic_buffers->luma_stride) {
             psb_surface->stride_mode = STRIDE_2048;
         } else if (4096 == graphic_buffers->luma_stride) {
