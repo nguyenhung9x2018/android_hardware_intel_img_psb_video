@@ -572,7 +572,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 	cell_proc_picture_param->input_picture[0].surface_id = pipeline_param->surface;
 	vsp_cmdbuf_reloc_pic_param(&(cell_proc_picture_param->input_picture[0].base), ctx->pic_param_offset, &(input_surface->psb_surface->buf),
 				   cmdbuf->param_mem_loc, cell_proc_picture_param);
-	cell_proc_picture_param->input_picture[0].height = input_surface->height_origin;
+	cell_proc_picture_param->input_picture[0].height = input_surface->height;
 	cell_proc_picture_param->input_picture[0].width = width;
 	cell_proc_picture_param->input_picture[0].irq = 0;
 	cell_proc_picture_param->input_picture[0].stride = input_surface->psb_surface->stride;
@@ -661,7 +661,7 @@ static VAStatus vsp__VPP_process_pipeline_param(context_VPP_p ctx, object_contex
 			width = ALIGN_TO_16(cur_output_surf->width);
 			if (width > cur_output_surf->psb_surface->stride)
 				width = cur_output_surf->psb_surface->stride;
-			height = cur_output_surf->height_origin;
+			height = cur_output_surf->height;
 			stride = cur_output_surf->psb_surface->stride;
 
 			/* Check the rotate bit */
