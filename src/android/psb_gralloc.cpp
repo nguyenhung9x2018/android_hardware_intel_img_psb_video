@@ -129,6 +129,54 @@ int gralloc_unlock(buffer_handle_t handle)
     return err;
 }
 
+int gralloc_register(buffer_handle_t handle)
+{
+    int err = 0;
+
+    if (!mAllocMod) {
+        ALOGW("%s: gralloc module has not been initialized.", __func__);
+        if (gralloc_init()) {
+            ALOGE("%s: can't find the %s module", __func__,
+                    GRALLOC_HARDWARE_MODULE_ID);
+            return -1;
+        }
+    }
+
+    err = mAllocMod->registerBuffer(mAllocMod, handle);
+    if (err) {
+        ALOGE("%s failed with %d (%s).\n", __func__, err, strerror(-err));
+        return -1;
+    } else {
+        ALOGV("registered buffer %p successfully\n", handle);
+    }
+
+    return err;
+}
+
+int gralloc_unregister(buffer_handle_t handle)
+{
+    int err = 0;
+
+    if (!mAllocMod) {
+        ALOGW("%s: gralloc module has not been initialized.", __func__);
+        if (gralloc_init()) {
+            ALOGE("%s: can't find the %s module", __func__,
+                    GRALLOC_HARDWARE_MODULE_ID);
+            return -1;
+        }
+    }
+
+    err = mAllocMod->unregisterBuffer(mAllocMod, handle);
+    if (err) {
+        ALOGE("%s failed with %d (%s).\n", __func__, err, strerror(-err));
+        return -1;
+    } else {
+        ALOGV("unregistered buffer %p successfully\n", handle);
+    }
+
+    return err;
+}
+
 int gralloc_init(void)
 {
     int err = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
