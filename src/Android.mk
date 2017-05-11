@@ -54,7 +54,10 @@ LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/hwdefs
 
 LOCAL_SHARED_LIBRARIES += libdl libdrm libwsbm libcutils \
-    libutils libbinder libhardware liblog libsync
+    libutils libbinder libhardware liblog libsync libnativewindow
+
+LOCAL_HEADER_LIBRARIES := \
+    libsystem_headers
 
 LOCAL_SRC_FILES := \
     object_heap.c \
