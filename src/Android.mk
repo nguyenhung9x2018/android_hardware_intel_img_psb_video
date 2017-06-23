@@ -22,6 +22,8 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
+ifeq ($(ENABLE_IMG_GRAPHICS),true)
+
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -175,3 +177,5 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := pvr_drv_video
 
 include $(BUILD_SHARED_LIBRARY)
+
+endif # ($(ENABLE_IMG_GRAPHICS),true)
