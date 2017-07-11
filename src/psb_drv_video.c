@@ -1496,9 +1496,15 @@ VAStatus psb_CreateContext(
 
     if (obj_config->profile == VAProfileVC1Simple ||
         obj_config->profile == VAProfileVC1Main ||
-        obj_config->profile == VAProfileVC1Advanced) {
+        obj_config->profile == VAProfileVC1Advanced ||
+        obj_config->profile == VAProfileH264Baseline ||
+        obj_config->profile == VAProfileH264Main ||
+        obj_config->profile == VAProfileH264High ||
+        obj_config->profile == VAProfileVP8Version0_3) {
         uint64_t width_in_mb = ((driver_data->render_rect.x + driver_data->render_rect.width + 15) / 16);
+        uint64_t height_in_mb = ((driver_data->render_rect.y + driver_data->render_rect.height + 15) / 16);
         obj_context->ctp_type |= (width_in_mb << 32);
+        obj_context->ctp_type |= (height_in_mb << 48);
     }
 
     /* add ctx_num to save vp8 enc context num to support dual vp8 encoding */
@@ -2198,6 +2204,12 @@ VAStatus psb_BeginPicture(
             psb_update_context(driver_data, obj_context->ctp_type | driver_data->protected);
 #endif
         }
+    }
+
+    if ((driver_data->protected & VA_RT_FORMAT_PROTECTED) &&
+		    !(obj_context->ctp_type & VA_RT_FORMAT_PROTECTED)) {
+	    obj_context->ctp_type |= VA_RT_FORMAT_PROTECTED;
+	    psb_update_context(driver_data, obj_context->ctp_type);
     }
 
     /* if the surface is decode render target, and in displaying */
