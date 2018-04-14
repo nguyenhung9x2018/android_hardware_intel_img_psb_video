@@ -44,6 +44,9 @@ LOCAL_CFLAGS := \
 
 LOCAL_C_INCLUDES := \
     $(call include-path-for, libhardware)/hardware \
+    frameworks/native/libs/nativewindow/include \
+    frameworks/native/libs/nativebase/include \
+    frameworks/native/libs/arect/include \
     $(TARGET_OUT_HEADERS)/libva \
     $(TARGET_OUT_HEADERS)/libttm \
     $(TARGET_OUT_HEADERS)/libwsbm \
